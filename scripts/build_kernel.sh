@@ -100,13 +100,11 @@ elif [ "$2" == "root" ]; then
 	cd $GITDIR/kernel/linux-2.6.35.3
 	make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
 	if [ "$?" == 0 ]; then
-		make ARCH=arm CROSS_COMPILE=$TARGET- mrproper
 		echo "---- ROOT kernel compiled. ----"
 		cp "arch/arm/boot/uImage" "$GITDIR/kernel/out/$1/uImage-root"
 		echo "---- Output was saved in $GITDIR/kernel/out/$1/uImage-root ----"
 		exit 0
 	else
-		make ARCH=arm CROSS_COMPILE=$TARGET- mrproper
 		echo "---- There was an error during the build process, aborting... ----"
 		exit 1
 	fi
