@@ -9,11 +9,11 @@ echo 3 > /sys/class/graphics/fb0/rotate
 
 # Upgrading kernel if needed
 mount /dev/mmcblk0p1 /mnt
-KERNEL_FLASH=`cat /mnt/flags/KERNEL_FLASH`
-WILL_UPDATE=`cat /mnt/flags/WILL_UPDATE`
-DIAGS_BOOT=`cat /mnt/flags/DIAGS_BOOT`
-FIRST_BOOT=`cat /mnt/flags/FIRST_BOOT`
-STARTX=`cat /mnt/flags/X11_START`
+KERNEL_FLASH=`cat /mnt/flags/KERNEL_FLASH` 2>/dev/null
+WILL_UPDATE=`cat /mnt/flags/WILL_UPDATE` 2>/dev/null
+DIAGS_BOOT=`cat /mnt/flags/DIAGS_BOOT` 2>/dev/null
+FIRST_BOOT=`cat /mnt/flags/FIRST_BOOT` 2>/dev/null
+STARTX=`cat /mnt/flags/X11_START` 2>/dev/null
 
 if [ "$KERNEL_FLASH" == "true" ]; then
 	cp /mnt/boot/uImage /
