@@ -1618,16 +1618,13 @@ int ntx_get_battery_vol (void)
 	}
 //	printk ("[%s-%d] battery %d (%d)\n", __func__, __LINE__, battValue,result);
 	if (4100000 <= result) {
-		printk("%s : full !! %d\n",__FUNCTION__,result);
 		return 100;
 	}
 	if (3400000 > result) {
-		printk("%s : empty !! %d\n",__FUNCTION__,result);
 		return 0;
 	}
 	result = 4100000 - result;
 	result /= 7000;
-	printk ("[%s-%d] %d,bat=%d\n", __func__, __LINE__, (100-result),battValue);
 	return 100-result;
 }
 
