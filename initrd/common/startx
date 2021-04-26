@@ -23,6 +23,7 @@ busybox chroot /mnt "/bin/squashfuse" "/opt/X11/base/vnc-touch.isa" "/opt/X11/vn
 mount /mnt/opt/storage/extensions.img /mnt/opt/X11/extensions
 # Mounting extensions
 rm /mnt/opt/X11/extensions_list
+rm /mnt/opt/X11/extensions_folders_list
 for f in /mnt/opt/X11/extensions/*.isa ; do
 	FILE=`echo "$f" | cut -d'/' -f3-`
 	FILE="/$FILE"
