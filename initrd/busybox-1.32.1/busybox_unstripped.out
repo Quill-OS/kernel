@@ -1,0 +1,1657 @@
+Output of:
+arm-linux-gnueabihf-gcc -Wall -Wshadow -Wwrite-strings -Wundef -Wstrict-prototypes -Wunused -Wunused-parameter -Wunused-function -Wunused-value -Wmissing-prototypes -Wmissing-declarations -Wno-format-security -Wdeclaration-after-statement -Wold-style-definition -finline-limit=0 -fno-builtin-strlen -fomit-frame-pointer -ffunction-sections -fdata-sections -fno-guess-branch-probability -funsigned-char -static-libgcc -falign-functions=1 -falign-jumps=1 -falign-labels=1 -falign-loops=1 -fno-unwind-tables -fno-asynchronous-unwind-tables -fno-builtin-printf -Os -static -o busybox_unstripped -Wl,--sort-common -Wl,--sort-section,alignment -Wl,--start-group applets/built-in.o archival/lib.a archival/libarchive/lib.a console-tools/lib.a coreutils/lib.a coreutils/libcoreutils/lib.a debianutils/lib.a klibc-utils/lib.a e2fsprogs/lib.a editors/lib.a findutils/lib.a init/lib.a libbb/lib.a libpwdgrp/lib.a loginutils/lib.a mailutils/lib.a miscutils/lib.a modutils/lib.a networking/lib.a networking/libiproute/lib.a networking/udhcp/lib.a printutils/lib.a procps/lib.a runit/lib.a selinux/lib.a shell/lib.a sysklogd/lib.a util-linux/lib.a util-linux/volume_id/lib.a archival/built-in.o archival/libarchive/built-in.o console-tools/built-in.o coreutils/built-in.o coreutils/libcoreutils/built-in.o debianutils/built-in.o klibc-utils/built-in.o e2fsprogs/built-in.o editors/built-in.o findutils/built-in.o init/built-in.o libbb/built-in.o libpwdgrp/built-in.o loginutils/built-in.o mailutils/built-in.o miscutils/built-in.o modutils/built-in.o networking/built-in.o networking/libiproute/built-in.o networking/udhcp/built-in.o printutils/built-in.o procps/built-in.o runit/built-in.o selinux/built-in.o shell/built-in.o sysklogd/built-in.o util-linux/built-in.o util-linux/volume_id/built-in.o -Wl,--end-group -Wl,--start-group -lm -lresolv -lrt -Wl,--end-group -Wl,--warn-common -Wl,-Map,busybox_unstripped.map -Wl,--verbose
+==========
+GNU ld (crosstool-NG linaro-1.13.1-4.8-2013.04-20130417 - Linaro GCC 2013.04) 2.23.1
+  Supported emulations:
+   armelf_linux_eabi
+   armelfb_linux_eabi
+using internal linker script:
+==================================================
+/* Script for -z combreloc: combine and sort reloc sections */
+OUTPUT_FORMAT("elf32-littlearm", "elf32-bigarm",
+	      "elf32-littlearm")
+OUTPUT_ARCH(arm)
+ENTRY(_start)
+SEARCH_DIR("=/usr/local/lib/arm-linux-gnueabihf"); SEARCH_DIR("=/usr/local/lib"); SEARCH_DIR("=/lib/arm-linux-gnueabihf"); SEARCH_DIR("=/lib"); SEARCH_DIR("=/usr/lib/arm-linux-gnueabihf"); SEARCH_DIR("=/usr/lib");
+SECTIONS
+{
+  /* Read-only sections, merged into text segment: */
+  PROVIDE (__executable_start = SEGMENT_START("text-segment", 0x00008000)); . = SEGMENT_START("text-segment", 0x00008000) + SIZEOF_HEADERS;
+  .interp         : { *(.interp) }
+  .note.gnu.build-id : { *(.note.gnu.build-id) }
+  .hash           : { *(.hash) }
+  .gnu.hash       : { *(.gnu.hash) }
+  .dynsym         : { *(.dynsym) }
+  .dynstr         : { *(.dynstr) }
+  .gnu.version    : { *(.gnu.version) }
+  .gnu.version_d  : { *(.gnu.version_d) }
+  .gnu.version_r  : { *(.gnu.version_r) }
+  .rel.dyn        :
+    {
+      *(.rel.init)
+      *(.rel.text .rel.text.* .rel.gnu.linkonce.t.*)
+      *(.rel.fini)
+      *(.rel.rodata .rel.rodata.* .rel.gnu.linkonce.r.*)
+      *(.rel.data.rel.ro .rel.data.rel.ro.* .rel.gnu.linkonce.d.rel.ro.*)
+      *(.rel.data .rel.data.* .rel.gnu.linkonce.d.*)
+      *(.rel.tdata .rel.tdata.* .rel.gnu.linkonce.td.*)
+      *(.rel.tbss .rel.tbss.* .rel.gnu.linkonce.tb.*)
+      *(.rel.ctors)
+      *(.rel.dtors)
+      *(.rel.got)
+      *(.rel.bss .rel.bss.* .rel.gnu.linkonce.b.*)
+      PROVIDE_HIDDEN (__rel_iplt_start = .);
+      *(.rel.iplt)
+      PROVIDE_HIDDEN (__rel_iplt_end = .);
+      PROVIDE_HIDDEN (__rela_iplt_start = .);
+      PROVIDE_HIDDEN (__rela_iplt_end = .);
+    }
+  .rela.dyn       :
+    {
+      *(.rela.init)
+      *(.rela.text .rela.text.* .rela.gnu.linkonce.t.*)
+      *(.rela.fini)
+      *(.rela.rodata .rela.rodata.* .rela.gnu.linkonce.r.*)
+      *(.rela.data .rela.data.* .rela.gnu.linkonce.d.*)
+      *(.rela.tdata .rela.tdata.* .rela.gnu.linkonce.td.*)
+      *(.rela.tbss .rela.tbss.* .rela.gnu.linkonce.tb.*)
+      *(.rela.ctors)
+      *(.rela.dtors)
+      *(.rela.got)
+      *(.rela.bss .rela.bss.* .rela.gnu.linkonce.b.*)
+      PROVIDE_HIDDEN (__rel_iplt_start = .);
+      PROVIDE_HIDDEN (__rel_iplt_end = .);
+      PROVIDE_HIDDEN (__rela_iplt_start = .);
+      *(.rela.iplt)
+      PROVIDE_HIDDEN (__rela_iplt_end = .);
+    }
+  .rel.plt        :
+    {
+      *(.rel.plt)
+    }
+  .rela.plt       :
+    {
+      *(.rela.plt)
+    }
+  .init           :
+  {
+    KEEP (*(SORT_NONE(.init)))
+  }
+  .plt            : { *(.plt) }
+  .iplt           : { *(.iplt) }
+  .text           :
+  {
+    *(.text.unlikely .text.*_unlikely)
+    *(.text.exit .text.exit.*)
+    *(.text.startup .text.startup.*)
+    *(.text.hot .text.hot.*)
+    *(.text .stub .text.* .gnu.linkonce.t.*)
+    /* .gnu.warning sections are handled specially by elf32.em.  */
+    *(.gnu.warning)
+    *(.glue_7t) *(.glue_7) *(.vfp11_veneer) *(.v4_bx)
+  }
+  .fini           :
+  {
+    KEEP (*(SORT_NONE(.fini)))
+  }
+  PROVIDE (__etext = .);
+  PROVIDE (_etext = .);
+  PROVIDE (etext = .);
+  .rodata         : { *(.rodata .rodata.* .gnu.linkonce.r.*) }
+  .rodata1        : { *(.rodata1) }
+  .ARM.extab   : { *(.ARM.extab* .gnu.linkonce.armextab.*) }
+   PROVIDE_HIDDEN (__exidx_start = .);
+  .ARM.exidx   : { *(.ARM.exidx* .gnu.linkonce.armexidx.*) }
+   PROVIDE_HIDDEN (__exidx_end = .);
+  .eh_frame_hdr : { *(.eh_frame_hdr) }
+  .eh_frame       : ONLY_IF_RO { KEEP (*(.eh_frame)) }
+  .gcc_except_table   : ONLY_IF_RO { *(.gcc_except_table
+  .gcc_except_table.*) }
+  /* These sections are generated by the Sun/Oracle C++ compiler.  */
+  .exception_ranges   : ONLY_IF_RO { *(.exception_ranges
+  .exception_ranges*) }
+  /* Adjust the address for the data segment.  We want to adjust up to
+     the same address within the page on the next page up.  */
+  . = ALIGN (CONSTANT (MAXPAGESIZE)) - ((CONSTANT (MAXPAGESIZE) - .) & (CONSTANT (MAXPAGESIZE) - 1)); . = DATA_SEGMENT_ALIGN (CONSTANT (MAXPAGESIZE), CONSTANT (COMMONPAGESIZE));
+  /* Exception handling  */
+  .eh_frame       : ONLY_IF_RW { KEEP (*(.eh_frame)) }
+  .gcc_except_table   : ONLY_IF_RW { *(.gcc_except_table .gcc_except_table.*) }
+  .exception_ranges   : ONLY_IF_RW { *(.exception_ranges .exception_ranges*) }
+  /* Thread Local Storage sections  */
+  .tdata	  : { *(.tdata .tdata.* .gnu.linkonce.td.*) }
+  .tbss		  : { *(.tbss .tbss.* .gnu.linkonce.tb.*) *(.tcommon) }
+  .preinit_array     :
+  {
+    PROVIDE_HIDDEN (__preinit_array_start = .);
+    KEEP (*(.preinit_array))
+    PROVIDE_HIDDEN (__preinit_array_end = .);
+  }
+  .init_array     :
+  {
+    PROVIDE_HIDDEN (__init_array_start = .);
+    KEEP (*(SORT(.init_array.*)))
+    KEEP (*(.init_array))
+    PROVIDE_HIDDEN (__init_array_end = .);
+  }
+  .fini_array     :
+  {
+    PROVIDE_HIDDEN (__fini_array_start = .);
+    KEEP (*(SORT(.fini_array.*)))
+    KEEP (*(.fini_array))
+    PROVIDE_HIDDEN (__fini_array_end = .);
+  }
+  .ctors          :
+  {
+    /* gcc uses crtbegin.o to find the start of
+       the constructors, so we make sure it is
+       first.  Because this is a wildcard, it
+       doesn't matter if the user does not
+       actually link against crtbegin.o; the
+       linker won't look for a file to match a
+       wildcard.  The wildcard also means that it
+       doesn't matter which directory crtbegin.o
+       is in.  */
+    KEEP (*crtbegin.o(.ctors))
+    KEEP (*crtbegin?.o(.ctors))
+    /* We don't want to include the .ctor section from
+       the crtend.o file until after the sorted ctors.
+       The .ctor section from the crtend file contains the
+       end of ctors marker and it must be last */
+    KEEP (*(EXCLUDE_FILE (*crtend.o *crtend?.o ) .ctors))
+    KEEP (*(SORT(.ctors.*)))
+    KEEP (*(.ctors))
+  }
+  .dtors          :
+  {
+    KEEP (*crtbegin.o(.dtors))
+    KEEP (*crtbegin?.o(.dtors))
+    KEEP (*(EXCLUDE_FILE (*crtend.o *crtend?.o ) .dtors))
+    KEEP (*(SORT(.dtors.*)))
+    KEEP (*(.dtors))
+  }
+  .jcr            : { KEEP (*(.jcr)) }
+  .data.rel.ro : { *(.data.rel.ro.local* .gnu.linkonce.d.rel.ro.local.*) *(.data.rel.ro .data.rel.ro.* .gnu.linkonce.d.rel.ro.*) }
+  .dynamic        : { *(.dynamic) }
+  . = DATA_SEGMENT_RELRO_END (0, .);
+  .got            : { *(.got.plt) *(.igot.plt) *(.got) *(.igot) }
+  .data           :
+  {
+    PROVIDE (__data_start = .);
+    *(.data .data.* .gnu.linkonce.d.*)
+    SORT(CONSTRUCTORS)
+  }
+  .data1          : { *(.data1) }
+  _edata = .; PROVIDE (edata = .);
+  . = .;
+  __bss_start = .;
+  __bss_start__ = .;
+  .bss            :
+  {
+   *(.dynbss)
+   *(.bss .bss.* .gnu.linkonce.b.*)
+   *(COMMON)
+   /* Align here to ensure that the .bss section occupies space up to
+      _end.  Align after .bss to ensure correct alignment even if the
+      .bss section disappears because there are no input sections.
+      FIXME: Why do we need it? When there is no .bss section, we don't
+      pad the .data section.  */
+   . = ALIGN(. != 0 ? 32 / 8 : 1);
+  }
+  _bss_end__ = . ; __bss_end__ = . ;
+  . = ALIGN(32 / 8);
+  . = ALIGN(32 / 8);
+  __end__ = . ;
+  _end = .; PROVIDE (end = .);
+  . = DATA_SEGMENT_END (.);
+  /* Stabs debugging sections.  */
+  .stab          0 : { *(.stab) }
+  .stabstr       0 : { *(.stabstr) }
+  .stab.excl     0 : { *(.stab.excl) }
+  .stab.exclstr  0 : { *(.stab.exclstr) }
+  .stab.index    0 : { *(.stab.index) }
+  .stab.indexstr 0 : { *(.stab.indexstr) }
+  .comment       0 : { *(.comment) }
+  /* DWARF debug sections.
+     Symbols in the DWARF debugging sections are relative to the beginning
+     of the section so we begin them at 0.  */
+  /* DWARF 1 */
+  .debug          0 : { *(.debug) }
+  .line           0 : { *(.line) }
+  /* GNU DWARF 1 extensions */
+  .debug_srcinfo  0 : { *(.debug_srcinfo) }
+  .debug_sfnames  0 : { *(.debug_sfnames) }
+  /* DWARF 1.1 and DWARF 2 */
+  .debug_aranges  0 : { *(.debug_aranges) }
+  .debug_pubnames 0 : { *(.debug_pubnames) }
+  /* DWARF 2 */
+  .debug_info     0 : { *(.debug_info .gnu.linkonce.wi.*) }
+  .debug_abbrev   0 : { *(.debug_abbrev) }
+  .debug_line     0 : { *(.debug_line) }
+  .debug_frame    0 : { *(.debug_frame) }
+  .debug_str      0 : { *(.debug_str) }
+  .debug_loc      0 : { *(.debug_loc) }
+  .debug_macinfo  0 : { *(.debug_macinfo) }
+  /* SGI/MIPS DWARF 2 extensions */
+  .debug_weaknames 0 : { *(.debug_weaknames) }
+  .debug_funcnames 0 : { *(.debug_funcnames) }
+  .debug_typenames 0 : { *(.debug_typenames) }
+  .debug_varnames  0 : { *(.debug_varnames) }
+  /* DWARF 3 */
+  .debug_pubtypes 0 : { *(.debug_pubtypes) }
+  .debug_ranges   0 : { *(.debug_ranges) }
+  /* DWARF Extension.  */
+  .debug_macro    0 : { *(.debug_macro) }
+  .gnu.attributes 0 : { KEEP (*(.gnu.attributes)) }
+  .note.gnu.arm.ident 0 : { KEEP (*(.note.gnu.arm.ident)) }
+  /DISCARD/ : { *(.note.GNU-stack) *(.gnu_debuglink) *(.gnu.lto_*) }
+}
+
+
+==================================================
+attempt to open /home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/crt1.o succeeded
+/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/crt1.o
+attempt to open /home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/crti.o succeeded
+/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/crti.o
+attempt to open /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/crtbeginT.o succeeded
+/home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/crtbeginT.o
+attempt to open applets/built-in.o succeeded
+applets/built-in.o
+attempt to open archival/lib.a succeeded
+attempt to open archival/libarchive/lib.a succeeded
+attempt to open console-tools/lib.a succeeded
+attempt to open coreutils/lib.a succeeded
+attempt to open coreutils/libcoreutils/lib.a succeeded
+attempt to open debianutils/lib.a succeeded
+attempt to open klibc-utils/lib.a succeeded
+attempt to open e2fsprogs/lib.a succeeded
+attempt to open editors/lib.a succeeded
+attempt to open findutils/lib.a succeeded
+attempt to open init/lib.a succeeded
+attempt to open libbb/lib.a succeeded
+(libbb/lib.a)appletlib.o
+(libbb/lib.a)compare_string_array.o
+(libbb/lib.a)concat_path_file.o
+(libbb/lib.a)default_error_retval.o
+(libbb/lib.a)get_last_path_component.o
+(libbb/lib.a)last_char_is.o
+(libbb/lib.a)llist.o
+(libbb/lib.a)messages.o
+(libbb/lib.a)perror_msg.o
+(libbb/lib.a)ptr_to_globals.o
+(libbb/lib.a)skip_whitespace.o
+(libbb/lib.a)verror_msg.o
+(libbb/lib.a)wfopen.o
+(libbb/lib.a)xfunc_die.o
+(libbb/lib.a)xfuncs.o
+(libbb/lib.a)xfuncs_printf.o
+(libbb/lib.a)xreadlink.o
+(libbb/lib.a)copyfd.o
+(libbb/lib.a)full_write.o
+(libbb/lib.a)read.o
+(libbb/lib.a)safe_write.o
+(libbb/lib.a)signals.o
+(libbb/lib.a)time.o
+(libbb/lib.a)xgetcwd.o
+(libbb/lib.a)bb_strtonum.o
+attempt to open libpwdgrp/lib.a succeeded
+(libpwdgrp/lib.a)pwd_grp.o
+(libpwdgrp/lib.a)uidgid_get.o
+attempt to open loginutils/lib.a succeeded
+(loginutils/lib.a)add-remove-shell.o
+(loginutils/lib.a)addgroup.o
+(loginutils/lib.a)adduser.o
+(loginutils/lib.a)chpasswd.o
+(loginutils/lib.a)cryptpw.o
+(loginutils/lib.a)deluser.o
+(loginutils/lib.a)getty.o
+(loginutils/lib.a)login.o
+(loginutils/lib.a)passwd.o
+(loginutils/lib.a)su.o
+(loginutils/lib.a)sulogin.o
+(loginutils/lib.a)vlock.o
+attempt to open mailutils/lib.a succeeded
+(mailutils/lib.a)makemime.o
+(mailutils/lib.a)popmaildir.o
+(mailutils/lib.a)reformime.o
+(mailutils/lib.a)sendmail.o
+(mailutils/lib.a)mail.o
+attempt to open miscutils/lib.a succeeded
+(miscutils/lib.a)adjtimex.o
+(miscutils/lib.a)bc.o
+(miscutils/lib.a)beep.o
+(miscutils/lib.a)chat.o
+(miscutils/lib.a)conspy.o
+(miscutils/lib.a)crond.o
+(miscutils/lib.a)crontab.o
+(miscutils/lib.a)devmem.o
+(miscutils/lib.a)fbsplash.o
+(miscutils/lib.a)hdparm.o
+(miscutils/lib.a)hexedit.o
+(miscutils/lib.a)i2c_tools.o
+(miscutils/lib.a)less.o
+(miscutils/lib.a)lsscsi.o
+(miscutils/lib.a)makedevs.o
+(miscutils/lib.a)man.o
+(miscutils/lib.a)microcom.o
+(miscutils/lib.a)mt.o
+(miscutils/lib.a)nandwrite.o
+(miscutils/lib.a)partprobe.o
+(miscutils/lib.a)raidautorun.o
+(miscutils/lib.a)readahead.o
+(miscutils/lib.a)runlevel.o
+(miscutils/lib.a)rx.o
+(miscutils/lib.a)setfattr.o
+(miscutils/lib.a)setserial.o
+(miscutils/lib.a)strings.o
+(miscutils/lib.a)time.o
+(miscutils/lib.a)ts.o
+(miscutils/lib.a)ttysize.o
+(miscutils/lib.a)ubi_tools.o
+(miscutils/lib.a)ubirename.o
+(miscutils/lib.a)volname.o
+(miscutils/lib.a)watchdog.o
+attempt to open modutils/lib.a succeeded
+(modutils/lib.a)modinfo.o
+(modutils/lib.a)modprobe-small.o
+(modutils/lib.a)modutils.o
+attempt to open networking/lib.a succeeded
+(networking/lib.a)arp.o
+(networking/lib.a)arping.o
+(networking/lib.a)brctl.o
+(networking/lib.a)dnsd.o
+(networking/lib.a)ether-wake.o
+(networking/lib.a)ftpd.o
+(networking/lib.a)ftpgetput.o
+(networking/lib.a)hostname.o
+(networking/lib.a)httpd.o
+(networking/lib.a)ifconfig.o
+(networking/lib.a)ifenslave.o
+(networking/lib.a)ifplugd.o
+(networking/lib.a)ifupdown.o
+(networking/lib.a)inetd.o
+(networking/lib.a)interface.o
+(networking/lib.a)ip.o
+(networking/lib.a)ipcalc.o
+(networking/lib.a)isrv_identd.o
+(networking/lib.a)nameif.o
+(networking/lib.a)nbd-client.o
+(networking/lib.a)nc.o
+(networking/lib.a)netstat.o
+(networking/lib.a)nslookup.o
+(networking/lib.a)ntpd.o
+(networking/lib.a)parse_pasv_epsv.o
+(networking/lib.a)ping.o
+(networking/lib.a)pscan.o
+(networking/lib.a)route.o
+(networking/lib.a)slattach.o
+(networking/lib.a)ssl_client.o
+(networking/lib.a)tc.o
+(networking/lib.a)tcpudp.o
+(networking/lib.a)tcpudp_perhost.o
+(networking/lib.a)telnet.o
+(networking/lib.a)telnetd.o
+(networking/lib.a)tftp.o
+(networking/lib.a)tls.o
+(networking/lib.a)tls_aes.o
+(networking/lib.a)tls_aesgcm.o
+(networking/lib.a)tls_fe.o
+(networking/lib.a)tls_pstm.o
+(networking/lib.a)tls_pstm_montgomery_reduce.o
+(networking/lib.a)tls_pstm_mul_comba.o
+(networking/lib.a)tls_pstm_sqr_comba.o
+(networking/lib.a)tls_rsa.o
+(networking/lib.a)traceroute.o
+(networking/lib.a)tunctl.o
+(networking/lib.a)vconfig.o
+(networking/lib.a)wget.o
+(networking/lib.a)whois.o
+(networking/lib.a)zcip.o
+(networking/lib.a)isrv.o
+attempt to open networking/libiproute/lib.a succeeded
+(networking/libiproute/lib.a)ip_parse_common_args.o
+(networking/libiproute/lib.a)ipaddress.o
+(networking/libiproute/lib.a)iplink.o
+(networking/libiproute/lib.a)ipneigh.o
+(networking/libiproute/lib.a)iproute.o
+(networking/libiproute/lib.a)iprule.o
+(networking/libiproute/lib.a)iptunnel.o
+(networking/libiproute/lib.a)libnetlink.o
+(networking/libiproute/lib.a)ll_addr.o
+(networking/libiproute/lib.a)ll_map.o
+(networking/libiproute/lib.a)ll_proto.o
+(networking/libiproute/lib.a)ll_types.o
+(networking/libiproute/lib.a)rt_names.o
+(networking/libiproute/lib.a)rtm_map.o
+(networking/libiproute/lib.a)utils.o
+attempt to open networking/udhcp/lib.a succeeded
+(networking/udhcp/lib.a)d6_dhcpc.o
+(networking/udhcp/lib.a)d6_packet.o
+(networking/udhcp/lib.a)d6_socket.o
+(networking/udhcp/lib.a)dhcpc.o
+(networking/udhcp/lib.a)dhcpd.o
+(networking/udhcp/lib.a)dhcprelay.o
+(networking/udhcp/lib.a)domain_codec.o
+(networking/udhcp/lib.a)dumpleases.o
+(networking/udhcp/lib.a)packet.o
+(networking/udhcp/lib.a)signalpipe.o
+(networking/udhcp/lib.a)socket.o
+(networking/udhcp/lib.a)arpping.o
+(networking/udhcp/lib.a)common.o
+attempt to open printutils/lib.a succeeded
+(printutils/lib.a)lpd.o
+(printutils/lib.a)lpr.o
+attempt to open procps/lib.a succeeded
+(procps/lib.a)free.o
+(procps/lib.a)fuser.o
+(procps/lib.a)iostat.o
+(procps/lib.a)kill.o
+(procps/lib.a)lsof.o
+(procps/lib.a)mpstat.o
+(procps/lib.a)nmeter.o
+(procps/lib.a)pgrep.o
+(procps/lib.a)pidof.o
+(procps/lib.a)pmap.o
+(procps/lib.a)powertop.o
+(procps/lib.a)ps.o
+(procps/lib.a)pstree.o
+(procps/lib.a)pwdx.o
+(procps/lib.a)smemcap.o
+(procps/lib.a)sysctl.o
+(procps/lib.a)top.o
+(procps/lib.a)uptime.o
+(procps/lib.a)watch.o
+attempt to open runit/lib.a succeeded
+(runit/lib.a)chpst.o
+(runit/lib.a)runsv.o
+(runit/lib.a)runsvdir.o
+(runit/lib.a)sv.o
+(runit/lib.a)svlogd.o
+attempt to open selinux/lib.a succeeded
+attempt to open shell/lib.a succeeded
+(shell/lib.a)ash.o
+(shell/lib.a)ash_ptr_hack.o
+(shell/lib.a)cttyhack.o
+(shell/lib.a)hush.o
+(shell/lib.a)match.o
+(shell/lib.a)math.o
+(shell/lib.a)random.o
+(shell/lib.a)shell_common.o
+attempt to open sysklogd/lib.a succeeded
+(sysklogd/lib.a)klogd.o
+(sysklogd/lib.a)logread.o
+(sysklogd/lib.a)syslogd_and_logger.o
+attempt to open util-linux/lib.a succeeded
+(util-linux/lib.a)acpid.o
+(util-linux/lib.a)blkdiscard.o
+(util-linux/lib.a)blkid.o
+(util-linux/lib.a)blockdev.o
+(util-linux/lib.a)cal.o
+(util-linux/lib.a)chrt.o
+(util-linux/lib.a)dmesg.o
+(util-linux/lib.a)eject.o
+(util-linux/lib.a)fallocate.o
+(util-linux/lib.a)fatattr.o
+(util-linux/lib.a)fbset.o
+(util-linux/lib.a)fdformat.o
+(util-linux/lib.a)fdisk.o
+(util-linux/lib.a)findfs.o
+(util-linux/lib.a)flock.o
+(util-linux/lib.a)freeramdisk.o
+(util-linux/lib.a)fsck_minix.o
+(util-linux/lib.a)fsfreeze.o
+(util-linux/lib.a)fstrim.o
+(util-linux/lib.a)getopt.o
+(util-linux/lib.a)hexdump.o
+(util-linux/lib.a)hexdump_xxd.o
+(util-linux/lib.a)hwclock.o
+(util-linux/lib.a)ionice.o
+(util-linux/lib.a)ipcrm.o
+(util-linux/lib.a)ipcs.o
+(util-linux/lib.a)last_fancy.o
+(util-linux/lib.a)losetup.o
+(util-linux/lib.a)lspci.o
+(util-linux/lib.a)lsusb.o
+(util-linux/lib.a)mdev.o
+(util-linux/lib.a)mesg.o
+(util-linux/lib.a)mkfs_ext2.o
+(util-linux/lib.a)mkfs_minix.o
+(util-linux/lib.a)mkfs_vfat.o
+(util-linux/lib.a)mkswap.o
+(util-linux/lib.a)more.o
+(util-linux/lib.a)mount.o
+(util-linux/lib.a)mountpoint.o
+(util-linux/lib.a)nsenter.o
+(util-linux/lib.a)pivot_root.o
+(util-linux/lib.a)rdate.o
+(util-linux/lib.a)rdev.o
+(util-linux/lib.a)readprofile.o
+(util-linux/lib.a)renice.o
+(util-linux/lib.a)rev.o
+(util-linux/lib.a)rtcwake.o
+(util-linux/lib.a)script.o
+(util-linux/lib.a)scriptreplay.o
+(util-linux/lib.a)setarch.o
+(util-linux/lib.a)setpriv.o
+(util-linux/lib.a)setsid.o
+(util-linux/lib.a)swaponoff.o
+(util-linux/lib.a)switch_root.o
+(util-linux/lib.a)taskset.o
+(util-linux/lib.a)uevent.o
+(util-linux/lib.a)umount.o
+(util-linux/lib.a)unshare.o
+(util-linux/lib.a)wall.o
+attempt to open util-linux/volume_id/lib.a succeeded
+(util-linux/volume_id/lib.a)get_devname.o
+(util-linux/volume_id/lib.a)volume_id.o
+(util-linux/volume_id/lib.a)xfs.o
+(util-linux/volume_id/lib.a)bcache.o
+(util-linux/volume_id/lib.a)btrfs.o
+(util-linux/volume_id/lib.a)cramfs.o
+(util-linux/volume_id/lib.a)exfat.o
+(util-linux/volume_id/lib.a)ext.o
+(util-linux/volume_id/lib.a)f2fs.o
+(util-linux/volume_id/lib.a)fat.o
+(util-linux/volume_id/lib.a)hfs.o
+(util-linux/volume_id/lib.a)iso9660.o
+(util-linux/volume_id/lib.a)jfs.o
+(util-linux/volume_id/lib.a)lfs.o
+(util-linux/volume_id/lib.a)linux_raid.o
+(util-linux/volume_id/lib.a)linux_swap.o
+(util-linux/volume_id/lib.a)luks.o
+(util-linux/volume_id/lib.a)minix.o
+(util-linux/volume_id/lib.a)nilfs.o
+(util-linux/volume_id/lib.a)ntfs.o
+(util-linux/volume_id/lib.a)ocfs2.o
+(util-linux/volume_id/lib.a)reiserfs.o
+(util-linux/volume_id/lib.a)romfs.o
+(util-linux/volume_id/lib.a)squashfs.o
+(util-linux/volume_id/lib.a)sysv.o
+(util-linux/volume_id/lib.a)ubifs.o
+(util-linux/volume_id/lib.a)udf.o
+(util-linux/volume_id/lib.a)util.o
+attempt to open archival/built-in.o succeeded
+attempt to open archival/libarchive/built-in.o succeeded
+attempt to open console-tools/built-in.o succeeded
+attempt to open coreutils/built-in.o succeeded
+attempt to open coreutils/libcoreutils/built-in.o succeeded
+attempt to open debianutils/built-in.o succeeded
+attempt to open klibc-utils/built-in.o succeeded
+attempt to open e2fsprogs/built-in.o succeeded
+attempt to open editors/built-in.o succeeded
+attempt to open findutils/built-in.o succeeded
+attempt to open init/built-in.o succeeded
+attempt to open libbb/built-in.o succeeded
+attempt to open libpwdgrp/built-in.o succeeded
+attempt to open loginutils/built-in.o succeeded
+attempt to open mailutils/built-in.o succeeded
+attempt to open miscutils/built-in.o succeeded
+attempt to open modutils/built-in.o succeeded
+attempt to open networking/built-in.o succeeded
+attempt to open networking/libiproute/built-in.o succeeded
+attempt to open networking/udhcp/built-in.o succeeded
+attempt to open printutils/built-in.o succeeded
+attempt to open procps/built-in.o succeeded
+attempt to open runit/built-in.o succeeded
+attempt to open selinux/built-in.o succeeded
+attempt to open shell/built-in.o succeeded
+attempt to open sysklogd/built-in.o succeeded
+attempt to open util-linux/built-in.o succeeded
+attempt to open util-linux/volume_id/built-in.o succeeded
+(archival/lib.a)ar.o
+(archival/lib.a)bbunzip.o
+(archival/lib.a)bzip2.o
+(archival/lib.a)cpio.o
+(archival/lib.a)gzip.o
+(archival/lib.a)lzop.o
+(archival/lib.a)rpm.o
+(archival/lib.a)tar.o
+(archival/libarchive/lib.a)common.o
+(archival/libarchive/lib.a)data_extract_all.o
+(archival/libarchive/lib.a)data_extract_to_command.o
+(archival/libarchive/lib.a)data_extract_to_stdout.o
+(archival/libarchive/lib.a)data_skip.o
+(archival/libarchive/lib.a)decompress_bunzip2.o
+(archival/libarchive/lib.a)decompress_gunzip.o
+(archival/libarchive/lib.a)decompress_unlzma.o
+(archival/libarchive/lib.a)decompress_unxz.o
+(archival/libarchive/lib.a)filter_accept_list.o
+(archival/libarchive/lib.a)filter_accept_reject_list.o
+(archival/libarchive/lib.a)find_list_entry.o
+(archival/libarchive/lib.a)get_header_cpio.o
+(archival/libarchive/lib.a)get_header_tar.o
+(archival/libarchive/lib.a)header_list.o
+(archival/libarchive/lib.a)header_verbose_list.o
+(archival/libarchive/lib.a)init_handle.o
+(archival/libarchive/lib.a)lzo1x_1.o
+(archival/libarchive/lib.a)lzo1x_1o.o
+(archival/libarchive/lib.a)lzo1x_9x.o
+(archival/libarchive/lib.a)lzo1x_d.o
+(archival/libarchive/lib.a)open_transformer.o
+(archival/libarchive/lib.a)seek_by_jump.o
+(archival/libarchive/lib.a)seek_by_read.o
+(archival/libarchive/lib.a)unpack_ar_archive.o
+(archival/libarchive/lib.a)unsafe_prefix.o
+(archival/libarchive/lib.a)unsafe_symlink_target.o
+(archival/libarchive/lib.a)data_align.o
+(archival/libarchive/lib.a)filter_accept_all.o
+(archival/libarchive/lib.a)get_header_ar.o
+(archival/libarchive/lib.a)header_skip.o
+(console-tools/lib.a)chvt.o
+(console-tools/lib.a)clear.o
+(console-tools/lib.a)deallocvt.o
+(console-tools/lib.a)dumpkmap.o
+(console-tools/lib.a)fgconsole.o
+(console-tools/lib.a)kbd_mode.o
+(console-tools/lib.a)loadfont.o
+(console-tools/lib.a)loadkmap.o
+(console-tools/lib.a)openvt.o
+(console-tools/lib.a)reset.o
+(console-tools/lib.a)resize.o
+(console-tools/lib.a)setconsole.o
+(console-tools/lib.a)setkeycodes.o
+(console-tools/lib.a)setlogcons.o
+(console-tools/lib.a)showkey.o
+(coreutils/lib.a)basename.o
+(coreutils/lib.a)cat.o
+(coreutils/lib.a)chgrp.o
+(coreutils/lib.a)chmod.o
+(coreutils/lib.a)chown.o
+(coreutils/lib.a)chroot.o
+(coreutils/lib.a)cksum.o
+(coreutils/lib.a)comm.o
+(coreutils/lib.a)cp.o
+(coreutils/lib.a)cut.o
+(coreutils/lib.a)date.o
+(coreutils/lib.a)dd.o
+(coreutils/lib.a)df.o
+(coreutils/lib.a)dirname.o
+(coreutils/lib.a)dos2unix.o
+(coreutils/lib.a)du.o
+(coreutils/lib.a)echo.o
+(coreutils/lib.a)env.o
+(coreutils/lib.a)expand.o
+(coreutils/lib.a)expr.o
+(coreutils/lib.a)factor.o
+(coreutils/lib.a)false.o
+(coreutils/lib.a)fold.o
+(coreutils/lib.a)head.o
+(coreutils/lib.a)hostid.o
+(coreutils/lib.a)id.o
+(coreutils/lib.a)install.o
+(coreutils/lib.a)link.o
+(coreutils/lib.a)ln.o
+(coreutils/lib.a)logname.o
+(coreutils/lib.a)ls.o
+(coreutils/lib.a)md5_sha1_sum.o
+(coreutils/lib.a)mkdir.o
+(coreutils/lib.a)mkfifo.o
+(coreutils/lib.a)mknod.o
+(coreutils/lib.a)mktemp.o
+(coreutils/lib.a)mv.o
+(coreutils/lib.a)nice.o
+(coreutils/lib.a)nl.o
+(coreutils/lib.a)nohup.o
+(coreutils/lib.a)nproc.o
+(coreutils/lib.a)od.o
+(coreutils/lib.a)paste.o
+(coreutils/lib.a)printenv.o
+(coreutils/lib.a)printf.o
+(coreutils/lib.a)pwd.o
+(coreutils/lib.a)readlink.o
+(coreutils/lib.a)realpath.o
+(coreutils/lib.a)rm.o
+(coreutils/lib.a)rmdir.o
+(coreutils/lib.a)seq.o
+(coreutils/lib.a)shred.o
+(coreutils/lib.a)shuf.o
+(coreutils/lib.a)sleep.o
+(coreutils/lib.a)sort.o
+(coreutils/lib.a)split.o
+(coreutils/lib.a)stat.o
+(coreutils/lib.a)stty.o
+(coreutils/lib.a)sum.o
+(coreutils/lib.a)sync.o
+(coreutils/lib.a)tac.o
+(coreutils/lib.a)tail.o
+(coreutils/lib.a)tee.o
+(coreutils/lib.a)test.o
+(coreutils/lib.a)test_ptr_hack.o
+(coreutils/lib.a)timeout.o
+(coreutils/lib.a)touch.o
+(coreutils/lib.a)tr.o
+(coreutils/lib.a)true.o
+(coreutils/lib.a)truncate.o
+(coreutils/lib.a)tty.o
+(coreutils/lib.a)uname.o
+(coreutils/lib.a)uniq.o
+(coreutils/lib.a)unlink.o
+(coreutils/lib.a)usleep.o
+(coreutils/lib.a)uudecode.o
+(coreutils/lib.a)uuencode.o
+(coreutils/lib.a)wc.o
+(coreutils/lib.a)who.o
+(coreutils/lib.a)whoami.o
+(coreutils/lib.a)yes.o
+(coreutils/libcoreutils/lib.a)cp_mv_stat.o
+(coreutils/libcoreutils/lib.a)getopt_mk_fifo_nod.o
+(debianutils/lib.a)pipe_progress.o
+(debianutils/lib.a)run_parts.o
+(debianutils/lib.a)start_stop_daemon.o
+(debianutils/lib.a)which.o
+(klibc-utils/lib.a)nuke.o
+(klibc-utils/lib.a)resume.o
+(e2fsprogs/lib.a)chattr.o
+(e2fsprogs/lib.a)e2fs_lib.o
+(e2fsprogs/lib.a)fsck.o
+(e2fsprogs/lib.a)lsattr.o
+(e2fsprogs/lib.a)tune2fs.o
+(editors/lib.a)awk.o
+(editors/lib.a)cmp.o
+(editors/lib.a)diff.o
+(editors/lib.a)ed.o
+(editors/lib.a)patch.o
+(editors/lib.a)sed.o
+(editors/lib.a)vi.o
+(findutils/lib.a)find.o
+(findutils/lib.a)grep.o
+(findutils/lib.a)xargs.o
+(init/lib.a)bootchartd.o
+(init/lib.a)halt.o
+(init/lib.a)init.o
+(libbb/lib.a)ask_confirmation.o
+(libbb/lib.a)auto_string.o
+(libbb/lib.a)bb_askpass.o
+(libbb/lib.a)bb_bswap_64.o
+(libbb/lib.a)bb_cat.o
+(libbb/lib.a)bb_do_delay.o
+(libbb/lib.a)bb_getgroups.o
+(libbb/lib.a)bb_getsockname.o
+(libbb/lib.a)bb_pwd.o
+(libbb/lib.a)bb_qsort.o
+(libbb/lib.a)capability.o
+(libbb/lib.a)change_identity.o
+(libbb/lib.a)chomp.o
+(libbb/lib.a)common_bufsiz.o
+(libbb/lib.a)concat_subpath_file.o
+(libbb/lib.a)copy_file.o
+(libbb/lib.a)correct_password.o
+(libbb/lib.a)crc32.o
+(libbb/lib.a)device_open.o
+(libbb/lib.a)dump.o
+(libbb/lib.a)duration.o
+(libbb/lib.a)endofname.o
+(libbb/lib.a)executable.o
+(libbb/lib.a)fclose_nonstdin.o
+(libbb/lib.a)fflush_stdout_and_exit.o
+(libbb/lib.a)fgets_str.o
+(libbb/lib.a)find_mount_point.o
+(libbb/lib.a)find_pid_by_name.o
+(libbb/lib.a)find_root_device.o
+(libbb/lib.a)get_console.o
+(libbb/lib.a)get_cpu_count.o
+(libbb/lib.a)get_line_from_file.o
+(libbb/lib.a)get_shell_name.o
+(libbb/lib.a)get_volsize.o
+(libbb/lib.a)getopt32.o
+(libbb/lib.a)getopt_allopts.o
+(libbb/lib.a)getpty.o
+(libbb/lib.a)hash_md5_sha.o
+(libbb/lib.a)herror_msg.o
+(libbb/lib.a)human_readable.o
+(libbb/lib.a)in_ether.o
+(libbb/lib.a)inet_cksum.o
+(libbb/lib.a)inet_common.o
+(libbb/lib.a)inode_hash.o
+(libbb/lib.a)isdirectory.o
+(libbb/lib.a)isqrt.o
+(libbb/lib.a)kernel_version.o
+(libbb/lib.a)lineedit.o
+(libbb/lib.a)lineedit_ptr_hack.o
+(libbb/lib.a)logenv.o
+(libbb/lib.a)login.o
+(libbb/lib.a)loop.o
+(libbb/lib.a)make_directory.o
+(libbb/lib.a)makedev.o
+(libbb/lib.a)match_fstype.o
+(libbb/lib.a)mode_string.o
+(libbb/lib.a)nuke_str.o
+(libbb/lib.a)obscure.o
+(libbb/lib.a)parse_config.o
+(libbb/lib.a)parse_mode.o
+(libbb/lib.a)percent_decode.o
+(libbb/lib.a)perror_nomsg_and_die.o
+(libbb/lib.a)pidfile.o
+(libbb/lib.a)print_flags.o
+(libbb/lib.a)print_numbered_lines.o
+(libbb/lib.a)printable.o
+(libbb/lib.a)printable_string.o
+(libbb/lib.a)process_escape_sequence.o
+(libbb/lib.a)procps.o
+(libbb/lib.a)progress.o
+(libbb/lib.a)pw_encrypt.o
+(libbb/lib.a)read_key.o
+(libbb/lib.a)read_printf.o
+(libbb/lib.a)recursive_action.o
+(libbb/lib.a)remove_file.o
+(libbb/lib.a)replace.o
+(libbb/lib.a)rtc.o
+(libbb/lib.a)run_shell.o
+(libbb/lib.a)safe_gethostname.o
+(libbb/lib.a)safe_poll.o
+(libbb/lib.a)safe_strncpy.o
+(libbb/lib.a)securetty.o
+(libbb/lib.a)setup_environment.o
+(libbb/lib.a)simplify_path.o
+(libbb/lib.a)single_argv.o
+(libbb/lib.a)speed_table.o
+(libbb/lib.a)str_tolower.o
+(libbb/lib.a)strrstr.o
+(libbb/lib.a)sysconf.o
+(libbb/lib.a)trim.o
+(libbb/lib.a)u_signal_names.o
+(libbb/lib.a)ubi.o
+(libbb/lib.a)udp_io.o
+(libbb/lib.a)unicode.o
+(libbb/lib.a)update_passwd.o
+(libbb/lib.a)utmp.o
+(libbb/lib.a)uuencode.o
+(libbb/lib.a)vfork_daemon_rexec.o
+(libbb/lib.a)warn_ignoring_args.o
+(libbb/lib.a)wfopen_input.o
+(libbb/lib.a)write.o
+(libbb/lib.a)xatonum.o
+(libbb/lib.a)xconnect.o
+(libbb/lib.a)xgethostbyname.o
+(libbb/lib.a)xrealloc_vector.o
+(libbb/lib.a)xregcomp.o
+(libbb/lib.a)perror_nomsg.o
+attempt to open /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/libm.a failed
+attempt to open /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/libm.a failed
+attempt to open /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/libm.a failed
+attempt to open /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/../../../../arm-linux-gnueabihf/lib/libm.a failed
+attempt to open /home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/lib/libm.a failed
+attempt to open /home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/lib/arm-linux-gnueabihf/libm.a failed
+attempt to open /home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/libm.a failed
+attempt to open /home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libm.a succeeded
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libm.a)s_sin.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libm.a)w_atan2.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libm.a)w_exp.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libm.a)w_log.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libm.a)w_pow.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libm.a)w_sqrt.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libm.a)m_isnan.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libm.a)m_finite.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libm.a)m_signbit.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libm.a)branred.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libm.a)dosincos.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libm.a)sincos32.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libm.a)sincostab.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libm.a)k_standard.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libm.a)s_lib_version.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libm.a)s_matherr.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libm.a)fraiseexcpt.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libm.a)e_atan2.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libm.a)e_exp.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libm.a)e_log.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libm.a)e_pow.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libm.a)e_sqrt.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libm.a)s_rint.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libm.a)mpa.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libm.a)mpatan2.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libm.a)mpatan.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libm.a)mplog.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libm.a)mpsqrt.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libm.a)slowexp.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libm.a)slowpow.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libm.a)halfulp.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libm.a)mpexp.o
+attempt to open /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/libresolv.a failed
+attempt to open /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/libresolv.a failed
+attempt to open /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/libresolv.a failed
+attempt to open /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/../../../../arm-linux-gnueabihf/lib/libresolv.a failed
+attempt to open /home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/lib/libresolv.a failed
+attempt to open /home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/lib/arm-linux-gnueabihf/libresolv.a failed
+attempt to open /home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/libresolv.a failed
+attempt to open /home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libresolv.a succeeded
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libresolv.a)res_data.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libresolv.a)res_mkquery.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libresolv.a)res_query.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libresolv.a)res_send.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libresolv.a)ns_parse.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libresolv.a)ns_name.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libresolv.a)ns_netint.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libresolv.a)ns_samedomain.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libresolv.a)res_comp.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libresolv.a)res_debug.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libresolv.a)ns_ttl.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libresolv.a)ns_print.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libresolv.a)base64.o
+attempt to open /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/librt.a failed
+attempt to open /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/librt.a failed
+attempt to open /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/librt.a failed
+attempt to open /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/../../../../arm-linux-gnueabihf/lib/librt.a failed
+attempt to open /home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/lib/librt.a failed
+attempt to open /home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/lib/arm-linux-gnueabihf/librt.a failed
+attempt to open /home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/librt.a failed
+attempt to open /home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/librt.a succeeded
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/librt.a)clock_gettime.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/librt.a)clock_settime.o
+attempt to open /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/libgcc.a succeeded
+(/home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/libgcc.a)_udivsi3.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/libgcc.a)_divsi3.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/libgcc.a)_lshrdi3.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/libgcc.a)_ashrdi3.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/libgcc.a)_ashldi3.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/libgcc.a)_arm_addsubdf3.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/libgcc.a)_aeabi_ldivmod.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/libgcc.a)_aeabi_uldivmod.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/libgcc.a)_dvmd_lnx.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/libgcc.a)_fixdfdi.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/libgcc.a)_fixunsdfdi.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/libgcc.a)bpabi.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/libgcc.a)_divdi3.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/libgcc.a)_udivdi3.o
+attempt to open /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/libgcc_eh.a succeeded
+attempt to open /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/libc.a failed
+attempt to open /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/libc.a failed
+attempt to open /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/libc.a failed
+attempt to open /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/../../../../arm-linux-gnueabihf/lib/libc.a failed
+attempt to open /home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/lib/libc.a failed
+attempt to open /home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/lib/arm-linux-gnueabihf/libc.a failed
+attempt to open /home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/libc.a failed
+attempt to open /home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a succeeded
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)libc-start.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)check_fds.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)libc-tls.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)elf-init.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)errno.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)libc-do-syscall.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)errno-loc.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)assert.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)ctype-info.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)dcgettext.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)dcigettext.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)finddomain.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)loadmsgcat.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)localealias.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)l10nflist.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)explodename.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)plural.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)plural-exp.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)hash-string.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)setjmp.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)sigjmp.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)bsd-_setjmp.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)longjmp.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)__longjmp.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)jmp-unwind.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)signal.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)raise.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)killpg.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)sigaction.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)sigprocmask.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)kill.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)sigsuspend.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)sigempty.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)sigfillset.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)sigaddset.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)sigdelset.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)sigismem.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)sigisempty.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)allocrtsig.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)sigtimedwait.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)sigrestorer.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)atof.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)atoi.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)atoll.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)abort.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)bsearch.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)msort.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getenv.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)putenv.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)setenv.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)exit.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)cxa_atexit.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)div.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)random.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)random_r.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)rand.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strtol.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strtoul.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strtoll.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strtoull.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strtol_l.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strtoul_l.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strtoll_l.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strtoull_l.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strtod.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strtod_l.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)system.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)canonicalize.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)grouping.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)tens_in_limb.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)fpioconst.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)vfprintf.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)vprintf.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)printf_fp.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)reg-printf.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)printf_fphex.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)reg-modifier.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)reg-type.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)fprintf.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)printf.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)snprintf.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)sprintf.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)asprintf.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)dprintf.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)fscanf.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)scanf.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)sscanf.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getline.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)rename.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)funlockfile.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)printf-parsemb.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)fxprintf.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)iofclose.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)iofdopen.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)iofflush.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)iofgets.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)iofopen.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)iofputs.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)iofread.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)iofwrite.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)iogetdelim.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)iogetline.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)iopadn.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)iopopen.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)ioputs.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)iosetvbuf.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)ioungetc.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)iovsprintf.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)iovsscanf.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)iofopen64.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)putchar_u.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)clearerr.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)fileno.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)fputc.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)pclose.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)putc.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)rewind.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)setbuf.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)vasprintf.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)iovdprintf.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)vsnprintf.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)fcloseall.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)freopen64.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)fseeko64.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)ftello64.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)libc_fatal.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)feof_u.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)ferror_u.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getc_u.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getchar_u.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)putc_u.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)iofgets_u.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)iofputs_u.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)iowpadn.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)wgenops.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)wfileops.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)fileops.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)genops.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)stdfiles.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)stdio.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strops.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)malloc.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)morecore.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strcat.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strchr.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strcmp.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strcpy.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strcspn.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strverscmp.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strdup.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strndup.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strerror.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)_strerror.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strlen.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strnlen.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strncmp.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strncpy.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strrchr.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strpbrk.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strsignal.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strspn.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strstr.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strtok.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strtok_r.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)memchr.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)memcmp.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)memmove.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)memset.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)mempcpy.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)stpcpy.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strcasecmp.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strncase.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strcasecmp_l.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strncase_l.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)memcpy.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)wordcopy.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strsep.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strcasestr.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)rawmemchr.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strchrnul.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)argz-count.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)argz-stringify.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)memrchr.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)wmemcpy.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)wmemset.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)wmemmove.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)wmempcpy.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)wcrtomb.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)wcsrtombs.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)mbsnrtowcs.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)wcsnlen.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)wcsmbsload.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)ctime.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)gmtime.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)localtime.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)mktime.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)time.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)gettimeofday.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)settimeofday.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)tzset.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)tzfile.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)setitimer.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strptime.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strptime_l.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strftime.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strftime_l.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)alt_digit.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)era.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)lc-time-cleanup.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)opendir.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)closedir.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)readdir64.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)setgroups.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)uname.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)times.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)wait.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)waitpid.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)wait3.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)wait4.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)alarm.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)sleep.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)pause.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)nanosleep.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)fork.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)vfork.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)_exit.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)execve.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)execv.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)execle.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)execl.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)execvp.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)execlp.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)execvpe.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getpid.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getppid.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getuid.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)geteuid.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getgid.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getegid.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getgroups.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)setuid.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)setgid.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)setpgid.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getpgrp.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)setpgrp.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getsid.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)setsid.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getresuid.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getresgid.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)setresuid.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)setresgid.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)sysconf.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)glob64.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)fnmatch.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)confstr.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getopt.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getopt1.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)sched_getp.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)sched_sets.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)sched_gets.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)sched_yield.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)sched_primax.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)sched_primin.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)sched_getaffinity.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)sched_setaffinity.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)pread64.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)get_child_max.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getaddrinfo.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)regex.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getlogin_r.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)environ.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)exit-thread.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)mkfifo.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)stat64.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)fstat64.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)lstat64.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)xstat64.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)fxstat64.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)lxstat64.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)mknod.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)xmknod.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)fxstatat64.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)statfs64.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)statvfs64.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)umask.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)chmod.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)fchmod.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)mkdir.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)open.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)open64.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)openat.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)close.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)read.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)write.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)access.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)fcntl.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)flock.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)dup.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)dup2.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)dup3.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)pipe.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)pipe2.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)creat64.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)chdir.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)fchdir.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getcwd.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)chown.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)fchown.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)lchown.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)ttyname_r.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)isatty.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)link.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)symlink.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)readlink.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)unlink.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)rmdir.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)poll.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)posix_fallocate64.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)sendfile64.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)have_o_cloexec.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)internal_statvfs64.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)speed.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)cfsetspeed.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)tcsetattr.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)tcgetattr.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)tcgetpgrp.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)tcsetpgrp.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)tcdrain.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)tcflush.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)tcsendbrk.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)cfmakeraw.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)tcgetsid.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getrlimit.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getrlimit64.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)setrlimit64.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getpriority.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)setpriority.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)nice.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)sbrk.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)ioctl.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)writev.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)seteuid.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)setegid.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getpagesize.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getdtsz.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)sethostname.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)select.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)acct.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)chroot.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)fsync.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)sync.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)fdatasync.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)syncfs.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)reboot.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)gethostid.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)swapon.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)swapoff.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)mktemp.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)mkstemp64.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)mkdtemp.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)usleep.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)mntent.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)mntent_r.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)utimes.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)lutimes.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)ftruncate64.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getusershell.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)syslog.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)syscall.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)daemon.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)mmap.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)mmap64.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)munmap.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)mprotect.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)madvise.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)mlock.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)munlock.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)tsearch.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getsysstats.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)dirname.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getclktck.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)lremovexattr.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)lsetxattr.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)removexattr.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)setxattr.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)init-misc.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)llseek.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)umount2.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)readahead.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)makedev.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)adjtimex.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)capget.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)capset.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)klogctl.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)mount.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)mremap.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)personality.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)pivot_root.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)prctl.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)sysinfo.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)unshare.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)setns.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)accept.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)bind.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)connect.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getpeername.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getsockname.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getsockopt.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)listen.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)recv.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)recvfrom.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)recvmsg.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)send.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)sendmsg.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)sendto.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)setsockopt.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)shutdown.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)socket.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)socketpair.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)have_sock_cloexec.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)cmsg_nxthdr.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)msgget.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)msgctl.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)semop.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)semget.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)semctl.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)shmat.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)shmdt.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)shmget.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)shmctl.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)wctrans.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)towctrans.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)wcfuncs.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)wctype.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)iswctype.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)alloca_cutoff.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)libc-lowlevellock.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)libc-cancellation.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)register-atfork.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)libc_multiple_threads.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)herror.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)inet_addr.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)inet_ntop.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)inet_pton.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)nsap_addr.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)res_init.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)res_hconf.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)res_libc.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)nsswitch.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)hosts-lookup.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)vfprintf_chk.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)readonly-area.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)stack_chk_fail.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)fortify_fail.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)backtrace.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)backtracesymsfd.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)idn-stub.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)inet_mkadr.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)inet_ntoa.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)herrno.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)herrno-loc.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)gethstbyad.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)gethstbyad_r.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)gethstbynm.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)gethstbynm2_r.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)gethstbynm_r.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getsrvbynm.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getsrvbynm_r.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getsrvbypt.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getsrvbypt_r.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)ether_aton_r.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)ether_hton.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)in6_addr.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getnameinfo.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)if_index.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)ifaddrs.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)check_pf.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)check_native.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)ifreq.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)nscd_gethst_r.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)nscd_getai.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)nscd_getserv_r.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)nscd_helper.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)grantpt.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)unlockpt.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)ptsname.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getutent_r.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)utmp_file.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)utmpname.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)setutxent.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getutxent.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)endutxent.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)pututxline.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)utmpxname.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)updwtmpx.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)dl-support.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)dl-addr.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)enbl-secure.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)dl-profstub.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)dl-libc.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)dl-sysdep.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)init-first.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)sysdep.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)gconv_open.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)gconv.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)gconv_close.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)gconv_db.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)gconv_conf.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)gconv_builtin.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)gconv_simple.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)gconv_trans.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)gconv_cache.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)gconv_dl.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)catnames.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)setlocale.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)findlocale.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)loadlocale.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)loadarchive.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)C-ctype.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)C-time.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)SYS_libc.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)C_name.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)xlocale.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)global-locale.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)coll-lookup.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)lc-ctype.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)lc-monetary.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)lc-numeric.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)lc-collate.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)C-messages.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)C-monetary.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)C-numeric.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)C-paper.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)C-name.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)C-address.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)C-telephone.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)C-measurement.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)C-identification.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)C-collate.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)localename.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)s_isinf.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)setfpucw.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)fpu_control.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)add_n.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)cmp.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)divrem.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)lshift.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)rshift.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)mul.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)mul_1.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)mul_n.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)sub_n.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)submul_1.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)dbl2mpn.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)mpn2dbl.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)qsort.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)secure-getenv.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)_itoa.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)_itowa.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)itoa-digits.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)itoa-udigits.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)itowa-digits.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)vfscanf.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)tempname.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)vfwprintf.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)errlist.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)siglist.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)printf-parsewc.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)filedoalloc.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)ioftell.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)ioseekoff.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)iosetbuffer.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)iofwide.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)fseek.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)memstream.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)ftello.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)iofread_u.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)wfiledoalloc.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)sdlerror.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)sdladdr.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)sdladdr1.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)sdlinfo.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)sdlmopen.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strcoll.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)stpncpy.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)argz-ctsep.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)argz-addsep.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)basename.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strcoll_l.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)wcscat.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)wcschr.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)wcslen.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)wmemchr.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)btowc.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)mbrlen.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)mbrtowc.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)mbsrtowcs.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)wcschrnul.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)wcscoll.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)wcscoll_l.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)mbsrtowcs_l.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)offtime.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)asctime.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)readdir.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)rewinddir.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getdents.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getdents64.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)fdopendir.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getgrnam_r.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getpwnam_r.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getpwuid_r.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)glob.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)pwrite64.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)xstat.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)fstatfs64.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)openat64.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)lseek.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)xstatconv.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)internal_statvfs.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)setrlimit.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)brk.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)readv.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)gethostname.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)opensock.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)grp-lookup.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)pwd-lookup.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)service-lookup.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)ethers-lookup.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)digits_dots.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)nis_hash.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)nscd_getpw_r.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)nscd_getgr_r.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getpt.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)getutent.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)updwtmp.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)dl-load.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)dl-cache.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)dl-lookup.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)dl-object.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)dl-reloc.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)dl-error.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)dl-debug.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)dl-misc.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)dl-profile.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)dl-tls.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)dl-origin.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)dl-scope.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)dl-execstack.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)dl-open.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)dl-close.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)dl-trampoline.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)dl-tsd.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)tlsdesc.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)dl-tlsdesc.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)aeabi_read_tp.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)addmul_1.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strtof.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strtold.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strtof_l.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)strtold_l.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)sdlopen.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)sdlclose.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)sdlsym.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)sdlvsym.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)wcscmp.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)statfs.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)profil.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)prof-freq.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)dl-deps.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)dl-runtime.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)dl-init.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)dl-fini.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)dl-version.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)dl-sym.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/libc.a)mpn2flt.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/libgcc_eh.a)unwind-arm.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/libgcc_eh.a)libunwind.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/libgcc_eh.a)pr-support.o
+(/home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/libgcc_eh.a)unwind-c.o
+attempt to open /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/crtend.o succeeded
+/home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/crtend.o
+attempt to open /home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/crtn.o succeeded
+/home/build/kobo/toolchain/gcc-4.8/bin/../arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf/crtn.olibbb/lib.a(inet_common.o): In function `INET6_resolve':
+inet_common.c:(.text.INET6_resolve+0x22): warning: Using 'getaddrinfo' in statically linked applications requires at runtime the shared libraries from the glibc version used for linking
+coreutils/lib.a(mktemp.o): In function `mktemp_main':
+mktemp.c:(.text.mktemp_main+0x4e): warning: the use of `mktemp' is dangerous, better use `mkstemp' or `mkdtemp'
+networking/lib.a(ipcalc.o): In function `ipcalc_main':
+ipcalc.c:(.text.ipcalc_main+0x14a): warning: Using 'gethostbyaddr' in statically linked applications requires at runtime the shared libraries from the glibc version used for linking
+libbb/lib.a(inet_common.o): In function `INET_resolve':
+inet_common.c:(.text.INET_resolve+0x2c): warning: Using 'gethostbyname' in statically linked applications requires at runtime the shared libraries from the glibc version used for linking
+networking/lib.a(inetd.o): In function `reread_config_file':
+inetd.c:(.text.reread_config_file+0x150): warning: Using 'getservbyname' in statically linked applications requires at runtime the shared libraries from the glibc version used for linking
+networking/lib.a(netstat.o): In function `ip_port_str':
+netstat.c:(.text.ip_port_str+0x34): warning: Using 'getservbyport' in statically linked applications requires at runtime the shared libraries from the glibc version used for linking
+
