@@ -1,0 +1,88 @@
+#!/bin/sh
+
+# Mounting a temporary procfs otherwise the mount process might not work
+mount -t proc proc /proc
+
+mkdir -p /mnt/xorg
+mkdir -p /mnt/opt/X11/base/rootfs
+mkdir -p /mnt/opt/X11/extensions/merged
+mkdir -p /mnt/opt/X11/rootfs/write
+mkdir -p /mnt/opt/X11/rootfs/work
+mkdir -p /mnt/opt/X11/merged
+mkdir -p /mnt/opt/X11/vnc-touch
+mkdir -p /mnt/opt/X11/update
+
+# Mounting X11 rootfs read-only with squashfuse
+busybox chroot /mnt "/bin/squashfuse" "/opt/X11/base/xorg.isa" "/opt/X11/base/rootfs"
+
+# Mounting VNC/touch input rootfs
+busybox chroot /mnt "/bin/squashfuse" "/opt/X11/base/vnc-touch.isa" "/opt/X11/vnc-touch"
+
+# Extensions
+# Mounting extensions userstore
+mount /mnt/opt/storage/extensions.img /mnt/opt/X11/extensions
+# Mounting extensions
+rm /mnt/opt/X11/extensions_list
+for f in /mnt/opt/X11/extensions/*.isa ; do
+	FILE=`echo "$f" | cut -d'/' -f3-`
+	FILE="/$FILE"
+	EXTENSION_FOLDER_RAW=`echo "$f" | cut -d'.' -f1`
+	EXTENSION_FOLDER=`echo "$EXTENSION_FOLDER_RAW" | cut -d'/' -f3-`
+	EXTENSION_FOLDER="/$EXTENSION_FOLDER"
+	EXTENSION_NAME_RAW=`echo "$EXTENSION_FOLDER" | cut -d'/' -f5-`
+	EXTENSION_NAME=`echo "$EXTENSION_NAME_RAW" | awk '{ print toupper( substr( $0, 1, 1 ) ) substr( $0, 2); }'`
+
+	echo "$EXTENSION_NAME" >> /mnt/opt/X11/extensions_list
+	echo "$EXTENSION_FOLDER" >> /mnt/opt/X11/extensions_folders_list
+
+	busybox chroot /mnt "mkdir" "-p" "$EXTENSION_FOLDER"
+	busybox chroot /mnt "/bin/squashfuse" "$FILE" "$EXTENSION_FOLDER"
+	UNIONFS_FOLDERS_RAW="$UNIONFS_FOLDERS_RAW$EXTENSION_FOLDER:"
+done
+UNIONFS_FOLDERS="${UNIONFS_FOLDERS_RAW::-1}"
+
+# Mounting extensions UnionFS-FUSE merge point
+busybox chroot /mnt "/usr/local/bin/unionfs" "$UNIONFS_FOLDERS" "/opt/X11/extensions/merged"
+
+# Merging X11 rootfs and extensions filesystem together
+busybox chroot /mnt "/usr/local/bin/unionfs" "/opt/X11/base/rootfs:/opt/X11/extensions/merged" "/opt/X11/merged"
+
+# Making the union mount read/write and mounting the final overlay to /xorg
+busybox chroot /mnt "/bin/fuse-overlayfs" "-o" "lowerdir=/opt/X11/merged,upperdir=/opt/X11/rootfs/write,workdir=/opt/X11/rootfs/work" "/xorg"
+
+rm /mnt/xorg/var/log -rf
+mkdir -p /mnt/xorg/var/log
+
+umount /proc -l -f
+
+mount -t devtmpfs devtmpfs /mnt/xorg/dev
+mkdir -p /mnt/xorg/dev/shm
+mkdir -p /mnt/xorg/dev/pts
+mount -t tmpfs tmpfs /mnt/xorg/tmp
+mount -t tmpfs tmpfs /mnt/xorg/run
+mount -t tmpfs tmpfs /mnt/xorg/dev/shm
+mount -t tmpfs tmpfs /mnt/xorg/var/log
+mount -t sysfs sysfs /mnt/xorg/sys
+mount -t proc proc /mnt/xorg/proc
+mount -t devpts devpts /mnt/xorg/dev/pts
+touch /mnt/etc/resolv.conf
+touch /mnt/xorg/etc/resolv.conf
+mount --bind /mnt/etc/resolv.conf /mnt/xorg/etc/resolv.conf
+
+# Launching X
+busybox chroot /mnt/xorg "X" &
+
+# Mounting miscellanous filesystems for VNC/touch input rootfs
+mount -t devtmpfs devtmpfs /mnt/opt/X11/vnc-touch/dev
+mkdir -p /mnt/opt/X11/vnc-touch/dev/shm
+mkdir -p /mnt/opt/X11/vnc-touch/dev/pts
+mount -t tmpfs tmpfs /mnt/opt/X11/vnc-touch/tmp
+mount -t tmpfs tmpfs /mnt/opt/X11/vnc-touch/run
+mount -t tmpfs tmpfs /mnt/opt/X11/vnc-touch/dev/shm
+mount -t sysfs sysfs /mnt/opt/X11/vnc-touch/sys
+mount -t proc proc /mnt/opt/X11/vnc-touch/proc
+mount -t devpts devpts /mnt/opt/X11/vnc-touch/dev/pts
+touch /mnt/etc/resolv.conf
+mount --bind /mnt/etc/resolv.conf /mnt/opt/X11/vnc-touch/etc/resolv.conf
+
+sleep 10
