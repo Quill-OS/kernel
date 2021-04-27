@@ -86,4 +86,4 @@ mount -t devpts devpts /mnt/opt/X11/vnc-touch/dev/pts
 touch /mnt/etc/resolv.conf
 mount --bind /mnt/etc/resolv.conf /mnt/opt/X11/vnc-touch/etc/resolv.conf
 
-sleep 10
+sleep 15
