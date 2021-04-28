@@ -15,17 +15,5 @@ if [ -z "${MKIMAGE}" ]; then
 	fi
 fi
 
-
-KREV="$(LANG=C svn info|grep "Last Changed Rev:"|awk '{print $4}')"
-if [ -z "${KREV}" ];then
- KREV="?"	
-fi
-
-UTS_VER="$(cat include/generated/compile.h |grep "UTS_VERSION"|awk -F\" '{print $2}'|awk '{print $1,$4,$5,$6}')"
-if [ -z "${UTS_VER}" ];then
-	UTS_VER="?"
-fi
-
 # Call "mkimage" to create U-Boot image
-${MKIMAGE} -n "r${KREV}_${UTS_VER}" "$@"
-
+${MKIMAGE} -n "linux-2.6.35.3-inkbox+" "$@"
