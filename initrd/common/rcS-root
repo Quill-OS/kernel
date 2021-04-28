@@ -28,6 +28,7 @@ if [ "$KERNEL_FLASH" == "true" ]; then
 else
 	umount /mnt
 	evtest /dev/input/event0 > /tmp/input-log &
+	EVTEST_PID=$!
 
 	read -t 3 -n 1 -s -r -p "Hit any key to stop auto-boot... " KEY
 
@@ -38,7 +39,7 @@ else
 		# Device should have been wiped and restored to a factory state
 		# Checking if there is still a "noroot" flag in the unpartitioned space
 		export ROOT_FLAG=`dd if=/dev/mmcblk0 bs=512 skip=79872 count=1 status=none | head -c6`
-		if [ "$ROOT_FLAG" = "rooted" ]; then
+		if [ "$ROOT_FLAG" == "rooted" ]; then
 			echo "Security policy not enforced; root access permitted."
 		else
 			mount /dev/mmcblk0p3 /mnt
@@ -73,10 +74,13 @@ else
 				mkdir -p /mnt/opt/root
 				mkdir -p /mnt/opt/key
 				mkdir -p /mnt/selinux
+				mkdir -p /mnt/modules
 				losetup /dev/loop7 /opt/root.sqsh
 				mount /dev/loop7 /mnt/opt/root -o ro,nodev,nosuid,noexec
 				losetup /dev/loop6 /opt/key.sqsh
 				mount /dev/loop6 /mnt/opt/key -o ro,nodev,nosuid,noexec
+				losetup /dev/loop5 /opt/modules.sqsh
+				mount /dev/loop5 /mnt/modules -o ro,nodev,nosuid,noexec
 
 				mount --move /proc /mnt/proc
 				mount --move /sys /mnt/sys
@@ -103,6 +107,8 @@ else
 				mount /dev/loop7 /mnt/opt/root -o ro,nodev,nosuid,noexec
 				losetup /dev/loop6 /opt/key.sqsh
 				mount /dev/loop6 /mnt/opt/key -o ro,nodev,nosuid,noexec
+				losetup /dev/loop5 /opt/modules.sqsh
+				mount /dev/loop5 /mnt/modules -o ro,nodev,nosuid,noexec
 
 				mount /mnt/opt/recovery/restore/alpine-udev.sqsh /alpine
 				mount --bind /proc /mnt/proc
@@ -130,6 +136,8 @@ else
 			mount /dev/loop7 /mnt/opt/root -o ro,nodev,nosuid,noexec
 			losetup /dev/loop6 /opt/key.sqsh
 			mount /dev/loop6 /mnt/opt/key -o ro,nodev,nosuid,noexec
+			losetup /dev/loop5 /opt/modules.sqsh
+			mount /dev/loop5 /mnt/modules -o ro,nodev,nosuid,noexec
 
 			mount /mnt/opt/recovery/restore/alpine-udev.sqsh /alpine
 			mount --bind /proc /mnt/proc
@@ -154,3 +162,5 @@ else
 		exit 0
 	fi
 fi
+
+kill -9 $EVTEST_PID
