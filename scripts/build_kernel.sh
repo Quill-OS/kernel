@@ -73,7 +73,7 @@ if [ "$2" == "std" ]; then
 		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/n705/etc/init.d/inkbox-splash
 		mkdir -p $GITDIR/kernel/out/n705
 	elif [ "$1" == "n905c" ]; then
-		sudo mkdir -p $GITDIR/initrd/n705/etc/init.d
+		sudo mkdir -p $GITDIR/initrd/n905c/etc/init.d
 		sudo cp $GITDIR/initrd/common/rcS-std $GITDIR/initrd/n905c/etc/init.d/rcS
 		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/n905c/etc/init.d/startx
 		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/n905c/etc/init.d/inkbox-splash
