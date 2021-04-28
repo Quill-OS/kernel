@@ -37,6 +37,9 @@ else
 
 		if [ "$INPUT_LOG" == "" ]; then
 			if [ "$DIAGS_BOOT" != "true" ]; then
+				# Splash
+				/etc/init.d/inkbox-splash &
+
 				# Enforcing security policy; device is not rooted.
 				mount /dev/mmcblk0p3 /mnt
 				mount /dev/mmcblk0p1 /mnt/boot

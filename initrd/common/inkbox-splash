@@ -1,0 +1,21 @@
+#!/bin/sh
+# Displays a big "InkBox" splash from the initrd userspace
+
+mkdir -p /splash
+cd /splash
+tar -xf /opt/splash-rootfs.tar.xz
+cd -
+
+cp /bin/busybox /splash/bin/busybox
+mount -t devtmpfs devtmpfs /splash/dev
+mount -t sysfs sysfs /splash/sys
+mount -t proc proc /splash/proc
+
+LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink "-k" "-f" "-q"
+LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink "-M" "-m" "-q" "-t" "regular=/opt/fbink/fraunces.ttf,size=75" "InkBox"
+
+umount /splash/dev -l -f
+umount /splash/sys -l -f
+umount /splash/proc -l -f
+
+rm -rf /splash
