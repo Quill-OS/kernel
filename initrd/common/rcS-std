@@ -28,6 +28,7 @@ if [ "$KERNEL_FLASH" == "true" ]; then
 else
 	umount /mnt
 	evtest /dev/input/event0 > /tmp/input-log &
+	EVTEST_PID=$!
 
 	read -t 3 -n 1 -s -r -p "Hit any key to stop auto-boot... " KEY
 
@@ -54,6 +55,8 @@ else
 				mount /dev/loop7 /mnt/opt/root -o ro,nodev,nosuid,noexec
 				losetup /dev/loop6 /opt/key.sqsh
 				mount /dev/loop6 /mnt/opt/key -o ro,nodev,nosuid,noexec
+				losetup /dev/loop5 /opt/modules.sqsh
+				mount /dev/loop5 /mnt/modules -o ro,nodev,nosuid,noexec
 
 				export ROOTFS_PASSWD=`cat /mnt/etc/passwd`
 				export LOCKDOWN_PASSWD=`cat /opt/passwd_lockdown`
@@ -102,6 +105,8 @@ else
 				mount /dev/loop7 /mnt/opt/root -o ro,nodev,nosuid,noexec
 				losetup /dev/loop6 /opt/key.sqsh
 				mount /dev/loop6 /mnt/opt/key -o ro,nodev,nosuid,noexec
+				losetup /dev/loop5 /opt/modules.sqsh
+				mount /dev/loop5 /mnt/modules -o ro,nodev,nosuid,noexec
 
 				mount /mnt/opt/recovery/restore/alpine-udev.sqsh /alpine
 				mount --bind /proc /mnt/proc
@@ -128,6 +133,8 @@ else
 			mount /dev/loop7 /mnt/opt/root -o ro,nodev,nosuid,noexec
 			losetup /dev/loop6 /opt/key.sqsh
 			mount /dev/loop6 /mnt/opt/key -o ro,nodev,nosuid,noexec
+			losetup /dev/loop5 /opt/modules.sqsh
+			mount /dev/loop5 /mnt/modules -o ro,nodev,nosuid,noexec
 
 			mount /mnt/opt/recovery/restore/alpine-udev.sqsh /alpine
 			mount --bind /proc /mnt/proc
@@ -151,4 +158,4 @@ else
 	fi
 fi
 
-killall evtest
+kill -9 $EVTEST_PID
