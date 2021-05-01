@@ -87,6 +87,8 @@ else
 				mount -t tmpfs tmpfs /mnt/tmp
 				mount -t selinuxfs selinuxfs /mnt/selinux
 
+				echo true > /mnt/kobo/inkbox/remount
+
 				# Starting an X server
 				if [ "$STARTX" == "true" ]; then
 					/etc/init.d/startx
