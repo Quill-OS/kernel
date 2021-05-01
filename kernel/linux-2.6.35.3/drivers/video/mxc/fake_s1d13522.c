@@ -2854,7 +2854,7 @@ static VOID PROGRESS_BAR(EPDFB_DC *pDC)
 	startY = (int)(gptHWCFG->m_val.bProgressYHiByte<<8|gptHWCFG->m_val.bProgressYLoByte);
 
 	if (! icons) {
-		ERR_MSG("[%s-%d] No progess ...\n",__func__,__LINE__);
+		ERR_MSG("[%s-%d] No progress ...\n",__func__,__LINE__);
 		return;
 	}
 	else {
