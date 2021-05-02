@@ -1,0 +1,453 @@
+Generating include/autoconf.mk
+Generating include/autoconf.mk.dep
+for dir in tools examples/standalone examples/api ; do make -C $dir _depend ; done
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/tools'
+make[1]: Nothing to be done for '_depend'.
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/tools'
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/examples/standalone'
+make[1]: Nothing to be done for '_depend'.
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/examples/standalone'
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/examples/api'
+make[1]: Nothing to be done for '_depend'.
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/examples/api'
+make -C tools all
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/tools'
+gcc  -Wall -Wstrict-prototypes -O2 -fomit-frame-pointer -idirafter /home/build/u-boot/u-boot-2009.08/include -idirafter /home/build/u-boot/u-boot-2009.08/include2 -idirafter /home/build/u-boot/u-boot-2009.08/include -I /home/build/u-boot/u-boot-2009.08/libfdt -I /home/build/u-boot/u-boot-2009.08/tools -DTEXT_BASE=0x77800000 -DUSE_HOSTCC -D__KERNEL_STRICT_NAMES -O   -o img2srec.o img2srec.c -c
+gcc -Wall -Wstrict-prototypes -O2 -fomit-frame-pointer -idirafter /home/build/u-boot/u-boot-2009.08/include -idirafter /home/build/u-boot/u-boot-2009.08/include2 -idirafter /home/build/u-boot/u-boot-2009.08/include -I /home/build/u-boot/u-boot-2009.08/libfdt -I /home/build/u-boot/u-boot-2009.08/tools -DTEXT_BASE=0x77800000 -DUSE_HOSTCC -D__KERNEL_STRICT_NAMES -O  -o img2srec img2srec.o
+strip img2srec
+gcc -g -Wall -idirafter /home/build/u-boot/u-boot-2009.08/include -idirafter /home/build/u-boot/u-boot-2009.08/include2 -idirafter /home/build/u-boot/u-boot-2009.08/include -I /home/build/u-boot/u-boot-2009.08/libfdt -I /home/build/u-boot/u-boot-2009.08/tools -DTEXT_BASE=0x77800000 -DUSE_HOSTCC -D__KERNEL_STRICT_NAMES -O -c -o mkimage.o /home/build/u-boot/u-boot-2009.08/tools/mkimage.c
+gcc -g -Wall -Wstrict-prototypes -O2 -fomit-frame-pointer -idirafter /home/build/u-boot/u-boot-2009.08/include -idirafter /home/build/u-boot/u-boot-2009.08/include2 -idirafter /home/build/u-boot/u-boot-2009.08/include -I /home/build/u-boot/u-boot-2009.08/libfdt -I /home/build/u-boot/u-boot-2009.08/tools -DTEXT_BASE=0x77800000 -DUSE_HOSTCC -D__KERNEL_STRICT_NAMES -O -c -o crc32.o /home/build/u-boot/u-boot-2009.08/lib_generic/crc32.c
+gcc -g -Wall -idirafter /home/build/u-boot/u-boot-2009.08/include -idirafter /home/build/u-boot/u-boot-2009.08/include2 -idirafter /home/build/u-boot/u-boot-2009.08/include -I /home/build/u-boot/u-boot-2009.08/libfdt -I /home/build/u-boot/u-boot-2009.08/tools -DTEXT_BASE=0x77800000 -DUSE_HOSTCC -D__KERNEL_STRICT_NAMES -O -c -o image.o /home/build/u-boot/u-boot-2009.08/common/image.c
+gcc -g -Wall -Wstrict-prototypes -O2 -fomit-frame-pointer -idirafter /home/build/u-boot/u-boot-2009.08/include -idirafter /home/build/u-boot/u-boot-2009.08/include2 -idirafter /home/build/u-boot/u-boot-2009.08/include -I /home/build/u-boot/u-boot-2009.08/libfdt -I /home/build/u-boot/u-boot-2009.08/tools -DTEXT_BASE=0x77800000 -DUSE_HOSTCC -D__KERNEL_STRICT_NAMES -O -c -o md5.o /home/build/u-boot/u-boot-2009.08/lib_generic/md5.c
+gcc -g -Wall -Wstrict-prototypes -O2 -fomit-frame-pointer -idirafter /home/build/u-boot/u-boot-2009.08/include -idirafter /home/build/u-boot/u-boot-2009.08/include2 -idirafter /home/build/u-boot/u-boot-2009.08/include -I /home/build/u-boot/u-boot-2009.08/libfdt -I /home/build/u-boot/u-boot-2009.08/tools -DTEXT_BASE=0x77800000 -DUSE_HOSTCC -D__KERNEL_STRICT_NAMES -O -c -o sha1.o /home/build/u-boot/u-boot-2009.08/lib_generic/sha1.c
+gcc -g -Wall -idirafter /home/build/u-boot/u-boot-2009.08/include -idirafter /home/build/u-boot/u-boot-2009.08/include2 -idirafter /home/build/u-boot/u-boot-2009.08/include -I /home/build/u-boot/u-boot-2009.08/libfdt -I /home/build/u-boot/u-boot-2009.08/tools -DTEXT_BASE=0x77800000 -DUSE_HOSTCC -D__KERNEL_STRICT_NAMES -O -c -o fdt.o /home/build/u-boot/u-boot-2009.08/libfdt/fdt.c
+gcc -g -Wall -idirafter /home/build/u-boot/u-boot-2009.08/include -idirafter /home/build/u-boot/u-boot-2009.08/include2 -idirafter /home/build/u-boot/u-boot-2009.08/include -I /home/build/u-boot/u-boot-2009.08/libfdt -I /home/build/u-boot/u-boot-2009.08/tools -DTEXT_BASE=0x77800000 -DUSE_HOSTCC -D__KERNEL_STRICT_NAMES -O -c -o fdt_ro.o /home/build/u-boot/u-boot-2009.08/libfdt/fdt_ro.c
+gcc -g -Wall -idirafter /home/build/u-boot/u-boot-2009.08/include -idirafter /home/build/u-boot/u-boot-2009.08/include2 -idirafter /home/build/u-boot/u-boot-2009.08/include -I /home/build/u-boot/u-boot-2009.08/libfdt -I /home/build/u-boot/u-boot-2009.08/tools -DTEXT_BASE=0x77800000 -DUSE_HOSTCC -D__KERNEL_STRICT_NAMES -O -c -o fdt_rw.o /home/build/u-boot/u-boot-2009.08/libfdt/fdt_rw.c
+gcc -g -Wall -idirafter /home/build/u-boot/u-boot-2009.08/include -idirafter /home/build/u-boot/u-boot-2009.08/include2 -idirafter /home/build/u-boot/u-boot-2009.08/include -I /home/build/u-boot/u-boot-2009.08/libfdt -I /home/build/u-boot/u-boot-2009.08/tools -DTEXT_BASE=0x77800000 -DUSE_HOSTCC -D__KERNEL_STRICT_NAMES -O -c -o fdt_strerror.o /home/build/u-boot/u-boot-2009.08/libfdt/fdt_strerror.c
+gcc -g -Wall -idirafter /home/build/u-boot/u-boot-2009.08/include -idirafter /home/build/u-boot/u-boot-2009.08/include2 -idirafter /home/build/u-boot/u-boot-2009.08/include -I /home/build/u-boot/u-boot-2009.08/libfdt -I /home/build/u-boot/u-boot-2009.08/tools -DTEXT_BASE=0x77800000 -DUSE_HOSTCC -D__KERNEL_STRICT_NAMES -O -c -o fdt_wip.o /home/build/u-boot/u-boot-2009.08/libfdt/fdt_wip.c
+gcc -g -Wall -idirafter /home/build/u-boot/u-boot-2009.08/include -idirafter /home/build/u-boot/u-boot-2009.08/include2 -idirafter /home/build/u-boot/u-boot-2009.08/include -I /home/build/u-boot/u-boot-2009.08/libfdt -I /home/build/u-boot/u-boot-2009.08/tools -DTEXT_BASE=0x77800000 -DUSE_HOSTCC -D__KERNEL_STRICT_NAMES -O -c -o os_support.o /home/build/u-boot/u-boot-2009.08/tools/os_support.c
+gcc -Wall -Wstrict-prototypes -O2 -fomit-frame-pointer -idirafter /home/build/u-boot/u-boot-2009.08/include -idirafter /home/build/u-boot/u-boot-2009.08/include2 -idirafter /home/build/u-boot/u-boot-2009.08/include -I /home/build/u-boot/u-boot-2009.08/libfdt -I /home/build/u-boot/u-boot-2009.08/tools -DTEXT_BASE=0x77800000 -DUSE_HOSTCC -D__KERNEL_STRICT_NAMES -O  -o mkimage mkimage.o crc32.o image.o md5.o sha1.o fdt.o fdt_ro.o fdt_rw.o fdt_strerror.o fdt_wip.o os_support.o
+strip mkimage
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/tools'
+make -C examples/standalone all
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/examples/standalone'
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o hello_world.o hello_world.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o stubs.o stubs.c -c
+arm-linux-gnueabihf-ar crv libstubs.a stubs.o
+a - stubs.o
+arm-linux-gnueabihf-ld -g  -Ttext 0xc100000 \
+		-o hello_world -e hello_world hello_world.o libstubs.a \
+		-L/home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1 -lgcc
+arm-linux-gnueabihf-objcopy -O srec hello_world hello_world.srec 2>/dev/null
+arm-linux-gnueabihf-objcopy -O binary hello_world hello_world.bin 2>/dev/null
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/examples/standalone'
+make -C examples/api all
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/examples/api'
+make[1]: Nothing to be done for 'all'.
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/examples/api'
+make -C cpu/arm_cortexa8 start.o
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/cpu/arm_cortexa8'
+arm-linux-gnueabihf-gcc   -D__ASSEMBLY__ -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5     -o start.o start.S -c
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/cpu/arm_cortexa8'
+make -C lib_generic/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/lib_generic'
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o crc16.o crc16.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o crc32.o crc32.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o ctype.o ctype.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o display_options.o display_options.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o div64.o div64.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o gunzip.o gunzip.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o lmb.o lmb.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o ldiv.o ldiv.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o sha1.o sha1.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o string.o string.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o strmhz.o strmhz.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o vsprintf.o vsprintf.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o zlib.o zlib.c -c
+arm-linux-gnueabihf-ar crv libgeneric.a crc16.o crc32.o ctype.o display_options.o div64.o gunzip.o lmb.o ldiv.o sha1.o string.o strmhz.o vsprintf.o zlib.o
+a - crc16.o
+a - crc32.o
+a - ctype.o
+a - display_options.o
+a - div64.o
+a - gunzip.o
+a - lmb.o
+a - ldiv.o
+a - sha1.o
+a - string.o
+a - strmhz.o
+a - vsprintf.o
+a - zlib.o
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/lib_generic'
+make -C lib_generic/lzma/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/lib_generic/lzma'
+arm-linux-gnueabihf-ar crv liblzma.a 
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/lib_generic/lzma'
+make -C lib_generic/lzo/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/lib_generic/lzo'
+arm-linux-gnueabihf-ar crv liblzo.a 
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/lib_generic/lzo'
+make -C board/freescale/common/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/board/freescale/common'
+arm-linux-gnueabihf-ar crv libfreescale.a 
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/board/freescale/common'
+make -C cpu/arm_cortexa8/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/cpu/arm_cortexa8'
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o cpu.o cpu.c -c
+arm-linux-gnueabihf-ar crv libarm_cortexa8.a cpu.o
+a - cpu.o
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/cpu/arm_cortexa8'
+make -C cpu/arm_cortexa8/mx50/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/cpu/arm_cortexa8/mx50'
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o interrupts.o interrupts.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o generic.o generic.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o iomux.o iomux.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o timer.o timer.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o cache.o cache.c -c
+arm-linux-gnueabihf-ar crv libmx50.a interrupts.o generic.o iomux.o timer.o cache.o
+a - interrupts.o
+a - generic.o
+a - iomux.o
+a - timer.o
+a - cache.o
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/cpu/arm_cortexa8/mx50'
+make -C lib_arm/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/lib_arm'
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o board.o board.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o bootm.o bootm.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o cache.o cache.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o interrupts.o interrupts.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o reset.o reset.c -c
+arm-linux-gnueabihf-ar crv libarm.a board.o bootm.o cache.o interrupts.o reset.o
+a - board.o
+a - bootm.o
+a - cache.o
+a - interrupts.o
+a - reset.o
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o eabi_compat.o eabi_compat.c -c
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/lib_arm'
+make -C fs/cramfs/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/fs/cramfs'
+arm-linux-gnueabihf-ar crv libcramfs.a 
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/fs/cramfs'
+make -C fs/fat/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/fs/fat'
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o fat.o fat.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o file.o file.c -c
+arm-linux-gnueabihf-ar crv libfat.a fat.o file.o
+a - fat.o
+a - file.o
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/fs/fat'
+make -C fs/fdos/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/fs/fdos'
+arm-linux-gnueabihf-ar crv libfdos.a 
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/fs/fdos'
+make -C fs/jffs2/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/fs/jffs2'
+arm-linux-gnueabihf-ar crv libjffs2.a 
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/fs/jffs2'
+make -C fs/reiserfs/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/fs/reiserfs'
+arm-linux-gnueabihf-ar crv libreiserfs.a 
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/fs/reiserfs'
+make -C fs/ext2/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/fs/ext2'
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o ext2fs.o ext2fs.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o dev.o dev.c -c
+arm-linux-gnueabihf-ar crv libext2fs.a ext2fs.o dev.o
+a - ext2fs.o
+a - dev.o
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/fs/ext2'
+make -C fs/yaffs2/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/fs/yaffs2'
+arm-linux-gnueabihf-ar crv libyaffs2.a 
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/fs/yaffs2'
+make -C fs/ubifs/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/fs/ubifs'
+arm-linux-gnueabihf-ar crv libubifs.a 
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/fs/ubifs'
+make -C net/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/net'
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o bootp.o bootp.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o eth.o eth.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o net.o net.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o nfs.o nfs.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o rarp.o rarp.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o tftp.o tftp.c -c
+arm-linux-gnueabihf-ar crv libnet.a bootp.o eth.o net.o nfs.o rarp.o tftp.o
+a - bootp.o
+a - eth.o
+a - net.o
+a - nfs.o
+a - rarp.o
+a - tftp.o
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/net'
+make -C disk/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/disk'
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o part.o part.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o part_dos.o part_dos.c -c
+arm-linux-gnueabihf-ar crv libdisk.a part.o part_dos.o
+a - part.o
+a - part_dos.o
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/disk'
+make -C drivers/bios_emulator/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/drivers/bios_emulator'
+arm-linux-gnueabihf-ar crv libatibiosemu.a 
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/drivers/bios_emulator'
+make -C drivers/block/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/drivers/block'
+arm-linux-gnueabihf-ar crv libblock.a 
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/drivers/block'
+make -C drivers/dma/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/drivers/dma'
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o apbh_dma.o apbh_dma.c -c
+arm-linux-gnueabihf-ar crv libdma.a apbh_dma.o
+a - apbh_dma.o
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/drivers/dma'
+make -C drivers/fpga/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/drivers/fpga'
+arm-linux-gnueabihf-ar crv libfpga.a 
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/drivers/fpga'
+make -C drivers/gpio/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/drivers/gpio'
+arm-linux-gnueabihf-ar crv libgpio.a 
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/drivers/gpio'
+make -C drivers/hwmon/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/drivers/hwmon'
+arm-linux-gnueabihf-ar crv libhwmon.a 
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/drivers/hwmon'
+make -C drivers/i2c/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/drivers/i2c'
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o mxc_i2c.o mxc_i2c.c -c
+arm-linux-gnueabihf-ar crv libi2c.a mxc_i2c.o
+a - mxc_i2c.o
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/drivers/i2c'
+make -C drivers/input/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/drivers/input'
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o mxc_keyb.o mxc_keyb.c -c
+arm-linux-gnueabihf-ar crv libinput.a mxc_keyb.o
+a - mxc_keyb.o
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/drivers/input'
+make -C drivers/misc/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/drivers/misc'
+arm-linux-gnueabihf-ar crv libmisc.a 
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/drivers/misc'
+make -C drivers/mmc/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/drivers/mmc'
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o mmc.o mmc.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o imx_esdhc.o imx_esdhc.c -c
+arm-linux-gnueabihf-ar crv libmmc.a mmc.o imx_esdhc.o
+a - mmc.o
+a - imx_esdhc.o
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/drivers/mmc'
+make -C drivers/mtd/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/drivers/mtd'
+arm-linux-gnueabihf-ar crv libmtd.a 
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/drivers/mtd'
+make -C drivers/mtd/nand/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/drivers/mtd/nand'
+arm-linux-gnueabihf-ar crv libnand.a 
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/drivers/mtd/nand'
+make -C drivers/mtd/onenand/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/drivers/mtd/onenand'
+arm-linux-gnueabihf-ar crv libonenand.a 
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/drivers/mtd/onenand'
+make -C drivers/mtd/ubi/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/drivers/mtd/ubi'
+arm-linux-gnueabihf-ar crv libubi.a 
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/drivers/mtd/ubi'
+make -C drivers/mtd/spi/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/drivers/mtd/spi'
+arm-linux-gnueabihf-ar crv libspi_flash.a 
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/drivers/mtd/spi'
+make -C drivers/net/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/drivers/net'
+arm-linux-gnueabihf-ar crv libnet.a 
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/drivers/net'
+make -C drivers/net/phy/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/drivers/net/phy'
+arm-linux-gnueabihf-ar crv libphy.a 
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/drivers/net/phy'
+make -C drivers/net/sk98lin/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/drivers/net/sk98lin'
+arm-linux-gnueabihf-ar crv libsk98lin.a 
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/drivers/net/sk98lin'
+make -C drivers/pci/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/drivers/pci'
+arm-linux-gnueabihf-ar crv libpci.a 
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/drivers/pci'
+make -C drivers/pcmcia/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/drivers/pcmcia'
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o rpx_pcmcia.o rpx_pcmcia.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o tqm8xx_pcmcia.o tqm8xx_pcmcia.c -c
+arm-linux-gnueabihf-ar crv libpcmcia.a rpx_pcmcia.o tqm8xx_pcmcia.o
+a - rpx_pcmcia.o
+a - tqm8xx_pcmcia.o
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/drivers/pcmcia'
+make -C drivers/power/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/drivers/power'
+arm-linux-gnueabihf-ar crv libpower.a 
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/drivers/power'
+make -C drivers/spi/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/drivers/spi'
+arm-linux-gnueabihf-ar crv libspi.a 
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/drivers/spi'
+make -C drivers/fastboot/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/drivers/fastboot'
+arm-linux-gnueabihf-ar crv libfastboot.a 
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/drivers/fastboot'
+make -C drivers/rtc/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/drivers/rtc'
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o date.o date.c -c
+arm-linux-gnueabihf-ar crv librtc.a date.o
+a - date.o
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/drivers/rtc'
+make -C drivers/serial/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/drivers/serial'
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o serial_mxc.o serial_mxc.c -c
+arm-linux-gnueabihf-ar crv libserial.a serial_mxc.o
+a - serial_mxc.o
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/drivers/serial'
+make -C drivers/twserial/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/drivers/twserial'
+arm-linux-gnueabihf-ar crv libtws.a 
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/drivers/twserial'
+make -C drivers/usb/gadget/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/drivers/usb/gadget'
+arm-linux-gnueabihf-ar crv libusb_gadget.a 
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/drivers/usb/gadget'
+make -C drivers/usb/host/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/drivers/usb/host'
+arm-linux-gnueabihf-ar crv libusb_host.a 
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/drivers/usb/host'
+make -C drivers/usb/musb/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/drivers/usb/musb'
+arm-linux-gnueabihf-ar crv libusb_musb.a 
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/drivers/usb/musb'
+make -C drivers/video/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/drivers/video'
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o videomodes.o videomodes.c -c
+arm-linux-gnueabihf-ar crv libvideo.a videomodes.o
+a - videomodes.o
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/drivers/video'
+make -C drivers/watchdog/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/drivers/watchdog'
+arm-linux-gnueabihf-ar crv libwatchdog.a 
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/drivers/watchdog'
+make -C common/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/common'
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o circbuf.o circbuf.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o cmd_bdinfo.o cmd_bdinfo.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o cmd_boot.o cmd_boot.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o cmd_bootm.o cmd_bootm.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o cmd_console.o cmd_console.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o cmd_date.o cmd_date.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o cmd_ext2.o cmd_ext2.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o cmd_fat.o cmd_fat.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o cmd_i2c.o cmd_i2c.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o cmd_itest.o cmd_itest.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o cmd_load.o cmd_load.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o cmd_mem.o cmd_mem.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o cmd_mii.o cmd_mii.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o cmd_misc.o cmd_misc.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o cmd_mmc.o cmd_mmc.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o cmd_nand.o cmd_nand.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o cmd_nvedit.o cmd_nvedit.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o cmd_pcmcia.o cmd_pcmcia.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o cmd_source.o cmd_source.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o cmd_ximg.o cmd_ximg.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o command.o command.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o console.o console.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o dlmalloc.o dlmalloc.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o env_common.o env_common.c -c
+make -C ../tools
+make[2]: Entering directory '/home/build/u-boot/u-boot-2009.08/tools'
+make[2]: Leaving directory '/home/build/u-boot/u-boot-2009.08/tools'
+arm-linux-gnueabihf-gcc  -D__ASSEMBLY__ -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wa,--no-warn \
+	-DENV_CRC= \
+	-c -o env_embedded.o env_embedded.c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o env_mmc.o env_mmc.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o exports.o exports.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o flash.o flash.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o image.o image.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o main.o main.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o memsize.o memsize.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o miiphyutil.o miiphyutil.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o s_record.o s_record.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o stdio.o stdio.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o xyzModem.o xyzModem.c -c
+arm-linux-gnueabihf-ar crv libcommon.a circbuf.o cmd_bdinfo.o cmd_boot.o cmd_bootm.o cmd_console.o cmd_date.o cmd_ext2.o cmd_fat.o cmd_i2c.o cmd_itest.o cmd_load.o cmd_mem.o cmd_mii.o cmd_misc.o cmd_mmc.o cmd_nand.o cmd_nvedit.o cmd_pcmcia.o cmd_source.o cmd_ximg.o command.o console.o dlmalloc.o env_common.o env_embedded.o env_mmc.o exports.o flash.o image.o main.o memsize.o miiphyutil.o s_record.o stdio.o xyzModem.o
+a - circbuf.o
+a - cmd_bdinfo.o
+a - cmd_boot.o
+a - cmd_bootm.o
+a - cmd_console.o
+a - cmd_date.o
+a - cmd_ext2.o
+a - cmd_fat.o
+a - cmd_i2c.o
+a - cmd_itest.o
+a - cmd_load.o
+a - cmd_mem.o
+a - cmd_mii.o
+a - cmd_misc.o
+a - cmd_mmc.o
+a - cmd_nand.o
+a - cmd_nvedit.o
+a - cmd_pcmcia.o
+a - cmd_source.o
+a - cmd_ximg.o
+a - command.o
+a - console.o
+a - dlmalloc.o
+a - env_common.o
+a - env_embedded.o
+a - env_mmc.o
+a - exports.o
+a - flash.o
+a - image.o
+a - main.o
+a - memsize.o
+a - miiphyutil.o
+a - s_record.o
+a - stdio.o
+a - xyzModem.o
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/common'
+make -C libfdt/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/libfdt'
+arm-linux-gnueabihf-ar crv libfdt.a 
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/libfdt'
+make -C api/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/api'
+arm-linux-gnueabihf-ar crv libapi.a 
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/api'
+make -C post/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/post'
+(echo create libpost.a; for lib in   ; \
+ do echo addlib $lib; done; echo save) \
+| arm-linux-gnueabihf-ar -M
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/post'
+make -C board/freescale/mx50_rdp/
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/board/freescale/mx50_rdp'
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o mx50_rdp.o mx50_rdp.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o ntx_cmd.o ntx_cmd.c -c
+arm-linux-gnueabihf-gcc  -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -Wall -Wstrict-prototypes -fno-stack-protector   -o ntx_hwconfig.o ntx_hwconfig.c -c
+arm-linux-gnueabihf-gcc   -D__ASSEMBLY__ -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5     -o lowlevel_init.o lowlevel_init.S -c
+arm-linux-gnueabihf-gcc   -D__ASSEMBLY__ -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5     -o flash_header.o flash_header.S -c
+arm-linux-gnueabihf-gcc   -D__ASSEMBLY__ -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5     -o mx50_overclock.o mx50_overclock.S -c
+arm-linux-gnueabihf-ar crv libmx50_rdp.a mx50_rdp.o ntx_cmd.o ntx_hwconfig.o lowlevel_init.o flash_header.o mx50_overclock.o
+a - mx50_rdp.o
+a - ntx_cmd.o
+a - ntx_hwconfig.o
+a - lowlevel_init.o
+a - flash_header.o
+a - mx50_overclock.o
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/board/freescale/mx50_rdp'
+make -C /home/build/u-boot/u-boot-2009.08/board/freescale/mx50_rdp/ u-boot.lds
+make[1]: Entering directory '/home/build/u-boot/u-boot-2009.08/board/freescale/mx50_rdp'
+make[1]: Nothing to be done for 'u-boot.lds'.
+make[1]: Leaving directory '/home/build/u-boot/u-boot-2009.08/board/freescale/mx50_rdp'
+arm-linux-gnueabihf-gcc -E -g  -Os   -fno-strict-aliasing -fno-common -ffixed-r8 -msoft-float -D__KERNEL__ -D_MX50_ -D__UBOOT__ -DTEXT_BASE=0x77800000 -I/home/build/u-boot/u-boot-2009.08/include -fno-builtin -ffreestanding -nostdinc -isystem /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1/include -pipe  -DCONFIG_ARM -D__ARM__ -marm  -mabi=aapcs-linux -mno-thumb-interwork -march=armv5   -include /home/build/u-boot/u-boot-2009.08/include/u-boot/u-boot.lds.h  -ansi -D__ASSEMBLY__ -P - </home/build/u-boot/u-boot-2009.08/board/freescale/mx50_rdp/u-boot.lds >u-boot.lds
+UNDEF_SYM=`arm-linux-gnueabihf-objdump -x board/freescale/mx50_rdp/libmx50_rdp.a lib_generic/libgeneric.a lib_generic/lzma/liblzma.a lib_generic/lzo/liblzo.a board/freescale/common/libfreescale.a cpu/arm_cortexa8/libarm_cortexa8.a cpu/arm_cortexa8/mx50/libmx50.a lib_arm/libarm.a fs/cramfs/libcramfs.a fs/fat/libfat.a fs/fdos/libfdos.a fs/jffs2/libjffs2.a fs/reiserfs/libreiserfs.a fs/ext2/libext2fs.a fs/yaffs2/libyaffs2.a fs/ubifs/libubifs.a net/libnet.a disk/libdisk.a drivers/bios_emulator/libatibiosemu.a drivers/block/libblock.a drivers/dma/libdma.a drivers/fpga/libfpga.a drivers/gpio/libgpio.a drivers/hwmon/libhwmon.a drivers/i2c/libi2c.a drivers/input/libinput.a drivers/misc/libmisc.a drivers/mmc/libmmc.a drivers/mtd/libmtd.a drivers/mtd/nand/libnand.a drivers/mtd/onenand/libonenand.a drivers/mtd/ubi/libubi.a drivers/mtd/spi/libspi_flash.a drivers/net/libnet.a drivers/net/phy/libphy.a drivers/net/sk98lin/libsk98lin.a drivers/pci/libpci.a drivers/pcmcia/libpcmcia.a drivers/power/libpower.a drivers/spi/libspi.a drivers/fastboot/libfastboot.a drivers/rtc/librtc.a drivers/serial/libserial.a drivers/twserial/libtws.a drivers/usb/gadget/libusb_gadget.a drivers/usb/host/libusb_host.a drivers/usb/musb/libusb_musb.a drivers/video/libvideo.a drivers/watchdog/libwatchdog.a common/libcommon.a libfdt/libfdt.a api/libapi.a post/libpost.a | sed  -n -e 's/.*\(__u_boot_cmd_.*\)/-u\1/p'|sort|uniq`; cd /home/build/u-boot/u-boot-2009.08 && arm-linux-gnueabihf-ld -Bstatic -T u-boot.lds  -Ttext 0x77800000 $UNDEF_SYM cpu/arm_cortexa8/start.o --start-group lib_generic/libgeneric.a lib_generic/lzma/liblzma.a lib_generic/lzo/liblzo.a board/freescale/common/libfreescale.a cpu/arm_cortexa8/libarm_cortexa8.a cpu/arm_cortexa8/mx50/libmx50.a lib_arm/libarm.a fs/cramfs/libcramfs.a fs/fat/libfat.a fs/fdos/libfdos.a fs/jffs2/libjffs2.a fs/reiserfs/libreiserfs.a fs/ext2/libext2fs.a fs/yaffs2/libyaffs2.a fs/ubifs/libubifs.a net/libnet.a disk/libdisk.a drivers/bios_emulator/libatibiosemu.a drivers/block/libblock.a drivers/dma/libdma.a drivers/fpga/libfpga.a drivers/gpio/libgpio.a drivers/hwmon/libhwmon.a drivers/i2c/libi2c.a drivers/input/libinput.a drivers/misc/libmisc.a drivers/mmc/libmmc.a drivers/mtd/libmtd.a drivers/mtd/nand/libnand.a drivers/mtd/onenand/libonenand.a drivers/mtd/ubi/libubi.a drivers/mtd/spi/libspi_flash.a drivers/net/libnet.a drivers/net/phy/libphy.a drivers/net/sk98lin/libsk98lin.a drivers/pci/libpci.a drivers/pcmcia/libpcmcia.a drivers/power/libpower.a drivers/spi/libspi.a drivers/fastboot/libfastboot.a drivers/rtc/librtc.a drivers/serial/libserial.a drivers/twserial/libtws.a drivers/usb/gadget/libusb_gadget.a drivers/usb/host/libusb_host.a drivers/usb/musb/libusb_musb.a drivers/video/libvideo.a drivers/watchdog/libwatchdog.a common/libcommon.a libfdt/libfdt.a api/libapi.a post/libpost.a board/freescale/mx50_rdp/libmx50_rdp.a --end-group /home/build/u-boot/u-boot-2009.08/lib_arm/eabi_compat.o -L /home/build/kobo/toolchain/gcc-4.8/bin/../lib/gcc/arm-linux-gnueabihf/4.8.1 -lgcc -Map u-boot.map -o u-boot
+arm-linux-gnueabihf-objcopy -O srec u-boot u-boot.srec
+arm-linux-gnueabihf-objcopy --gap-fill=0xff -O binary u-boot u-boot.bin
