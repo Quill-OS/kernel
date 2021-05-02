@@ -88,6 +88,7 @@ else
 				mount -t selinuxfs selinuxfs /mnt/selinux
 
 				echo true > /mnt/kobo/inkbox/remount
+				echo false > /mnt/boot/flags/X11_STARTED
 
 				# Starting an X server
 				if [ "$STARTX" == "true" ]; then
