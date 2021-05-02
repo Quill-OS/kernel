@@ -13,7 +13,7 @@ mkdir -p /mnt/opt/X11/vnc-touch
 mkdir -p /mnt/opt/X11/update
 
 # Mounting X11 rootfs read-only with squashfuse
-busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/kobox-graphic-public.pem" "-signature" "/opt/X11/base/xorg.isa.dgst" "/opt/X11/base/xorg.isa"
+busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/kobox-graphic-public.pem" "-signature" "/opt/X11/base/xorg.isa.dgst" "/opt/X11/base/xorg.isa" &>/dev/null
 if [ $? != 0 ]; then
 	echo "KoBox base rootfs package's signature is invalid! Aborting launch..."
 	echo "false" > /mnt/boot/flags/X11_STARTED
@@ -23,7 +23,7 @@ else
 fi
 
 # Mounting VNC/touch input rootfs
-busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/kobox-graphic-public.pem" "-signature" "/opt/X11/base/vnc-touch.isa.dgst" "/opt/X11/base/vnc-touch.isa"
+busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/kobox-graphic-public.pem" "-signature" "/opt/X11/base/vnc-touch.isa.dgst" "/opt/X11/base/vnc-touch.isa" &>/dev/null
 if [ $? != 0 ]; then
 	echo "VNC/touch input rootfs package's signature is invalid! Aborting launch..."
 	echo "false" > /mnt/boot/flags/X11_STARTED
@@ -50,9 +50,9 @@ for f in /mnt/opt/X11/extensions/*.isa ; do
 	EXTENSION_NAME_RAW=`echo "$EXTENSION_FOLDER" | cut -d'/' -f5-`
 	EXTENSION_NAME=`echo "$EXTENSION_NAME_RAW" | awk '{ print toupper( substr( $0, 1, 1 ) ) substr( $0, 2); }'`
 
-	busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/kobox-graphic-public.pem" "-signature" "$FILE_DGST" "$FILE"
+	busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/kobox-graphic-public.pem" "-signature" "$FILE_DGST" "$FILE" &>/dev/null
 	if [ $? != 0 ]; then
-		busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/kobox-nographic-public.pem" "-signature" "$FILE_DGST" "$FILE"
+		busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/kobox-nographic-public.pem" "-signature" "$FILE_DGST" "$FILE" &>/dev/null
 		if [ $? != 0 ]; then
 			echo "Digital signature of KoBox package '$EXTENSION_NAME' invalid! Aborting launch..."
 			echo "false" > /mnt/boot/flags/X11_STARTED
