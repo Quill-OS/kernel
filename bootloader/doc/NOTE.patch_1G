@@ -1,0 +1,14 @@
+2012/06/07 William Chen
+
+based on patches/1G/1104_1_mx50_1GHz_u-boot_20120507.patch
+
+1. Added	board/freescale/mx50_rdp/mx50_overclock.S
+2. Modified	board/freescale/mx50_rdp/mx50_rdp.c
+		board/freescale/mx50_rdp/Makefile
+3. Skipped(*)	board/freescale/mx50_rdp/flash_header.S
+
+Modification needed to apply with this patch: 
+1. Add kernel command "mx50_1GHz" to activate overclock process (in include/configs/mx50_rdp.h)
+3. kernel argument size needs to be enlarged if exceeding maximum (16->32)
+3. kernel command parameter "lpj=3997696" value needs modification (lpj=4997120)
+
