@@ -32,7 +32,7 @@ fi
 # Environment
 cd $TOOLCHAINDIR/bin
 export PATH=$PATH:$PWD
-cd - > /dev/null
+cd - &> /dev/null
 
 if [ "$1" == "n705" ]; then
 	echo "---- Building Kobo Mini (N705) kernel ----"
