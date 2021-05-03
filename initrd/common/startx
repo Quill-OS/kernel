@@ -60,6 +60,9 @@ for f in /mnt/opt/X11/extensions/*.isa ; do
 		else
 			echo "$EXTENSION_NAME" >> /mnt/opt/X11/nographic_extensions_list
 			echo "$EXTENSION_FOLDER" >> /mnt/opt/X11/nographic_extensions_folders_list
+			busybox chroot /mnt "mkdir" "-p" "$EXTENSION_FOLDER"
+	                busybox chroot /mnt "/bin/squashfuse" "$FILE" "$EXTENSION_FOLDER"
+	                UNIONFS_FOLDERS_RAW="$UNIONFS_FOLDERS_RAW$EXTENSION_FOLDER:"
 		fi
 	else
 		echo "$EXTENSION_NAME" >> /mnt/opt/X11/extensions_list
