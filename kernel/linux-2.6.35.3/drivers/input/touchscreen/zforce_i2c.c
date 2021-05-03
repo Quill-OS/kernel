@@ -173,7 +173,6 @@ static int zForce_ir_touch_recv_data(struct i2c_client *client, uint8_t *buf)
 			result = 1;
 			break;
 		case 7:
-			printk (KERN_ERR "[%s-%d] command BootComplete (%d)...\n",__func__,__LINE__,buf[1]);
 			break;
 		case 8:
 			printk ("[%s-%d] command Frequency (%d) ...\n",__func__,__LINE__,buf[1]);

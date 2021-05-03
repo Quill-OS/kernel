@@ -547,7 +547,6 @@ static int __init mxc_setup_proc_entry(void)
 
 	res = create_proc_entry("cpu/clocks", 0, NULL);
 	if (!res) {
-		printk(KERN_ERR "Failed to create proc/cpu/clocks\n");
 		return -ENOMEM;
 	}
 	res->proc_fops = &mxc_proc_clocks_ops;
