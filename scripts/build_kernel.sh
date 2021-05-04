@@ -48,20 +48,30 @@ if [ "$2" == "std" ]; then
 	echo "---- Building STANDARD kernel for $1 ----"
 elif [ "$2" == "root" ]; then
 	echo "---- Building ROOT kernel for $1 ----"
+elif [ "$2" == "diags" ]; then
+	echo "---- Building DIAGNOSTICS kernel for $1 ----"
 else
 	echo "You must specify a valid kernel type."
-	echo "Available types are: std, root"
+	echo "Available types are: std, root, diags"
 	exit 1
 fi
 
 if [ "$1" == "n705" ]; then
 	cd $GITDIR/kernel/linux-2.6.35.3
 	make ARCH=arm CROSS_COMPILE=$TARGET- mrproper
-	cp $GITDIR/kernel/config/config-n705 $GITDIR/kernel/linux-2.6.35.3/.config
+	if [ "$2" == "diags" ]; then
+		cp $GITDIR/kernel/config/config-n705-diags $GITDIR/kernel/linux-2.6.35.3/.config
+	else
+		cp $GITDIR/kernel/config/config-n705 $GITDIR/kernel/linux-2.6.35.3/.config
+	fi
 elif [ "$1" == "n905c" ]; then
 	cd $GITDIR/kernel/linux-2.6.35.3
 	make ARCH=arm CROSS_COMPILE=$TARGET- mrproper
-	cp $GITDIR/kernel/config/config-n905c $GITDIR/kernel/linux-2.6.35.3/.config
+	if [ "$2" == "diags" ]; then
+		cp $GITDIR/kernel/config/config-n905c-diags $GITDIR/kernel/linux-2.6.35.3/.config
+	else
+		cp $GITDIR/kernel/config/config-n905c $GITDIR/kernel/linux-2.6.35.3/.config
+	fi
 fi
 
 # Build kernel
@@ -96,7 +106,7 @@ elif [ "$2" == "root" ]; then
 		sudo mkdir -p $GITDIR/initrd/n705/etc/init.d
 		sudo cp $GITDIR/initrd/common/rcS-root $GITDIR/initrd/n705/etc/init.d/rcS
 		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/n705/etc/init.d/startx
-		sduo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/n705/etc/init.d/inkbox-splash
+		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/n705/etc/init.d/inkbox-splash
 		mkdir -p $GITDIR/kernel/out/n705
 	elif [ "$1" == "n905c" ]; then
 		sudo mkdir -p $GITDIR/initrd/n905c/etc/init.d
@@ -111,6 +121,24 @@ elif [ "$2" == "root" ]; then
 		echo "---- ROOT kernel compiled. ----"
 		cp "arch/arm/boot/uImage" "$GITDIR/kernel/out/$1/uImage-root"
 		echo "---- Output was saved in $GITDIR/kernel/out/$1/uImage-root ----"
+		exit 0
+	else
+		echo "---- There was an error during the build process, aborting... ----"
+		exit 1
+	fi
+
+elif [ "$2" == "diags" ]; then
+	if [ "$1" == "n705" ]; then
+		mkdir -p $GITDIR/kernel/out/n705
+	elif [ "$1" == "n905c" ]; then
+		mkdir -p $GITDIR/kernel/out/n905c
+	fi
+	cd $GITDIR/kernel/linux-2.6.35.3
+	make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
+	if [ "$?" == 0 ]; then
+		echo "---- DIAGNOSTICS kernel compiled. ----"
+		cp "arch/arm/boot/uImage" "$GITDIR/kernel/out/$1/uImage-diags"
+		echo "---- Output was saved in $GITDIR/kernel/out/$1/uImage-diags ----"
 		exit 0
 	else
 		echo "---- There was an error during the build process, aborting... ----"
