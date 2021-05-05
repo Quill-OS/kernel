@@ -1,7 +1,7 @@
 #!/bin/bash
 # Warning! This script is not intended to be ran alone. Instead, it is executed along by the build_all.sh script.
 
-echo "---- Building U-Boot 2009.08-inkbox ---"
+echo "---- Building U-Boot 2009.08-inkbox ----"
 
 cd $TOOLCHAINDIR/bin
 export PATH=$PATH:$PWD
