@@ -9,7 +9,7 @@ ifconfig lo up
 echo 3 > /sys/class/graphics/fb0/rotate
 
 # Upgrading kernel if needed
-mount /dev/mmcblk0p1 /mnt
+mount -t ext4 /dev/mmcblk0p1 /mnt
 KERNEL_FLASH=`cat /mnt/flags/KERNEL_FLASH` 2>/dev/null
 WILL_UPDATE=`cat /mnt/flags/WILL_UPDATE` 2>/dev/null
 DIAGS_BOOT=`cat /mnt/flags/DIAGS_BOOT` 2>/dev/null
@@ -42,13 +42,13 @@ else
 		if [ "$ROOT_FLAG" == "rooted" ]; then
 			echo "Security policy not enforced; root access permitted."
 		else
-			mount /dev/mmcblk0p3 /mnt
-			mount /dev/mmcblk0p1 /mnt/boot
+			mount -t ext4 /dev/mmcblk0p3 /mnt
+			mount -t ext4 /dev/mmcblk0p1 /mnt/boot
 
 			echo "WARNING: User violated security policy!"
 			echo "Flashing a new kernel that does not allow root access..."
 			mkdir -p /recoveryfs
-			mount /dev/mmcblk0p2 /recoveryfs
+			mount -t ext4 /dev/mmcblk0p2 /recoveryfs
 			dd if=/recoveryfs/opt/recovery/restore/uImage-std of=/dev/mmcblk0 bs=512 seek=2048
 			sync
 			rm /mnt/etc/passwd
@@ -69,8 +69,8 @@ else
 				# Splash
 				/etc/init.d/inkbox-splash &
 
-				mount /dev/mmcblk0p3 /mnt
-				mount /dev/mmcblk0p1 /mnt/boot
+				mount -t ext4 /dev/mmcblk0p3 /mnt
+				mount -t ext4 /dev/mmcblk0p1 /mnt/boot
 				mkdir -p /mnt/opt/root
 				mkdir -p /mnt/opt/key
 				mkdir -p /mnt/selinux
@@ -103,8 +103,8 @@ else
 			else
 				echo "DIAGS_BOOT is set to 'true', booting into diagnostics..."
 				mkdir -p /alpine
-				mount /dev/mmcblk0p2 /mnt -o ro
-				mount /dev/mmcblk0p1 /mnt/boot
+				mount -t ext4 /dev/mmcblk0p2 /mnt -o ro
+				mount -t ext4 /dev/mmcblk0p1 /mnt/boot
 
 				losetup /dev/loop7 /opt/root.sqsh
 				mount /dev/loop7 /mnt/opt/root -o ro,nodev,nosuid,noexec
@@ -132,8 +132,8 @@ else
 		else
 			echo "Input event caught, booting into recovery partition..."
 			mkdir -p /alpine
-			mount /dev/mmcblk0p2 /mnt -o ro
-			mount /dev/mmcblk0p1 /mnt/boot
+			mount -t ext4 /dev/mmcblk0p2 /mnt -o ro
+			mount -t ext4 /dev/mmcblk0p1 /mnt/boot
 
 			losetup /dev/loop7 /opt/root.sqsh
 			mount /dev/loop7 /mnt/opt/root -o ro,nodev,nosuid,noexec
