@@ -13,7 +13,7 @@ mount -t proc proc proc
 
 cp /opt/device /splash/opt/device
 
-mount /dev/mmcblk0p3 /mnt &>/dev/null
+mount -t ext4 /dev/mmcblk0p3 /mnt &>/dev/null
 FWVERSION=$(cat /mnt/opt/update/version 2>/dev/null)
 if [ "$FWVERSION" != "" ]; then
 	echo "$FWVERSION" > /splash/opt/inkbox-version
