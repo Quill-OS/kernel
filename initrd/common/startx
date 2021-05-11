@@ -13,34 +13,47 @@ mkdir -p /mnt/opt/X11/vnc-touch
 mkdir -p /mnt/opt/X11/update
 
 # Mounting X11 rootfs read-only with squashfuse
-busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/kobox-graphic-public.pem" "-signature" "/opt/X11/base/xorg.isa.dgst" "/opt/X11/base/xorg.isa" &>/dev/null
+busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/kobox-graphic-public.pem" "-signature" "/opt/X11/base/xorg.img.dgst" "/opt/X11/base/xorg.img" &>/dev/null
 if [ $? != 0 ]; then
 	echo "KoBox base rootfs package's signature is invalid! Aborting launch..."
 	echo "false" > /mnt/boot/flags/X11_STARTED
 	exit 1
 else
-	busybox chroot /mnt "/bin/squashfuse" "/opt/X11/base/xorg.isa" "/opt/X11/base/rootfs"
+	mknod -m 0660 /dev/loop8 b 7 8
+	losetup /dev/loop8 /mnt/opt/X11/base/xorg.img
+	mount -t ext4 -o ro /dev/loop9 /opt/X11/base/rootfs
 fi
 
 # Mounting VNC/touch input rootfs
-busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/kobox-graphic-public.pem" "-signature" "/opt/X11/base/vnc-touch.isa.dgst" "/opt/X11/base/vnc-touch.isa" &>/dev/null
+busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/kobox-graphic-public.pem" "-signature" "/opt/X11/base/vnc-touch.img.dgst" "/opt/X11/base/vnc-touch.img" &>/dev/null
 if [ $? != 0 ]; then
 	echo "VNC/touch input rootfs package's signature is invalid! Aborting launch..."
 	echo "false" > /mnt/boot/flags/X11_STARTED
 	exit 1
 else
-	busybox chroot /mnt "/bin/squashfuse" "/opt/X11/base/vnc-touch.isa" "/opt/X11/vnc-touch"
+	mknod -m 0660 /dev/loop9 b 7 8
+	losetup /dev/loop9 /mnt/opt/X11/base/vnc-touch.img
+	mount -t ext4 -o ro /dev/loop9 /opt/X11/vnc-touch
 fi
 
 # Extensions
 # Mounting extensions userstore
-mount /mnt/opt/storage/extensions.img /mnt/opt/X11/extensions 2>/dev/null
+mknod -m 0660 /dev/loop10 b 7 8
+losetup /dev/loop10 /mnt/opt/storage/extensions.img
+mount -t ext4 -o nosuid /dev/loop10 /mnt/opt/X11/extensions-user 2>/dev/null
+
+busybox chroot /mnt "/usr/local/bin/unionfs" "/opt/X11/extensions-base:/opt/X11/extensions-user" "/opt/X11/extensions"
+
 # Mounting extensions
-rm /mnt/opt/X11/nographic_extensions_list
-rm /mnt/opt/X11/nographic_extensions_folders_list
-rm /mnt/opt/X11/extensions_list
-rm /mnt/opt/X11/extensions_folders_list
-for f in /mnt/opt/X11/extensions/*.isa ; do
+rm /mnt/opt/X11/nographic_extensions_list 2>/dev/null
+rm /mnt/opt/X11/nographic_extensions_folders_list 2>/dev/null
+rm /mnt/opt/X11/extensions_list 2>/dev/null
+rm /mnt/opt/X11/extensions_folders_list 2>/dev/null
+
+loop_number=11
+
+for f in /mnt/opt/X11/extensions/*.isa /mnt/opt/X11/extensions/*.img ; do
+	FILE_RAW="$f"
 	FILE=`echo "$f" | cut -d'/' -f3-`
 	FILE="/$FILE"
 	FILE_DGST="$FILE.dgst"
@@ -61,7 +74,18 @@ for f in /mnt/opt/X11/extensions/*.isa ; do
 			echo "$EXTENSION_NAME" >> /mnt/opt/X11/nographic_extensions_list
 			echo "$EXTENSION_FOLDER" >> /mnt/opt/X11/nographic_extensions_folders_list
 			busybox chroot /mnt "mkdir" "-p" "$EXTENSION_FOLDER"
-	                busybox chroot /mnt "/bin/squashfuse" "$FILE" "$EXTENSION_FOLDER"
+	                busybox chroot /mnt "/bin/squashfuse" "$FILE" "$EXTENSION_FOLDER" 2>/dev/null
+			if [ $? != 0 ]; then
+				mknod -m 0660 /dev/loop$loop_number b 7 8
+				losetup /dev/loop$loop_number "$FILE_RAW"
+				mount -t ext4 -o ro "/dev/loop$loop_number" "$EXTENSION_FOLDER_RAW"
+				loop_number=$((loop_number+1))
+				if [ $? != 0 ]; then
+					echo "Extension $EXTENSION_NAME is not valid! Aborting launch..."
+					echo "false" > /mnt/boot/flags/X11_STARTED
+					exit 1
+				fi
+			fi
 	                UNIONFS_FOLDERS_RAW="$UNIONFS_FOLDERS_RAW$EXTENSION_FOLDER:"
 		fi
 	else
@@ -69,7 +93,18 @@ for f in /mnt/opt/X11/extensions/*.isa ; do
 		echo "$EXTENSION_FOLDER" >> /mnt/opt/X11/extensions_folders_list
 
 		busybox chroot /mnt "mkdir" "-p" "$EXTENSION_FOLDER"
-		busybox chroot /mnt "/bin/squashfuse" "$FILE" "$EXTENSION_FOLDER"
+		busybox chroot /mnt "/bin/squashfuse" "$FILE" "$EXTENSION_FOLDER" 2>/dev/null
+		if [ $? != 0 ]; then
+			mknod -m 0660 /dev/loop$loop_number b 7 8
+			losetup /dev/loop$loop_number "$FILE_RAW"
+			mount -t ext4 -o ro "/dev/loop$loop_number" "$EXTENSION_FOLDER_RAW"
+			loop_number=$((loop_number+1))
+			if [ $? != 0 ]; then
+				echo "Extension $EXTENSION_NAME is not valid! Aborting launch..."
+				echo "false" > /mnt/boot/flags/X11_STARTED
+				exit 1
+			fi
+		fi
 		UNIONFS_FOLDERS_RAW="$UNIONFS_FOLDERS_RAW$EXTENSION_FOLDER:"
 	fi
 done
