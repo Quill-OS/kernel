@@ -1,4 +1,4 @@
-#!/bin/sh -x
+#!/bin/sh
 
 # Mounting a temporary procfs otherwise the mount process might not work
 mount -t proc proc /proc
