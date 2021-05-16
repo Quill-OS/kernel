@@ -45,6 +45,10 @@ else
 				mount -t ext4 /dev/mmcblk0p3 /mnt
 				mount -t ext4 /dev/mmcblk0p1 /mnt/boot
 				mount -t ext4 /dev/mmcblk0p4 /mnt/opt/storage
+				# Config
+				mkdir -p /mnt/opt/storage/config
+				mkdir -p /mnt/opt/config
+				mount --bind /mnt/opt/storage/config /mnt/opt/config
 
 				echo "Enforcing security policy..."
 
