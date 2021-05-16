@@ -44,6 +44,7 @@ else
 		else
 			mount -t ext4 /dev/mmcblk0p3 /mnt
 			mount -t ext4 /dev/mmcblk0p1 /mnt/boot
+			mount -t ext4 /dev/mmcblk0p4 /mnt/opt/storage
 
 			echo "WARNING: User violated security policy!"
 			echo "Flashing a new kernel that does not allow root access..."
