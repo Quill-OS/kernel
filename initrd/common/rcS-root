@@ -44,11 +44,6 @@ else
 		else
 			mount -t ext4 /dev/mmcblk0p3 /mnt
 			mount -t ext4 /dev/mmcblk0p1 /mnt/boot
-			mount -t ext4 /dev/mmcblk0p4 /mnt/opt/storage
-			# Config
-			mkdir -p /mnt/opt/storage/config
-			mkdir -p /mnt/opt/config
-			mount --bind /mnt/opt/storage/config /mnt/opt/config
 
 			echo "WARNING: User violated security policy!"
 			echo "Flashing a new kernel that does not allow root access..."
@@ -77,6 +72,11 @@ else
 				mount -t ext4 /dev/mmcblk0p3 /mnt
 				mount -t ext4 /dev/mmcblk0p1 /mnt/boot
 				mount -t ext4 /dev/mmcblk0p4 /mnt/opt/storage
+				# Config
+				mkdir -p /mnt/opt/storage/config
+				mkdir -p /mnt/opt/config
+				mount --bind /mnt/opt/storage/config /mnt/opt/config
+
 				mkdir -p /mnt/opt/root
 				mkdir -p /mnt/opt/key
 				mkdir -p /mnt/selinux
