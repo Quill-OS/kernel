@@ -15,6 +15,7 @@ WILL_UPDATE=`cat /mnt/flags/WILL_UPDATE` 2>/dev/null
 DIAGS_BOOT=`cat /mnt/flags/DIAGS_BOOT` 2>/dev/null
 FIRST_BOOT=`cat /mnt/flags/FIRST_BOOT` 2>/dev/null
 STARTX=`cat /mnt/flags/X11_START` 2>/dev/null
+MOUNT_RW=`cat /mnt/flags/RW_ROOTFS` 2>/dev/null
 
 if [ "$KERNEL_FLASH" == "true" ]; then
 	cp /mnt/boot/uImage /
@@ -44,7 +45,12 @@ else
 				/etc/init.d/inkbox-splash &
 
 				# Enforcing security policy; device is not rooted.
-				mount -t ext4 /dev/mmcblk0p3 /mnt
+				# Root filesystem
+				if [ "$MOUNT_RW" == "true" ]; then
+					mount -t ext4 /dev/mmcblk0p3 /mnt
+				else
+					mount -t ext4 -o ro /dev/mmcblk0p3 /mnt
+				fi
 				mount -t ext4 /dev/mmcblk0p1 /mnt/boot
 				mount -t ext4 /dev/mmcblk0p4 /mnt/opt/storage
 				# Config
@@ -54,7 +60,7 @@ else
 				# X11/KoBox
 				mkdir -p /mnt/opt/storage/X11/rootfs/work
 				mkdir -p /mnt/opt/storage/X11/rootfs/write
-				mkdir -p /mnt/opt/X11
+				mkdir -p /mnt/opt/X11/rootfs
 				mount --bind /mnt/opt/storage/X11/rootfs /mnt/opt/X11/rootfs
 
 				echo "Enforcing security policy..."

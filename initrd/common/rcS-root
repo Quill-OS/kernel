@@ -14,6 +14,7 @@ KERNEL_FLASH=`cat /mnt/flags/KERNEL_FLASH` 2>/dev/null
 WILL_UPDATE=`cat /mnt/flags/WILL_UPDATE` 2>/dev/null
 DIAGS_BOOT=`cat /mnt/flags/DIAGS_BOOT` 2>/dev/null
 STARTX=`cat /mnt/flags/X11_START` 2>/dev/null
+MOUNT_RW=`cat /mnt/flags/RW_ROOTFS` 2>/dev/null
 
 if [ "$KERNEL_FLASH" == "true" ]; then
 	cp /mnt/boot/uImage /
@@ -69,8 +70,13 @@ else
 				# If the security policy was violated, we would not be there anymore, so from now on we are booting as usual.
 				# Splash
 				/etc/init.d/inkbox-splash &
-
-				mount -t ext4 /dev/mmcblk0p3 /mnt
+			
+				# Root filesystem	
+				if [ "$MOUNT_RW" == "true" ]; then
+					mount -t ext4 /dev/mmcblk0p3 /mnt
+				else
+					mount -t ext4 -o ro /dev/mmcblk0p3 /mnt
+				fi
 				mount -t ext4 /dev/mmcblk0p1 /mnt/boot
 				mount -t ext4 /dev/mmcblk0p4 /mnt/opt/storage
 				# Config
@@ -80,8 +86,8 @@ else
 				# X11/KoBox
 				mkdir -p /mnt/opt/storage/X11/rootfs/work
 				mkdir -p /mnt/opt/storage/X11/rootfs/write
-				mkdir -p /mnt/opt/X11
-				mount --bind /mnt/opt/storage/X11/rootfs /mnt/opt/X11/rootfs
+				mkdir -p /mnt/opt/X11/rootfs
+				mount /mnt/opt/storage/X11/rootfs /mnt/opt/X11/rootfs
 
 				mkdir -p /mnt/opt/root
 				mkdir -p /mnt/opt/key
