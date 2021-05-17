@@ -31,6 +31,7 @@ else
 	EVTEST_PID=$!
 
 	read -t 5 -n 1 -s -r -p "(initrd) Hit any key to stop auto-boot... " KEY
+	echo
 
 	if [ "$KEY" == "" ]; then
 		INPUT_LOG=`cat /tmp/input-log | grep value`
@@ -76,6 +77,11 @@ else
 				mkdir -p /mnt/opt/storage/config
 				mkdir -p /mnt/opt/config
 				mount --bind /mnt/opt/storage/config /mnt/opt/config
+				# X11/KoBox
+				mkdir -p /mnt/opt/storage/X11/rootfs/work
+				mkdir -p /mnt/opt/storage/X11/rootfs/write
+				mkdir -p /mnt/opt/X11
+				mount --bind /mnt/opt/storage/X11/rootfs /mnt/opt/X11/rootfs
 
 				mkdir -p /mnt/opt/root
 				mkdir -p /mnt/opt/key
