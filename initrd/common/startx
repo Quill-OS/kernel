@@ -14,6 +14,9 @@ mkdir -p /mnt/opt/X11/rootfs/work
 mkdir -p /mnt/opt/X11/merged
 mkdir -p /mnt/opt/X11/vnc-touch
 mkdir -p /mnt/opt/X11/update
+mkdir -p /mnt/opt/storage/tmpfs
+
+mount -t tmpfs tmpfs /mnt/opt/storage/tmpfs
 
 # Mounting X11 rootfs read-only with squashfuse
 busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/kobox-graphic-public.pem" "-signature" "/opt/X11/base/xorg.img.dgst" "/opt/X11/base/xorg.img" &>/dev/null
@@ -46,10 +49,14 @@ losetup /dev/loop10 /mnt/opt/storage/extensions.img
 mount -t vfat -o nosuid /dev/loop10 /mnt/opt/X11/extensions-user 2>/dev/null
 
 # Mounting extensions
-rm /mnt/opt/X11/nographic_extensions_list 2>/dev/null
-rm /mnt/opt/X11/nographic_extensions_folders_list 2>/dev/null
-rm /mnt/opt/X11/extensions_list 2>/dev/null
-rm /mnt/opt/X11/extensions_folders_list 2>/dev/null
+touch /mnt/opt/storage/tmpfs/nographic_extensions_list
+touch /mnt/opt/storage/tmpfs/nographic_extensions_folders_list
+touch /mnt/opt/storage/tmpfs/extensions_list
+touch /mnt/opt/storage/tmpfs/extensions_folders_list
+mount --bind /mnt/opt/storage/tmpfs/nographic_extensions_list /mnt/opt/X11/nographic_extensions_list
+mount --bind /mnt/opt/storage/tmpfs/nographic_extensions_folders_list /mnt/opt/X11/nographic_extensions_folders_list
+mount --bind /mnt/opt/storage/tmpfs/extensions_list /mnt/opt/X11/extensions_list
+mount --bind /mnt/opt/storage/tmpfs/extensions_folders_list /mnt/opt/X11/extensions_folders_list
 
 loop_number=11
 
@@ -204,9 +211,10 @@ mount -t tmpfs tmpfs /mnt/xorg/var/log
 mount -t sysfs sysfs /mnt/xorg/sys
 mount -t proc proc /mnt/xorg/proc
 mount -t devpts devpts /mnt/xorg/dev/pts
-touch /mnt/etc/resolv.conf
+touch /etc/resolv.conf
+mount --bind /etc/resolv.conf /mnt/etc/resolv.conf
 touch /mnt/xorg/etc/resolv.conf
-mount --bind /mnt/etc/resolv.conf /mnt/xorg/etc/resolv.conf
+mount --bind /etc/resolv.conf /mnt/xorg/etc/resolv.conf
 
 # Launching X
 busybox chroot /mnt/xorg "X" &
@@ -221,9 +229,8 @@ mount -t tmpfs tmpfs /mnt/opt/X11/vnc-touch/dev/shm
 mount -t sysfs sysfs /mnt/opt/X11/vnc-touch/sys
 mount -t proc proc /mnt/opt/X11/vnc-touch/proc
 mount -t devpts devpts /mnt/opt/X11/vnc-touch/dev/pts
-touch /mnt/etc/resolv.conf
-mount --bind /mnt/etc/resolv.conf /mnt/opt/X11/vnc-touch/etc/resolv.conf
+mount --bind /etc/resolv.conf /mnt/opt/X11/vnc-touch/etc/resolv.conf
 
 echo "true" > /mnt/boot/flags/X11_STARTED
 
-sleep 15
+sleep 8
