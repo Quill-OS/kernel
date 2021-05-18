@@ -8,6 +8,13 @@ hostname kobo
 ifconfig lo up
 echo 3 > /sys/class/graphics/fb0/rotate
 
+echo "Checking filesystems ..."
+/usr/bin/fsck.ext4 -y /dev/mmcblk0p1
+/usr/bin/fsck.ext4 -y /dev/mmcblk0p2
+/usr/bin/fsck.ext4 -y /dev/mmcblk0p3
+/usr/bin/fsck.ext4 -y /dev/mmcblk0p4
+echo
+
 # Upgrading kernel if needed
 mount -t ext4 /dev/mmcblk0p1 /mnt
 KERNEL_FLASH=`cat /mnt/flags/KERNEL_FLASH` 2>/dev/null
@@ -70,24 +77,33 @@ else
 				# If the security policy was violated, we would not be there anymore, so from now on we are booting as usual.
 				# Splash
 				/etc/init.d/inkbox-splash &
-			
-				# Root filesystem	
+
+				# Root filesystem
 				if [ "$MOUNT_RW" == "true" ]; then
 					mount -t ext4 /dev/mmcblk0p3 /mnt
 				else
 					mount -t ext4 -o ro /dev/mmcblk0p3 /mnt
 				fi
 				mount -t ext4 /dev/mmcblk0p1 /mnt/boot
+				## User storage
 				mount -t ext4 /dev/mmcblk0p4 /mnt/opt/storage
 				# Config
 				mkdir -p /mnt/opt/storage/config
 				mkdir -p /mnt/opt/config
 				mount --bind /mnt/opt/storage/config /mnt/opt/config
+				# Update bundle
+				mkdir -p /mnt/opt/storage/update
+				mkdir -p /mnt/opt/update
+				mount --bind /mnt/opt/storage/update /mnt/opt/update
 				# X11/KoBox
 				mkdir -p /mnt/opt/storage/X11/rootfs/work
 				mkdir -p /mnt/opt/storage/X11/rootfs/write
 				mkdir -p /mnt/opt/X11/rootfs
 				mount /mnt/opt/storage/X11/rootfs /mnt/opt/X11/rootfs
+				# InkBox GUI's rootfs
+				mkdir -p /mnt/opt/storage/gui_rootfs
+				mkdir -p /mnt/opt/gui_rootfs
+				mount --bind /mnt/opt/storage/gui_rootfs /mnt/opt/gui_rootfs
 
 				mkdir -p /mnt/opt/root
 				mkdir -p /mnt/opt/key
@@ -104,7 +120,11 @@ else
 				mount --move /sys /mnt/sys
 				mount --bind /dev /mnt/dev
 				mount -t tmpfs tmpfs /mnt/tmp
-				mount -t selinuxfs selinuxfs /mnt/selinux
+				mount -t selinuxfs selinuxfs /mnt/selinux 2>/dev/null
+
+				# InkBox GUI's rootfs
+				busybox chroot /mnt "/bin/squashfuse" "/opt/storage/gui_rootfs.isa" "/opt/gui_rootfs/read"
+				busybox chroot /mnt "/bin/fuse-overlayfs" "-o" "lowerdir=/opt/gui_rootfs/read,upperdir=/opt/gui_rootfs/write,workdir=/opt/gui_rootfs/work" "/kobo"
 
 				echo true > /mnt/kobo/inkbox/remount
 				echo false > /mnt/boot/flags/X11_STARTED
