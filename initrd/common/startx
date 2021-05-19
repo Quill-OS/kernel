@@ -1,5 +1,7 @@
 #!/bin/sh
 
+echo "Starting X11 windowing system ..."
+
 # Mounting a temporary procfs otherwise the mount process might not work
 mount -t proc proc /proc
 
@@ -17,6 +19,8 @@ mkdir -p /mnt/opt/X11/update
 mkdir -p /mnt/opt/storage/tmpfs
 
 mount -t tmpfs tmpfs /mnt/opt/storage/tmpfs
+
+echo "Validating packages' digital signatures ..."
 
 # Mounting X11 rootfs read-only with squashfuse
 busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/kobox-graphic-public.pem" "-signature" "/opt/X11/base/xorg.img.dgst" "/opt/X11/base/xorg.img" &>/dev/null
@@ -211,10 +215,10 @@ mount -t tmpfs tmpfs /mnt/xorg/var/log
 mount -t sysfs sysfs /mnt/xorg/sys
 mount -t proc proc /mnt/xorg/proc
 mount -t devpts devpts /mnt/xorg/dev/pts
-touch /etc/resolv.conf
-mount --bind /etc/resolv.conf /mnt/etc/resolv.conf
+touch /tmp/resolv.conf
+mount --bind /tmp/resolv.conf /mnt/etc/resolv.conf
 touch /mnt/xorg/etc/resolv.conf
-mount --bind /etc/resolv.conf /mnt/xorg/etc/resolv.conf
+mount --bind /tmp/resolv.conf /mnt/xorg/etc/resolv.conf
 
 # Launching X
 busybox chroot /mnt/xorg "X" &
@@ -229,8 +233,9 @@ mount -t tmpfs tmpfs /mnt/opt/X11/vnc-touch/dev/shm
 mount -t sysfs sysfs /mnt/opt/X11/vnc-touch/sys
 mount -t proc proc /mnt/opt/X11/vnc-touch/proc
 mount -t devpts devpts /mnt/opt/X11/vnc-touch/dev/pts
-mount --bind /etc/resolv.conf /mnt/opt/X11/vnc-touch/etc/resolv.conf
+mount --bind /tmp/resolv.conf /mnt/opt/X11/vnc-touch/etc/resolv.conf
 
 echo "true" > /mnt/boot/flags/X11_STARTED
 
 sleep 8
+echo "Done."
