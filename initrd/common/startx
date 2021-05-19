@@ -1,5 +1,6 @@
 #!/bin/sh
 
+echo
 echo "Starting X11 windowing system ..."
 
 # Mounting a temporary procfs otherwise the mount process might not work
@@ -15,7 +16,6 @@ mkdir -p /mnt/opt/X11/rootfs/write
 mkdir -p /mnt/opt/X11/rootfs/work
 mkdir -p /mnt/opt/X11/merged
 mkdir -p /mnt/opt/X11/vnc-touch
-mkdir -p /mnt/opt/X11/update
 mkdir -p /mnt/opt/storage/tmpfs
 
 mount -t tmpfs tmpfs /mnt/opt/storage/tmpfs
