@@ -122,24 +122,41 @@ else
 				mount --move /sys /mnt/sys
 				mount --bind /dev /mnt/dev
 				mount -t tmpfs tmpfs /mnt/tmp
+				mount -t tmpfs tmpfs /mnt/opt/developer
 				mount -t selinuxfs selinuxfs /mnt/selinux 2>/dev/null
 
+				# Developer key
+				/etc/init.d/developer-key
+				OVERRIDE_SIGNATURE_VERIFICATION=`cat /mnt/opt/developer/key/valid-key 2>/dev/null`
+
 				# InkBox GUI's rootfs
-				busybox chroot /mnt "/bin/squashfuse" "/opt/storage/gui_rootfs.isa" "/opt/gui_rootfs/read"
-				busybox chroot /mnt "/bin/fuse-overlayfs" "-o" "lowerdir=/opt/gui_rootfs/read,upperdir=/opt/gui_rootfs/write,workdir=/opt/gui_rootfs/work" "/kobo"
-
-				echo true > /mnt/kobo/inkbox/remount
-				echo false > /mnt/boot/flags/X11_STARTED
-
-				# Starting an X server
-				if [ "$STARTX" == "true" ]; then
-					/etc/init.d/startx
+				busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/public.pem" "-signature" "/opt/storage/gui_rootfs.isa.dgst" "/opt/storage/gui_rootfs.isa"
+				if [ $? != 0 ]; then
+					if [ "$OVERRIDE_SIGNATURE_VERIFICATION" != "true" ]; then
+						echo "FATAL: InkBox GUI root filesystem's signature is invalid!"
+						echo "Aborting boot and powering off ..."
+						busybox poweroff
+					else
+						:
+					fi
+				else
+					busybox chroot /mnt "/bin/squashfuse" "/opt/storage/gui_rootfs.isa" "/opt/gui_rootfs/read"
+					busybox chroot /mnt "/bin/fuse-overlayfs" "-o" "lowerdir=/opt/gui_rootfs/read,upperdir=/opt/gui_rootfs/write,workdir=/opt/gui_rootfs/work" "/kobo"
 				fi
 
-				chroot /mnt /sbin/openrc "sysinit"
-				chroot /mnt /sbin/openrc "boot"
-				chroot /mnt /sbin/openrc "default"
-				exit 0
+					echo true > /mnt/kobo/inkbox/remount
+					echo false > /mnt/boot/flags/X11_STARTED
+	
+					# Starting an X server
+					if [ "$STARTX" == "true" ]; then
+						/etc/init.d/startx
+					fi
+
+					chroot /mnt /sbin/openrc "sysinit"
+					chroot /mnt /sbin/openrc "boot"
+					chroot /mnt /sbin/openrc "default"
+					exit 0
+				fi
 			else
 				echo "DIAGS_BOOT is set to 'true', booting into diagnostics..."
 				mkdir -p /alpine

@@ -124,8 +124,15 @@ else
 				mount -t selinuxfs selinuxfs /mnt/selinux 2>/dev/null
 
 				# InkBox GUI's rootfs
-				busybox chroot /mnt "/bin/squashfuse" "/opt/storage/gui_rootfs.isa" "/opt/gui_rootfs/read"
-				busybox chroot /mnt "/bin/fuse-overlayfs" "-o" "lowerdir=/opt/gui_rootfs/read,upperdir=/opt/gui_rootfs/write,workdir=/opt/gui_rootfs/work" "/kobo"
+				busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/public.pem" "-signature" "/opt/storage/gui_rootfs.isa.dgst" "/opt/storage/gui_rootfs.isa"
+				if [ $? != 0 ]; then
+					echo "FATAL: InkBox GUI root filesystem's signature is invalid!"
+					echo "Aborting boot and powering off ..."
+					busybox poweroff
+				else
+					busybox chroot /mnt "/bin/squashfuse" "/opt/storage/gui_rootfs.isa" "/opt/gui_rootfs/read"
+					busybox chroot /mnt "/bin/fuse-overlayfs" "-o" "lowerdir=/opt/gui_rootfs/read,upperdir=/opt/gui_rootfs/write,workdir=/opt/gui_rootfs/work" "/kobo"
+				fi
 
 				echo true > /mnt/kobo/inkbox/remount
 				echo false > /mnt/boot/flags/X11_STARTED
