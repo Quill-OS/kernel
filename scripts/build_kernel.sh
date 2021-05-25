@@ -81,12 +81,14 @@ if [ "$2" == "std" ]; then
 		sudo cp $GITDIR/initrd/common/rcS-std $GITDIR/initrd/n705/etc/init.d/rcS
 		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/n705/etc/init.d/startx
 		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/n705/etc/init.d/inkbox-splash
+		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/n705/etc/init.d/developer-key
 		mkdir -p $GITDIR/kernel/out/n705
 	elif [ "$1" == "n905c" ]; then
 		sudo mkdir -p $GITDIR/initrd/n905c/etc/init.d
 		sudo cp $GITDIR/initrd/common/rcS-std $GITDIR/initrd/n905c/etc/init.d/rcS
 		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/n905c/etc/init.d/startx
 		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/n905c/etc/init.d/inkbox-splash
+		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/n905c/etc/init.d/developer-key
 		mkdir -p $GITDIR/kernel/out/n905c
 	fi
 	cd $GITDIR/kernel/linux-2.6.35.3
@@ -107,12 +109,14 @@ elif [ "$2" == "root" ]; then
 		sudo cp $GITDIR/initrd/common/rcS-root $GITDIR/initrd/n705/etc/init.d/rcS
 		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/n705/etc/init.d/startx
 		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/n705/etc/init.d/inkbox-splash
+		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/n705/etc/init.d/developer-key
 		mkdir -p $GITDIR/kernel/out/n705
 	elif [ "$1" == "n905c" ]; then
 		sudo mkdir -p $GITDIR/initrd/n905c/etc/init.d
 		sudo cp $GITDIR/initrd/common/rcS-root $GITDIR/initrd/n905c/etc/init.d/rcS
 		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/n905c/etc/init.d/startx
 		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/n905c/etc/init.d/inkbox-splash
+		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/n905c/etc/init.d/developer-key
 		mkdir -p $GITDIR/kernel/out/n905c
 	fi
 	cd $GITDIR/kernel/linux-2.6.35.3
