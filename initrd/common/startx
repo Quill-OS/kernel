@@ -22,6 +22,10 @@ mount -t tmpfs tmpfs /mnt/opt/storage/tmpfs
 
 echo "Validating packages' digital signatures ..."
 
+# Mounting base disk image
+losetup /dev/loop2 /mnt/opt/storage/X11/base.img
+mount -t ext4 -o ro /dev/loop2 /mnt/opt/X11/base
+
 # Mounting X11 rootfs read-only with squashfuse
 busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/kobox-graphic-public.pem" "-signature" "/opt/X11/base/xorg.img.dgst" "/opt/X11/base/xorg.img" &>/dev/null
 if [ $? != 0 ]; then
@@ -47,12 +51,17 @@ else
 fi
 
 # Extensions
-# Mounting extensions userstore
+# Mounting base extensions
 mknod -m 0660 /dev/loop10 b 7 10
-losetup /dev/loop10 /mnt/opt/storage/extensions.img
-mount -t vfat -o nosuid /dev/loop10 /mnt/opt/X11/extensions-user 2>/dev/null
+losetup /dev/loop10 /mnt/opt/storage/X11/extensions-base.img
+mount -t ext4 -o ro,nosuid /dev/loop10 /mnt/opt/X11/extensions-base 2>/dev/null
 
-# Mounting extensions
+# Mounting extensions userstore
+mknod -m 0660 /dev/loop11 b 7 11
+losetup /dev/loop11 /mnt/opt/storage/X11/extensions-user.img
+mount -t vfat -o nosuid /dev/loop11 /mnt/opt/X11/extensions-user 2>/dev/null
+
+# Merging extensions together
 touch /mnt/opt/storage/tmpfs/nographic_extensions_list
 touch /mnt/opt/storage/tmpfs/nographic_extensions_folders_list
 touch /mnt/opt/storage/tmpfs/extensions_list
@@ -62,7 +71,7 @@ mount --bind /mnt/opt/storage/tmpfs/nographic_extensions_folders_list /mnt/opt/X
 mount --bind /mnt/opt/storage/tmpfs/extensions_list /mnt/opt/X11/extensions_list
 mount --bind /mnt/opt/storage/tmpfs/extensions_folders_list /mnt/opt/X11/extensions_folders_list
 
-loop_number=11
+loop_number=12
 
 for f in /mnt/opt/X11/extensions-base/*.isa /mnt/opt/X11/extensions-base/*.img ; do
 	FILE_RAW="$f"

@@ -25,6 +25,9 @@ DIAGS_BOOT=`cat /mnt/flags/DIAGS_BOOT` 2>/dev/null
 STARTX=`cat /mnt/flags/X11_START` 2>/dev/null
 MOUNT_RW=`cat /mnt/flags/RW_ROOTFS` 2>/dev/null
 
+# Some mountpoints
+mkdir -p /rootfs-part
+
 if [ "$KERNEL_FLASH" == "true" ]; then
 	cp /mnt/boot/uImage /
 	sync
@@ -53,7 +56,9 @@ else
 		if [ "$ROOT_FLAG" == "rooted" ]; then
 			echo "Security policy not enforced; root access permitted."
 		else
-			mount -t ext4 /dev/mmcblk0p3 /mnt
+			mount -t ext4 -o ro /dev/mmcblk0p3 /rootfs-part
+			losetup /dev/loop1 /rootfs-part/rootfs.squashfs
+			mount -o ro /dev/loop1 /mnt
 			mount -t ext4 /dev/mmcblk0p1 /mnt/boot
 
 			echo "WARNING: User violated security policy!"
@@ -82,9 +87,13 @@ else
 
 				# Root filesystem
 				if [ "$MOUNT_RW" == "true" ]; then
-					mount -t ext4 /dev/mmcblk0p3 /mnt
+					mount -t ext4 /dev/mmcblk0p3 /rootfs-part
+					losetup /dev/loop1 /rootfs-part/rootfs.squashfs
+					mount -o ro /dev/loop1 /mnt
 				else
-					mount -t ext4 -o ro /dev/mmcblk0p3 /mnt
+					mount -t ext4 -o ro /dev/mmcblk0p3 /rootfs-part
+					losetup /dev/loop1 /rootfs-part/rootfs.squashfs
+					mount -o ro /dev/loop1 /mnt
 				fi
 				mount -t ext4 /dev/mmcblk0p1 /mnt/boot
 				## User storage
@@ -142,11 +151,10 @@ else
 				else
 					busybox chroot /mnt "/bin/squashfuse" "/opt/storage/gui_rootfs.isa" "/opt/gui_rootfs/read"
 					busybox chroot /mnt "/bin/fuse-overlayfs" "-o" "lowerdir=/opt/gui_rootfs/read,upperdir=/opt/gui_rootfs/write,workdir=/opt/gui_rootfs/work" "/kobo"
-				fi
 
 					echo true > /mnt/kobo/inkbox/remount
 					echo false > /mnt/boot/flags/X11_STARTED
-	
+
 					# Starting an X server
 					if [ "$STARTX" == "true" ]; then
 						/etc/init.d/startx

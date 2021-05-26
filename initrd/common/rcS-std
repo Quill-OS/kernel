@@ -132,19 +132,19 @@ else
 				else
 					busybox chroot /mnt "/bin/squashfuse" "/opt/storage/gui_rootfs.isa" "/opt/gui_rootfs/read"
 					busybox chroot /mnt "/bin/fuse-overlayfs" "-o" "lowerdir=/opt/gui_rootfs/read,upperdir=/opt/gui_rootfs/write,workdir=/opt/gui_rootfs/work" "/kobo"
+
+					echo true > /mnt/kobo/inkbox/remount
+					echo false > /mnt/boot/flags/X11_STARTED
+
+					# Starting an X server
+					if [ "$STARTX" == "true" ]; then
+						/etc/init.d/startx
+					fi
+
+					chroot /mnt /sbin/openrc "sysinit"
+					chroot /mnt /sbin/openrc "boot"
+					chroot /mnt /sbin/openrc "default"
 				fi
-
-				echo true > /mnt/kobo/inkbox/remount
-				echo false > /mnt/boot/flags/X11_STARTED
-
-				# Starting an X server
-				if [ "$STARTX" == "true" ]; then
-					/etc/init.d/startx
-				fi
-
-				chroot /mnt /sbin/openrc "sysinit"
-				chroot /mnt /sbin/openrc "boot"
-				chroot /mnt /sbin/openrc "default"
 			else
 				echo "DIAGS_BOOT is set to 'true', booting into diagnostics..."
 				mkdir -p /alpine
