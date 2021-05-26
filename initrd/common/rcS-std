@@ -26,6 +26,9 @@ FIRST_BOOT=`cat /mnt/flags/FIRST_BOOT` 2>/dev/null
 STARTX=`cat /mnt/flags/X11_START` 2>/dev/null
 MOUNT_RW=`cat /mnt/flags/RW_ROOTFS` 2>/dev/null
 
+# Some mountpoints
+mkdir -p /rootfs-part
+
 if [ "$KERNEL_FLASH" == "true" ]; then
 	cp /mnt/boot/uImage /
 	sync
@@ -56,13 +59,17 @@ else
 				# Enforcing security policy; device is not rooted.
 				# Root filesystem
 				if [ "$MOUNT_RW" == "true" ]; then
-					mount -t ext4 -o nosuid /dev/mmcblk0p3 /mnt
+					mount -t ext4 -o nosuid /dev/mmcblk0p3 /rootfs-part
+					losetup /dev/loop1 /rootfs-part/rootfs.squashfs
+					mount -o nosuid /dev/loop1 /mnt
 				else
-					mount -t ext4 -o ro,nosuid /dev/mmcblk0p3 /mnt
+					mount -t ext4 -o ro,nosuid /dev/mmcblk0p3 /rootfs-part
+					losetup /dev/loop1 /rootfs-part/rootfs.squashfs
+					mount -o nosuid /dev/loop1 /mnt
 				fi
-				mount -t ext4 /dev/mmcblk0p1 /mnt/boot
+				mount -t ext4 -o nosuid /dev/mmcblk0p1 /mnt/boot
 				## User storage
-				mount -t ext4 /dev/mmcblk0p4 /mnt/opt/storage
+				mount -t ext4 -o nosuid /dev/mmcblk0p4 /mnt/opt/storage
 				# Config
 				mkdir -p /mnt/opt/storage/config
 				mkdir -p /mnt/opt/config
@@ -120,7 +127,8 @@ else
 				mount --move /proc /mnt/proc
 				mount --move /sys /mnt/sys
 				mount --bind /dev /mnt/dev
-				mount -t tmpfs tmpfs /mnt/tmp
+				mount -t tmpfs tmpfs -o nosuid /mnt/tmp
+				mount -t tmpfs tmpfs -o nosuid /mnt/var/log
 				mount -t selinuxfs selinuxfs /mnt/selinux 2>/dev/null
 
 				# InkBox GUI's rootfs
@@ -165,9 +173,9 @@ else
 				mount --bind /sys /alpine/sys
 				mount -t devtmpfs devtmpfs /mnt/dev
 				mount -t devtmpfs devtmpfs /alpine/dev
-				mount -t tmpfs tmpfs /mnt/tmp
-				mount -t tmpfs tmpfs /alpine/tmp
-				mount -t tmpfs tmpfs /alpine/run
+				mount -t tmpfs tmpfs -o nosuid /mnt/tmp
+				mount -t tmpfs tmpfs -o nosuid /alpine/tmp
+				mount -t tmpfs tmpfs -o nosuid /alpine/run
 				chroot /alpine /sbin/openrc "sysinit"
 				chroot /mnt /opt/bin/diagnostics_splash
 				sleep 2
@@ -176,8 +184,8 @@ else
 		else
 			echo "Input event caught, booting into recovery partition..."
 			mkdir -p /alpine
-			mount -t ext4 /dev/mmcblk0p2 /mnt -o ro
-			mount -t ext4 /dev/mmcblk0p1 /mnt/boot
+			mount -t ext4 /dev/mmcblk0p2 /mnt -o ro,nosuid
+			mount -t ext4 /dev/mmcblk0p1 /mnt/boot -o nosuid
 
 			losetup /dev/loop7 /opt/lockdown.sqsh
 			mount /dev/loop7 /mnt/opt/root -o ro,nodev,nosuid,noexec
@@ -193,9 +201,9 @@ else
 			mount --bind /sys /alpine/sys
 			mount -t devtmpfs devtmpfs /mnt/dev
 			mount -t devtmpfs devtmpfs /alpine/dev
-			mount -t tmpfs tmpfs /mnt/tmp
-			mount -t tmpfs tmpfs /alpine/tmp
-			mount -t tmpfs tmpfs /alpine/run
+			mount -t tmpfs tmpfs -o nosuid /mnt/tmp
+			mount -t tmpfs tmpfs -o nosuid /alpine/tmp
+			mount -t tmpfs tmpfs -o nosuid /alpine/run
 			chroot /alpine /sbin/openrc "sysinit"
 			chroot /mnt /opt/bin/diagnostics_splash
 			sleep 2

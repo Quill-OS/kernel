@@ -7,7 +7,6 @@ echo "Starting X11 windowing system ..."
 mount -t proc proc /proc
 
 mkdir -p /mnt/xorg
-mkdir -p /mnt/opt/X11/base/rootfs
 mkdir -p /mnt/opt/X11/extensions-user
 mkdir -p /mnt/opt/X11/extensions-base
 mkdir -p /mnt/opt/X11/extension-storage-merged

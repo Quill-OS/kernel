@@ -110,7 +110,7 @@ else
 				mkdir -p /mnt/opt/storage/X11/rootfs/work
 				mkdir -p /mnt/opt/storage/X11/rootfs/write
 				mkdir -p /mnt/opt/X11/rootfs
-				mount /mnt/opt/storage/X11/rootfs /mnt/opt/X11/rootfs
+				mount --bind /mnt/opt/storage/X11/rootfs /mnt/opt/X11/rootfs
 				# InkBox GUI's rootfs
 				mkdir -p /mnt/opt/storage/gui_rootfs
 				mkdir -p /mnt/opt/gui_rootfs
@@ -131,6 +131,7 @@ else
 				mount --move /sys /mnt/sys
 				mount --bind /dev /mnt/dev
 				mount -t tmpfs tmpfs /mnt/tmp
+				mount -t tmpfs tmpfs /mnt/var/log
 				mount -t tmpfs tmpfs /mnt/opt/developer
 				mount -t selinuxfs selinuxfs /mnt/selinux 2>/dev/null
 
