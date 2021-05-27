@@ -132,7 +132,7 @@ else
 				mount -t selinuxfs selinuxfs /mnt/selinux 2>/dev/null
 
 				# InkBox GUI's rootfs
-				busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/public.pem" "-signature" "/opt/storage/gui_rootfs.isa.dgst" "/opt/storage/gui_rootfs.isa"
+				busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/public.pem" "-signature" "/opt/storage/gui_rootfs.isa.dgst" "/opt/storage/gui_rootfs.isa" &>/dev/null
 				if [ $? != 0 ]; then
 					echo "FATAL: InkBox GUI root filesystem's signature is invalid!"
 					echo "Aborting boot and powering off ..."
