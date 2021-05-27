@@ -67,10 +67,6 @@ else
 			mount -t ext4 /dev/mmcblk0p2 /recoveryfs
 			dd if=/recoveryfs/opt/recovery/restore/uImage-std of=/dev/mmcblk0 bs=512 seek=2048
 			sync
-			rm /mnt/etc/passwd
-			sync
-			cp /opt/passwd_lockdown /mnt/etc/passwd
-			sync
 			# We set the ALERT flag to show a GUI warning about what happened
                         echo "true" > /mnt/boot/flags/ALERT
 			sync
@@ -96,6 +92,11 @@ else
 					mount -o ro /dev/loop1 /mnt
 				fi
 				mount -t ext4 /dev/mmcblk0p1 /mnt/boot
+
+				# Bind-mount a valid passwd file to allow login
+				cp /opt/passwd-root /tmp/passwd
+				mount --bind /tmp/passwd /mnt/etc/passwd
+
 				## User storage
 				mount -t ext4 /dev/mmcblk0p4 /mnt/opt/storage
 				# Config
@@ -140,7 +141,7 @@ else
 				OVERRIDE_SIGNATURE_VERIFICATION=`cat /mnt/opt/developer/key/valid-key 2>/dev/null`
 
 				# InkBox GUI's rootfs
-				busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/public.pem" "-signature" "/opt/storage/gui_rootfs.isa.dgst" "/opt/storage/gui_rootfs.isa"
+				busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/public.pem" "-signature" "/opt/storage/gui_rootfs.isa.dgst" "/opt/storage/gui_rootfs.isa" &>/dev/null
 				if [ $? != 0 ]; then
 					if [ "$OVERRIDE_SIGNATURE_VERIFICATION" != "true" ]; then
 						echo "FATAL: InkBox GUI root filesystem's signature is invalid!"
