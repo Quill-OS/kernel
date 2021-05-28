@@ -1,0 +1,32 @@
+#!/bin/sh
+
+omega() {
+	# Memento, homo, quia pulvis es, et in pulverem reverteris.
+	# Final system rundown
+	mount -o remount,ro /overlaymount-rootfs/mnt/rootfs/overlay 2>/dev/null
+	umount /overlaymount-rootfs/mnt/rootfs/overlay -l -f
+	umount /overlaymount-rootfs/mnt/rootfs/read -l -f
+	umount /overlaymount-rootfs/mnt/rootfs -l -f
+	umount /overlaymount-rootfs/mnt/rootfs-part -l -f
+	umount /overlaymount-rootfs/mnt -l -f
+	umount /overlaymount-rootfs/proc -l -f
+	umount /overlaymount-rootfs/dev -l -f
+	umount /overlaymount-rootfs/sys -l -f
+	umount /overlaymount-rootfs -l -f
+	umount /rootfs-part -l -f
+}
+
+mkfifo /mnt/run/initrd-fifo
+while true; do
+	if read line < /mnt/run/initrd-fifo; then
+		if [[ "$line" == "poweroff" ]]; then
+			omega
+			busybox poweroff
+			exit 0
+		elif [[ "$line" == "reboot" ]]; then
+			omega
+			busybox reboot
+			exit 0
+		fi
+	fi
+done &
