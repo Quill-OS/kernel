@@ -24,6 +24,14 @@ WILL_UPDATE=`cat /mnt/flags/WILL_UPDATE` 2>/dev/null
 DIAGS_BOOT=`cat /mnt/flags/DIAGS_BOOT` 2>/dev/null
 STARTX=`cat /mnt/flags/X11_START` 2>/dev/null
 MOUNT_RW=`cat /mnt/flags/RW_ROOTFS` 2>/dev/null
+INITRD_DEBUG=`cat /mnt/flags/INITRD_DEBUG` 2>/dev/null
+
+## DEBUG ##
+if [ "$INITRD_DEBUG" == "true" ]; then
+	mkdir -p /dev/pts
+	mount -t devpts devpts /dev/pts
+	busybox telnetd
+fi
 
 # Some mountpoints
 mkdir -p /rootfs-part
@@ -56,9 +64,7 @@ else
 		if [ "$ROOT_FLAG" == "rooted" ]; then
 			echo "Security policy not enforced; root access permitted."
 		else
-			mount -t ext4 -o ro /dev/mmcblk0p3 /rootfs-part
-			losetup /dev/loop1 /rootfs-part/rootfs.squashfs
-			mount -o ro /dev/loop1 /mnt
+			/etc/init.d/overlay-mount ro
 			mount -t ext4 /dev/mmcblk0p1 /mnt/boot
 
 			echo "WARNING: User violated security policy!"
@@ -83,13 +89,9 @@ else
 
 				# Root filesystem
 				if [ "$MOUNT_RW" == "true" ]; then
-					mount -t ext4 /dev/mmcblk0p3 /rootfs-part
-					losetup /dev/loop1 /rootfs-part/rootfs.squashfs
-					mount -o ro /dev/loop1 /mnt
+					/etc/init.d/overlay-mount rw
 				else
-					mount -t ext4 -o ro /dev/mmcblk0p3 /rootfs-part
-					losetup /dev/loop1 /rootfs-part/rootfs.squashfs
-					mount -o ro /dev/loop1 /mnt
+					/etc/init.d/overlay-mount ro
 				fi
 				mount -t ext4 /dev/mmcblk0p1 /mnt/boot
 
@@ -128,9 +130,9 @@ else
 				losetup /dev/loop5 /opt/modules.sqsh
 				mount /dev/loop5 /mnt/modules -o ro,nodev,nosuid,noexec
 
-				mount --move /proc /mnt/proc
-				mount --move /sys /mnt/sys
-				mount --bind /dev /mnt/dev
+				mount --rbind /proc /mnt/proc
+				mount --rbind /sys /mnt/sys
+				mount --rbind /dev /mnt/dev
 				mount -t tmpfs tmpfs /mnt/tmp
 				mount -t tmpfs tmpfs /mnt/var/log
 				mount -t tmpfs tmpfs /mnt/opt/developer
@@ -181,10 +183,10 @@ else
 				mount /dev/loop5 /mnt/modules -o ro,nodev,nosuid,noexec
 
 				mount /mnt/opt/recovery/restore/alpine-udev.sqsh /alpine
-				mount --bind /proc /mnt/proc
-				mount --bind /proc /alpine/proc
-				mount --bind /sys /mnt/sys
-				mount --bind /sys /alpine/sys
+				mount --rbind /proc /mnt/proc
+				mount --rbind /proc /alpine/proc
+				mount --rbind /sys /mnt/sys
+				mount --rbind /sys /alpine/sys
 				mount -t devtmpfs devtmpfs /mnt/dev
 				mount -t devtmpfs devtmpfs /alpine/dev
 				mount -t tmpfs tmpfs /mnt/tmp
@@ -210,10 +212,10 @@ else
 			mount /dev/loop5 /mnt/modules -o ro,nodev,nosuid,noexec
 
 			mount /mnt/opt/recovery/restore/alpine-udev.sqsh /alpine
-			mount --bind /proc /mnt/proc
-			mount --bind /proc /alpine/proc
-			mount --bind /sys /mnt/sys
-			mount --bind /sys /alpine/sys
+			mount --rbind /proc /mnt/proc
+			mount --rbind /proc /alpine/proc
+			mount --rbind /sys /mnt/sys
+			mount --rbind /sys /alpine/sys
 			mount -t devtmpfs devtmpfs /mnt/dev
 			mount -t devtmpfs devtmpfs /alpine/dev
 			mount -t tmpfs tmpfs /mnt/tmp

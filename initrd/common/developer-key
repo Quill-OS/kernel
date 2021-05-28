@@ -5,6 +5,7 @@ DEVELOPER_FLAG=${DEVELOPER_FLAG_RAW:0:4}
 UID_RAW=$(dd if=/dev/mmcblk0 bs=512 skip=1 count=1 status=none)
 UID=${UID_RAW:0:256}
 if [ "$DEVELOPER_FLAG" == "true" ]; then
+	echo
 	echo "Validating developer key ..."
 	mkdir -p /mnt/tmp/key
 	DEVELOPER_KEY_RAW=$(dd if=/dev/mmcblk0 bs=512 skip=79874 count=1 status=none)
@@ -23,11 +24,9 @@ if [ "$DEVELOPER_FLAG" == "true" ]; then
 			exit 1
 		else
 			echo "Developer key does match UID."
-			mount -t proc proc /proc
 			mkdir -p /mnt/opt/developer/key
 			losetup /dev/loop3 /opt/valid-devkey.sqsh
 			mount -o ro,nosuid,nodev,noexec /dev/loop3 /mnt/opt/developer/key
-			umount /proc
 			rm -rf /mnt/tmp/key
 			echo -e "\033[0;36mThe door is open now; be careful what you let in.\033[0m"
 			exit 0
