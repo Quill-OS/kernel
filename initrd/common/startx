@@ -3,9 +3,6 @@
 echo
 echo "Starting X11 windowing system ..."
 
-# Mounting a temporary procfs otherwise the mount process might not work
-mount -t proc proc /proc
-
 mkdir -p /mnt/xorg
 mkdir -p /mnt/opt/X11/extensions-user
 mkdir -p /mnt/opt/X11/extensions-base
@@ -210,8 +207,6 @@ busybox chroot /mnt "/bin/fuse-overlayfs" "-o" "lowerdir=/opt/X11/merged,upperdi
 
 rm /mnt/xorg/var/log -rf
 mkdir -p /mnt/xorg/var/log
-
-umount /proc -l -f
 
 mount -t devtmpfs devtmpfs /mnt/xorg/dev
 mkdir -p /mnt/xorg/dev/shm

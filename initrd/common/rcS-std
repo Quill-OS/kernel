@@ -58,15 +58,7 @@ else
 
 				# Enforcing security policy; device is not rooted.
 				# Root filesystem
-				if [ "$MOUNT_RW" == "true" ]; then
-					mount -t ext4 -o nosuid /dev/mmcblk0p3 /rootfs-part
-					losetup /dev/loop1 /rootfs-part/rootfs.squashfs
-					mount -o nosuid /dev/loop1 /mnt
-				else
-					mount -t ext4 -o ro,nosuid /dev/mmcblk0p3 /rootfs-part
-					losetup /dev/loop1 /rootfs-part/rootfs.squashfs
-					mount -o nosuid /dev/loop1 /mnt
-				fi
+				/etc/init.d/overlay-mount ro std
 				mount -t ext4 -o nosuid /dev/mmcblk0p1 /mnt/boot
 				## User storage
 				mount -t ext4 -o nosuid /dev/mmcblk0p4 /mnt/opt/storage
@@ -124,9 +116,9 @@ else
 					sync
 				fi
 
-				mount --move /proc /mnt/proc
-				mount --move /sys /mnt/sys
-				mount --bind /dev /mnt/dev
+				mount --rbind /proc /mnt/proc
+				mount --rbind /sys /mnt/sys
+				mount --rbind /dev /mnt/dev
 				mount -t tmpfs tmpfs -o nosuid /mnt/tmp
 				mount -t tmpfs tmpfs -o nosuid /mnt/var/log
 				mount -t selinuxfs selinuxfs /mnt/selinux 2>/dev/null
@@ -167,10 +159,10 @@ else
 				mount /dev/loop5 /mnt/modules -o ro,nodev,nosuid,noexec
 
 				mount /mnt/opt/recovery/restore/alpine-udev.sqsh /alpine
-				mount --bind /proc /mnt/proc
-				mount --bind /proc /alpine/proc
-				mount --bind /sys /mnt/sys
-				mount --bind /sys /alpine/sys
+				mount --rbind /proc /mnt/proc
+				mount --rbind /proc /alpine/proc
+				mount --rbind /sys /mnt/sys
+				mount --rbind /sys /alpine/sys
 				mount -t devtmpfs devtmpfs /mnt/dev
 				mount -t devtmpfs devtmpfs /alpine/dev
 				mount -t tmpfs tmpfs -o nosuid /mnt/tmp
@@ -195,10 +187,10 @@ else
 			mount /dev/loop5 /mnt/modules -o ro,nodev,nosuid,noexec
 
 			mount /mnt/opt/recovery/restore/alpine-udev.sqsh /alpine
-			mount --bind /proc /mnt/proc
-			mount --bind /proc /alpine/proc
-			mount --bind /sys /mnt/sys
-			mount --bind /sys /alpine/sys
+			mount --rbind /proc /mnt/proc
+			mount --rbind /proc /alpine/proc
+			mount --rbind /sys /mnt/sys
+			mount --rbind /sys /alpine/sys
 			mount -t devtmpfs devtmpfs /mnt/dev
 			mount -t devtmpfs devtmpfs /alpine/dev
 			mount -t tmpfs tmpfs -o nosuid /mnt/tmp
