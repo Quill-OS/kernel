@@ -83,6 +83,7 @@ if [ "$2" == "std" ]; then
 		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/n705/etc/init.d/inkbox-splash
 		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/n705/etc/init.d/developer-key
 		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n705/etc/init.d/overlay-mount
+		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n705/etc/init.d/initrd-fifo
 		mkdir -p $GITDIR/kernel/out/n705
 	elif [ "$1" == "n905c" ]; then
 		sudo mkdir -p $GITDIR/initrd/n905c/etc/init.d
@@ -91,6 +92,7 @@ if [ "$2" == "std" ]; then
 		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/n905c/etc/init.d/inkbox-splash
 		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/n905c/etc/init.d/developer-key
 		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n905c/etc/init.d/overlay-mount
+		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n905c/etc/init.d/initrd-fifo
 		mkdir -p $GITDIR/kernel/out/n905c
 	fi
 	cd $GITDIR/kernel/linux-2.6.35.3
@@ -113,6 +115,7 @@ elif [ "$2" == "root" ]; then
 		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/n705/etc/init.d/inkbox-splash
 		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/n705/etc/init.d/developer-key
 		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n705/etc/init.d/overlay-mount
+		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n705/etc/init.d/initrd-fifo
 		mkdir -p $GITDIR/kernel/out/n705
 	elif [ "$1" == "n905c" ]; then
 		sudo mkdir -p $GITDIR/initrd/n905c/etc/init.d
@@ -121,6 +124,7 @@ elif [ "$2" == "root" ]; then
 		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/n905c/etc/init.d/inkbox-splash
 		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/n905c/etc/init.d/developer-key
 		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n905c/etc/init.d/overlay-mount
+		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n905c/etc/init.d/initrd-fifo
 		mkdir -p $GITDIR/kernel/out/n905c
 	fi
 	cd $GITDIR/kernel/linux-2.6.35.3

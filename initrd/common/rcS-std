@@ -144,6 +144,7 @@ else
 					chroot /mnt /sbin/openrc "sysinit"
 					chroot /mnt /sbin/openrc "boot"
 					chroot /mnt /sbin/openrc "default"
+					/etc/init.d/initrd-fifo
 				fi
 			else
 				echo "DIAGS_BOOT is set to 'true', booting into diagnostics..."
