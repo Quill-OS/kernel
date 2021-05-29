@@ -3,17 +3,17 @@
 omega() {
 	# Memento, homo, quia pulvis es, et in pulverem reverteris.
 	# Final system rundown
-	mount -o remount,ro /overlaymount-rootfs/mnt/rootfs/overlay 2>/dev/null
-	umount /overlaymount-rootfs/mnt/rootfs/overlay -l -f 2>/dev/null
-	umount /overlaymount-rootfs/mnt/rootfs/read -l -f 2>/dev/null
-	umount /overlaymount-rootfs/mnt/rootfs -l -f 2>/dev/null
-	umount /overlaymount-rootfs/mnt/rootfs-part -l -f 2>/dev/null
-	umount /overlaymount-rootfs/mnt -l -f 2>/dev/null
-	umount /overlaymount-rootfs/proc -l -f 2>/dev/null
-	umount /overlaymount-rootfs/dev -l -f 2>/dev/null
-	umount /overlaymount-rootfs/sys -l -f 2>/dev/null
-	umount /overlaymount-rootfs -l -f 2>/dev/null
-	umount /rootfs-part -l -f 2>/dev/null
+	mount -o remount,ro /overlaymount-rootfs/mnt/rootfs/overlay &>/dev/null
+	umount /overlaymount-rootfs/mnt/rootfs/overlay -l -f &>/dev/null
+	umount /overlaymount-rootfs/mnt/rootfs/read -l -f &>/dev/null
+	umount /overlaymount-rootfs/mnt/rootfs -l -f &>/dev/null
+	umount /overlaymount-rootfs/mnt/rootfs-part -l -f &>/dev/null
+	umount /overlaymount-rootfs/mnt -l -f &>/dev/null
+	umount /overlaymount-rootfs/proc -l -f &>/dev/null
+	umount /overlaymount-rootfs/dev -l -f &>/dev/null
+	umount /overlaymount-rootfs/sys -l -f &>/dev/null
+	umount /overlaymount-rootfs -l -f &>/dev/null
+	umount /rootfs-part -l -f &>/dev/null
 }
 
 mkfifo /mnt/run/initrd-fifo
