@@ -1,31 +1,55 @@
 #!/bin/sh
 
-# Mounting root filesystem with SquashFS and fuse-overlayfs (read-only by default)
+if [ "$1" != "recovery" ]; then
+	## Mounting root filesystem with squashfuse and fuse-overlayfs (read-only by default)
+	mkdir -p /rootfs-part
+	mkdir -p /overlaymount-rootfs
+	mount -t ext4 -o nosuid /dev/mmcblk0p3 /rootfs-part
 
-mkdir -p /rootfs-part
-mkdir -p /overlaymount-rootfs
-mount -t ext4 -o nosuid /dev/mmcblk0p3 /rootfs-part
+	# Some mountpoints
+	mkdir -p /rootfs-part/rootfs/read
+	mkdir -p /rootfs-part/rootfs/work
+	mkdir -p /rootfs-part/rootfs/write
+	mkdir -p /rootfs-part/rootfs/overlay
 
-# Some mountpoints
-mkdir -p /rootfs-part/rootfs/read
-mkdir -p /rootfs-part/rootfs/work
-mkdir -p /rootfs-part/rootfs/write
-mkdir -p /rootfs-part/rootfs/overlay
+	losetup /dev/loop1 /rootfs-part/overlaymount-rootfs.squashfs
+	mount /dev/loop1 /overlaymount-rootfs
 
-losetup /dev/loop1 /rootfs-part/overlaymount-rootfs.squashfs
-mount /dev/loop1 /overlaymount-rootfs
+	# Filesystems
+	mount -t devtmpfs devtmpfs /overlaymount-rootfs/dev
+	mount -t sysfs sysfs /overlaymount-rootfs/sys
+	mount -t tmpfs tmpfs /overlaymount-rootfs/mnt
+	mount -t proc proc /overlaymount-rootfs/proc
+	mkdir -p /overlaymount-rootfs/mnt/rootfs-part
+	mkdir -p /overlaymount-rootfs/mnt/rootfs
+	mount --bind /rootfs-part /overlaymount-rootfs/mnt/rootfs-part
+	mount --bind /rootfs-part/rootfs /overlaymount-rootfs/mnt/rootfs
+	rm -r /mnt
+	ln -s /overlaymount-rootfs/mnt/rootfs/overlay /mnt
 
-# Filesystems
-mount -t devtmpfs devtmpfs /overlaymount-rootfs/dev
-mount -t sysfs sysfs /overlaymount-rootfs/sys
-mount -t tmpfs tmpfs /overlaymount-rootfs/mnt
-mount -t proc proc /overlaymount-rootfs/proc
-mkdir -p /overlaymount-rootfs/mnt/rootfs-part
-mkdir -p /overlaymount-rootfs/mnt/rootfs
-mount --bind /rootfs-part /overlaymount-rootfs/mnt/rootfs-part
-mount --bind /rootfs-part/rootfs /overlaymount-rootfs/mnt/rootfs
-rm -r /mnt
-ln -s /overlaymount-rootfs/mnt/rootfs/overlay /mnt
+	busybox chroot /overlaymount-rootfs "/bin/squashfuse" "/mnt/rootfs-part/rootfs.squashfs" "/mnt/rootfs/read"
+	busybox chroot /overlaymount-rootfs "/bin/fuse-overlayfs" "-o" "ro,lowerdir=/mnt/rootfs/read,upperdir=/mnt/rootfs/write,workdir=/mnt/rootfs/work" "/mnt/rootfs/overlay"
+else
+	## Mounting recovery filesystem
+	mkdir -p /recoveryfs-part
+	mkdir -p /overlaymount-rootfs
+	mount -t ext4 -o nosuid,ro /dev/mmcblk0p2 /recoveryfs-part
 
-busybox chroot /overlaymount-rootfs "/bin/squashfuse" "/mnt/rootfs-part/rootfs.squashfs" "/mnt/rootfs/read"
-busybox chroot /overlaymount-rootfs "/bin/fuse-overlayfs" "-o" "ro,lowerdir=/mnt/rootfs/read,upperdir=/mnt/rootfs/write,workdir=/mnt/rootfs/work" "/mnt/rootfs/overlay"
+	losetup /dev/loop1 /recoveryfs-part/overlaymount-rootfs.squashfs
+	mount /dev/loop1 /overlaymount-rootfs
+	
+	# Filesystems
+	mount -t devtmpfs devtmpfs /overlaymount-rootfs/dev
+	mount -t sysfs sysfs /overlaymount-rootfs/sys
+	mount -t tmpfs tmpfs /overlaymount-rootfs/mnt
+	mount -t proc proc /overlaymount-rootfs/proc
+	mkdir -p /overlaymount-rootfs/mnt/recoveryfs-part
+	mkdir -p /overlaymount-rootfs/mnt/recoveryfs
+	mount --bind /recoveryfs-part /overlaymount-rootfs/mnt/recoveryfs-part
+	rm -r /mnt
+	ln -s /overlaymount-rootfs/mnt/recoveryfs /mnt
+
+	busybox chroot /overlaymount-rootfs "/bin/squashfuse" "/mnt/recoveryfs-part/recoveryfs.squashfs" "/mnt/recoveryfs"
+fi
+
+

@@ -33,9 +33,6 @@ if [ "$INITRD_DEBUG" == "true" ]; then
 	busybox telnetd
 fi
 
-# Some mountpoints
-mkdir -p /rootfs-part
-
 if [ "$KERNEL_FLASH" == "true" ]; then
 	cp /mnt/boot/uImage /
 	sync
@@ -173,7 +170,7 @@ else
 			else
 				echo "DIAGS_BOOT is set to 'true', booting into diagnostics..."
 				mkdir -p /alpine
-				mount -t ext4 /dev/mmcblk0p2 /mnt -o ro
+				/etc/init.d/overlay-mount recovery
 				mount -t ext4 /dev/mmcblk0p1 /mnt/boot
 
 				losetup /dev/loop7 /opt/root.sqsh
@@ -188,12 +185,12 @@ else
 				mount --rbind /proc /alpine/proc
 				mount --rbind /sys /mnt/sys
 				mount --rbind /sys /alpine/sys
-				mount -t devtmpfs devtmpfs /mnt/dev
-				mount -t devtmpfs devtmpfs /alpine/dev
+				mount --rbind /dev /mnt/dev
+				mount --rbind /dev /alpine/dev
 				mount -t tmpfs tmpfs /mnt/tmp
 				mount -t tmpfs tmpfs /alpine/tmp
 				mount -t tmpfs tmpfs /alpine/run
-				chroot /alpine /sbin/openrc "sysinit"
+				chroot /alpine /sbin/openrc "sysinit" &>/dev/null
 				chroot /mnt /opt/bin/diagnostics_splash
 				sleep 2
 				chroot /mnt /opt/recovery/launch.sh &
@@ -202,7 +199,7 @@ else
 		else
 			echo "Input event caught, booting into recovery partition..."
 			mkdir -p /alpine
-			mount -t ext4 /dev/mmcblk0p2 /mnt -o ro
+			/etc/init.d/overlay-mount recovery
 			mount -t ext4 /dev/mmcblk0p1 /mnt/boot
 
 			losetup /dev/loop7 /opt/root.sqsh
@@ -217,12 +214,12 @@ else
 			mount --rbind /proc /alpine/proc
 			mount --rbind /sys /mnt/sys
 			mount --rbind /sys /alpine/sys
-			mount -t devtmpfs devtmpfs /mnt/dev
-			mount -t devtmpfs devtmpfs /alpine/dev
+			mount --rbind /dev /mnt/dev
+			mount --rbind /dev /alpine/dev
 			mount -t tmpfs tmpfs /mnt/tmp
 			mount -t tmpfs tmpfs /alpine/tmp
 			mount -t tmpfs tmpfs /alpine/run
-			chroot /alpine /sbin/openrc "sysinit"
+			chroot /alpine /sbin/openrc "sysinit" &>/dev/null
 			chroot /mnt /opt/bin/diagnostics_splash
 			sleep 2
 			chroot /mnt /opt/recovery/launch.sh &
