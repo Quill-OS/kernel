@@ -28,7 +28,18 @@ if [ "$1" != "recovery" ]; then
 	ln -s /overlaymount-rootfs/mnt/rootfs/overlay /mnt
 
 	busybox chroot /overlaymount-rootfs "/bin/squashfuse" "/mnt/rootfs-part/rootfs.squashfs" "/mnt/rootfs/read"
-	busybox chroot /overlaymount-rootfs "/bin/fuse-overlayfs" "-o" "ro,lowerdir=/mnt/rootfs/read,upperdir=/mnt/rootfs/write,workdir=/mnt/rootfs/work" "/mnt/rootfs/overlay"
+	if [ "$1" == "ro" ]; then
+		if [ "$2" == "std" ]; then
+			busybox chroot /overlaymount-rootfs "/bin/fuse-overlayfs" "-o" "ro,nosuid,lowerdir=/mnt/rootfs/read,upperdir=/mnt/rootfs/write,workdir=/mnt/rootfs/work" "/mnt/rootfs/overlay"
+		else
+			busybox chroot /overlaymount-rootfs "/bin/fuse-overlayfs" "-o" "ro,lowerdir=/mnt/rootfs/read,upperdir=/mnt/rootfs/write,workdir=/mnt/rootfs/work" "/mnt/rootfs/overlay"
+		fi
+	elif [ "$1" == "rw" ]; then
+		busybox chroot /overlaymount-rootfs "/bin/fuse-overlayfs" "-o" "lowerdir=/mnt/rootfs/read,upperdir=/mnt/rootfs/write,workdir=/mnt/rootfs/work" "/mnt/rootfs/overlay"
+	else
+		echo "Invalid argument"
+		exit 1
+	fi
 else
 	## Mounting recovery filesystem
 	mkdir -p /recoveryfs-part
