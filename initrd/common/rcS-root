@@ -82,7 +82,11 @@ else
 			if [ "$DIAGS_BOOT" != "true" ]; then
 				# If the security policy was violated, we would not be there anymore, so from now on we are booting as usual.
 				# Splash
-				/etc/init.d/inkbox-splash &
+				if [ "$WILL_UPDATE" != "true" ]; then
+					/etc/init.d/inkbox-splash &
+				else
+					:
+				fi
 
 				# Root filesystem
 				if [ "$MOUNT_RW" == "true" ]; then
