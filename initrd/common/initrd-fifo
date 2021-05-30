@@ -16,6 +16,17 @@ omega() {
 	umount /rootfs-part -l -f &>/dev/null
 }
 
+update_rootfs() {
+	mv /overlaymount-rootfs/mnt/rootfs/overlay/tmp/rootfs/rootfs.squashfs /tmp
+	sync
+	omega
+	mount -t ext4 -o nosuid,noexec,nodev /dev/mmcblk0p3 /rootfs-part
+	sync
+	mv /tmp/rootfs.squashfs /rootfs-part/rootfs.squashfs
+	sync
+	umount /rootfs-part
+}
+
 mkfifo /mnt/run/initrd-fifo
 while true; do
 	if read line < /mnt/run/initrd-fifo; then
@@ -27,6 +38,9 @@ while true; do
 			omega
 			busybox reboot
 			exit 0
+		elif [[ "$line" == "update_rootfs" ]]; then
+			update_rootfs
+			busybox reboot
 		fi
 	fi
 done &
