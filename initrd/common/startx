@@ -1,5 +1,13 @@
 #!/bin/sh
 
+DISABLE_SIGNATURE_VERIFICATION=0
+
+if grep -q "true" /mnt/opt/developer/key/valid-key &>/dev/null; then
+	DISABLE_SIGNATURE_VERIFICATION=1
+	cp /opt/bin/fake-openssl /tmp/fake-openssl
+	mount --bind /tmp/fake-openssl /mnt/usr/bin/openssl
+fi
+
 echo
 echo "Starting X11 windowing system ..."
 
@@ -16,7 +24,11 @@ mkdir -p /mnt/opt/storage/tmpfs
 
 mount -t tmpfs tmpfs /mnt/opt/storage/tmpfs
 
-echo "Validating packages' digital signatures ..."
+if [ $DISABLE_SIGNATURE_VERIFICATION == 1 ]; then
+	echo "DEVMODE: Packages' digital signatures validation disabled."
+else
+	echo "Validating packages' digital signatures ..."
+fi
 
 # Mounting base disk image
 losetup /dev/loop2 /mnt/opt/storage/X11/base.img
@@ -242,3 +254,8 @@ echo "true" > /mnt/boot/flags/X11_STARTED
 
 sleep 8
 echo "Done."
+
+if [ $DISABLE_SIGNATURE_VERIFICATION == 1 ]; then
+	umount -l -f /mnt/usr/bin/openssl
+fi
+exit 0
