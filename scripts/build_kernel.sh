@@ -78,23 +78,25 @@ fi
 if [ "$2" == "std" ]; then
 	if [ "$1" == "n705" ]; then
 		sudo mkdir -p $GITDIR/initrd/n705/etc/init.d
+		sudo mkdir -p $GITDIR/initrd/n705/opt/bin
 		sudo cp $GITDIR/initrd/common/rcS-std $GITDIR/initrd/n705/etc/init.d/rcS
 		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/n705/etc/init.d/startx
 		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/n705/etc/init.d/inkbox-splash
 		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/n705/etc/init.d/developer-key
 		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n705/etc/init.d/overlay-mount
 		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n705/etc/init.d/initrd-fifo
-		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n705/etc/init.d/uidgen
+		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n705/opt/bin/uidgen
 		mkdir -p $GITDIR/kernel/out/n705
 	elif [ "$1" == "n905c" ]; then
 		sudo mkdir -p $GITDIR/initrd/n905c/etc/init.d
+		sudo mkdir -p $GITDIR/initrd/n905c/opt/bin
 		sudo cp $GITDIR/initrd/common/rcS-std $GITDIR/initrd/n905c/etc/init.d/rcS
 		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/n905c/etc/init.d/startx
 		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/n905c/etc/init.d/inkbox-splash
 		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/n905c/etc/init.d/developer-key
 		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n905c/etc/init.d/overlay-mount
 		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n905c/etc/init.d/initrd-fifo
-		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n905c/etc/init.d/uidgen
+		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n905c/opt/bin/uidgen
 		mkdir -p $GITDIR/kernel/out/n905c
 	fi
 	cd $GITDIR/kernel/linux-2.6.35.3
@@ -112,23 +114,25 @@ if [ "$2" == "std" ]; then
 elif [ "$2" == "root" ]; then
 	if [ "$1" == "n705" ]; then
 		sudo mkdir -p $GITDIR/initrd/n705/etc/init.d
+		sudo mkdir -p $GITDIR/initrd/n705/opt/bin
 		sudo cp $GITDIR/initrd/common/rcS-root $GITDIR/initrd/n705/etc/init.d/rcS
 		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/n705/etc/init.d/startx
 		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/n705/etc/init.d/inkbox-splash
 		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/n705/etc/init.d/developer-key
 		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n705/etc/init.d/overlay-mount
 		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n705/etc/init.d/initrd-fifo
-		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n705/etc/init.d/uidgen
+		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n705/opt/bin/uidgen
 		mkdir -p $GITDIR/kernel/out/n705
 	elif [ "$1" == "n905c" ]; then
 		sudo mkdir -p $GITDIR/initrd/n905c/etc/init.d
+		sudo mkdir -p $GITDIR/initrd/n905c/opt/bin
 		sudo cp $GITDIR/initrd/common/rcS-root $GITDIR/initrd/n905c/etc/init.d/rcS
 		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/n905c/etc/init.d/startx
 		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/n905c/etc/init.d/inkbox-splash
 		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/n905c/etc/init.d/developer-key
 		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n905c/etc/init.d/overlay-mount
 		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n905c/etc/init.d/initrd-fifo
-		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n905c/etc/init.d/uidgen
+		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n905c/opt/bin/uidgen
 		mkdir -p $GITDIR/kernel/out/n905c
 	fi
 	cd $GITDIR/kernel/linux-2.6.35.3

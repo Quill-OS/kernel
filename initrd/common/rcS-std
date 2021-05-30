@@ -17,6 +17,15 @@ echo
 /usr/bin/fsck.ext4 -y /dev/mmcblk0p4
 echo
 
+UID_FLAG_RAW=`dd if=/dev/mmcblk0 bs=256 skip=3 count=1 status=none`
+UID_FLAG=${UID_FLAG_RAW:0:1}
+if [ "$UID_FLAG" != "1" ]; then
+	/opt/bin/uidgen write-mmc
+	echo "1" | dd of=/dev/mmcblk0 bs=256 seek=3
+else
+	:
+fi
+
 # Upgrading kernel if needed
 mount -t ext4 /dev/mmcblk0p1 /mnt
 KERNEL_FLASH=`cat /mnt/flags/KERNEL_FLASH` 2>/dev/null
