@@ -1,17 +1,15 @@
 #!/bin/sh
 
-DEVELOPER_FLAG_RAW=$(dd if=/dev/mmcblk0 bs=512 skip=79873 count=1 status=none)
+DEVELOPER_FLAG_RAW=$(dd if=/dev/mmcblk0 bs=256 skip=159746 count=1 status=none)
 DEVELOPER_FLAG=${DEVELOPER_FLAG_RAW:0:4}
-UID_RAW=$(dd if=/dev/mmcblk0 bs=512 skip=1 count=1 status=none)
-UID=${UID_RAW:0:256}
+UID=$(dd if=/dev/mmcblk0 bs=256 skip=2 count=1 status=none)
 if [ "$DEVELOPER_FLAG" == "true" ]; then
 	echo
 	echo "Validating developer key ..."
 	mkdir -p /mnt/tmp/key
-	DEVELOPER_KEY_RAW=$(dd if=/dev/mmcblk0 bs=512 skip=79874 count=1 status=none)
-	DEVELOPER_KEY=${DEVELOPER_KEY_RAW:0:256}
-	dd if=/dev/mmcblk0 of=/mnt/tmp/key/key.dgst bs=512 skip=79875 count=1 status=none
-	echo "$DEVELOPER_KEY" | busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/public.pem" "-signature" "/tmp/key/key.dgst" &>/dev/null
+	DEVELOPER_KEY=$(dd if=/dev/mmcblk0 bs=256 skip=159748 count=1 status=none)
+	dd if=/dev/mmcblk0 of=/mnt/tmp/key/key.dgst bs=256 skip=159750 count=1 status=none
+	echo -n "$DEVELOPER_KEY" | busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/public.pem" "-signature" "/tmp/key/key.dgst" &>/dev/null
 	if [ $? != 0 ]; then
 		echo "No valid key found or key missing. Aborting!"
 		rm -rf /mnt/tmp/key
