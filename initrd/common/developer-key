@@ -1,9 +1,9 @@
 #!/bin/sh
 
 DEVELOPER_FLAG_RAW=$(dd if=/dev/mmcblk0 bs=256 skip=159746 count=1 status=none)
-DEVELOPER_FLAG=${DEVELOPER_FLAG_RAW:0:4}
+DEVELOPER_FLAG=${DEVELOPER_FLAG_RAW:0:1}
 UID=$(dd if=/dev/mmcblk0 bs=256 skip=2 count=1 status=none)
-if [ "$DEVELOPER_FLAG" == "true" ]; then
+if [ "$DEVELOPER_FLAG" == "1" ]; then
 	echo
 	echo "Validating developer key ..."
 	mkdir -p /mnt/tmp/key
