@@ -175,9 +175,9 @@ else
 					fi
 
 					chroot /mnt /sbin/openrc "sysinit"
+					/etc/init.d/initrd-fifo
 					chroot /mnt /sbin/openrc "boot"
 					chroot /mnt /sbin/openrc "default"
-					/etc/init.d/initrd-fifo
 					exit 0
 				fi
 			else
