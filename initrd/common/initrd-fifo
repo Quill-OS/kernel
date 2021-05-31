@@ -27,7 +27,11 @@ update_rootfs() {
 	umount /rootfs-part
 }
 
-mkfifo /mnt/run/initrd-fifo
+if [[ ! -p /mnt/run/initrd-fifo ]]; then
+	rm /mnt/run/initrd-fifo 2>/dev/null
+	mkfifo /mnt/run/initrd-fifo 2>/dev/null
+fi
+
 while true; do
 	if read line < /mnt/run/initrd-fifo; then
 		if [[ "$line" == "poweroff" ]]; then
@@ -41,6 +45,22 @@ while true; do
 		elif [[ "$line" == "update_rootfs" ]]; then
 			update_rootfs
 			busybox reboot
+		elif [[ "$line" == "developer_fake-openssl_mount" ]]; then
+			if grep -q "true" /mnt/opt/developer/key/valid-key &>/dev/null; then
+				if [ ! -e /tmp/fake-openssl ]; then
+					cp /opt/bin/fake-openssl /tmp/fake-openssl
+				fi
+				umount -l -f /mnt/usr/bin/openssl &>/dev/null
+				mount --bind /tmp/fake-openssl /mnt/usr/bin/openssl
+			else
+				echo "initrd-fifo: fake-openssl: Permission denied."
+			fi
+		elif [[ "$line" == "developer_fake-openssl_unmount" ]]; then
+			if grep -q "true" /mnt/opt/developer/key/valid-key &>/dev/null; then
+				umount -l -f /mnt/usr/bin/openssl
+			else
+				echo "initrd-fifo: fake-openssl: Permission denied."
+			fi
 		fi
 	fi
 done &
