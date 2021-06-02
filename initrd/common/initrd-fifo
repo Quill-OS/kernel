@@ -17,7 +17,7 @@ omega() {
 }
 
 update_rootfs() {
-	mv /overlaymount-rootfs/mnt/rootfs/overlay/tmp/rootfs/rootfs.squashfs /tmp
+	mv /overlaymount-rootfs/mnt/rootfs/overlay/tmp/update/rootfs/rootfs.squashfs /tmp
 	sync
 	omega
 	mount -t ext4 -o nosuid,noexec,nodev /dev/mmcblk0p3 /rootfs-part
