@@ -2,9 +2,9 @@
 
 make_nodes() {
 	mkdir -p dev
-	sudo mknod c 5 1 dev/console
-	sudo mknod c 207 16 dev/ttymxc0
-	sudo mknod c 1 3 dev/null
+	sudo mknod dev/console c 5 1
+	sudo mknod dev/ttymxc0 c 207 16
+	sudo mknod dev/null c 1 3
 }
 
 cd ${GITDIR}/initrd/n705
