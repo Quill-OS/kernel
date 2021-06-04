@@ -71,7 +71,7 @@ CONFIG_LOG_BUF_SHIFT=14
 # CONFIG_RELAY is not set
 # CONFIG_NAMESPACES is not set
 CONFIG_BLK_DEV_INITRD=y
-CONFIG_INITRAMFS_SOURCE="/home/build/kobo/initrd/busybox-1.32.1/_install-touch-recovery"
+CONFIG_INITRAMFS_SOURCE="/home/build/inkbox/kernel/initrd/busybox-1.32.1/_install-touch-recovery"
 CONFIG_INITRAMFS_ROOT_UID=0
 CONFIG_INITRAMFS_ROOT_GID=0
 # CONFIG_RD_GZIP is not set
@@ -374,7 +374,7 @@ CONFIG_RUNTIME_PHYS_OFFSET=y
 #
 CONFIG_ZBOOT_ROM_TEXT=0x0
 CONFIG_ZBOOT_ROM_BSS=0x0
-CONFIG_CMDLINE="console=ttymxc0,115200 rootwait quiet rw lpj=3997696 root=/dev/ram0 rdinit=/sbin/init rootfstype=ramfs hwcfg_p=0x7ffffe00 hwcfg_sz=110 waveform_p=0x7ff0b400 waveform_sz=1001927 mem=255M selinux=0"
+CONFIG_CMDLINE="console=ttymxc0,115200 rootwait quiet rw lpj=3997696 root=/dev/ram0 rdinit=/sbin/init rootfstype=ramfs hwcfg_p=0x7ffffe00 hwcfg_sz=110 waveform_p=0x7ff0b400 waveform_sz=1001927 mem=255M selinux=0 printk.time"
 CONFIG_CMDLINE_FORCE=y
 # CONFIG_XIP_KERNEL is not set
 CONFIG_KEXEC=y
