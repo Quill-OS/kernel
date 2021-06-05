@@ -5,8 +5,9 @@ build_id_gen() {
 		echo "You must specify a file."
 	else
 		BUILD_ID=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 8)
-		echo "Build ID is: ${BUILD_ID}"
+		echo "---- Build ID is: ${BUILD_ID} ----"
 		echo ${BUILD_ID} > "${1}"
+	fi
 }
 
 mkimage -V > /dev/null
