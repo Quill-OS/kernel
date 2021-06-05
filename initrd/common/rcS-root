@@ -9,6 +9,14 @@ hostname kobo
 ifconfig lo up
 echo 3 > /sys/class/graphics/fb0/rotate
 
+KERNEL_VERSION=`uname -a`
+KERNEL_BUILD_ID=`cat /opt/build_id`
+
+echo
+echo "InkBox OS, kernel build $KERNEL_BUILD_ID"
+echo "Copyright (C) 2021 Nicolas Mailloux <nicolecrivain@gmail.com>"
+echo
+
 echo "Checking filesystems ..."
 echo
 /usr/bin/fsck.ext4 -y /dev/mmcblk0p1
