@@ -12,7 +12,7 @@ echo 3 > /sys/class/graphics/fb0/rotate
 KERNEL_VERSION=`uname -a`
 KERNEL_BUILD_ID=`cat /opt/build_id`
 
-echo
+echo "$KERNEL_VERSION"
 echo "InkBox OS, kernel build $KERNEL_BUILD_ID"
 echo "Copyright (C) 2021 Nicolas Mailloux <nicolecrivain@gmail.com>"
 echo

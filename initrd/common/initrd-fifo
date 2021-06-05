@@ -47,6 +47,9 @@ while true; do
 				update_rootfs
 				killall -q openrc
 				busybox reboot
+			elif [[ "$line" == "get_kernel_build_id" ]]; then
+				KERNEL_BUILD_ID=$(cat /opt/build_id)
+				echo $KERNEL_BUILD_ID > /mnt/run/build_id
 			elif [[ "$line" == "developer_fake-openssl_mount" ]]; then
 				if grep -q "true" /mnt/opt/developer/key/valid-key &>/dev/null; then
 					if [ ! -e /tmp/fake-openssl ]; then
