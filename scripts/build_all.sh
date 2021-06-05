@@ -17,6 +17,7 @@ elif [ "$THREADS" == "" ]; then
 	THREADS=1
 fi
 
+$GITDIR/scripts/make_devicenodes.sh
 $GITDIR/scripts/build_kernel.sh n705 std
 $GITDIR/scripts/build_kernel.sh n705 root
 $GITDIR/scripts/build_kernel.sh n705 diags
