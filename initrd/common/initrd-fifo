@@ -33,34 +33,39 @@ if [[ ! -p /mnt/run/initrd-fifo ]]; then
 fi
 
 while true; do
-	if read line < /mnt/run/initrd-fifo; then
-		if [[ "$line" == "poweroff" ]]; then
-			omega
-			busybox poweroff
-			exit 0
-		elif [[ "$line" == "reboot" ]]; then
-			omega
-			busybox reboot
-			exit 0
-		elif [[ "$line" == "update_rootfs" ]]; then
-			update_rootfs
-			busybox reboot
-		elif [[ "$line" == "developer_fake-openssl_mount" ]]; then
-			if grep -q "true" /mnt/opt/developer/key/valid-key &>/dev/null; then
-				if [ ! -e /tmp/fake-openssl ]; then
-					cp /opt/bin/fake-openssl /tmp/fake-openssl
+	if [ -e /mnt/run/initrd-fifo ]; then
+		if read line < /mnt/run/initrd-fifo; then
+			if [[ "$line" == "poweroff" ]]; then
+				omega
+				busybox poweroff
+				exit 0
+			elif [[ "$line" == "reboot" ]]; then
+				omega
+				busybox reboot
+				exit 0
+			elif [[ "$line" == "update_rootfs" ]]; then
+				update_rootfs
+				killall -q openrc
+				busybox reboot
+			elif [[ "$line" == "developer_fake-openssl_mount" ]]; then
+				if grep -q "true" /mnt/opt/developer/key/valid-key &>/dev/null; then
+					if [ ! -e /tmp/fake-openssl ]; then
+						cp /opt/bin/fake-openssl /tmp/fake-openssl
+					fi
+					umount -l -f /mnt/usr/bin/openssl &>/dev/null
+					mount --bind /tmp/fake-openssl /mnt/usr/bin/openssl
+				else
+					echo "initrd-fifo: fake-openssl: Permission denied."
 				fi
-				umount -l -f /mnt/usr/bin/openssl &>/dev/null
-				mount --bind /tmp/fake-openssl /mnt/usr/bin/openssl
-			else
-				echo "initrd-fifo: fake-openssl: Permission denied."
-			fi
-		elif [[ "$line" == "developer_fake-openssl_unmount" ]]; then
-			if grep -q "true" /mnt/opt/developer/key/valid-key &>/dev/null; then
-				umount -l -f /mnt/usr/bin/openssl
-			else
-				echo "initrd-fifo: fake-openssl: Permission denied."
+			elif [[ "$line" == "developer_fake-openssl_unmount" ]]; then
+				if grep -q "true" /mnt/opt/developer/key/valid-key &>/dev/null; then
+					umount -l -f /mnt/usr/bin/openssl
+				else
+					echo "initrd-fifo: fake-openssl: Permission denied."
+				fi
 			fi
 		fi
+	else
+		:
 	fi
 done &
