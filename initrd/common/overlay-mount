@@ -5,40 +5,48 @@ if [ "$1" != "recovery" ]; then
 	mkdir -p /rootfs-part
 	mkdir -p /overlaymount-rootfs
 	mount -t ext4 -o nosuid /dev/mmcblk0p3 /rootfs-part
-
-	# Some mountpoints
-	mkdir -p /rootfs-part/rootfs/read
-	mkdir -p /rootfs-part/rootfs/work
-	mkdir -p /rootfs-part/rootfs/write
-	mkdir -p /rootfs-part/rootfs/overlay
-
-	losetup /dev/loop1 /rootfs-part/overlaymount-rootfs.squashfs
-	mount /dev/loop1 /overlaymount-rootfs
-
-	# Filesystems
-	mount -t devtmpfs devtmpfs /overlaymount-rootfs/dev
-	mount -t sysfs sysfs /overlaymount-rootfs/sys
-	mount -t tmpfs tmpfs /overlaymount-rootfs/mnt
-	mount -t proc proc /overlaymount-rootfs/proc
-	mkdir -p /overlaymount-rootfs/mnt/rootfs-part
-	mkdir -p /overlaymount-rootfs/mnt/rootfs
-	mount --bind /rootfs-part /overlaymount-rootfs/mnt/rootfs-part
-	mount --bind /rootfs-part/rootfs /overlaymount-rootfs/mnt/rootfs
-	rm -r /mnt
-	ln -s /overlaymount-rootfs/mnt/rootfs/overlay /mnt
-
-	busybox chroot /overlaymount-rootfs "/bin/squashfuse" "/mnt/rootfs-part/rootfs.squashfs" "/mnt/rootfs/read"
-	if [ "$1" == "ro" ]; then
-		if [ "$2" == "std" ]; then
-			busybox chroot /overlaymount-rootfs "/bin/fuse-overlayfs" "-o" "ro,nosuid,lowerdir=/mnt/rootfs/read,upperdir=/mnt/rootfs/write,workdir=/mnt/rootfs/work" "/mnt/rootfs/overlay"
-		else
-			busybox chroot /overlaymount-rootfs "/bin/fuse-overlayfs" "-o" "ro,lowerdir=/mnt/rootfs/read,upperdir=/mnt/rootfs/write,workdir=/mnt/rootfs/work" "/mnt/rootfs/overlay"
-		fi
-	elif [ "$1" == "rw" ]; then
-		busybox chroot /overlaymount-rootfs "/bin/fuse-overlayfs" "-o" "lowerdir=/mnt/rootfs/read,upperdir=/mnt/rootfs/write,workdir=/mnt/rootfs/work" "/mnt/rootfs/overlay"
-	else
-		echo "Invalid argument"
+	/usr/bin/unsquashfs -f -d /key /opt/key.sqsh
+	/usr/bin/openssl dgst -sha256 -verify /key/public.pem -signature /rootfs-part/rootfs.squashfs.dgst /rootfs-part/rootfs.squashfs
+	if [ $? != 0 ]; then
+		echo "Root filesystem's digital signature is invalid! Shutting down ..."
+		umount /rootfs-part -l -f
+		busybox poweroff
 		exit 1
+	else
+		# Some mountpoints
+		mkdir -p /rootfs-part/rootfs/read
+		mkdir -p /rootfs-part/rootfs/work
+		mkdir -p /rootfs-part/rootfs/write
+		mkdir -p /rootfs-part/rootfs/overlay
+
+		losetup /dev/loop1 /rootfs-part/overlaymount-rootfs.squashfs
+		mount /dev/loop1 /overlaymount-rootfs
+
+		# Filesystems
+		mount -t devtmpfs devtmpfs /overlaymount-rootfs/dev
+		mount -t sysfs sysfs /overlaymount-rootfs/sys
+		mount -t tmpfs tmpfs /overlaymount-rootfs/mnt
+		mount -t proc proc /overlaymount-rootfs/proc
+		mkdir -p /overlaymount-rootfs/mnt/rootfs-part
+		mkdir -p /overlaymount-rootfs/mnt/rootfs
+		mount --bind /rootfs-part /overlaymount-rootfs/mnt/rootfs-part
+		mount --bind /rootfs-part/rootfs /overlaymount-rootfs/mnt/rootfs
+		rm -r /mnt
+		ln -s /overlaymount-rootfs/mnt/rootfs/overlay /mnt
+
+		busybox chroot /overlaymount-rootfs "/bin/squashfuse" "/mnt/rootfs-part/rootfs.squashfs" "/mnt/rootfs/read"
+		if [ "$1" == "ro" ]; then
+			if [ "$2" == "std" ]; then
+				busybox chroot /overlaymount-rootfs "/bin/fuse-overlayfs" "-o" "ro,nosuid,lowerdir=/mnt/rootfs/read,upperdir=/mnt/rootfs/write,workdir=/mnt/rootfs/work" "/mnt/rootfs/overlay"
+			else
+				busybox chroot /overlaymount-rootfs "/bin/fuse-overlayfs" "-o" "ro,lowerdir=/mnt/rootfs/read,upperdir=/mnt/rootfs/write,workdir=/mnt/rootfs/work" "/mnt/rootfs/overlay"
+			fi
+		elif [ "$1" == "rw" ]; then
+			busybox chroot /overlaymount-rootfs "/bin/fuse-overlayfs" "-o" "lowerdir=/mnt/rootfs/read,upperdir=/mnt/rootfs/write,workdir=/mnt/rootfs/work" "/mnt/rootfs/overlay"
+		else
+			echo "Invalid argument"
+			exit 1
+		fi
 	fi
 else
 	## Mounting recovery filesystem
@@ -48,7 +56,7 @@ else
 
 	losetup /dev/loop1 /recoveryfs-part/overlaymount-rootfs.squashfs
 	mount /dev/loop1 /overlaymount-rootfs
-	
+
 	# Filesystems
 	mount -t devtmpfs devtmpfs /overlaymount-rootfs/dev
 	mount -t sysfs sysfs /overlaymount-rootfs/sys
@@ -62,5 +70,4 @@ else
 
 	busybox chroot /overlaymount-rootfs "/bin/squashfuse" "/mnt/recoveryfs-part/recoveryfs.squashfs" "/mnt/recoveryfs"
 fi
-
 
