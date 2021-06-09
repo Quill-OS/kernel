@@ -67,7 +67,7 @@ else
 	mount -t ext4 -o nosuid,ro /dev/mmcblk0p2 /recoveryfs-part
 
 	/usr/bin/unsquashfs -f -d /key /opt/key.sqsh &>/dev/null
-	/usr/bin/openssl dgst -sha256 -verify /key/public.pem -signature /key/public.pem -signature /recoveryfs-part/overlaymount-rootfs.squashfs.dgst &>/dev/null
+	/usr/bin/openssl dgst -sha256 -verify /key/public.pem -signature /recoveryfs-part/overlaymount-rootfs.squashfs.dgst /recoveryfs-part/overlaymount-rootfs.squashfs &>/dev/null
 	if [ $? != 0 ]; then
 		echo "Utility root filesystem's signature is invalid! Shutting down ..."
 		sync
@@ -91,11 +91,11 @@ else
 	ln -s /overlaymount-rootfs/mnt/recoveryfs /mnt
 
 	echo "Verifying recovery filesystem's digital signature ..."
-	/usr/bin/openssl dgst -sha256 -verify /key/public.pem -signature /rootfs-part/recoveryfs.squashfs.dgst /rootfs-part/recoveryfs.squashfs &>/dev/null
+	/usr/bin/openssl dgst -sha256 -verify /key/public.pem -signature /recoveryfs-part/recoveryfs.squashfs.dgst /recoveryfs-part/recoveryfs.squashfs &>/dev/null
 	if [ $? != 0 ]; then
 		echo "Recovery filesystem's digital signature is invalid! Shutting down ..."
 		sync
-		umount /rootfs-part -l -f
+		umount /recoveryfs-part -l -f
 		busybox poweroff
 		exit 1
 	else
