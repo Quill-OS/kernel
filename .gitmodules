@@ -1,3 +1,0 @@
-[submodule "kernel/modules/mxc_epdc_fb_damage"]
-	path = kernel/modules/mxc_epdc_fb_damage
-	url = git@github.com:/NiLuJe/mxc_epdc_fb_damage
