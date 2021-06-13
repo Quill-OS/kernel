@@ -27,7 +27,7 @@ if [ "$GITDIR" == "" ]; then
 	exit 1
 elif [ "$TOOLCHAINDIR" == "" ]; then
 	echo "You must specify the path of the toolchain in the TOOLCHAINDIR environment variable."
-	echo "Usually, a good location for it would be in $GITDIR/toolchain"
+	echo "Usually, a good location for it would be in $GITDIR/toolchain/gcc-4.8"
 	echo "Make sure that from TOOLCHAINDIR, there's a 'bin' folder in the first level that gives executables such as arm-linux-gnueabihf-gcc"
 	exit 1
 elif [ "$TARGET" == "" ]; then
