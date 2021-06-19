@@ -20,11 +20,24 @@ update_rootfs() {
 	mv /overlaymount-rootfs/mnt/rootfs/overlay/tmp/update/rootfs/rootfs.squashfs /tmp
 	sync
 	omega
+	mkdir -p /rootfs-part
 	mount -t ext4 -o nosuid,noexec,nodev /dev/mmcblk0p3 /rootfs-part
 	sync
 	mv /tmp/rootfs.squashfs /rootfs-part/rootfs.squashfs
 	sync
-	umount /rootfs-part
+	umount -l -f /rootfs-part
+}
+reset_kobox() {
+	sync
+	mkdir -p /userstore-part
+	mount -t ext4 -o nosuid,noexec,nodev /dev/mmcblk0p4 /userstore-part
+	sync
+	rm -rf /userstore-part/X11/rootfs/write
+	rm -rf /userstore-part/X11/rootfs/work
+	mkdir -p /userstore-part/X11/rootfs/write
+	mkdir -p /userstore-part/X11/rootfs/work
+	sync
+	umount -l -f /userstore-part
 }
 
 if [[ ! -p /mnt/run/initrd-fifo ]]; then
@@ -43,13 +56,19 @@ while true; do
 				omega
 				busybox reboot
 				exit 0
+			elif [[ "$line" == "reboot_reset_kobox" ]]; then
+				omega
+				reset_kobox
+				busybox reboot
+				exit 0
 			elif [[ "$line" == "update_rootfs" ]]; then
 				update_rootfs
 				killall -q openrc
 				busybox reboot
+				exit 0
 			elif [[ "$line" == "get_kernel_build_id" ]]; then
 				KERNEL_BUILD_ID=$(cat /opt/build_id)
-				echo $KERNEL_BUILD_ID > /mnt/run/build_id
+				echo "${KERNEL_BUILD_ID}" > /mnt/run/build_id
 			elif [[ "$line" == "developer_fake-openssl_mount" ]]; then
 				if grep -q "true" /mnt/opt/developer/key/valid-key &>/dev/null; then
 					if [ ! -e /tmp/fake-openssl ]; then
