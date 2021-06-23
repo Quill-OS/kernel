@@ -42,6 +42,12 @@ DIAGS_BOOT=`cat /mnt/flags/DIAGS_BOOT` 2>/dev/null
 FIRST_BOOT=`cat /mnt/flags/FIRST_BOOT` 2>/dev/null
 STARTX=`cat /mnt/flags/X11_START` 2>/dev/null
 MOUNT_RW=`cat /mnt/flags/RW_ROOTFS` 2>/dev/null
+DONT_BOOT=`cat /mnt/flags/DONT_BOOT` 2>/dev/null
+
+if [ "$DONT_BOOT" == "true" ]; then
+	echo "Device is locked down and will not boot."
+	busybox poweroff
+fi
 
 # Some mountpoints
 mkdir -p /rootfs-part
@@ -50,7 +56,7 @@ if [ "$KERNEL_FLASH" == "true" ]; then
 	cp /mnt/boot/uImage /
 	sync
 	echo "Flashing new kernel..."
-	dd if=/uImage of=/dev/mmcblk0 bs=512 seek=2048
+	dd if=/uImage of=/dev/mmcblk0 bs=512 seek=81920
 	sync
 	echo "false" > /mnt/flags/KERNEL_FLASH
 	rm /mnt/boot/uImage
@@ -74,7 +80,7 @@ else
 				if [ "$WILL_UPDATE" != "true" ]; then
 					/etc/init.d/inkbox-splash &
 				else
-					:
+					/etc/init.d/inkbox_splash update_splash &
 				fi
 
 				# Enforcing security policy; device is not rooted.
@@ -124,7 +130,9 @@ else
 					echo "WARNING! passwd file was modified; restoring it to its default state..."
 					rm /mnt/etc/passwd
 					sync
+					mount -o remount,rw /mnt
 					cp /opt/passwd_lockdown /mnt/etc/passwd
+					mount -o remount,ro /mnt
 					sync
 					# If this is not the first boot, we set the ALERT flag to show a GUI warning about what happened
 					if [ "$FIRST_BOOT" == "true" ]; then
