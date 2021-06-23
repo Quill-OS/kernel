@@ -42,6 +42,12 @@ DIAGS_BOOT=`cat /mnt/flags/DIAGS_BOOT` 2>/dev/null
 STARTX=`cat /mnt/flags/X11_START` 2>/dev/null
 MOUNT_RW=`cat /mnt/flags/RW_ROOTFS` 2>/dev/null
 INITRD_DEBUG=`cat /mnt/flags/INITRD_DEBUG` 2>/dev/null
+DONT_BOOT=`cat /mnt/flags/DONT_BOOT` 2>/dev/null
+
+if [ "$DONT_BOOT" == "true" ]; then
+	echo "Device is locked down and will not boot."
+	busybox poweroff
+fi
 
 ## DEBUG ##
 if [ "$INITRD_DEBUG" == "true" ]; then
@@ -54,7 +60,7 @@ if [ "$KERNEL_FLASH" == "true" ]; then
 	cp /mnt/boot/uImage /
 	sync
 	echo "Flashing new kernel..."
-	dd if=/uImage of=/dev/mmcblk0 bs=512 seek=2048
+	dd if=/uImage of=/dev/mmcblk0 bs=512 seek=81920
 	sync
 	echo "false" > /mnt/flags/KERNEL_FLASH
 	rm /mnt/boot/uImage
@@ -78,18 +84,17 @@ else
 		if [ "$ROOT_FLAG" == "rooted" ]; then
 			echo "Security policy not enforced; root access permitted."
 		else
-			/etc/init.d/overlay-mount ro
+			/etc/init.d/overlay-mount recovery
 			mount -t ext4 /dev/mmcblk0p1 /mnt/boot
 
 			echo "WARNING: User violated security policy!"
 			echo "Flashing a new kernel that does not allow root access..."
-			mkdir -p /recoveryfs
-			mount -t ext4 /dev/mmcblk0p2 /recoveryfs
-			dd if=/recoveryfs/opt/recovery/restore/uImage-std of=/dev/mmcblk0 bs=512 seek=2048
+			dd if=/mnt/opt/recovery/restore/uImage-std of=/dev/mmcblk0 bs=512 seek=81920
 			sync
 			# We set the ALERT flag to show a GUI warning about what happened
                         echo "true" > /mnt/boot/flags/ALERT
 			sync
+			umount -l -f /mnt/boot
 			echo "Done, rebooting..."
 			reboot
 			exit 0
@@ -102,7 +107,7 @@ else
 				if [ "$WILL_UPDATE" != "true" ]; then
 					/etc/init.d/inkbox-splash &
 				else
-					:
+					/etc/init.d/inkbox-splash update_splash &
 				fi
 
 				# Root filesystem
