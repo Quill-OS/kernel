@@ -1,0 +1,38 @@
+#!/bin/sh
+# Displays a big "InkBox" splash from the initrd userspace
+
+DEVICE=`cat /opt/device`
+
+if [ "$DEVICE" == "n705" ]; then
+	SIZE=55
+elif [ "$DEVICE" == "n905c" ]; then
+	SIZE=70
+fi
+
+mkdir -p /splash
+cd /splash
+tar -xf /opt/splash-rootfs.tar.xz
+cd - &>/dev/null
+
+cp /bin/busybox /splash/bin/busybox
+mount -t devtmpfs devtmpfs /splash/dev
+mount -t sysfs sysfs /splash/sys
+mount -t proc proc /splash/proc
+
+if [ "${1}" != "update_splash" ]; then
+	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink "-k" "-f" "-q"
+	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink "-M" "-m" "-q" "-t" "regular=/opt/fbink/fraunces.ttf,size=$SIZE" "InkBox"
+else
+	ln -s /bin/busybox /splash/bin/sh
+	ln -s /bin/busybox /splash/bin/sleep
+	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink "-k" "-f" "-h" "-q"	
+	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink "-t" "regular=/opt/fbink/inter-b.ttf,size=20" "Updating" "-m" "-M" "-h" "-q"
+	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/bin/update-splash &
+fi
+
+if [ "${1}" != "update_splash" ]; then
+	umount /splash/dev -l -f
+	umount /splash/sys -l -f
+	umount /splash/proc -l -f
+	rm -rf /splash
+fi

@@ -24,4 +24,7 @@ $GITDIR/scripts/build_kernel.sh n705 diags
 $GITDIR/scripts/build_kernel.sh n905c std
 $GITDIR/scripts/build_kernel.sh n905c root
 $GITDIR/scripts/build_kernel.sh n905c diags
+$GITDIR/scripts/build_kernel.sh n613 std
+$GITDIR/scripts/build_kernel.sh n613 root
+$GITDIR/scripts/build_kernel.sh n613 diags
 $GITDIR/scripts/build_u-boot.sh
