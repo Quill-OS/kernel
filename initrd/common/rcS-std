@@ -128,7 +128,7 @@ else
 				else
 					# passwd file was modified; restoring it to prevent shell access
 					echo "WARNING! passwd file was modified; restoring it to its default state..."
-					rm /mnt/etc/passwd
+					rm -f /mnt/etc/passwd
 					sync
 					mount -o remount,rw /mnt
 					cp /opt/passwd_lockdown /mnt/etc/passwd
