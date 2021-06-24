@@ -48,9 +48,11 @@ if [ "$1" == "n705" ]; then
 	echo "---- Building Kobo Mini (N705) kernel ----"
 elif [ "$1" == "n905c" ]; then
 	echo "---- Building Kobo Touch model C (N905C) kernel ----"
+elif [ "$1" == "n613" ]; then
+	echo "---- Building Kobo Glo (N613) kernel ----"
 else
 	echo "You must specify a kernel configuration to build for."
-	echo "Available configurations are: n705, n905c"
+	echo "Available configurations are: n705, n905c, n613"
 	exit 1
 fi
 
@@ -82,6 +84,14 @@ elif [ "$1" == "n905c" ]; then
 	else
 		cp $GITDIR/kernel/config/config-n905c $GITDIR/kernel/linux-2.6.35.3/.config
 	fi
+elif [ "$1" == "n613" ]; then
+	cd $GITDIR/kernel/linux-2.6.35.3
+	make ARCH=arm CROSS_COMPILE=$TARGET- mrproper
+	if [ "$2" == "diags" ]; then
+		cp $GITDIR/kernel/config/config-n613-diags $GITDIR/kernel/linux-2.6.35.3/.config
+	else
+		cp $GITDIR/kernel/config/config-n613 $GITDIR/kernel/linux-2.6.35.3/.config
+	fi
 fi
 
 # Build kernel
@@ -110,6 +120,18 @@ if [ "$2" == "std" ]; then
 		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n905c/opt/bin/uidgen
 		mkdir -p $GITDIR/kernel/out/n905c
 		build_id_gen $GITDIR/initrd/n905c/opt/build_id
+	elif [ "$1" == "n613" ]; then
+		sudo mkdir -p $GITDIR/initrd/n613/etc/init.d
+		sudo mkdir -p $GITDIR/initrd/n613/opt/bin
+		sudo cp $GITDIR/initrd/common/rcS-std $GITDIR/initrd/n613/etc/init.d/rcS
+		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/n613/etc/init.d/startx
+		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/n613/etc/init.d/inkbox-splash
+		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/n613/etc/init.d/developer-key
+		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n613/etc/init.d/overlay-mount
+		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n613/etc/init.d/initrd-fifo
+		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n613/opt/bin/uidgen
+		mkdir -p $GITDIR/kernel/out/n613
+		build_id_gen $GITDIR/initrd/n613/opt/build_id
 	fi
 	cd $GITDIR/kernel/linux-2.6.35.3
 	make ARCH=arm CROSS_COMPILE=$TARGET- uImage
@@ -148,6 +170,18 @@ elif [ "$2" == "root" ]; then
 		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n905c/opt/bin/uidgen
 		mkdir -p $GITDIR/kernel/out/n905c
 		build_id_gen $GITDIR/initrd/n905c/opt/build_id
+	elif [ "$1" == "n613" ]; then
+		sudo mkdir -p $GITDIR/initrd/n613/etc/init.d
+		sudo mkdir -p $GITDIR/initrd/n613/opt/bin
+		sudo cp $GITDIR/initrd/common/rcS-root $GITDIR/initrd/n613/etc/init.d/rcS
+		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/n613/etc/init.d/startx
+		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/n613/etc/init.d/inkbox-splash
+		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/n613/etc/init.d/developer-key
+		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n613/etc/init.d/overlay-mount
+		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n613/etc/init.d/initrd-fifo
+		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n613/opt/bin/uidgen
+		mkdir -p $GITDIR/kernel/out/n613
+		build_id_gen $GITDIR/initrd/n613/opt/build_id
 	fi
 	cd $GITDIR/kernel/linux-2.6.35.3
 	make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
@@ -166,6 +200,8 @@ elif [ "$2" == "diags" ]; then
 		mkdir -p $GITDIR/kernel/out/n705
 	elif [ "$1" == "n905c" ]; then
 		mkdir -p $GITDIR/kernel/out/n905c
+	elif [ "$1" == "n613" ]; then
+		mkdir -p $GITDIR/kernel/out/n613
 	fi
 	cd $GITDIR/kernel/linux-2.6.35.3
 	make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
