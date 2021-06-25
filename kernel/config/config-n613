@@ -374,7 +374,7 @@ CONFIG_RUNTIME_PHYS_OFFSET=y
 #
 CONFIG_ZBOOT_ROM_TEXT=0x0
 CONFIG_ZBOOT_ROM_BSS=0x0
-CONFIG_CMDLINE="console=ttymxc0,115200 rootwait quiet rw lpj=4997120 root=/dev/ram0 rdinit=/sbin/init rootfstype=ramfs hwcfg_p=0x7ffffe00 hwcfg_sz=110 waveform_p=0x7feee200 waveform_sz=1121199 mem=254M mx50_1GHz selinux=0 printk.time"
+CONFIG_CMDLINE="console=ttymxc0,115200 rootwait rw lpj=4997120 root=/dev/ram0 rdinit=/sbin/init rootfstype=ramfs hwcfg_p=0x7ffffe00 hwcfg_sz=110 waveform_p=0x7feec000 waveform_sz=1129647 mem=254M mx50_1GHz selinux=0 printk.time"
 CONFIG_CMDLINE_FORCE=y
 # CONFIG_XIP_KERNEL is not set
 CONFIG_KEXEC=y
