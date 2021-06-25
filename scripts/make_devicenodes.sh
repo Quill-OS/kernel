@@ -12,12 +12,16 @@ else
 	}
 
 	cd ${GITDIR}/initrd/n705
-	make_nodes
+	make_nodes 2>/dev/null
 	cd ${GITDIR}/initrd/n905c
-	make_nodes
+	make_nodes 2>/dev/null
+	cd ${GITDIR}/initrd/n613
+	make_nodes 2>/dev/null
 	cd ${GITDIR}/initrd/n705-diags
-	make_nodes
+	make_nodes 2>/dev/null
 	cd ${GITDIR}/initrd/n905c-diags
-	make_nodes
+	make_nodes 2>/dev/null
+	cd ${GITDIR}/initrd/n613-diags
+	make_nodes 2>/dev/null
 	echo "Done making devices nodes."
 fi

@@ -1291,7 +1291,7 @@ static int IsMaxCpuFreq1GHz(void)
 {
 	char *bootargs;
 
-	bootargs = getenv("bootargs_base");
+	bootargs = getenv("cpu_freq");
 
 	if( bootargs != NULL &&
 		strstr(bootargs, "mx50_1GHz") != NULL)
