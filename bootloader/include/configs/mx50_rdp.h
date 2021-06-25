@@ -141,15 +141,15 @@
 #define	CONFIG_EXTRA_ENV_SETTINGS					\
 		"uboot=u-boot.bin\0"			\
 		"kernel=uImage\0"				\
-		"bootcmd=load_ntxkernel; bootm\0"
-		"bootcmd_recovery=load_ntxkernel; bootm\0"
+		"i2c probe; bootcmd=load_ntxkernel; bootm\0"
+		"i2c probe; bootcmd_recovery=load_ntxkernel; bootm\0"
 
 #else
 #define	CONFIG_EXTRA_ENV_SETTINGS					\
 		"uboot=u-boot.bin\0"			\
 		"kernel=uImage\0"				\
-		"bootcmd_recovery=load_ntxkernel; bootm\0"   \
-		"bootcmd=load_ntxkernel; bootm\0" \
+		"bootcmd_recovery=i2c probe; load_ntxkernel; bootm\0"   \
+		"bootcmd=i2c probe; load_ntxkernel; bootm\0" \
 		"verify=no"
 #endif
 
@@ -157,8 +157,8 @@
 #define	CONFIG_EXTRA_ENV_SETTINGS
 		"uboot=u-boot.bin\0"			\
 		"kernel=uImage\0"   \
-		"bootcmd=load_ntxkernel; bootm\0" \
-		"bootcmd_recovery=load_ntxkernel; bootm\0"
+		"bootcmd=i2c probe; load_ntxkernel; bootm\0" \
+		"bootcmd_recovery=i2c probe; load_ntxkernel; bootm\0"
 #endif
 
 
