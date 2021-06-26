@@ -102,5 +102,7 @@ else
 		echo "Done."
 		busybox chroot /overlaymount-rootfs "/bin/squashfuse" "/mnt/recoveryfs-part/recoveryfs.squashfs" "/mnt/recoveryfs"
 	fi
+
+	mount --bind /opt/device /overlaymount-rootfs/mnt/recoveryfs/opt/device
 fi
 
