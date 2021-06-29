@@ -46,7 +46,9 @@ DONT_BOOT=`cat /mnt/flags/DONT_BOOT` 2>/dev/null
 
 if [ "$DONT_BOOT" == "true" ]; then
 	echo "Device is locked down and will not boot."
+	/etc/init.d/inkbox-splash alert_splash 1
 	busybox poweroff
+	exit 1
 fi
 
 ## DEBUG ##
@@ -171,7 +173,9 @@ else
 					if [ "$OVERRIDE_SIGNATURE_VERIFICATION" != "true" ]; then
 						echo "FATAL: InkBox GUI root filesystem's signature is invalid!"
 						echo "Aborting boot and powering off ..."
+						/etc/init.d/inkbox-splash alert_splash 2
 						busybox poweroff
+						exit 1
 					else
 						:
 					fi
