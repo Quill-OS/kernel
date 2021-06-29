@@ -6,12 +6,13 @@ if [ "$1" != "recovery" ]; then
 	mkdir -p /overlaymount-rootfs
 	mount -t ext4 -o nosuid /dev/mmcblk0p3 /rootfs-part
 	/usr/bin/unsquashfs -f -d /key /opt/key.sqsh &>/dev/null
-	/usr/bin/openssl dgst -sha256 -verify /key/public.pem -signature /rootfs-part/rootfs.squashfs.dgst /rootfs-part/rootfs.squashfs &>/dev/null
 	echo "Verifying root filesystem's digital signature ..."
+	/usr/bin/openssl dgst -sha256 -verify /key/public.pem -signature /rootfs-part/rootfs.squashfs.dgst /rootfs-part/rootfs.squashfs &>/dev/null
 	if [ $? != 0 ]; then
 		echo "Root filesystem's digital signature is invalid! Shutting down ..."
 		sync
 		umount /rootfs-part -l -f
+		/etc/init.d/inkbox-splash alert_splash 3
 		busybox poweroff
 		exit 1
 	else
@@ -27,6 +28,7 @@ if [ "$1" != "recovery" ]; then
 			echo "Utility root filesystem's signature is invalid! Shutting down ..."
 			sync
 			umount /rootfs-part -l -f
+			/etc/init.d/inkbox-splash alert_splash 5
 			busybox poweroff
 			exit 1
 		else
@@ -72,6 +74,7 @@ else
 		echo "Utility root filesystem's signature is invalid! Shutting down ..."
 		sync
 		umount -l -f /recoveryfs-part
+		/etc/init.d/inkbox-splash alert_splash 5
 		busybox poweroff
 		exit 1
 	else
@@ -96,6 +99,7 @@ else
 		echo "Recovery filesystem's digital signature is invalid! Shutting down ..."
 		sync
 		umount /recoveryfs-part -l -f
+		/etc/init.d/inkbox-splash alert_splash 4
 		busybox poweroff
 		exit 1
 	else
