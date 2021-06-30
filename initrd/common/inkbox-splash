@@ -3,6 +3,25 @@
 
 DEVICE=`cat /opt/device`
 
+setup() {	
+	mkdir -p /splash
+	cd /splash
+	tar -xf /opt/splash-rootfs.tar.xz
+	cd - &>/dev/null
+
+	cp /bin/busybox /splash/bin/busybox
+	mount -t devtmpfs devtmpfs /splash/dev
+	mount -t sysfs sysfs /splash/sys
+	mount -t proc proc /splash/proc
+}
+
+cleanup() {
+	umount /splash/dev -l -f
+	umount /splash/sys -l -f
+	umount /splash/proc -l -f
+	rm -rf /splash
+}
+
 if [ "${DEVICE}" == "n705" ] || [ "${DEVICE}" == "n905c" ]; then
         ROW=30
 	ALERT_ROW=18
@@ -19,15 +38,13 @@ elif [ "$DEVICE" == "n705" ]; then
 	SIZE=55
 fi
 
-mkdir -p /splash
-cd /splash
-tar -xf /opt/splash-rootfs.tar.xz
-cd - &>/dev/null
-
-cp /bin/busybox /splash/bin/busybox
-mount -t devtmpfs devtmpfs /splash/dev
-mount -t sysfs sysfs /splash/sys
-mount -t proc proc /splash/proc
+if [ ! -z ${UPDATE_SPLASH_PID} ]; then
+	kill -9 ${UPDATE_SPLASH_PID}
+	cleanup
+	setup
+else
+	setup
+fi
 
 if [ "${1}" == "update_splash" ]; then
 	ln -s /bin/busybox /splash/bin/sh
@@ -47,8 +64,5 @@ else
 fi
 
 if [ "${1}" != "update_splash" ]; then
-	umount /splash/dev -l -f
-	umount /splash/sys -l -f
-	umount /splash/proc -l -f
-	rm -rf /splash
+	cleanup
 fi
