@@ -107,16 +107,26 @@ else
 				# If the security policy was violated, we would not be there anymore, so from now on we are booting as usual.
 				# Splash
 				if [ "$WILL_UPDATE" != "true" ]; then
-					/etc/init.d/inkbox-splash &
+					/etc/init.d/inkbox-splash
 				else
 					/etc/init.d/inkbox-splash update_splash &
+					UPDATE_SPLASH_PID=$?
+					export UPDATE_SPLASH_PID
 				fi
 
 				# Root filesystem
 				if [ "$MOUNT_RW" == "true" ]; then
 					/etc/init.d/overlay-mount rw
+					OVERLAYMOUNT_EXITCODE=$?
+					if [ $OVERLAYMOUNT_EXITCODE != 0 ]; then
+						exit $OVERLAYMOUNT_EXITCODE
+					fi
 				else
 					/etc/init.d/overlay-mount ro
+					OVERLAYMOUNT_EXITCODE=$?
+					if [ $OVERLAYMOUNT_EXITCODE != 0 ]; then
+						exit $OVERLAYMOUNT_EXITCODE
+					fi
 				fi
 				mount -t ext4 /dev/mmcblk0p1 /mnt/boot
 
@@ -169,16 +179,13 @@ else
 
 				# InkBox GUI's rootfs
 				busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/public.pem" "-signature" "/opt/storage/gui_rootfs.isa.dgst" "/opt/storage/gui_rootfs.isa" &>/dev/null
-				if [ $? != 0 ]; then
-					if [ "$OVERRIDE_SIGNATURE_VERIFICATION" != "true" ]; then
-						echo "FATAL: InkBox GUI root filesystem's signature is invalid!"
-						echo "Aborting boot and powering off ..."
-						/etc/init.d/inkbox-splash alert_splash 2
-						busybox poweroff
-						exit 1
-					else
-						:
-					fi
+				if [ $? != 0 ] && [ "$OVERRIDE_SIGNATURE_VERIFICATION" != "true" ]; then
+					echo "FATAL: InkBox GUI root filesystem's signature is invalid!"
+					echo "Aborting boot and powering off ..."
+					killall -q inkbox-splash
+					/etc/init.d/inkbox-splash alert_splash 2
+					busybox poweroff
+					exit 1
 				else
 					busybox chroot /mnt "/bin/squashfuse" "/opt/storage/gui_rootfs.isa" "/opt/gui_rootfs/read"
 					busybox chroot /mnt "/bin/fuse-overlayfs" "-o" "lowerdir=/opt/gui_rootfs/read,upperdir=/opt/gui_rootfs/write,workdir=/opt/gui_rootfs/work" "/kobo"
@@ -201,6 +208,10 @@ else
 				echo "DIAGS_BOOT is set to 'true', booting into diagnostics..."
 				mkdir -p /alpine
 				/etc/init.d/overlay-mount recovery
+				OVERLAYMOUNT_EXITCODE=$?
+				if [ $OVERLAYMOUNT_EXITCODE != 0 ]; then
+					exit $OVERLAYMOUNT_EXITCODE
+				fi
 				mount -t ext4 /dev/mmcblk0p1 /mnt/boot
 
 				losetup /dev/loop7 /opt/root.sqsh
@@ -230,6 +241,10 @@ else
 			echo "Input event caught, booting into recovery partition..."
 			mkdir -p /alpine
 			/etc/init.d/overlay-mount recovery
+			OVERLAYMOUNT_EXITCODE=$?
+			if [ $OVERLAYMOUNT_EXITCODE != 0 ]; then
+				exit $OVERLAYMOUNT_EXITCODE
+			fi
 			mount -t ext4 /dev/mmcblk0p1 /mnt/boot
 
 			losetup /dev/loop7 /opt/root.sqsh
