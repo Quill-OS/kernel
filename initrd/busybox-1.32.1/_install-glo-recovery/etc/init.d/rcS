@@ -13,12 +13,12 @@ mount -t proc proc proc
 
 cp /opt/device /splash/opt/device
 
-mount -t ext4 /dev/mmcblk0p3 /mnt &>/dev/null
-FWVERSION=$(cat /mnt/opt/update/version 2>/dev/null)
-if [ "$FWVERSION" != "" ]; then
-	echo "$FWVERSION" > /splash/opt/inkbox-version
+mount -t ext4 /dev/mmcblk0p4 /mnt &>/dev/null
+FWVERSION=$(cat /mnt/update/version 2>/dev/null)
+if [ "${FWVERSION}" != "" ]; then
+	echo "${FWVERSION}" > /splash/opt/inkbox-version
 else
 	echo "Not available" > /splash/opt/inkbox-version
 fi
 
-chroot /splash /opt/diagnostics
+busybox chroot /splash /opt/diagnostics
