@@ -52,15 +52,18 @@ while true; do
 		if read line < /mnt/run/initrd-fifo; then
 			if [[ "$line" == "poweroff" ]]; then
 				omega
+				killall -q openrc
 				busybox poweroff
 				exit 0
 			elif [[ "$line" == "reboot" ]]; then
 				omega
+				killall -q openrc
 				busybox reboot
 				exit 0
 			elif [[ "$line" == "reboot_reset_kobox" ]]; then
 				omega
 				reset_kobox
+				killall -q openrc
 				busybox reboot
 				exit 0
 			elif [[ "$line" == "update_rootfs" ]]; then
