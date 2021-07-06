@@ -198,9 +198,10 @@ else
 						/etc/init.d/startx
 					fi
 					
-					mount --bind /opt/update.sh /mnt/etc/init.d/update.sh
+					cp /opt/update.sh /tmp/update.sh
+					mount --bind /tmp/update.sh /mnt/etc/init.d/update.sh
 					mkdir -p /onboard
-					mount /opt/storage/onboard /onboard
+					mount /mnt/opt/storage/onboard /onboard
 					mv "/onboard/.inkbox/inkbox-update-1.6-2.upd_stg.isa" "/onboard/.inkbox/inkbox-update-1.6.upd.isa"
 					sync
 					echo true > /onboard/.inkbox/can_really_update
