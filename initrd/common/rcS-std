@@ -187,6 +187,10 @@ else
 					mount /opt/storage/onboard /onboard
 					mv "/onboard/.inkbox/inkbox-update-1.6-2.upd_stg.isa" "/onboard/.inkbox/inkbox-update-1.6.upd.isa"
 					sync
+					echo true > /onboard/.inkbox/can_really_update
+					echo true > /mnt/opt/update/will_update
+					echo true > /mnt/boot/flags/WILL_UPDATE
+					sync
 					umount -l -f /onboard
 
 					chroot /mnt /sbin/openrc "sysinit"
