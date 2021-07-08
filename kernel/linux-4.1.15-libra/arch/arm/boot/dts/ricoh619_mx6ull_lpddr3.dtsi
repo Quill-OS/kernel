@@ -1,0 +1,24 @@
+
+#include "ricoh619_mx6ull_lpddr2.dtsi"
+
+&ricoh619
+{
+	regulators {
+   		regulator@3 {
+        	regulator-min-microvolt = <1350000>;
+	        regulator-max-microvolt = <1350000>;
+			regulator-state-mem {
+				regulator-on-in-suspend;
+				regulator-suspend-microvolt = <1280000>;
+			};
+    	};
+
+	    regulator@10 {
+        	reg = <10>;
+	        regulator-compatible = "ricoh619_ldo6";
+    	    //regulator-always-on;
+        	regulator-boot-on;
+	    };
+	};
+
+};
