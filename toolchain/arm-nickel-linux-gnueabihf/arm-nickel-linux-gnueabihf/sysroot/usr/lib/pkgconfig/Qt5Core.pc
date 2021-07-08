@@ -1,0 +1,15 @@
+prefix=/usr
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+host_bins=${prefix}/bin
+qt_config=minimal-config small-config medium-config large-config full-config evdev linuxfb c++11 accessibility shared qpa reduce_exports reduce_relocations clock-gettime clock-monotonic posix_fallocate mremap getaddrinfo ipv6ifname getifaddrs inotify eventfd system-jpeg system-png png freetype harfbuzz system-zlib dbus dbus-linked openssl icu concurrent audio-backend release
+
+Name: Qt5 Core
+Description: Qt Core module
+Version: 5.2.1
+Libs: -L${libdir} -lQt5Core 
+Libs.private: -lz -lpng -licui18n -licuuc -licudata -ldbus-1 -lpthread -lz -licui18n -licuuc -licudata -lm -ldl -lrt  
+Cflags: -I${includedir}/QtCore -I${includedir}
+

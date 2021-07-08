@@ -1,0 +1,14 @@
+prefix=/usr
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+
+Name: Qt5 MultimediaWidgets
+Description: Qt MultimediaWidgets module
+Version: 5.2.1
+Libs: -L${libdir} -lQt5MultimediaWidgets 
+Libs.private: -L/usr/lib -lQt5Multimedia -L/usr/lib -lQt5Widgets -lQt5Network -lQt5Gui -lQt5Core -lz -lpng -licui18n -licuuc -licudata -ldbus-1 -lpthread   
+Cflags: -I${includedir}/QtMultimediaWidgets -I${includedir}
+Requires: Qt5Core Qt5Gui Qt5Multimedia Qt5Widgets
+

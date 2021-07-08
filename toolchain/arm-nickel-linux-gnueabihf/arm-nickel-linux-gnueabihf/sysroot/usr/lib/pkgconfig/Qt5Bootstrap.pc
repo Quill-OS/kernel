@@ -1,0 +1,13 @@
+prefix=/usr
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+
+Name: Qt5 Bootstrap
+Description: Qt Bootstrap module
+Version: 5.2.1
+Libs: -L${libdir} -lQt5Bootstrap 
+Libs.private: -lz -lpng -licui18n -licuuc -licudata -ldbus-1 -lpthread   
+Cflags: -I${includedir}/QtBootstrap -I${includedir}
+

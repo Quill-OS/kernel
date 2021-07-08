@@ -1,0 +1,5 @@
+QMAKE_PRO_INPUT = script.pro
+QMAKE_PRL_TARGET = libQt5Script.so.5.2.1
+QMAKE_PRL_CONFIG = lex yacc depend_includepath testcase_targets import_plugins import_qpa_plugin qt release link_prl incremental gdb_dwarf_index cross_compile shared qpa no_mocdepend release qt_no_framework linux unix posix gcc cross_compile qpa largefile neon pcre prefix_build force_independent force_bootstrap create_prl link_prl prepare_docs qt_docs_targets no_private_qt_headers_warning QTDIR_build no_dll exceptions_off testcase_exceptions qt_example_installs git_build need_fwd_pri qt_install_module qt_install_headers qmake_cache target_qt create_cmake create_pc create_libtool explicitlib c++11 hide_symbols bsymbolic_functions building-libs standalone_package have_target dll thread moc resources
+QMAKE_PRL_VERSION = 5.2.1
+QMAKE_PRL_LIBS = -lQt5Core -lz -lpng -licui18n -licuuc -licudata -ldbus-1 -lpthread 

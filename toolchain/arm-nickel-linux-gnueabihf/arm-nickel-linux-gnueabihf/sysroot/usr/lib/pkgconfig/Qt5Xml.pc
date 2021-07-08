@@ -1,0 +1,14 @@
+prefix=/usr
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+
+Name: Qt5 Xml
+Description: Qt Xml module
+Version: 5.2.1
+Libs: -L${libdir} -lQt5Xml 
+Libs.private: -L/usr/lib -lQt5Core -lz -lpng -licui18n -licuuc -licudata -ldbus-1 -lpthread   
+Cflags: -I${includedir}/QtXml -I${includedir}
+Requires: Qt5Core
+

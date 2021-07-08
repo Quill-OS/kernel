@@ -1,0 +1,14 @@
+prefix=/usr
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+
+Name: Qt5 PlatformSupport
+Description: Qt PlatformSupport module
+Version: 5.2.1
+Libs: -L${libdir} -lQt5PlatformSupport 
+Libs.private: -L/usr/lib -lQt5Gui -lQt5Core -lz -lpng -licui18n -licuuc -licudata -ldbus-1 -lpthread -lz  
+Cflags: -I${includedir}/QtPlatformSupport -I${includedir}
+Requires: Qt5Core Qt5Gui
+
