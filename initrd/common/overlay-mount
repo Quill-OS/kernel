@@ -1,10 +1,17 @@
 #!/bin/sh
 
+DEVICE=$(cat /opt/device)
+if [ "${DEVICE}" != "n873" ]; then
+	ROOTFS_FMT="ext4"
+else
+	ROOTFS_FMT="vfat"
+fi
+
 if [ "$1" != "recovery" ]; then
 	## Mounting root filesystem with squashfuse and fuse-overlayfs (read-only by default)
 	mkdir -p /rootfs-part
 	mkdir -p /overlaymount-rootfs
-	mount -t ext4 -o nosuid /dev/mmcblk0p3 /rootfs-part
+	mount -t "${ROOTFS_FMT}" -o nosuid /dev/mmcblk0p3 /rootfs-part
 	/usr/bin/unsquashfs -f -d /key /opt/key.sqsh &>/dev/null
 	echo "Verifying root filesystem's digital signature ..."
 	/usr/bin/openssl dgst -sha256 -verify /key/public.pem -signature /rootfs-part/rootfs.squashfs.dgst /rootfs-part/rootfs.squashfs &>/dev/null

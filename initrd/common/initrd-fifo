@@ -1,5 +1,12 @@
 #!/bin/sh
 
+DEVICE=$(cat /opt/device)
+if [ "${DEVICE}" != "n873" ]; then
+	ROOTFS_FMT="ext4"
+else
+	ROOTFS_FMT="vfat"
+fi
+
 omega() {
 	# Memento, homo, quia pulvis es, et in pulverem reverteris.
 	# Final system rundown
@@ -22,7 +29,7 @@ update_rootfs() {
 	sync
 	omega
 	mkdir -p /rootfs-part
-	mount -t ext4 -o nosuid,noexec,nodev /dev/mmcblk0p3 /rootfs-part
+	mount -t "${ROOTFS_FMT}" -o nosuid,noexec,nodev /dev/mmcblk0p3 /rootfs-part
 	sync
 	mv /tmp/rootfs.squashfs /rootfs-part/rootfs.squashfs
 	mv /tmp/rootfs.squashfs.dgst /rootfs-part/rootfs.squashfs.dgst

@@ -1,0 +1,2 @@
+::sysinit:/etc/init.d/rcS
+ttymxc0::respawn:/sbin/getty "-L" "ttymxc0" "115200" "xterm-256color"

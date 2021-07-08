@@ -1,0 +1,1540 @@
+Output of:
+arm-nickel-linux-gnueabihf-gcc -Wall -Wshadow -Wwrite-strings -Wundef -Wstrict-prototypes -Wunused -Wunused-parameter -Wunused-function -Wunused-value -Wmissing-prototypes -Wmissing-declarations -Wno-format-security -Wdeclaration-after-statement -Wold-style-definition -finline-limit=0 -fno-builtin-strlen -fomit-frame-pointer -ffunction-sections -fdata-sections -fno-guess-branch-probability -funsigned-char -static-libgcc -falign-functions=1 -falign-jumps=1 -falign-labels=1 -falign-loops=1 -fno-unwind-tables -fno-asynchronous-unwind-tables -fno-builtin-printf -Os -static -o busybox_unstripped -Wl,--sort-common -Wl,--sort-section,alignment -Wl,--start-group applets/built-in.o archival/lib.a archival/libarchive/lib.a console-tools/lib.a coreutils/lib.a coreutils/libcoreutils/lib.a debianutils/lib.a klibc-utils/lib.a e2fsprogs/lib.a editors/lib.a findutils/lib.a init/lib.a libbb/lib.a libpwdgrp/lib.a loginutils/lib.a mailutils/lib.a miscutils/lib.a modutils/lib.a networking/lib.a networking/libiproute/lib.a networking/udhcp/lib.a printutils/lib.a procps/lib.a runit/lib.a selinux/lib.a shell/lib.a sysklogd/lib.a util-linux/lib.a util-linux/volume_id/lib.a archival/built-in.o archival/libarchive/built-in.o console-tools/built-in.o coreutils/built-in.o coreutils/libcoreutils/built-in.o debianutils/built-in.o klibc-utils/built-in.o e2fsprogs/built-in.o editors/built-in.o findutils/built-in.o init/built-in.o libbb/built-in.o libpwdgrp/built-in.o loginutils/built-in.o mailutils/built-in.o miscutils/built-in.o modutils/built-in.o networking/built-in.o networking/libiproute/built-in.o networking/udhcp/built-in.o printutils/built-in.o procps/built-in.o runit/built-in.o selinux/built-in.o shell/built-in.o sysklogd/built-in.o util-linux/built-in.o util-linux/volume_id/built-in.o -Wl,--end-group -Wl,--start-group -Wl,--end-group -Wl,--warn-common -Wl,-Map,busybox_unstripped.map -Wl,--verbose
+==========
+GNU ld (crosstool-NG 1.23.0.72-23ba174 - NiLuJe) 2.34
+  Supported emulations:
+   armelf_linux_eabi
+   armelfb_linux_eabi
+using internal linker script:
+==================================================
+/* Script for -z combreloc */
+/* Copyright (C) 2014-2020 Free Software Foundation, Inc.
+   Copying and distribution of this script, with or without modification,
+   are permitted in any medium without royalty provided the copyright
+   notice and this notice are preserved.  */
+OUTPUT_FORMAT("elf32-littlearm", "elf32-bigarm",
+	      "elf32-littlearm")
+OUTPUT_ARCH(arm)
+ENTRY(_start)
+SEARCH_DIR("=/tc/x-tools/arm-nickel-linux-gnueabihf/arm-nickel-linux-gnueabihf/lib"); SEARCH_DIR("=/usr/local/lib"); SEARCH_DIR("=/lib"); SEARCH_DIR("=/usr/lib");
+SECTIONS
+{
+  /* Read-only sections, merged into text segment: */
+  PROVIDE (__executable_start = SEGMENT_START("text-segment", 0x00010000)); . = SEGMENT_START("text-segment", 0x00010000) + SIZEOF_HEADERS;
+  .interp         : { *(.interp) }
+  .note.gnu.build-id  : { *(.note.gnu.build-id) }
+  .hash           : { *(.hash) }
+  .gnu.hash       : { *(.gnu.hash) }
+  .dynsym         : { *(.dynsym) }
+  .dynstr         : { *(.dynstr) }
+  .gnu.version    : { *(.gnu.version) }
+  .gnu.version_d  : { *(.gnu.version_d) }
+  .gnu.version_r  : { *(.gnu.version_r) }
+  .rel.dyn        :
+    {
+      *(.rel.init)
+      *(.rel.text .rel.text.* .rel.gnu.linkonce.t.*)
+      *(.rel.fini)
+      *(.rel.rodata .rel.rodata.* .rel.gnu.linkonce.r.*)
+      *(.rel.data.rel.ro .rel.data.rel.ro.* .rel.gnu.linkonce.d.rel.ro.*)
+      *(.rel.data .rel.data.* .rel.gnu.linkonce.d.*)
+      *(.rel.tdata .rel.tdata.* .rel.gnu.linkonce.td.*)
+      *(.rel.tbss .rel.tbss.* .rel.gnu.linkonce.tb.*)
+      *(.rel.ctors)
+      *(.rel.dtors)
+      *(.rel.got)
+      *(.rel.bss .rel.bss.* .rel.gnu.linkonce.b.*)
+      PROVIDE_HIDDEN (__rel_iplt_start = .);
+      *(.rel.iplt)
+      PROVIDE_HIDDEN (__rel_iplt_end = .);
+    }
+  .rela.dyn       :
+    {
+      *(.rela.init)
+      *(.rela.text .rela.text.* .rela.gnu.linkonce.t.*)
+      *(.rela.fini)
+      *(.rela.rodata .rela.rodata.* .rela.gnu.linkonce.r.*)
+      *(.rela.data .rela.data.* .rela.gnu.linkonce.d.*)
+      *(.rela.tdata .rela.tdata.* .rela.gnu.linkonce.td.*)
+      *(.rela.tbss .rela.tbss.* .rela.gnu.linkonce.tb.*)
+      *(.rela.ctors)
+      *(.rela.dtors)
+      *(.rela.got)
+      *(.rela.bss .rela.bss.* .rela.gnu.linkonce.b.*)
+      PROVIDE_HIDDEN (__rela_iplt_start = .);
+      *(.rela.iplt)
+      PROVIDE_HIDDEN (__rela_iplt_end = .);
+    }
+  .rel.plt        :
+    {
+      *(.rel.plt)
+    }
+  .rela.plt       :
+    {
+      *(.rela.plt)
+    }
+  .init           :
+  {
+    KEEP (*(SORT_NONE(.init)))
+  }
+  .plt            : { *(.plt) }
+  .iplt           : { *(.iplt) }
+  .text           :
+  {
+    *(.text.unlikely .text.*_unlikely .text.unlikely.*)
+    *(.text.exit .text.exit.*)
+    *(.text.startup .text.startup.*)
+    *(.text.hot .text.hot.*)
+    *(SORT(.text.sorted.*))
+    *(.text .stub .text.* .gnu.linkonce.t.*)
+    /* .gnu.warning sections are handled specially by elf.em.  */
+    *(.gnu.warning)
+    *(.glue_7t) *(.glue_7) *(.vfp11_veneer) *(.v4_bx)
+  }
+  .fini           :
+  {
+    KEEP (*(SORT_NONE(.fini)))
+  }
+  PROVIDE (__etext = .);
+  PROVIDE (_etext = .);
+  PROVIDE (etext = .);
+  .rodata         : { *(.rodata .rodata.* .gnu.linkonce.r.*) }
+  .rodata1        : { *(.rodata1) }
+  .ARM.extab   : { *(.ARM.extab* .gnu.linkonce.armextab.*) }
+  .ARM.exidx   :
+    {
+      PROVIDE_HIDDEN (__exidx_start = .);
+      *(.ARM.exidx* .gnu.linkonce.armexidx.*)
+      PROVIDE_HIDDEN (__exidx_end = .);
+    }
+  .eh_frame_hdr   : { *(.eh_frame_hdr) *(.eh_frame_entry .eh_frame_entry.*) }
+  .eh_frame       : ONLY_IF_RO { KEEP (*(.eh_frame)) *(.eh_frame.*) }
+  .gcc_except_table   : ONLY_IF_RO { *(.gcc_except_table .gcc_except_table.*) }
+  .gnu_extab   : ONLY_IF_RO { *(.gnu_extab*) }
+  /* These sections are generated by the Sun/Oracle C++ compiler.  */
+  .exception_ranges   : ONLY_IF_RO { *(.exception_ranges*) }
+  /* Adjust the address for the data segment.  We want to adjust up to
+     the same address within the page on the next page up.  */
+  . = DATA_SEGMENT_ALIGN (CONSTANT (MAXPAGESIZE), CONSTANT (COMMONPAGESIZE));
+  /* Exception handling  */
+  .eh_frame       : ONLY_IF_RW { KEEP (*(.eh_frame)) *(.eh_frame.*) }
+  .gnu_extab      : ONLY_IF_RW { *(.gnu_extab) }
+  .gcc_except_table   : ONLY_IF_RW { *(.gcc_except_table .gcc_except_table.*) }
+  .exception_ranges   : ONLY_IF_RW { *(.exception_ranges*) }
+  /* Thread Local Storage sections  */
+  .tdata	  :
+   {
+     PROVIDE_HIDDEN (__tdata_start = .);
+     *(.tdata .tdata.* .gnu.linkonce.td.*)
+   }
+  .tbss		  : { *(.tbss .tbss.* .gnu.linkonce.tb.*) *(.tcommon) }
+  .preinit_array    :
+  {
+    PROVIDE_HIDDEN (__preinit_array_start = .);
+    KEEP (*(.preinit_array))
+    PROVIDE_HIDDEN (__preinit_array_end = .);
+  }
+  .init_array    :
+  {
+    PROVIDE_HIDDEN (__init_array_start = .);
+    KEEP (*(SORT_BY_INIT_PRIORITY(.init_array.*) SORT_BY_INIT_PRIORITY(.ctors.*)))
+    KEEP (*(.init_array EXCLUDE_FILE (*crtbegin.o *crtbegin?.o *crtend.o *crtend?.o ) .ctors))
+    PROVIDE_HIDDEN (__init_array_end = .);
+  }
+  .fini_array    :
+  {
+    PROVIDE_HIDDEN (__fini_array_start = .);
+    KEEP (*(SORT_BY_INIT_PRIORITY(.fini_array.*) SORT_BY_INIT_PRIORITY(.dtors.*)))
+    KEEP (*(.fini_array EXCLUDE_FILE (*crtbegin.o *crtbegin?.o *crtend.o *crtend?.o ) .dtors))
+    PROVIDE_HIDDEN (__fini_array_end = .);
+  }
+  .ctors          :
+  {
+    /* gcc uses crtbegin.o to find the start of
+       the constructors, so we make sure it is
+       first.  Because this is a wildcard, it
+       doesn't matter if the user does not
+       actually link against crtbegin.o; the
+       linker won't look for a file to match a
+       wildcard.  The wildcard also means that it
+       doesn't matter which directory crtbegin.o
+       is in.  */
+    KEEP (*crtbegin.o(.ctors))
+    KEEP (*crtbegin?.o(.ctors))
+    /* We don't want to include the .ctor section from
+       the crtend.o file until after the sorted ctors.
+       The .ctor section from the crtend file contains the
+       end of ctors marker and it must be last */
+    KEEP (*(EXCLUDE_FILE (*crtend.o *crtend?.o ) .ctors))
+    KEEP (*(SORT(.ctors.*)))
+    KEEP (*(.ctors))
+  }
+  .dtors          :
+  {
+    KEEP (*crtbegin.o(.dtors))
+    KEEP (*crtbegin?.o(.dtors))
+    KEEP (*(EXCLUDE_FILE (*crtend.o *crtend?.o ) .dtors))
+    KEEP (*(SORT(.dtors.*)))
+    KEEP (*(.dtors))
+  }
+  .jcr            : { KEEP (*(.jcr)) }
+  .data.rel.ro : { *(.data.rel.ro.local* .gnu.linkonce.d.rel.ro.local.*) *(.data.rel.ro .data.rel.ro.* .gnu.linkonce.d.rel.ro.*) }
+  .dynamic        : { *(.dynamic) }
+  . = DATA_SEGMENT_RELRO_END (0, .);
+  .got            : { *(.got.plt) *(.igot.plt) *(.got) *(.igot) }
+  .data           :
+  {
+    PROVIDE (__data_start = .);
+    *(.data .data.* .gnu.linkonce.d.*)
+    SORT(CONSTRUCTORS)
+  }
+  .data1          : { *(.data1) }
+  _edata = .; PROVIDE (edata = .);
+  . = .;
+  __bss_start = .;
+  __bss_start__ = .;
+  .bss            :
+  {
+   *(.dynbss)
+   *(.bss .bss.* .gnu.linkonce.b.*)
+   *(COMMON)
+   /* Align here to ensure that the .bss section occupies space up to
+      _end.  Align after .bss to ensure correct alignment even if the
+      .bss section disappears because there are no input sections.
+      FIXME: Why do we need it? When there is no .bss section, we do not
+      pad the .data section.  */
+   . = ALIGN(. != 0 ? 32 / 8 : 1);
+  }
+  _bss_end__ = .; __bss_end__ = .;
+  . = ALIGN(32 / 8);
+  . = SEGMENT_START("ldata-segment", .);
+  . = ALIGN(32 / 8);
+  __end__ = .;
+  _end = .; PROVIDE (end = .);
+  . = DATA_SEGMENT_END (.);
+  /* Stabs debugging sections.  */
+  .stab          0 : { *(.stab) }
+  .stabstr       0 : { *(.stabstr) }
+  .stab.excl     0 : { *(.stab.excl) }
+  .stab.exclstr  0 : { *(.stab.exclstr) }
+  .stab.index    0 : { *(.stab.index) }
+  .stab.indexstr 0 : { *(.stab.indexstr) }
+  .comment       0 : { *(.comment) }
+  .gnu.build.attributes : { *(.gnu.build.attributes .gnu.build.attributes.*) }
+  /* DWARF debug sections.
+     Symbols in the DWARF debugging sections are relative to the beginning
+     of the section so we begin them at 0.  */
+  /* DWARF 1 */
+  .debug          0 : { *(.debug) }
+  .line           0 : { *(.line) }
+  /* GNU DWARF 1 extensions */
+  .debug_srcinfo  0 : { *(.debug_srcinfo) }
+  .debug_sfnames  0 : { *(.debug_sfnames) }
+  /* DWARF 1.1 and DWARF 2 */
+  .debug_aranges  0 : { *(.debug_aranges) }
+  .debug_pubnames 0 : { *(.debug_pubnames) }
+  /* DWARF 2 */
+  .debug_info     0 : { *(.debug_info .gnu.linkonce.wi.*) }
+  .debug_abbrev   0 : { *(.debug_abbrev) }
+  .debug_line     0 : { *(.debug_line .debug_line.* .debug_line_end) }
+  .debug_frame    0 : { *(.debug_frame) }
+  .debug_str      0 : { *(.debug_str) }
+  .debug_loc      0 : { *(.debug_loc) }
+  .debug_macinfo  0 : { *(.debug_macinfo) }
+  /* SGI/MIPS DWARF 2 extensions */
+  .debug_weaknames 0 : { *(.debug_weaknames) }
+  .debug_funcnames 0 : { *(.debug_funcnames) }
+  .debug_typenames 0 : { *(.debug_typenames) }
+  .debug_varnames  0 : { *(.debug_varnames) }
+  /* DWARF 3 */
+  .debug_pubtypes 0 : { *(.debug_pubtypes) }
+  .debug_ranges   0 : { *(.debug_ranges) }
+  /* DWARF Extension.  */
+  .debug_macro    0 : { *(.debug_macro) }
+  .debug_addr     0 : { *(.debug_addr) }
+  .gnu.attributes 0 : { KEEP (*(.gnu.attributes)) }
+  .note.gnu.arm.ident 0 : { KEEP (*(.note.gnu.arm.ident)) }
+  /DISCARD/ : { *(.note.GNU-stack) *(.gnu_debuglink) *(.gnu.lto_*) }
+}
+
+
+==================================================
+/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../lib/gcc/arm-nickel-linux-gnueabihf/4.9.4/../../../../arm-nickel-linux-gnueabihf/bin/ld.bfd: mode armelf_linux_eabi
+attempt to open /run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/crt1.o succeeded
+/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/crt1.o
+attempt to open /run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/crti.o succeeded
+/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/crti.o
+attempt to open /run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../lib/gcc/arm-nickel-linux-gnueabihf/4.9.4/crtbeginT.o succeeded
+/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../lib/gcc/arm-nickel-linux-gnueabihf/4.9.4/crtbeginT.o
+attempt to open applets/built-in.o succeeded
+applets/built-in.o
+attempt to open archival/lib.a succeeded
+archival/lib.a
+attempt to open archival/libarchive/lib.a succeeded
+archival/libarchive/lib.a
+attempt to open console-tools/lib.a succeeded
+console-tools/lib.a
+attempt to open coreutils/lib.a succeeded
+coreutils/lib.a
+attempt to open coreutils/libcoreutils/lib.a succeeded
+coreutils/libcoreutils/lib.a
+attempt to open debianutils/lib.a succeeded
+debianutils/lib.a
+attempt to open klibc-utils/lib.a succeeded
+klibc-utils/lib.a
+attempt to open e2fsprogs/lib.a succeeded
+e2fsprogs/lib.a
+attempt to open editors/lib.a succeeded
+editors/lib.a
+attempt to open findutils/lib.a succeeded
+findutils/lib.a
+attempt to open init/lib.a succeeded
+init/lib.a
+attempt to open libbb/lib.a succeeded
+libbb/lib.a
+(libbb/lib.a)appletlib.o
+(libbb/lib.a)compare_string_array.o
+(libbb/lib.a)concat_path_file.o
+(libbb/lib.a)default_error_retval.o
+(libbb/lib.a)get_last_path_component.o
+(libbb/lib.a)last_char_is.o
+(libbb/lib.a)llist.o
+(libbb/lib.a)messages.o
+(libbb/lib.a)perror_msg.o
+(libbb/lib.a)ptr_to_globals.o
+(libbb/lib.a)skip_whitespace.o
+(libbb/lib.a)verror_msg.o
+(libbb/lib.a)wfopen.o
+(libbb/lib.a)xfunc_die.o
+(libbb/lib.a)xfuncs.o
+(libbb/lib.a)xfuncs_printf.o
+(libbb/lib.a)xreadlink.o
+(libbb/lib.a)copyfd.o
+(libbb/lib.a)full_write.o
+(libbb/lib.a)read.o
+(libbb/lib.a)safe_write.o
+(libbb/lib.a)signals.o
+(libbb/lib.a)time.o
+(libbb/lib.a)xgetcwd.o
+(libbb/lib.a)bb_strtonum.o
+attempt to open libpwdgrp/lib.a succeeded
+libpwdgrp/lib.a
+(libpwdgrp/lib.a)pwd_grp.o
+(libpwdgrp/lib.a)uidgid_get.o
+attempt to open loginutils/lib.a succeeded
+loginutils/lib.a
+(loginutils/lib.a)addgroup.o
+(loginutils/lib.a)getty.o
+(loginutils/lib.a)login.o
+(loginutils/lib.a)su.o
+attempt to open mailutils/lib.a succeeded
+mailutils/lib.a
+attempt to open miscutils/lib.a succeeded
+miscutils/lib.a
+(miscutils/lib.a)beep.o
+(miscutils/lib.a)conspy.o
+(miscutils/lib.a)crond.o
+(miscutils/lib.a)devmem.o
+(miscutils/lib.a)fbsplash.o
+(miscutils/lib.a)i2c_tools.o
+(miscutils/lib.a)less.o
+(miscutils/lib.a)lsscsi.o
+(miscutils/lib.a)nandwrite.o
+(miscutils/lib.a)partprobe.o
+(miscutils/lib.a)raidautorun.o
+(miscutils/lib.a)rx.o
+(miscutils/lib.a)setserial.o
+(miscutils/lib.a)strings.o
+(miscutils/lib.a)time.o
+(miscutils/lib.a)ts.o
+(miscutils/lib.a)ttysize.o
+(miscutils/lib.a)watchdog.o
+attempt to open modutils/lib.a succeeded
+modutils/lib.a
+(modutils/lib.a)modprobe-small.o
+attempt to open networking/lib.a succeeded
+networking/lib.a
+(networking/lib.a)ftpd.o
+(networking/lib.a)ftpgetput.o
+(networking/lib.a)hostname.o
+(networking/lib.a)httpd.o
+(networking/lib.a)ifconfig.o
+(networking/lib.a)interface.o
+(networking/lib.a)nc.o
+(networking/lib.a)netstat.o
+(networking/lib.a)parse_pasv_epsv.o
+(networking/lib.a)ping.o
+(networking/lib.a)telnet.o
+(networking/lib.a)telnetd.o
+(networking/lib.a)traceroute.o
+(networking/lib.a)wget.o
+(networking/lib.a)tls.o
+(networking/lib.a)tls_aes.o
+(networking/lib.a)tls_aesgcm.o
+(networking/lib.a)tls_fe.o
+(networking/lib.a)tls_pstm.o
+(networking/lib.a)tls_pstm_montgomery_reduce.o
+(networking/lib.a)tls_pstm_mul_comba.o
+(networking/lib.a)tls_pstm_sqr_comba.o
+(networking/lib.a)tls_rsa.o
+attempt to open networking/libiproute/lib.a succeeded
+networking/libiproute/lib.a
+attempt to open networking/udhcp/lib.a succeeded
+networking/udhcp/lib.a
+(networking/udhcp/lib.a)dhcpc.o
+(networking/udhcp/lib.a)domain_codec.o
+(networking/udhcp/lib.a)packet.o
+(networking/udhcp/lib.a)signalpipe.o
+(networking/udhcp/lib.a)socket.o
+(networking/udhcp/lib.a)arpping.o
+(networking/udhcp/lib.a)common.o
+attempt to open printutils/lib.a succeeded
+printutils/lib.a
+attempt to open procps/lib.a succeeded
+procps/lib.a
+(procps/lib.a)free.o
+(procps/lib.a)fuser.o
+(procps/lib.a)iostat.o
+(procps/lib.a)kill.o
+(procps/lib.a)lsof.o
+(procps/lib.a)mpstat.o
+(procps/lib.a)nmeter.o
+(procps/lib.a)pgrep.o
+(procps/lib.a)pidof.o
+(procps/lib.a)pmap.o
+(procps/lib.a)powertop.o
+(procps/lib.a)ps.o
+(procps/lib.a)pstree.o
+(procps/lib.a)pwdx.o
+(procps/lib.a)smemcap.o
+(procps/lib.a)sysctl.o
+(procps/lib.a)top.o
+(procps/lib.a)uptime.o
+attempt to open runit/lib.a succeeded
+runit/lib.a
+attempt to open selinux/lib.a succeeded
+selinux/lib.a
+attempt to open shell/lib.a succeeded
+shell/lib.a
+(shell/lib.a)ash.o
+(shell/lib.a)ash_ptr_hack.o
+(shell/lib.a)cttyhack.o
+(shell/lib.a)math.o
+(shell/lib.a)random.o
+(shell/lib.a)shell_common.o
+attempt to open sysklogd/lib.a succeeded
+sysklogd/lib.a
+(sysklogd/lib.a)klogd.o
+(sysklogd/lib.a)logread.o
+(sysklogd/lib.a)syslogd_and_logger.o
+attempt to open util-linux/lib.a succeeded
+util-linux/lib.a
+(util-linux/lib.a)dmesg.o
+(util-linux/lib.a)fbset.o
+(util-linux/lib.a)fdisk.o
+(util-linux/lib.a)fsfreeze.o
+(util-linux/lib.a)getopt.o
+(util-linux/lib.a)hexdump_xxd.o
+(util-linux/lib.a)hwclock.o
+(util-linux/lib.a)losetup.o
+(util-linux/lib.a)mkfs_ext2.o
+(util-linux/lib.a)mkfs_minix.o
+(util-linux/lib.a)mkfs_vfat.o
+(util-linux/lib.a)mkswap.o
+(util-linux/lib.a)more.o
+(util-linux/lib.a)mount.o
+(util-linux/lib.a)nsenter.o
+(util-linux/lib.a)pivot_root.o
+(util-linux/lib.a)rtcwake.o
+(util-linux/lib.a)setsid.o
+(util-linux/lib.a)swaponoff.o
+(util-linux/lib.a)switch_root.o
+(util-linux/lib.a)umount.o
+(util-linux/lib.a)unshare.o
+(util-linux/lib.a)wall.o
+attempt to open util-linux/volume_id/lib.a succeeded
+util-linux/volume_id/lib.a
+(util-linux/volume_id/lib.a)get_devname.o
+(util-linux/volume_id/lib.a)volume_id.o
+(util-linux/volume_id/lib.a)xfs.o
+(util-linux/volume_id/lib.a)bcache.o
+(util-linux/volume_id/lib.a)btrfs.o
+(util-linux/volume_id/lib.a)cramfs.o
+(util-linux/volume_id/lib.a)erofs.o
+(util-linux/volume_id/lib.a)exfat.o
+(util-linux/volume_id/lib.a)ext.o
+(util-linux/volume_id/lib.a)f2fs.o
+(util-linux/volume_id/lib.a)fat.o
+(util-linux/volume_id/lib.a)hfs.o
+(util-linux/volume_id/lib.a)iso9660.o
+(util-linux/volume_id/lib.a)jfs.o
+(util-linux/volume_id/lib.a)linux_raid.o
+(util-linux/volume_id/lib.a)linux_swap.o
+(util-linux/volume_id/lib.a)luks.o
+(util-linux/volume_id/lib.a)minix.o
+(util-linux/volume_id/lib.a)nilfs.o
+(util-linux/volume_id/lib.a)ntfs.o
+(util-linux/volume_id/lib.a)ocfs2.o
+(util-linux/volume_id/lib.a)reiserfs.o
+(util-linux/volume_id/lib.a)romfs.o
+(util-linux/volume_id/lib.a)sysv.o
+(util-linux/volume_id/lib.a)ubifs.o
+(util-linux/volume_id/lib.a)udf.o
+(util-linux/volume_id/lib.a)util.o
+attempt to open archival/built-in.o succeeded
+archival/built-in.o
+attempt to open archival/libarchive/built-in.o succeeded
+archival/libarchive/built-in.o
+attempt to open console-tools/built-in.o succeeded
+console-tools/built-in.o
+attempt to open coreutils/built-in.o succeeded
+coreutils/built-in.o
+attempt to open coreutils/libcoreutils/built-in.o succeeded
+coreutils/libcoreutils/built-in.o
+attempt to open debianutils/built-in.o succeeded
+debianutils/built-in.o
+attempt to open klibc-utils/built-in.o succeeded
+klibc-utils/built-in.o
+attempt to open e2fsprogs/built-in.o succeeded
+e2fsprogs/built-in.o
+attempt to open editors/built-in.o succeeded
+editors/built-in.o
+attempt to open findutils/built-in.o succeeded
+findutils/built-in.o
+attempt to open init/built-in.o succeeded
+init/built-in.o
+attempt to open libbb/built-in.o succeeded
+libbb/built-in.o
+attempt to open libpwdgrp/built-in.o succeeded
+libpwdgrp/built-in.o
+attempt to open loginutils/built-in.o succeeded
+loginutils/built-in.o
+attempt to open mailutils/built-in.o succeeded
+mailutils/built-in.o
+attempt to open miscutils/built-in.o succeeded
+miscutils/built-in.o
+attempt to open modutils/built-in.o succeeded
+modutils/built-in.o
+attempt to open networking/built-in.o succeeded
+networking/built-in.o
+attempt to open networking/libiproute/built-in.o succeeded
+networking/libiproute/built-in.o
+attempt to open networking/udhcp/built-in.o succeeded
+networking/udhcp/built-in.o
+attempt to open printutils/built-in.o succeeded
+printutils/built-in.o
+attempt to open procps/built-in.o succeeded
+procps/built-in.o
+attempt to open runit/built-in.o succeeded
+runit/built-in.o
+attempt to open selinux/built-in.o succeeded
+selinux/built-in.o
+attempt to open shell/built-in.o succeeded
+shell/built-in.o
+attempt to open sysklogd/built-in.o succeeded
+sysklogd/built-in.o
+attempt to open util-linux/built-in.o succeeded
+util-linux/built-in.o
+attempt to open util-linux/volume_id/built-in.o succeeded
+util-linux/volume_id/built-in.o
+archival/lib.a
+(archival/lib.a)bbunzip.o
+(archival/lib.a)cpio.o
+(archival/lib.a)gzip.o
+(archival/lib.a)tar.o
+archival/libarchive/lib.a
+(archival/libarchive/lib.a)common.o
+(archival/libarchive/lib.a)data_extract_all.o
+(archival/libarchive/lib.a)data_extract_to_command.o
+(archival/libarchive/lib.a)data_extract_to_stdout.o
+(archival/libarchive/lib.a)data_skip.o
+(archival/libarchive/lib.a)decompress_bunzip2.o
+(archival/libarchive/lib.a)decompress_gunzip.o
+(archival/libarchive/lib.a)decompress_unlzma.o
+(archival/libarchive/lib.a)decompress_unxz.o
+(archival/libarchive/lib.a)filter_accept_list.o
+(archival/libarchive/lib.a)filter_accept_reject_list.o
+(archival/libarchive/lib.a)find_list_entry.o
+(archival/libarchive/lib.a)get_header_cpio.o
+(archival/libarchive/lib.a)get_header_tar.o
+(archival/libarchive/lib.a)header_list.o
+(archival/libarchive/lib.a)header_verbose_list.o
+(archival/libarchive/lib.a)init_handle.o
+(archival/libarchive/lib.a)open_transformer.o
+(archival/libarchive/lib.a)seek_by_jump.o
+(archival/libarchive/lib.a)seek_by_read.o
+(archival/libarchive/lib.a)unsafe_prefix.o
+(archival/libarchive/lib.a)unsafe_symlink_target.o
+(archival/libarchive/lib.a)data_align.o
+(archival/libarchive/lib.a)filter_accept_all.o
+(archival/libarchive/lib.a)header_skip.o
+console-tools/lib.a
+(console-tools/lib.a)chvt.o
+(console-tools/lib.a)clear.o
+(console-tools/lib.a)deallocvt.o
+(console-tools/lib.a)dumpkmap.o
+(console-tools/lib.a)fgconsole.o
+(console-tools/lib.a)kbd_mode.o
+(console-tools/lib.a)loadfont.o
+(console-tools/lib.a)loadkmap.o
+(console-tools/lib.a)openvt.o
+(console-tools/lib.a)reset.o
+(console-tools/lib.a)resize.o
+(console-tools/lib.a)setconsole.o
+(console-tools/lib.a)setkeycodes.o
+(console-tools/lib.a)setlogcons.o
+(console-tools/lib.a)showkey.o
+coreutils/lib.a
+(coreutils/lib.a)basename.o
+(coreutils/lib.a)cat.o
+(coreutils/lib.a)chgrp.o
+(coreutils/lib.a)chmod.o
+(coreutils/lib.a)chown.o
+(coreutils/lib.a)chroot.o
+(coreutils/lib.a)cksum.o
+(coreutils/lib.a)comm.o
+(coreutils/lib.a)cp.o
+(coreutils/lib.a)cut.o
+(coreutils/lib.a)date.o
+(coreutils/lib.a)dd.o
+(coreutils/lib.a)df.o
+(coreutils/lib.a)dirname.o
+(coreutils/lib.a)dos2unix.o
+(coreutils/lib.a)du.o
+(coreutils/lib.a)echo.o
+(coreutils/lib.a)env.o
+(coreutils/lib.a)expand.o
+(coreutils/lib.a)expr.o
+(coreutils/lib.a)factor.o
+(coreutils/lib.a)false.o
+(coreutils/lib.a)fold.o
+(coreutils/lib.a)head.o
+(coreutils/lib.a)hostid.o
+(coreutils/lib.a)id.o
+(coreutils/lib.a)install.o
+(coreutils/lib.a)link.o
+(coreutils/lib.a)ln.o
+(coreutils/lib.a)logname.o
+(coreutils/lib.a)ls.o
+(coreutils/lib.a)md5_sha1_sum.o
+(coreutils/lib.a)mkdir.o
+(coreutils/lib.a)mkfifo.o
+(coreutils/lib.a)mknod.o
+(coreutils/lib.a)mktemp.o
+(coreutils/lib.a)mv.o
+(coreutils/lib.a)nice.o
+(coreutils/lib.a)nl.o
+(coreutils/lib.a)nohup.o
+(coreutils/lib.a)nproc.o
+(coreutils/lib.a)od.o
+(coreutils/lib.a)paste.o
+(coreutils/lib.a)printenv.o
+(coreutils/lib.a)printf.o
+(coreutils/lib.a)pwd.o
+(coreutils/lib.a)readlink.o
+(coreutils/lib.a)realpath.o
+(coreutils/lib.a)rm.o
+(coreutils/lib.a)rmdir.o
+(coreutils/lib.a)seq.o
+(coreutils/lib.a)shred.o
+(coreutils/lib.a)shuf.o
+(coreutils/lib.a)sleep.o
+(coreutils/lib.a)stat.o
+(coreutils/lib.a)stty.o
+(coreutils/lib.a)sum.o
+(coreutils/lib.a)sync.o
+(coreutils/lib.a)tail.o
+(coreutils/lib.a)tee.o
+(coreutils/lib.a)test.o
+(coreutils/lib.a)test_ptr_hack.o
+(coreutils/lib.a)timeout.o
+(coreutils/lib.a)touch.o
+(coreutils/lib.a)tr.o
+(coreutils/lib.a)true.o
+(coreutils/lib.a)truncate.o
+(coreutils/lib.a)tty.o
+(coreutils/lib.a)uname.o
+(coreutils/lib.a)uniq.o
+(coreutils/lib.a)unlink.o
+(coreutils/lib.a)usleep.o
+(coreutils/lib.a)uudecode.o
+(coreutils/lib.a)uuencode.o
+(coreutils/lib.a)wc.o
+(coreutils/lib.a)who.o
+(coreutils/lib.a)whoami.o
+(coreutils/lib.a)yes.o
+coreutils/libcoreutils/lib.a
+(coreutils/libcoreutils/lib.a)cp_mv_stat.o
+(coreutils/libcoreutils/lib.a)getopt_mk_fifo_nod.o
+debianutils/lib.a
+klibc-utils/lib.a
+e2fsprogs/lib.a
+editors/lib.a
+(editors/lib.a)sed.o
+(editors/lib.a)vi.o
+findutils/lib.a
+(findutils/lib.a)find.o
+(findutils/lib.a)grep.o
+(findutils/lib.a)xargs.o
+init/lib.a
+(init/lib.a)halt.o
+(init/lib.a)init.o
+libbb/lib.a
+(libbb/lib.a)ask_confirmation.o
+(libbb/lib.a)auto_string.o
+(libbb/lib.a)bb_bswap_64.o
+(libbb/lib.a)bb_cat.o
+(libbb/lib.a)bb_do_delay.o
+(libbb/lib.a)bb_getgroups.o
+(libbb/lib.a)bb_pwd.o
+(libbb/lib.a)capability.o
+(libbb/lib.a)change_identity.o
+(libbb/lib.a)chomp.o
+(libbb/lib.a)common_bufsiz.o
+(libbb/lib.a)concat_subpath_file.o
+(libbb/lib.a)copy_file.o
+(libbb/lib.a)correct_password.o
+(libbb/lib.a)crc32.o
+(libbb/lib.a)device_open.o
+(libbb/lib.a)dump.o
+(libbb/lib.a)duration.o
+(libbb/lib.a)endofname.o
+(libbb/lib.a)executable.o
+(libbb/lib.a)fclose_nonstdin.o
+(libbb/lib.a)fflush_stdout_and_exit.o
+(libbb/lib.a)fgets_str.o
+(libbb/lib.a)find_mount_point.o
+(libbb/lib.a)find_pid_by_name.o
+(libbb/lib.a)get_console.o
+(libbb/lib.a)get_cpu_count.o
+(libbb/lib.a)get_line_from_file.o
+(libbb/lib.a)get_shell_name.o
+(libbb/lib.a)get_volsize.o
+(libbb/lib.a)getopt32.o
+(libbb/lib.a)getopt_allopts.o
+(libbb/lib.a)getpty.o
+(libbb/lib.a)hash_md5_sha.o
+(libbb/lib.a)human_readable.o
+(libbb/lib.a)in_ether.o
+(libbb/lib.a)inet_cksum.o
+(libbb/lib.a)inet_common.o
+(libbb/lib.a)inode_hash.o
+(libbb/lib.a)isdirectory.o
+(libbb/lib.a)isqrt.o
+(libbb/lib.a)kernel_version.o
+(libbb/lib.a)lineedit.o
+(libbb/lib.a)lineedit_ptr_hack.o
+(libbb/lib.a)login.o
+(libbb/lib.a)loop.o
+(libbb/lib.a)make_directory.o
+(libbb/lib.a)makedev.o
+(libbb/lib.a)match_fstype.o
+(libbb/lib.a)mode_string.o
+(libbb/lib.a)nuke_str.o
+(libbb/lib.a)parse_config.o
+(libbb/lib.a)parse_mode.o
+(libbb/lib.a)percent_decode.o
+(libbb/lib.a)perror_nomsg_and_die.o
+(libbb/lib.a)pidfile.o
+(libbb/lib.a)print_numbered_lines.o
+(libbb/lib.a)printable.o
+(libbb/lib.a)printable_string.o
+(libbb/lib.a)process_escape_sequence.o
+(libbb/lib.a)procps.o
+(libbb/lib.a)progress.o
+(libbb/lib.a)pw_encrypt.o
+(libbb/lib.a)read_key.o
+(libbb/lib.a)read_printf.o
+(libbb/lib.a)recursive_action.o
+(libbb/lib.a)remove_file.o
+(libbb/lib.a)replace.o
+(libbb/lib.a)rtc.o
+(libbb/lib.a)run_shell.o
+(libbb/lib.a)safe_gethostname.o
+(libbb/lib.a)safe_poll.o
+(libbb/lib.a)safe_strncpy.o
+(libbb/lib.a)securetty.o
+(libbb/lib.a)setup_environment.o
+(libbb/lib.a)simplify_path.o
+(libbb/lib.a)single_argv.o
+(libbb/lib.a)speed_table.o
+(libbb/lib.a)str_tolower.o
+(libbb/lib.a)strrstr.o
+(libbb/lib.a)sysconf.o
+(libbb/lib.a)trim.o
+(libbb/lib.a)u_signal_names.o
+(libbb/lib.a)udp_io.o
+(libbb/lib.a)unicode.o
+(libbb/lib.a)update_passwd.o
+(libbb/lib.a)utmp.o
+(libbb/lib.a)uuencode.o
+(libbb/lib.a)vfork_daemon_rexec.o
+(libbb/lib.a)warn_ignoring_args.o
+(libbb/lib.a)wfopen_input.o
+(libbb/lib.a)write.o
+(libbb/lib.a)xatonum.o
+(libbb/lib.a)xconnect.o
+(libbb/lib.a)xgethostbyname.o
+(libbb/lib.a)xrealloc_vector.o
+(libbb/lib.a)xregcomp.o
+(libbb/lib.a)bb_askpass.o
+(libbb/lib.a)bb_qsort.o
+(libbb/lib.a)herror_msg.o
+(libbb/lib.a)perror_nomsg.o
+libpwdgrp/lib.a
+loginutils/lib.a
+mailutils/lib.a
+miscutils/lib.a
+modutils/lib.a
+networking/lib.a
+networking/libiproute/lib.a
+networking/udhcp/lib.a
+printutils/lib.a
+procps/lib.a
+runit/lib.a
+selinux/lib.a
+shell/lib.a
+sysklogd/lib.a
+util-linux/lib.a
+util-linux/volume_id/lib.a
+archival/built-in.o
+archival/libarchive/built-in.o
+console-tools/built-in.o
+coreutils/built-in.o
+coreutils/libcoreutils/built-in.o
+debianutils/built-in.o
+klibc-utils/built-in.o
+e2fsprogs/built-in.o
+editors/built-in.o
+findutils/built-in.o
+init/built-in.o
+libbb/built-in.o
+libpwdgrp/built-in.o
+loginutils/built-in.o
+mailutils/built-in.o
+miscutils/built-in.o
+modutils/built-in.o
+networking/built-in.o
+networking/libiproute/built-in.o
+networking/udhcp/built-in.o
+printutils/built-in.o
+procps/built-in.o
+runit/built-in.o
+selinux/built-in.o
+shell/built-in.o
+sysklogd/built-in.o
+util-linux/built-in.o
+util-linux/volume_id/built-in.o
+archival/lib.a
+archival/libarchive/lib.a
+console-tools/lib.a
+coreutils/lib.a
+coreutils/libcoreutils/lib.a
+debianutils/lib.a
+klibc-utils/lib.a
+e2fsprogs/lib.a
+editors/lib.a
+findutils/lib.a
+init/lib.a
+libbb/lib.a
+libpwdgrp/lib.a
+loginutils/lib.a
+mailutils/lib.a
+miscutils/lib.a
+modutils/lib.a
+networking/lib.a
+networking/libiproute/lib.a
+networking/udhcp/lib.a
+printutils/lib.a
+procps/lib.a
+runit/lib.a
+selinux/lib.a
+shell/lib.a
+sysklogd/lib.a
+util-linux/lib.a
+util-linux/volume_id/lib.a
+archival/built-in.o
+archival/libarchive/built-in.o
+console-tools/built-in.o
+coreutils/built-in.o
+coreutils/libcoreutils/built-in.o
+debianutils/built-in.o
+klibc-utils/built-in.o
+e2fsprogs/built-in.o
+editors/built-in.o
+findutils/built-in.o
+init/built-in.o
+libbb/built-in.o
+libpwdgrp/built-in.o
+loginutils/built-in.o
+mailutils/built-in.o
+miscutils/built-in.o
+modutils/built-in.o
+networking/built-in.o
+networking/libiproute/built-in.o
+networking/udhcp/built-in.o
+printutils/built-in.o
+procps/built-in.o
+runit/built-in.o
+selinux/built-in.o
+shell/built-in.o
+sysklogd/built-in.o
+util-linux/built-in.o
+util-linux/volume_id/built-in.o
+attempt to open /run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../lib/gcc/arm-nickel-linux-gnueabihf/4.9.4/libgcc.a succeeded
+/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../lib/gcc/arm-nickel-linux-gnueabihf/4.9.4/libgcc.a
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../lib/gcc/arm-nickel-linux-gnueabihf/4.9.4/libgcc.a)_udivsi3.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../lib/gcc/arm-nickel-linux-gnueabihf/4.9.4/libgcc.a)_divsi3.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../lib/gcc/arm-nickel-linux-gnueabihf/4.9.4/libgcc.a)_arm_addsubdf3.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../lib/gcc/arm-nickel-linux-gnueabihf/4.9.4/libgcc.a)_aeabi_ldivmod.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../lib/gcc/arm-nickel-linux-gnueabihf/4.9.4/libgcc.a)_aeabi_uldivmod.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../lib/gcc/arm-nickel-linux-gnueabihf/4.9.4/libgcc.a)_dvmd_lnx.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../lib/gcc/arm-nickel-linux-gnueabihf/4.9.4/libgcc.a)_fixunsdfdi.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../lib/gcc/arm-nickel-linux-gnueabihf/4.9.4/libgcc.a)_udivmoddi4.o
+attempt to open /run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../lib/gcc/arm-nickel-linux-gnueabihf/4.9.4/libgcc_eh.a succeeded
+/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../lib/gcc/arm-nickel-linux-gnueabihf/4.9.4/libgcc_eh.a
+attempt to open /run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../lib/gcc/arm-nickel-linux-gnueabihf/4.9.4/libc.a failed
+attempt to open /run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../lib/gcc/libc.a failed
+attempt to open /run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../lib/gcc/arm-nickel-linux-gnueabihf/4.9.4/../../../../arm-nickel-linux-gnueabihf/lib/libc.a failed
+attempt to open /run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/lib/libc.a failed
+attempt to open /run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a succeeded
+/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)libc-start.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)check_fds.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)libc-tls.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)elf-init.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)errno.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)libc-do-syscall.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)errno-loc.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)assert.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)dcgettext.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)dcigettext.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)finddomain.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)loadmsgcat.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)localealias.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)l10nflist.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)explodename.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)plural.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)plural-exp.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)hash-string.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)setjmp.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)sigjmp.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)bsd-_setjmp.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)longjmp.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)__longjmp.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)jmp-unwind.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)signal.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)raise.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)killpg.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)sigaction.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)sigprocmask.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)kill.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)sigsuspend.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)sigempty.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)sigfillset.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)sigaddset.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)sigdelset.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)allocrtsig.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)sigtimedwait.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)sigrestorer.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)atoi.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)abort.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)bsearch.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)msort.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)getenv.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)putenv.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)setenv.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)exit.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)cxa_atexit.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)div.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)random.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)random_r.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)rand.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strtol.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strtoul.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strtoll.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strtoull.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strtol_l.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strtoul_l.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strtoll_l.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strtoull_l.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strtod.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strtod_l.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)system.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)canonicalize.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)add_n.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)cmp.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)lshift.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)rshift.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)mul.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)mul_1.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)mul_n.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)sub_n.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)submul_1.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)mpn2dbl.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)grouping.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)tens_in_limb.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)fpioconst.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)vfprintf.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)vprintf.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)printf_fp.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)reg-printf.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)printf_fphex.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)reg-modifier.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)reg-type.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)fprintf.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)printf.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)snprintf.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)sprintf.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)asprintf.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)dprintf.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)fscanf.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)scanf.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)sscanf.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)getline.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)rename.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)funlockfile.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)printf-parsemb.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)fxprintf.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)iofclose.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)iofdopen.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)iofflush.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)iofopen.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)iofputs.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)iofread.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)iofwrite.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)iogetdelim.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)iopadn.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)ioputs.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)ioungetc.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)iovsprintf.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)iovsscanf.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)iofopen64.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)iowpadn.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)putchar_u.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)wgenops.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)wfileops.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)iofwide.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)clearerr.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)fileno.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)rewind.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)setbuf.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)vasprintf.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)iovdprintf.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)vsnprintf.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)fcloseall.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)freopen64.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)fseeko64.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)ftello64.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)libc_fatal.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)feof_u.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)ferror_u.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)getc_u.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)getchar_u.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)putc_u.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)iofgets_u.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)iofputs_u.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)fileops.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)genops.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)stdfiles.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)stdio.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strops.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)malloc.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)morecore.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strcat.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strchr.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strcmp.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strcpy.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strcspn.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strverscmp.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strdup.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strndup.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strerror.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)_strerror.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strlen.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strnlen.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strncmp.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strncpy.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strrchr.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strpbrk.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strsignal.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strspn.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strstr.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strtok_r.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)memchr.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)memcmp.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)memmove.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)memset.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)mempcpy.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strcasecmp.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strncase.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strcasecmp_l.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strncase_l.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strsep.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strcasestr.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)rawmemchr.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strchrnul.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)argz-count.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)argz-stringify.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)memrchr.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)memcpy_neon.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)wmemcpy.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)wmemmove.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)wmemset.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)wmempcpy.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)wcrtomb.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)wcsrtombs.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)wcsnlen.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)wcsmbsload.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)ctime.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)gmtime.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)localtime.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)mktime.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)time.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)gettimeofday.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)settimeofday.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)tzset.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)tzfile.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strptime.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strptime_l.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strftime.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strftime_l.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)era.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)alt_digit.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)lc-time-cleanup.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)opendir.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)closedir.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)readdir64.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)setgroups.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)uname.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)times.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)wait.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)waitpid.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)wait3.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)wait4.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)alarm.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)sleep.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)pause.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)nanosleep.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)fork.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)vfork.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)_exit.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)execve.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)execv.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)execl.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)execvp.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)execlp.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)execvpe.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)getpid.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)getppid.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)getuid.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)geteuid.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)getgid.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)getegid.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)getgroups.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)setuid.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)setgid.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)setpgid.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)getpgrp.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)setpgrp.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)getsid.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)setsid.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)setresuid.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)setresgid.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)sysconf.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)fnmatch.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)regex.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)confstr.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)getopt.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)getopt1.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)sched_yield.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)sched_getaffinity.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)getaddrinfo.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)get_child_max.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)environ.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)exit-thread.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)mkfifo.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)stat64.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)fstat64.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)lstat64.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)xstat64.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)fxstat64.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)lxstat64.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)mknod.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)xmknod.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)statfs64.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)statvfs64.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)umask.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)chmod.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)fchmod.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)mkdir.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)open.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)open64.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)openat.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)read.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)write.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)access.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)fcntl.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)close.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)dup.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)dup2.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)dup3.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)pipe.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)chdir.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)fchdir.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)getcwd.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)chown.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)fchown.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)lchown.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)ttyname_r.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)isatty.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)link.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)symlink.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)readlink.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)unlink.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)rmdir.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)poll.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)sendfile64.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)have_o_cloexec.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)internal_statvfs64.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)speed.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)cfsetspeed.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)tcsetattr.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)tcgetattr.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)tcgetpgrp.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)tcsetpgrp.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)tcdrain.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)tcflush.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)cfmakeraw.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)tcgetsid.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)getrlimit.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)getrlimit64.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)setrlimit64.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)getpriority.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)setpriority.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)sbrk.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)ioctl.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)seteuid.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)setegid.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)getpagesize.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)getdtsz.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)sethostname.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)select.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)chroot.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)fsync.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)sync.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)fdatasync.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)syncfs.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)reboot.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)gethostid.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)swapon.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)swapoff.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)mktemp.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)mkstemp.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)mkdtemp.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)usleep.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)mntent.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)mntent_r.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)utimes.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)lutimes.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)ftruncate64.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)getusershell.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)syslog.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)syscall.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)mmap.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)mmap64.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)munmap.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)mprotect.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)madvise.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)tsearch.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)getsysstats.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)dirname.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)getclktck.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)init-misc.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)llseek.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)umount2.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)makedev.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)capget.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)capset.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)klogctl.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)mount.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)mremap.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)pivot_root.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)prctl.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)sysinfo.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)unshare.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)setns.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)accept.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)bind.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)connect.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)getpeername.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)getsockname.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)getsockopt.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)listen.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)recv.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)recvmsg.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)send.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)sendmsg.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)sendto.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)setsockopt.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)shutdown.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)socket.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)socketpair.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)have_sock_cloexec.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)cmsg_nxthdr.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)semop.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)semget.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)semctl.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)shmat.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)shmdt.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)shmget.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)shmctl.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)wcfuncs.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)wctype.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)iswctype.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)wctrans.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)towctrans.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)alloca_cutoff.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)libc-lowlevellock.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)libc-cancellation.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)register-atfork.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)libc_multiple_threads.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)clock_gettime.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)clock_settime.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)backtrace.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)backtracesymsfd.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)vfprintf_chk.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)readonly-area.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)inet_ntoa.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)herrno.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)herrno-loc.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)gethstbynm.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)gethstbynm2_r.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)gethstbynm_r.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)getsrvbynm.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)getsrvbynm_r.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)getsrvbypt.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)getsrvbypt_r.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)in6_addr.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)getnameinfo.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)if_index.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)ifaddrs.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)check_pf.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)check_native.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)herror.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)inet_addr.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)inet_ntop.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)inet_pton.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)res_hconf.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)res_libc.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)nsswitch.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)digits_dots.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)service-lookup.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)hosts-lookup.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)nscd_gethst_r.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)nscd_getai.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)nscd_getserv_r.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)nscd_helper.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)getlogin_r.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)getutent_r.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)utmp_file.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)utmpname.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)grantpt.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)unlockpt.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)ptsname.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)setutxent.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)getutxent.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)endutxent.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)pututxline.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)updwtmpx.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-support.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-addr.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)enbl-secure.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-profstub.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-libc.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-sysdep.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)init-first.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)sysdep.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)gconv_open.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)gconv.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)gconv_close.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)gconv_db.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)gconv_conf.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)gconv_builtin.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)gconv_simple.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)gconv_trans.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)gconv_cache.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)gconv_dl.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)setlocale.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)findlocale.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)loadlocale.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)loadarchive.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)lc-ctype.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)lc-monetary.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)lc-numeric.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)lc-collate.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)C-ctype.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)C-time.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)SYS_libc.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)C_name.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)xlocale.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)localename.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)global-locale.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)coll-lookup.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)ctype-info.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)s_isinf.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)s_isnan.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)s_signbit.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)setfpucw.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)fpu_control.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)qsort.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)secure-getenv.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)addmul_1.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)divrem.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)dbl2mpn.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)_itoa.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)_itowa.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)itoa-digits.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)itoa-udigits.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)itowa-digits.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)vfwprintf.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)vfscanf.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)tempname.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)errlist.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)siglist.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)printf-parsewc.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)filedoalloc.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)ioftell.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)wfiledoalloc.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)iogetline.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)ioseekoff.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)iosetbuffer.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)fseek.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)memstream.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)ftello.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)iofread_u.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)sdlerror.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)sdladdr.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)sdladdr1.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)sdlinfo.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)sdlmopen.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)stpncpy.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)argz-ctsep.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)argz-addsep.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)wcscat.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)wcschr.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)wcslen.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)wmemchr.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)btowc.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)mbrlen.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)mbrtowc.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)mbsrtowcs.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)wcschrnul.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)wcscoll.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)wcscoll_l.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)mbsrtowcs_l.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)offtime.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)asctime.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)setitimer.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)readdir.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)rewinddir.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)getdents.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)getdents64.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)fdopendir.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)getgrnam_r.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)getpwuid_r.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)fxstatat64.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)openat64.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)lseek.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)internal_statvfs.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)setrlimit.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)brk.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)readv.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)writev.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)gethostname.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)opensock.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)gethstbyad_r.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)ifreq.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)res_init.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)grp-lookup.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)pwd-lookup.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)nis_hash.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)nscd_getpw_r.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)nscd_getgr_r.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)getutent.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)updwtmp.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)getpt.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-load.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-lookup.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-object.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-reloc.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-hwcaps.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-error.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-debug.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-misc.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-profile.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-tls.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-origin.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-scope.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-execstack.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-open.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-close.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-trampoline.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-cache.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-tsd.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)tlsdesc.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-tlsdesc.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)C-messages.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)C-monetary.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)C-numeric.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)C-paper.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)C-name.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)C-address.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)C-telephone.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)C-measurement.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)C-identification.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)C-collate.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strtof.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strtold.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strtof_l.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)strtold_l.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)mpn2flt.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)sdlopen.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)sdlclose.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)sdlsym.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)sdlvsym.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)wcscmp.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)statfs.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)profil.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)prof-freq.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)inet_mkadr.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-deps.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-runtime.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-init.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-fini.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-version.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-sym.o
+/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../lib/gcc/arm-nickel-linux-gnueabihf/4.9.4/libgcc.a
+/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../lib/gcc/arm-nickel-linux-gnueabihf/4.9.4/libgcc_eh.a
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../lib/gcc/arm-nickel-linux-gnueabihf/4.9.4/libgcc_eh.a)unwind-arm.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../lib/gcc/arm-nickel-linux-gnueabihf/4.9.4/libgcc_eh.a)libunwind.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../lib/gcc/arm-nickel-linux-gnueabihf/4.9.4/libgcc_eh.a)pr-support.o
+(/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../lib/gcc/arm-nickel-linux-gnueabihf/4.9.4/libgcc_eh.a)unwind-c.o
+/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a
+/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../lib/gcc/arm-nickel-linux-gnueabihf/4.9.4/libgcc.a
+/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../lib/gcc/arm-nickel-linux-gnueabihf/4.9.4/libgcc_eh.a
+/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/libc.a
+attempt to open /run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../lib/gcc/arm-nickel-linux-gnueabihf/4.9.4/crtend.o succeeded
+/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../lib/gcc/arm-nickel-linux-gnueabihf/4.9.4/crtend.o
+attempt to open /run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/crtn.o succeeded
+/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../arm-nickel-linux-gnueabihf/sysroot/usr/lib/crtn.o/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../lib/gcc/arm-nickel-linux-gnueabihf/4.9.4/../../../../arm-nickel-linux-gnueabihf/bin/ld.bfd: libbb/lib.a(xconnect.o): in function `str2sockaddr':
+xconnect.c:(.text.str2sockaddr+0xb2): warning: Using 'getaddrinfo' in statically linked applications requires at runtime the shared libraries from the glibc version used for linking
+/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../lib/gcc/arm-nickel-linux-gnueabihf/4.9.4/../../../../arm-nickel-linux-gnueabihf/bin/ld.bfd: coreutils/lib.a(mktemp.o): in function `mktemp_main':
+mktemp.c:(.text.mktemp_main+0x4e): warning: the use of `mktemp' is dangerous, better use `mkstemp'
+/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../lib/gcc/arm-nickel-linux-gnueabihf/4.9.4/../../../../arm-nickel-linux-gnueabihf/bin/ld.bfd: libbb/lib.a(inet_common.o): in function `INET_resolve':
+inet_common.c:(.text.INET_resolve+0x2c): warning: Using 'gethostbyname' in statically linked applications requires at runtime the shared libraries from the glibc version used for linking
+/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../lib/gcc/arm-nickel-linux-gnueabihf/4.9.4/../../../../arm-nickel-linux-gnueabihf/bin/ld.bfd: libbb/lib.a(xconnect.o): in function `bb_lookup_port':
+xconnect.c:(.text.bb_lookup_port+0x28): warning: Using 'getservbyname' in statically linked applications requires at runtime the shared libraries from the glibc version used for linking
+/run/media/nicolas/b0efede0-edb5-4be4-a03e-ada6e449e2d5/kobo-qemu/Toolchain/nickeltc/arm-nickel-linux-gnueabihf/bin/../lib/gcc/arm-nickel-linux-gnueabihf/4.9.4/../../../../arm-nickel-linux-gnueabihf/bin/ld.bfd: networking/lib.a(netstat.o): in function `ip_port_str':
+netstat.c:(.text.ip_port_str+0x32): warning: Using 'getservbyport' in statically linked applications requires at runtime the shared libraries from the glibc version used for linking
+

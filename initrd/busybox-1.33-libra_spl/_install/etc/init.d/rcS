@@ -1,0 +1,43 @@
+#!/bin/sh
+
+INKBOX_KERNEL="/boot/zImage-inkbox"
+NICKEL_KERNEL="/boot/zImage-nickel"
+CPR_RL=0.1
+CPR_YR=2021
+
+load_boot() {
+	if [ "${1}" == "nickel" ]; then
+		kexec -l --append="console=ttymxc0,115200 rootwait rw quiet no_console_suspend hwcfg_p=0x9ffffe00 hwcfg_sz=110 waveform_p=0x9fd70000 waveform_sz=2686291 ntxfw_p=0x9fd6da00 ntxfw_sz=9474 mem=509M boot_port=0 rootfstype=ext4 root=/dev/mmcblk0p5 printk.time" "${2}"
+	else
+		kexec -l "${2}"
+	fi
+}
+
+mount -t sysfs sysfs /sys
+mount -t devtmpfs devtmpfs /dev
+mount -t proc proc /proc
+mount -t tmpfs tmpfs /tmp
+mount -t tmpfs tmpfs /run
+
+uname -a; echo "InkBox Linux SPL kernel release ${CPR_RL} - Copyright (C) ${CPR_YR} Nicolas Mailloux"
+
+/usr/local/bin/auto-boot.sh
+if [ ${?} != 0 ]; then
+	mkdir -p /boot
+	mount -t ext4 /dev/mmcblk0p1 /boot
+	# Default sequence will boot InkBox; power button/page turn button press will boot Nickel
+	echo "Waiting 5 seconds for any input event ..."
+	timeout 5 cat /dev/input/event0 > /tmp/input_event
+	if [ -s /tmp/input_event ]; then
+		echo "Input event caught, booting Nickel ..."
+		load_boot nickel "${NICKEL_KERNEL}"
+	else
+		echo "Booting default InkBox kernel ..."
+		load_boot inkbox "${INKBOX_KERNEL}"
+	fi
+	umount -l -f /boot
+	sync
+	kexec -e
+else
+	:
+fi

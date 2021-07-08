@@ -1,0 +1,17 @@
+# Aliases extracted from modules themselves.
+alias fs-configfs configfs
+alias usbfunc:acm usb_f_acm
+alias usbfunc:Loopback usb_f_ss_lb
+alias usbfunc:SourceSink usb_f_ss_lb
+alias usbfunc:gser usb_f_serial
+alias usbfunc:obex usb_f_obex
+alias usbfunc:ncm usb_f_ncm
+alias usbfunc:ecm usb_f_ecm
+alias usbfunc:eem usb_f_eem
+alias usbfunc:geth usb_f_ecm_subset
+alias usbfunc:rndis usb_f_rndis
+alias usbfunc:mass_storage usb_f_mass_storage
+alias usbfunc:ffs usb_f_fs
+alias fs-functionfs usb_f_fs
+alias fs-gadgetfs gadgetfs
+alias input:b*v*p*e*-e*k*r*a*m*l*s*f*w* evbug

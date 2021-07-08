@@ -50,9 +50,11 @@ elif [ "$1" == "n905c" ]; then
 	echo "---- Building Kobo Touch model C (N905C) kernel ----"
 elif [ "$1" == "n613" ]; then
 	echo "---- Building Kobo Glo (N613) kernel ----"
+elif [ "$1" == "n873" ]; then
+	echo "---- Building Kobo Libra (N873) kernel ----"
 else
 	echo "You must specify a kernel configuration to build for."
-	echo "Available configurations are: n705, n905c, n613"
+	echo "Available configurations are: n705, n905c, n613, n873"
 	exit 1
 fi
 
@@ -62,9 +64,11 @@ elif [ "$2" == "root" ]; then
 	echo "---- Building ROOT kernel for $1 ----"
 elif [ "$2" == "diags" ]; then
 	echo "---- Building DIAGNOSTICS kernel for $1 ----"
+elif [ "$2" == "spl" ] && [ "$1" == "n873" ]; then
+	echo "---- Building SPL kernel for $1 ----"
 else
 	echo "You must specify a valid kernel type."
-	echo "Available types are: std, root, diags"
+	echo "Available types are: std, root, diags, spl"
 	exit 1
 fi
 
@@ -92,7 +96,17 @@ elif [ "$1" == "n613" ]; then
 	else
 		cp $GITDIR/kernel/config/config-n613 $GITDIR/kernel/linux-2.6.35.3/.config
 	fi
+elif [ "$1" == "n873" ]; then
+	cd $GITDIR/kernel/linux-4.1.15-libra
+	make ARCH=arm CROSS_COMPILE=$TARGET- mrproper
+	if [ "$2" == "diags" ]; then
+		cp $GITDIR/kernel/config/config-n873-spl $GITDIR/kernel/linux-4.1.15/.config
+	else
+		cp $GITDIR/kernel/config/config-n873 $GITDIR/kernel/linux-4.1.15/.config
+	fi
 fi
+
+mkdir -p $GITDIR/kernel/out/$1
 
 # Build kernel
 if [ "$2" == "std" ]; then
@@ -132,9 +146,28 @@ if [ "$2" == "std" ]; then
 		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n613/opt/bin/uidgen
 		mkdir -p $GITDIR/kernel/out/n613
 		build_id_gen $GITDIR/initrd/n613/opt/build_id
+	elif [ "$1" == "n873" ]; then
+		sudo mkdir -p $GITDIR/initrd/n873/etc/init.d
+		sudo mkdir -p $GITDIR/initrd/n873/opt/bin
+		sudo cp $GITDIR/initrd/common/rcS-std $GITDIR/initrd/n873/etc/init.d/rcS
+		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/n873/etc/init.d/startx
+		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/n873/etc/init.d/inkbox-splash
+		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/n873/etc/init.d/developer-key
+		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n873/etc/init.d/overlay-mount
+		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n873/etc/init.d/initrd-fifo
+		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n873/opt/bin/uidgen
 	fi
-	cd $GITDIR/kernel/linux-2.6.35.3
-	make ARCH=arm CROSS_COMPILE=$TARGET- uImage
+	if [ "$1" == "n705" ] || [ "$1" == "n905c" ] || [ "$1" == "n613" ]; then
+		cd $GITDIR/kernel/linux-2.6.35.3
+		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
+	else if [ "$1" == "n873" ]; then
+		cd $GITDIR/kernel/linux-4.1.15-libra
+		make ARCH=arm CROSS_COMPILE=$TARGET- zImage -j$THREADS
+	else
+		cd $GITDIR/kernel/linux-2.6.35.3
+		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
+	fi
+
 	if [ "$?" == 0 ]; then
 		echo "---- STANDARD kernel compiled. ----"
 		cp "arch/arm/boot/uImage" "$GITDIR/kernel/out/$1/uImage-std"
@@ -182,9 +215,27 @@ elif [ "$2" == "root" ]; then
 		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n613/opt/bin/uidgen
 		mkdir -p $GITDIR/kernel/out/n613
 		build_id_gen $GITDIR/initrd/n613/opt/build_id
+	elif [ "$1" == "n873" ]; then
+		sudo cp $GITDIR/initrd/common/rcS-root $GITDIR/initrd/n873/etc/init.d/rcS
+		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/n873/etc/init.d/startx
+		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/n873/etc/init.d/inkbox-splash
+		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/n873/etc/init.d/developer-key
+		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n873/etc/init.d/overlay-mount
+		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n873/etc/init.d/initrd-fifo
+		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n873/opt/bin/uidgen
 	fi
-	cd $GITDIR/kernel/linux-2.6.35.3
-	make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
+
+	if [ "$1" == "n705" ] || [ "$1" == "n905c" ] || [ "$1" == "n613" ]; then
+		cd $GITDIR/kernel/linux-2.6.35.3
+		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
+	else if [ "$1" == "n873" ]; then
+		cd $GITDIR/kernel/linux-4.1.15-libra
+		make ARCH=arm CROSS_COMPILE=$TARGET- zImage -j$THREADS
+	else
+		cd $GITDIR/kernel/linux-2.6.35.3
+		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
+	fi
+
 	if [ "$?" == 0 ]; then
 		echo "---- ROOT kernel compiled. ----"
 		cp "arch/arm/boot/uImage" "$GITDIR/kernel/out/$1/uImage-root"
@@ -202,13 +253,40 @@ elif [ "$2" == "diags" ]; then
 		mkdir -p $GITDIR/kernel/out/n905c
 	elif [ "$1" == "n613" ]; then
 		mkdir -p $GITDIR/kernel/out/n613
+	elif [ "$1" == "n873" ]; then
+		mkdir -p $GITDIR/kernel/out/n873
 	fi
-	cd $GITDIR/kernel/linux-2.6.35.3
-	make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
+
+	if [ "$1" == "n705" ] || [ "$1" == "n905c" ] || [ "$1" == "n613" ]; then
+		cd $GITDIR/kernel/linux-2.6.35.3
+		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
+	else if [ "$1" == "n873" ]; then
+		cd $GITDIR/kernel/linux-4.1.15-libra
+		make ARCH=arm CROSS_COMPILE=$TARGET- zImage -j$THREADS
+	else
+		cd $GITDIR/kernel/linux-2.6.35.3
+		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
+	fi
+
 	if [ "$?" == 0 ]; then
 		echo "---- DIAGNOSTICS kernel compiled. ----"
 		cp "arch/arm/boot/uImage" "$GITDIR/kernel/out/$1/uImage-diags"
 		echo "---- Output was saved in $GITDIR/kernel/out/$1/uImage-diags ----"
+		exit 0
+	else
+		echo "---- There was an error during the build process, aborting... ----"
+		exit 1
+	fi
+elif [ "$2" == "spl" ]; then
+	if [ "$1" == "n873" ]; then
+		cd $GITDIR/kernel/linux-4.1.15-libra
+		make ARCH=arm CROSS_COMPILE=$TARGET- zImage -j$THREADS
+	fi
+
+	if [ "$?" == 0 ]; then
+		echo "---- SPL kernel compiled. ----"
+		cp "arch/arm/boot/zImage" "$GITDIR/kernel/out/$1/zImage"
+		echo "---- Output was saved in $GITDIR/kernel/out/$1/zImage ----"
 		exit 0
 	else
 		echo "---- There was an error during the build process, aborting... ----"

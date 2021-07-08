@@ -23,5 +23,7 @@ else
 	make_nodes 2>/dev/null
 	cd ${GITDIR}/initrd/n613-diags
 	make_nodes 2>/dev/null
+	cd ${GITDIR}/initrd/n873-spl
+	make_nodes 2>/dev/null
 	echo "Done making devices nodes."
 fi

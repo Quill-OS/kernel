@@ -11,6 +11,7 @@ echo 3 > /sys/class/graphics/fb0/rotate
 
 KERNEL_VERSION=`uname -a`
 KERNEL_BUILD_ID=`cat /opt/build_id`
+DEVICE=`cat /opt/device`
 
 echo "$KERNEL_VERSION"
 echo "InkBox OS, kernel build $KERNEL_BUILD_ID"
@@ -21,7 +22,11 @@ echo "Checking filesystems ..."
 echo
 /usr/bin/fsck.ext4 -y /dev/mmcblk0p1
 /usr/bin/fsck.ext4 -y /dev/mmcblk0p2
-/usr/bin/fsck.ext4 -y /dev/mmcblk0p3
+if [ "$DEVICE" != "n873" ]; then
+	/usr/bin/fsck.ext4 -y /dev/mmcblk0p3
+else
+	/usr/bin/fsck.fat -y /dev/mmcblk0p3
+fi
 /usr/bin/fsck.ext4 -y /dev/mmcblk0p4
 echo
 
