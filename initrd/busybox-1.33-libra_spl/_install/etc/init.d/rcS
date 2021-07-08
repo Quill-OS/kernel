@@ -7,7 +7,7 @@ CPR_YR=2021
 
 load_boot() {
 	if [ "${1}" == "nickel" ]; then
-		kexec -l --append="console=ttymxc0,115200 rootwait rw quiet no_console_suspend hwcfg_p=0x9ffffe00 hwcfg_sz=110 waveform_p=0x9fd70000 waveform_sz=2686291 ntxfw_p=0x9fd6da00 ntxfw_sz=9474 mem=509M boot_port=0 rootfstype=ext4 root=/dev/mmcblk0p5 printk.time" "${2}"
+		kexec -l --append="console=ttymxc0,115200 rootwait rw quiet no_console_suspend hwcfg_p=0x9ffffe00 hwcfg_sz=110 waveform_p=0x9fd70000 waveform_sz=2686291 ntxfw_p=0x9fd6da00 ntxfw_sz=9474 mem=509M boot_port=0 rootfstype=ext4 root=/dev/mmcblk0p6 printk.time" "${2}"
 	else
 		kexec -l "${2}"
 	fi

@@ -100,9 +100,11 @@ elif [ "$1" == "n873" ]; then
 	cd $GITDIR/kernel/linux-4.1.15-libra
 	make ARCH=arm CROSS_COMPILE=$TARGET- mrproper
 	if [ "$2" == "diags" ]; then
-		cp $GITDIR/kernel/config/config-n873-spl $GITDIR/kernel/linux-4.1.15/.config
+		cp $GITDIR/kernel/config/config-n873-diags $GITDIR/kernel/linux-4.1.15-libra/.config
+	elif [ "$2" == "spl" ]; then
+		cp $GITDIR/kernel/config/config-n873-spl $GITDIR/kernel/linux-4.1.15-libra/.config
 	else
-		cp $GITDIR/kernel/config/config-n873 $GITDIR/kernel/linux-4.1.15/.config
+		cp $GITDIR/kernel/config/config-n873 $GITDIR/kernel/linux-4.1.15-libra/.config
 	fi
 fi
 
@@ -160,7 +162,7 @@ if [ "$2" == "std" ]; then
 	if [ "$1" == "n705" ] || [ "$1" == "n905c" ] || [ "$1" == "n613" ]; then
 		cd $GITDIR/kernel/linux-2.6.35.3
 		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
-	else if [ "$1" == "n873" ]; then
+	elif [ "$1" == "n873" ]; then
 		cd $GITDIR/kernel/linux-4.1.15-libra
 		make ARCH=arm CROSS_COMPILE=$TARGET- zImage -j$THREADS
 	else
@@ -228,7 +230,7 @@ elif [ "$2" == "root" ]; then
 	if [ "$1" == "n705" ] || [ "$1" == "n905c" ] || [ "$1" == "n613" ]; then
 		cd $GITDIR/kernel/linux-2.6.35.3
 		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
-	else if [ "$1" == "n873" ]; then
+	elif [ "$1" == "n873" ]; then
 		cd $GITDIR/kernel/linux-4.1.15-libra
 		make ARCH=arm CROSS_COMPILE=$TARGET- zImage -j$THREADS
 	else
@@ -260,7 +262,7 @@ elif [ "$2" == "diags" ]; then
 	if [ "$1" == "n705" ] || [ "$1" == "n905c" ] || [ "$1" == "n613" ]; then
 		cd $GITDIR/kernel/linux-2.6.35.3
 		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
-	else if [ "$1" == "n873" ]; then
+	elif [ "$1" == "n873" ]; then
 		cd $GITDIR/kernel/linux-4.1.15-libra
 		make ARCH=arm CROSS_COMPILE=$TARGET- zImage -j$THREADS
 	else
