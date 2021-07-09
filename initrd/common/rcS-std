@@ -88,7 +88,7 @@ else
 					/etc/init.d/inkbox-splash
 				else
 					/etc/init.d/inkbox-splash update_splash &
-					UPDATE_SPLASH_PID=$?
+					UPDATE_SPLASH_PID=$!
 					export UPDATE_SPLASH_PID
 				fi
 
