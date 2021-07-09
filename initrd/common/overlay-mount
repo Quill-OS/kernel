@@ -1,13 +1,18 @@
 #!/bin/sh
 
 DEVICE=$(cat /opt/device)
-if [ "${DEVICE}" != "n873" ]; then
+if [ "${DEVICE}" == "n705" ] || [ "${DEVICE}" == "n905c" ] || [ "${DEVICE}" == "n613" ]; then
 	ROOTFS_FMT="ext4"
-else
+	RECOVERYFS_PART=2
+elif [ "${DEVICE}" == "n873" ]; then
 	ROOTFS_FMT="vfat"
+	RECOVERYFS_PART=5
+else
+	ROOTFS_FMT="ext4"
+	RECOVERYFS_PART=2
 fi
 
-if [ "$1" != "recovery" ]; then
+if [ "${1}" != "recovery" ]; then
 	## Mounting root filesystem with squashfuse and fuse-overlayfs (read-only by default)
 	mkdir -p /rootfs-part
 	mkdir -p /overlaymount-rootfs
@@ -15,7 +20,7 @@ if [ "$1" != "recovery" ]; then
 	/usr/bin/unsquashfs -f -d /key /opt/key.sqsh &>/dev/null
 	echo "Verifying root filesystem's digital signature ..."
 	/usr/bin/openssl dgst -sha256 -verify /key/public.pem -signature /rootfs-part/rootfs.squashfs.dgst /rootfs-part/rootfs.squashfs &>/dev/null
-	if [ $? != 0 ]; then
+	if [ ${?} != 0 ]; then
 		echo "Root filesystem's digital signature is invalid! Shutting down ..."
 		sync
 		umount /rootfs-part -l -f
@@ -31,7 +36,7 @@ if [ "$1" != "recovery" ]; then
 		mkdir -p /rootfs-part/rootfs/overlay
 
 		/usr/bin/openssl dgst -sha256 -verify /key/public.pem -signature /rootfs-part/overlaymount-rootfs.squashfs.dgst /rootfs-part/overlaymount-rootfs.squashfs &>/dev/null
-		if [ $? != 0 ]; then
+		if [ ${?} != 0 ]; then
 			echo "Utility root filesystem's signature is invalid! Shutting down ..."
 			sync
 			umount /rootfs-part -l -f
@@ -73,11 +78,11 @@ else
 	## Mounting recovery filesystem
 	mkdir -p /recoveryfs-part
 	mkdir -p /overlaymount-rootfs
-	mount -t ext4 -o nosuid,ro /dev/mmcblk0p2 /recoveryfs-part
+	mount -t ext4 -o nosuid,ro "/dev/mmcblk0p${RECOVERYFS_PART}" "/recoveryfs-part"
 
 	/usr/bin/unsquashfs -f -d /key /opt/key.sqsh &>/dev/null
 	/usr/bin/openssl dgst -sha256 -verify /key/public.pem -signature /recoveryfs-part/overlaymount-rootfs.squashfs.dgst /recoveryfs-part/overlaymount-rootfs.squashfs &>/dev/null
-	if [ $? != 0 ]; then
+	if [ ${?} != 0 ]; then
 		echo "Utility root filesystem's signature is invalid! Shutting down ..."
 		sync
 		umount -l -f /recoveryfs-part
@@ -102,7 +107,7 @@ else
 
 	echo "Verifying recovery filesystem's digital signature ..."
 	/usr/bin/openssl dgst -sha256 -verify /key/public.pem -signature /recoveryfs-part/recoveryfs.squashfs.dgst /recoveryfs-part/recoveryfs.squashfs &>/dev/null
-	if [ $? != 0 ]; then
+	if [ ${?} != 0 ]; then
 		echo "Recovery filesystem's digital signature is invalid! Shutting down ..."
 		sync
 		umount /recoveryfs-part -l -f
