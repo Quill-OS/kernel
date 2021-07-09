@@ -158,6 +158,8 @@ if [ "$2" == "std" ]; then
 		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n873/etc/init.d/overlay-mount
 		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n873/etc/init.d/initrd-fifo
 		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n873/opt/bin/uidgen
+		mkdir -p $GITDIR/kernel/out/n873
+		build_id_gen $GITDIR/initrd/n873/opt/build_id
 	fi
 	if [ "$1" == "n705" ] || [ "$1" == "n905c" ] || [ "$1" == "n613" ]; then
 		cd $GITDIR/kernel/linux-2.6.35.3
@@ -172,8 +174,16 @@ if [ "$2" == "std" ]; then
 
 	if [ "$?" == 0 ]; then
 		echo "---- STANDARD kernel compiled. ----"
-		cp "arch/arm/boot/uImage" "$GITDIR/kernel/out/$1/uImage-std"
-		echo "---- Output was saved in $GITDIR/kernel/out/$1/uImage-std ----"
+		if [ "$1" == "n705" ] || [ "$1" == "n905c" ] || [ "$1" == "n613" ]; then
+			cp "arch/arm/boot/uImage" "$GITDIR/kernel/out/$1/uImage-std"
+			echo "---- Output was saved in $GITDIR/kernel/out/$1/uImage-std ----"
+		elif [ "$1" == "n873" ]; then
+			cp "arch/arm/boot/zImage" "$GITDIR/kernel/out/$1/zImage-std"
+			echo "---- Output was saved in $GITDIR/kernel/out/$1/zImage-std ----"
+		else
+			cp "arch/arm/boot/uImage" "$GITDIR/kernel/out/$1/uImage-std"
+			echo "---- Output was saved in $GITDIR/kernel/out/$1/uImage-std ----"
+		fi
 		exit 0
 	else
 		echo "---- There was an error during the build process, aborting... ----"
@@ -225,6 +235,8 @@ elif [ "$2" == "root" ]; then
 		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n873/etc/init.d/overlay-mount
 		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n873/etc/init.d/initrd-fifo
 		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n873/opt/bin/uidgen
+		mkdir -p $GITDIR/kernel/out/n873
+		build_id_gen $GITDIR/initrd/n873/opt/build_id
 	fi
 
 	if [ "$1" == "n705" ] || [ "$1" == "n905c" ] || [ "$1" == "n613" ]; then
@@ -240,8 +252,16 @@ elif [ "$2" == "root" ]; then
 
 	if [ "$?" == 0 ]; then
 		echo "---- ROOT kernel compiled. ----"
-		cp "arch/arm/boot/uImage" "$GITDIR/kernel/out/$1/uImage-root"
-		echo "---- Output was saved in $GITDIR/kernel/out/$1/uImage-root ----"
+		if [ "$1" == "n705" ] || [ "$1" == "n905c" ] || [ "$1" == "n613" ]; then
+			cp "arch/arm/boot/uImage" "$GITDIR/kernel/out/$1/uImage-root"
+			echo "---- Output was saved in $GITDIR/kernel/out/$1/uImage-root ----"
+		elif [ "$1" == "n873" ]; then
+			cp "arch/arm/boot/zImage" "$GITDIR/kernel/out/$1/zImage-root"
+			echo "---- Output was saved in $GITDIR/kernel/out/$1/zImage-root ----"
+		else
+			cp "arch/arm/boot/uImage" "$GITDIR/kernel/out/$1/uImage-root"
+			echo "---- Output was saved in $GITDIR/kernel/out/$1/uImage-root ----"
+		fi
 		exit 0
 	else
 		echo "---- There was an error during the build process, aborting... ----"
@@ -272,8 +292,16 @@ elif [ "$2" == "diags" ]; then
 
 	if [ "$?" == 0 ]; then
 		echo "---- DIAGNOSTICS kernel compiled. ----"
-		cp "arch/arm/boot/uImage" "$GITDIR/kernel/out/$1/uImage-diags"
-		echo "---- Output was saved in $GITDIR/kernel/out/$1/uImage-diags ----"
+		if [ "$1" == "n705" ] || [ "$1" == "n905c" ] || [ "$1" == "n613" ]; then
+			cp "arch/arm/boot/uImage" "$GITDIR/kernel/out/$1/uImage-diags"
+			echo "---- Output was saved in $GITDIR/kernel/out/$1/uImage-diags ----"
+		elif [ "$1" == "n873" ]; then
+			cp "arch/arm/boot/zImage" "$GITDIR/kernel/out/$1/zImage-diags"
+			echo "---- Output was saved in $GITDIR/kernel/out/$1/uImage-diags ----"
+		else
+			cp "arch/arm/boot/uImage" "$GITDIR/kernel/out/$1/uImage-diags"
+			echo "---- Output was saved in $GITDIR/kernel/out/$1/uImage-diags ----"
+		fi
 		exit 0
 	else
 		echo "---- There was an error during the build process, aborting... ----"
@@ -287,7 +315,7 @@ elif [ "$2" == "spl" ]; then
 
 	if [ "$?" == 0 ]; then
 		echo "---- SPL kernel compiled. ----"
-		cp "arch/arm/boot/zImage" "$GITDIR/kernel/out/$1/zImage"
+		cp "arch/arm/boot/zImage" "$GITDIR/kernel/out/$1/zImage-spl"
 		echo "---- Output was saved in $GITDIR/kernel/out/$1/zImage ----"
 		exit 0
 	else
