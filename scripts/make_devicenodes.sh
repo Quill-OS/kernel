@@ -1,6 +1,6 @@
 #!/bin/sh
 
-if [ -z "$GITDIR" ]; then
+if [ -z "${GITDIR}" ]; then
 	echo "You must specify the GITDIR environment variable."
 	exit 1
 else
@@ -24,6 +24,10 @@ else
 	cd ${GITDIR}/initrd/n613-diags
 	make_nodes 2>/dev/null
 	cd ${GITDIR}/initrd/n873-spl
+	make_nodes 2>/dev/null
+	cd ${GITDIR}/initrd/n873
+	make_nodes 2>/dev/null
+	cd ${GITDIR}/initrd/n873-diags
 	make_nodes 2>/dev/null
 	echo "Done making devices nodes."
 fi
