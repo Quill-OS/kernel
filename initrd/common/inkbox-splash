@@ -38,6 +38,8 @@ elif [ "${DEVICE}" == "n705" ]; then
 	SIZE=55
 elif [ "${DEVICE}" == "n873" ]; then
 	SIZE=90
+else
+	SIZE=70
 fi
 
 if [ ! -z ${UPDATE_SPLASH_PID} ]; then
@@ -47,6 +49,8 @@ if [ ! -z ${UPDATE_SPLASH_PID} ]; then
 else
 	setup
 fi
+
+echo 0 > /sys/class/graphics/fb0/rotate
 
 if [ "${1}" == "update_splash" ]; then
 	ln -s /bin/busybox /splash/bin/sh
