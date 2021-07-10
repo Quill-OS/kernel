@@ -34,8 +34,10 @@ fi
 
 if [ "${DEVICE}" == "n905c" ] || [ "${DEVICE}" == "n613" ]; then
 	SIZE=70
-elif [ "$DEVICE" == "n705" ]; then
+elif [ "${DEVICE}" == "n705" ]; then
 	SIZE=55
+elif [ "${DEVICE}" == "n873" ]; then
+	SIZE=90
 fi
 
 if [ ! -z ${UPDATE_SPLASH_PID} ]; then
