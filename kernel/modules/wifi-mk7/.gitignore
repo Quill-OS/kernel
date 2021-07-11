@@ -1,0 +1,11 @@
+!8189fs.ko
+.8189fs.ko.cmd
+8189fs.mod.c
+Module.symvers
+modules.order
+.tmp_versions/
+*.o
+*.o.cmd
+*~
+*.swp
+

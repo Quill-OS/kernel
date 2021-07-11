@@ -230,8 +230,6 @@ mount -t tmpfs tmpfs /mnt/xorg/var/log
 mount -t sysfs sysfs /mnt/xorg/sys
 mount -t proc proc /mnt/xorg/proc
 mount -t devpts devpts /mnt/xorg/dev/pts
-touch /tmp/resolv.conf
-mount --bind /tmp/resolv.conf /mnt/etc/resolv.conf
 touch /mnt/xorg/etc/resolv.conf
 mount --bind /tmp/resolv.conf /mnt/xorg/etc/resolv.conf
 

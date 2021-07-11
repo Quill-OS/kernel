@@ -184,6 +184,11 @@ else
 				mount -t tmpfs tmpfs /mnt/tmp
 				mount -t tmpfs tmpfs /mnt/var/log
 				mount -t tmpfs tmpfs /mnt/opt/developer
+
+				# Wi-Fi & Internet
+				touch /tmp/resolv.conf
+				mount --bind /tmp/resolv.conf /mnt/etc/resolv.conf
+				
 				mount -t selinuxfs selinuxfs /mnt/selinux 2>/dev/null
 
 				# Developer key
