@@ -174,9 +174,15 @@ else
 				mount -t tmpfs tmpfs -o nosuid /mnt/var/log
 				
 				# Wi-Fi & Internet
+				cp /opt/device /tmp/device
+				mount --bind /tmp/device /mnt/opt/inkbox_device
 				touch /tmp/resolv.conf
 				mount --bind /tmp/resolv.conf /mnt/etc/resolv.conf
 
+				mount -t tmpfs tmpfs -o nosuid,noexec,nodev,size=2M /mnt/var/db/dhcpcd
+				touch /mnt/var/db/dhcpcd/duid
+				touch /mnt/opt/storage/dhcpcd_duid
+				mount --bind /mnt/opt/storage/dhcpcd_duid /mnt/var/db/dhcpcd/duid
 	
 				mount -t selinuxfs selinuxfs /mnt/selinux 2>/dev/null
 
