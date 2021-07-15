@@ -6,7 +6,7 @@ build_id_gen() {
 	else
 		BUILD_ID=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 8)
 		echo "---- Build ID is: ${BUILD_ID} ----"
-		echo ${BUILD_ID} > "${1}"
+		sudo su -c "echo ${BUILD_ID} > '${1}'"
 	fi
 }
 
@@ -253,6 +253,8 @@ elif [ "$2" == "root" ]; then
 		mkdir -p $GITDIR/kernel/out/n613
 		build_id_gen $GITDIR/initrd/n613/opt/build_id
 	elif [ "$1" == "n873" ]; then
+		sudo mkdir -p $GITDIR/initrd/n873/etc/init.d
+		sudo mkdir -p $GITDIR/initrd/n873/opt/bin
 		sudo cp $GITDIR/initrd/common/rcS-root $GITDIR/initrd/n873/etc/init.d/rcS
 		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/n873/etc/init.d/startx
 		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/n873/etc/init.d/inkbox-splash
@@ -263,6 +265,8 @@ elif [ "$2" == "root" ]; then
 		mkdir -p $GITDIR/kernel/out/n873
 		build_id_gen $GITDIR/initrd/n873/opt/build_id
 	elif [ "$1" == "n905b" ]; then
+		sudo mkdir -p $GITDIR/initrd/n905b/etc/init.d
+		sudo mkdir -p $GITDIR/initrd/n905b/opt/bin
 		sudo cp $GITDIR/initrd/common/rcS-root $GITDIR/initrd/n905b/etc/init.d/rcS
 		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/n905b/etc/init.d/startx
 		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/n905b/etc/init.d/inkbox-splash
