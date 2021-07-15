@@ -155,7 +155,7 @@ static int pmic_set_chg_current(unsigned short curr)
 	unsigned int mask;
 	unsigned int value;
 
-printk ("[%s-%d] %s...\n",__FILE__,__LINE__,__func__);
+// printk ("[%s-%d] %s...\n",__FILE__,__LINE__,__func__);
 	value = BITFVAL(BIT_CHG_CURR, curr);
 	mask = BITFMASK(BIT_CHG_CURR);
 	CHECK_ERROR(pmic_write_reg(REG_CHARGE, value, mask));
@@ -168,7 +168,7 @@ static int pmic_set_chg_misc(enum chg_setting type, unsigned short flag)
 
 	unsigned int reg_value = 0;
 	unsigned int mask = 0;
-printk ("[%s-%d] %s...\n",__FILE__,__LINE__,__func__);
+// printk ("[%s-%d] %s...\n",__FILE__,__LINE__,__func__);
 
 	switch (type) {
 	case TRICKLE_CHG_EN:
@@ -278,7 +278,7 @@ static unsigned int coulomb_counter_start_time_msecs;
 
 static int pmic_start_coulomb_counter(void)
 {
-printk ("[%s-%d] %s...\n",__FILE__,__LINE__,__func__);
+// printk ("[%s-%d] %s...\n",__FILE__,__LINE__,__func__);
 	/* set scaler */
 	CHECK_ERROR(pmic_write_reg(REG_ACC1,
 		ACC_COULOMB_PER_LSB * ACC_ONEC_VALUE, BITFMASK(ACC1_ONEC)));
@@ -293,7 +293,7 @@ printk ("[%s-%d] %s...\n",__FILE__,__LINE__,__func__);
 
 static int pmic_stop_coulomb_counter(void)
 {
-printk ("[%s-%d] %s...\n",__FILE__,__LINE__,__func__);
+// printk ("[%s-%d] %s...\n",__FILE__,__LINE__,__func__);
 	CHECK_ERROR(pmic_write_reg(
 		REG_ACC0, ACC_STOP_COUNTER, ACC_CONTROL_BIT_MASK));
 	return 0;
@@ -304,7 +304,7 @@ static int pmic_calibrate_coulomb_counter(void)
 	int ret;
 	unsigned int value;
 
-printk ("[%s-%d] %s...\n",__FILE__,__LINE__,__func__);
+// printk ("[%s-%d] %s...\n",__FILE__,__LINE__,__func__);
 	/* set scaler */
 	CHECK_ERROR(pmic_write_reg(REG_ACC1,
 		0x1, BITFMASK(ACC1_ONEC)));
@@ -357,7 +357,7 @@ static int pmic_get_charger_coulomb(int *coulomb)
 
 static int pmic_restart_charging(void)
 {
-printk ("[%s-%d] %s...\n",__FILE__,__LINE__,__func__);
+// printk ("[%s-%d] %s...\n",__FILE__,__LINE__,__func__);
 	pmic_set_chg_misc(BAT_TH_CHECK_DIS, 1);
 	pmic_set_chg_misc(AUTO_CHG_DIS, 0);
 	pmic_set_chg_misc(VI_PROGRAM_EN, 1);
@@ -429,7 +429,7 @@ static int pmic_get_chg_value(unsigned int *value)
 	unsigned short result[8], max1 = 0, min1 = 0, max2 = 0, min2 = 0, i;
 	unsigned int average = 0, average1 = 0, average2 = 0;
 
-printk ("[%s-%d] %s...\n",__FILE__,__LINE__,__func__);
+// printk ("[%s-%d] %s...\n",__FILE__,__LINE__,__func__);
 	channel = CHARGE_CURRENT;
 	CHECK_ERROR(pmic_adc_convert(channel, result));
 
