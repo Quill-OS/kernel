@@ -7,13 +7,13 @@ cd $TOOLCHAINDIR/bin
 export PATH=$PATH:$PWD
 cd - &> /dev/null
 
-cd $GITDIR/bootloader/board/freescale/mx50_rdp
+cd $GITDIR/imx507/bootloader/board/freescale/mx50_rdp
 
 rm flash_header.S && sync && sleep 1
 ln -s flash_header-20120622_FSL_RAM_PARMS_DSadd2.S flash_header.S
 
 cd - &>/dev/null
-cd $GITDIR/bootloader
+cd $GITDIR/imx507/bootloader
 
 make ARCH=arm CROSS_COMPILE=$TARGET- -j$THREADS distclean
 make ARCH=arm CROSS_COMPILE=$TARGET- -j$THREADS mx50_rdp_config
