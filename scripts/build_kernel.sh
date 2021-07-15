@@ -52,9 +52,11 @@ elif [ "$1" == "n613" ]; then
 	echo "---- Building Kobo Glo (N613) kernel ----"
 elif [ "$1" == "n873" ]; then
 	echo "---- Building Kobo Libra (N873) kernel ----"
+elif [ "$1" == "n905b" ]; then
+	echo "---- Building Kobo Touch model B (N905B) kernel ----"
 else
 	echo "You must specify a kernel configuration to build for."
-	echo "Available configurations are: n705, n905c, n613, n873"
+	echo "Available configurations are: n705, n905c, n905b, n613, n873"
 	exit 1
 fi
 
@@ -105,6 +107,14 @@ elif [ "$1" == "n873" ]; then
 		cp $GITDIR/kernel/config/config-n873-spl $GITDIR/kernel/linux-4.1.15-libra/.config
 	else
 		cp $GITDIR/kernel/config/config-n873 $GITDIR/kernel/linux-4.1.15-libra/.config
+	fi
+elif [ "$1" == "n905b" ]; then
+	cd $GITDIR/kernel/linux-2.6.35.3-n905b
+	make ARCH=arm CROSS_COMPILE=$TARGET- mrproper
+	if [ "$2" == "diags" ]; then
+		cp $GITDIR/kernel/config/config-n905b-diags $GITDIR/kernel/linux-2.6.35.3-n905b/.config
+	else
+		cp $GITDIR/kernel/config/config-n905b $GITDIR/kernel/linux-2.6.35.3-n905b/.config
 	fi
 fi
 
@@ -160,12 +170,27 @@ if [ "$2" == "std" ]; then
 		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n873/opt/bin/uidgen
 		mkdir -p $GITDIR/kernel/out/n873
 		build_id_gen $GITDIR/initrd/n873/opt/build_id
+	elif [ "$1" == "n905b" ]; then
+		sudo mkdir -p $GITDIR/initrd/n905b/etc/init.d
+		sudo mkdir -p $GITDIR/initrd/n905b/opt/bin
+		sudo cp $GITDIR/initrd/common/rcS-std $GITDIR/initrd/n905b/etc/init.d/rcS
+		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/n905b/etc/init.d/startx
+		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/n905b/etc/init.d/inkbox-splash
+		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/n905b/etc/init.d/developer-key
+		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n905b/etc/init.d/overlay-mount
+		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n905b/etc/init.d/initrd-fifo
+		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n905b/opt/bin/uidgen
+		mkdir -p $GITDIR/kernel/out/n905b
+		build_id_gen $GITDIR/initrd/n905b/opt/build_id
 	fi
 	if [ "$1" == "n705" ] || [ "$1" == "n905c" ] || [ "$1" == "n613" ]; then
 		cd $GITDIR/kernel/linux-2.6.35.3
 		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
 	elif [ "$1" == "n873" ]; then
 		cd $GITDIR/kernel/linux-4.1.15-libra
+		make ARCH=arm CROSS_COMPILE=$TARGET- zImage -j$THREADS
+	elif [ "$1" == "n905b" ]; then
+		cd $GITDIR/kernel/linux-2.6.35.3-n905b
 		make ARCH=arm CROSS_COMPILE=$TARGET- zImage -j$THREADS
 	else
 		cd $GITDIR/kernel/linux-2.6.35.3
@@ -174,7 +199,7 @@ if [ "$2" == "std" ]; then
 
 	if [ "$?" == 0 ]; then
 		echo "---- STANDARD kernel compiled. ----"
-		if [ "$1" == "n705" ] || [ "$1" == "n905c" ] || [ "$1" == "n613" ]; then
+		if [ "$1" == "n705" ] || [ "$1" == "n905c" ] || [ "$1" == "n613" ] || [ "$1" == "n905b" ]; then
 			cp "arch/arm/boot/uImage" "$GITDIR/kernel/out/$1/uImage-std"
 			echo "---- Output was saved in $GITDIR/kernel/out/$1/uImage-std ----"
 		elif [ "$1" == "n873" ]; then
@@ -237,6 +262,16 @@ elif [ "$2" == "root" ]; then
 		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n873/opt/bin/uidgen
 		mkdir -p $GITDIR/kernel/out/n873
 		build_id_gen $GITDIR/initrd/n873/opt/build_id
+	elif [ "$1" == "n905b" ]; then
+		sudo cp $GITDIR/initrd/common/rcS-root $GITDIR/initrd/n905b/etc/init.d/rcS
+		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/n905b/etc/init.d/startx
+		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/n905b/etc/init.d/inkbox-splash
+		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/n905b/etc/init.d/developer-key
+		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n905b/etc/init.d/overlay-mount
+		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n905b/etc/init.d/initrd-fifo
+		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n905b/opt/bin/uidgen
+		mkdir -p $GITDIR/kernel/out/n905b
+		build_id_gen $GITDIR/initrd/n905b/opt/build_id
 	fi
 
 	if [ "$1" == "n705" ] || [ "$1" == "n905c" ] || [ "$1" == "n613" ]; then
@@ -245,6 +280,9 @@ elif [ "$2" == "root" ]; then
 	elif [ "$1" == "n873" ]; then
 		cd $GITDIR/kernel/linux-4.1.15-libra
 		make ARCH=arm CROSS_COMPILE=$TARGET- zImage -j$THREADS
+	elif [ "$1" == "n905b" ]; then
+		cd $GITDIR/kernel/linux-2.6.35.3-n905b
+		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
 	else
 		cd $GITDIR/kernel/linux-2.6.35.3
 		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
@@ -252,7 +290,7 @@ elif [ "$2" == "root" ]; then
 
 	if [ "$?" == 0 ]; then
 		echo "---- ROOT kernel compiled. ----"
-		if [ "$1" == "n705" ] || [ "$1" == "n905c" ] || [ "$1" == "n613" ]; then
+		if [ "$1" == "n705" ] || [ "$1" == "n905c" ] || [ "$1" == "n613" ] || [ "$1" == "n905b" ]; then
 			cp "arch/arm/boot/uImage" "$GITDIR/kernel/out/$1/uImage-root"
 			echo "---- Output was saved in $GITDIR/kernel/out/$1/uImage-root ----"
 		elif [ "$1" == "n873" ]; then
@@ -275,6 +313,8 @@ elif [ "$2" == "diags" ]; then
 		mkdir -p $GITDIR/kernel/out/n905c
 	elif [ "$1" == "n613" ]; then
 		mkdir -p $GITDIR/kernel/out/n613
+	elif [ "$1" == "n905b" ]; then
+		mkdir -p $GITDIR/kernel/out/n905b
 	elif [ "$1" == "n873" ]; then
 		mkdir -p $GITDIR/kernel/out/n873
 	fi
@@ -285,6 +325,9 @@ elif [ "$2" == "diags" ]; then
 	elif [ "$1" == "n873" ]; then
 		cd $GITDIR/kernel/linux-4.1.15-libra
 		make ARCH=arm CROSS_COMPILE=$TARGET- zImage -j$THREADS
+	elif [ "$1" == "n905b" ]; then
+		cd $GITDIR/kernel/linux-2.6.35.3-n905b
+		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
 	else
 		cd $GITDIR/kernel/linux-2.6.35.3
 		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
@@ -292,7 +335,7 @@ elif [ "$2" == "diags" ]; then
 
 	if [ "$?" == 0 ]; then
 		echo "---- DIAGNOSTICS kernel compiled. ----"
-		if [ "$1" == "n705" ] || [ "$1" == "n905c" ] || [ "$1" == "n613" ]; then
+		if [ "$1" == "n705" ] || [ "$1" == "n905c" ] || [ "$1" == "n613" ] || [ "$1" == "n905b" ]; then
 			cp "arch/arm/boot/uImage" "$GITDIR/kernel/out/$1/uImage-diags"
 			echo "---- Output was saved in $GITDIR/kernel/out/$1/uImage-diags ----"
 		elif [ "$1" == "n873" ]; then
