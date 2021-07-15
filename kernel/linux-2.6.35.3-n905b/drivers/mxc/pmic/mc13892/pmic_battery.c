@@ -754,7 +754,7 @@ static void mc13892_battery_work(struct work_struct *work)
 static void charger_online_event_callback(void *para)
 {
 	struct mc13892_dev_info *di = (struct mc13892_dev_info *) para;
-printk ("[%s-%d] %s...\n",__FILE__,__LINE__,__func__);
+// printk ("[%s-%d] %s...\n",__FILE__,__LINE__,__func__);
 	pr_info("\n\n DETECTED charger plug/unplug event\n");
 	mc13892_charger_update_status(di);
 }
@@ -907,7 +907,7 @@ static int mc13892_battery_get_property(struct power_supply *psy,
 static ssize_t chg_wa_enable_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-printk ("[%s-%d] %s...\n",__FILE__,__LINE__,__func__);
+// printk ("[%s-%d] %s...\n",__FILE__,__LINE__,__func__);
 	if (chg_wa_is_active & chg_wa_timer)
 		return sprintf(buf, "Charger LED workaround timer is on\n");
 	else
@@ -918,7 +918,7 @@ static ssize_t chg_wa_enable_store(struct device *dev,
 				 struct device_attribute *attr,
 				 const char *buf, size_t size)
 {
-printk ("[%s-%d] %s...\n",__FILE__,__LINE__,__func__);
+// printk ("[%s-%d] %s...\n",__FILE__,__LINE__,__func__);
 	if (strstr(buf, "1") != NULL) {
 		if (chg_wa_is_active) {
 			if (chg_wa_timer)
@@ -949,7 +949,7 @@ static int pmic_battery_remove(struct platform_device *pdev)
 	pmic_event_callback_t bat_event_callback;
 	struct mc13892_dev_info *di = platform_get_drvdata(pdev);
 
-printk ("[%s-%d] %s...\n",__FILE__,__LINE__,__func__);
+// printk ("[%s-%d] %s...\n",__FILE__,__LINE__,__func__);
 #if 0
 	bat_event_callback.func = charger_online_event_callback;
 	bat_event_callback.param = (void *) di;
@@ -988,7 +988,7 @@ static int pmic_battery_probe(struct platform_device *pdev)
 	pmic_event_callback_t bat_event_callback;
 	pmic_version_t pmic_version;
 
-printk ("[%s-%d] %s...\n",__FILE__,__LINE__,__func__);
+// printk ("[%s-%d] %s...\n",__FILE__,__LINE__,__func__);
 #if 0
 	/* Only apply battery driver for MC13892 V2.0 due to ENGR108085 */
 	pmic_version = pmic_get_version();

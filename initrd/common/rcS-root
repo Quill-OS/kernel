@@ -165,6 +165,10 @@ else
 				mkdir -p /mnt/opt/storage/gui_rootfs
 				mkdir -p /mnt/opt/gui_rootfs
 				mount --bind /mnt/opt/storage/gui_rootfs /mnt/opt/gui_rootfs
+				# SSHd
+				mkdir -p /mnt/opt/storage/ssh
+				touch /mnt/opt/storage/ssh/sshd_config
+				mount --bind /mnt/opt/storage/ssh /mnt/etc/ssh
 
 				mkdir -p /mnt/opt/root
 				mkdir -p /mnt/opt/key
