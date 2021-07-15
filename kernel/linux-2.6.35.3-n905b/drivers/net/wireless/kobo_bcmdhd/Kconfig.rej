@@ -1,0 +1,9 @@
+--- Kconfig-orig	2013-06-13 23:29:28.000000000 +0200
++++ Kconfig	2015-01-07 22:20:43.000000000 +0100
+@@ -282,4 +282,6 @@
+ source "drivers/net/wireless/wl12xx/Kconfig"
+ source "drivers/net/wireless/zd1211rw/Kconfig"
+ 
++source "drivers/net/wireless/kobo_bcmdhd/Kconfig"
++
+ endif # WLAN

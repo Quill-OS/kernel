@@ -1110,7 +1110,7 @@ int ntx_get_battery_vol (void)
 		return 0;
 	result = 4100000 - result;
 	result /= 7000;
-	printk ("[%s-%d] %d\n", __func__, __LINE__, (100-result));
+	//printk ("[%s-%d] %d\n", __func__, __LINE__, (100-result));
 	return 100-result;
 }
 

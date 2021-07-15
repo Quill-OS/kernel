@@ -189,6 +189,9 @@ else
 				mount -t tmpfs tmpfs /mnt/opt/developer
 
 				# Wi-Fi & Internet
+				if [ -e "/opt/firmware.sqsh" ]; then
+					mount /opt/firmware.sqsh /mnt/lib/firmware
+				fi
 				cp /opt/device /tmp/device
 				mount --bind /tmp/device /mnt/opt/inkbox_device
 				touch /tmp/resolv.conf
