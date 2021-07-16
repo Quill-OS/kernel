@@ -1,0 +1,65 @@
+config KOBO_BCM_DHD
+	tristate "Broadcom Dongle Host Driver on Kobo Mini"
+	depends on WLAN && EXPERIMENTAL
+	select FW_LOADER
+	select WIRELESS_EXT
+	select WEXT_PRIV
+	---help---
+	  This is an backported driver for the Broadcom bcm43362 SDIO WLAN chip found on Kobo Mini E-Book readers.
+	  
+	  Device firmware is required alongside this driver. You can download
+	  the complete distribution (firmware and sourcecode) from https://github.com/kobolabs/Kobo-Reader/blob/master/hw/imx508/ntx/
+	  (file bcm-dhd-falcon-5901132-03112011.tgz)
+
+	      
+config KOBO_BCM_DHD_FW_SELECTION
+	bool "enable automatic selection of FW image"
+	depends on KOBO_BCM_DHD
+	---help---
+	  There are 3 different FW images delivered with my Kobo in directory /lib/firmware/wc121 .
+	  This patch appends the string ".WC121A2" to the default FW image pathname prior to 
+	  download, if a chip with id 0xA962 has been detected.  It helped (at least on 
+	  my Kobo) to get a self-compiled driver to work. However the original driver
+	  works with both delivered FW images.
+	  
+	  If unsure say [Y]
+	   
+    
+config KOBO_BCM_DHD_WIFI_DIRECT
+	bool "enable support for Wifi-direct"
+	depends on KOBO_BCM_DHD && CFG80211 && !BACKPORT_KERNEL_3_99
+	---help---
+	  Adds another compileable chunk of code from Broadcom to the module. Therefore it will get bigger.
+	  Normal connectivity to APs should work also without it.
+	  
+	  If unsure say [N] 
+
+    
+config KOBO_BCM_DHD_DEBUG
+	bool "DHD debugging"
+	depends on KOBO_BCM_DHD
+	---help---
+	  BCM_DHD debugging messages. Choosing Y will result in additional debug
+	  messages being saved to your kernel logs, which may help debug any
+	  problems.
+	  
+	  If unsure say [N]  
+
+    
+config KOBO_BCM_DHD_DEVELOPING
+	bool "implement the cfg80211 support"
+	depends on KOBO_BCM_DHD && CFG80211 && BACKPORT_KERNEL_3_99
+	---help---
+	  There are errors in the code. Interface definition has been changed and this part of code would not compile.
+	  Switch this on if you are a developer who would like to correct the cfg80211 implementation.
+	  It adds the files wl_cfg80211.c and wl_cfgp2p.c to the module and tries to compile them.
+	  This option is only avalable in linux-backport-driver environment.
+	  
+	  If unsure say [N]
+
+    
+config KOBO_BCM_DHD_STATIC_BUF
+	bool "use static buffer"
+	depends on KOBO_BCM_DHD 
+	
+	
