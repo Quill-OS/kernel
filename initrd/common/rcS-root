@@ -1,5 +1,17 @@
 #!/bin/sh
 
+rotate_screen() {
+	if [ "${DEVICE}" == "n705" ] || [ "${DEVICE}" == "n905b" ] || [ "${DEVICE}" == "n905c" ] || [ "${DEVICE}" == "n613" ]; then
+		FB_UR=3
+	elif [ "${DEVICE}" == "n873" ]; then
+		FB_UR=0
+	else
+		FB_UR=3
+	fi
+
+	echo ${FB_UR} > /sys/class/graphics/fb0/rotate
+}
+
 mount -t proc proc /proc
 mount -t sysfs sysfs /sys
 sleep 1
@@ -238,6 +250,7 @@ else
 				fi
 			else
 				echo "DIAGS_BOOT is set to 'true', booting into diagnostics..."
+				rotate_screen
 				mkdir -p /alpine
 				/etc/init.d/overlay-mount recovery
 				OVERLAYMOUNT_EXITCODE=$?
