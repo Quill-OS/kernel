@@ -191,7 +191,7 @@ if [ "$2" == "std" ]; then
 		make ARCH=arm CROSS_COMPILE=$TARGET- zImage -j$THREADS
 	elif [ "$1" == "n905b" ]; then
 		cd $GITDIR/kernel/linux-2.6.35.3-n905b
-		make ARCH=arm CROSS_COMPILE=$TARGET- zImage -j$THREADS
+		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
 	else
 		cd $GITDIR/kernel/linux-2.6.35.3
 		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
