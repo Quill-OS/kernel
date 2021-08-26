@@ -263,6 +263,7 @@ else
 			fi
 		else
 			echo "Input event caught, booting into recovery partition..."
+			rotate_screen
 			mkdir -p /alpine
 			/etc/init.d/overlay-mount recovery
 			OVERLAYMOUNT_EXITCODE=$?
