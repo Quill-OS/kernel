@@ -8,6 +8,31 @@ if grep -q "true" /mnt/opt/developer/key/valid-key &>/dev/null; then
 	mount --bind /tmp/fake-openssl /mnt/usr/bin/openssl
 fi
 
+checksum_verify() {
+	SERVER="pkgs.kobox.fermino.me"
+	DEVICE=$(cat /opt/device 2>/dev/null)
+	VERSION=$(cat /mnt/opt/version 2>/dev/null)i
+	PACKAGE="${1}"
+	IS_CONNECTED=$(cat /tmp/wifi_connected 2>/dev/null)
+	if [ "${IS_CONNECTED}" != "true" ]; then
+		return 1
+	else
+		# Trying firmware relase checksums
+		wget -O - "http://${SERVER}/keyserver/device/${DEVICE}/packages/${VERSION}/${PACKAGE}.sha256"
+		# If not found, then try with KoBox checksums
+		if [ "${?}" != 0 ]; then
+			wget -O - "http://${SERVER}/keyserver/device/${DEVICE}/packages/kobox/${PACKAGE}.sha256"
+			if [ "${?}" != 0 ]; then
+				return 127
+			else
+				return 0
+			fi
+		else
+			return 0
+		fi
+	fi
+}
+
 echo
 echo "Starting X11 windowing system ..."
 
@@ -35,11 +60,18 @@ losetup /dev/loop2 /mnt/opt/storage/X11/base.img
 mount -t ext4 -o ro /dev/loop2 /mnt/opt/X11/base
 
 # Mounting X11 rootfs read-only with squashfuse
-busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/kobox-graphic-public.pem" "-signature" "/opt/X11/base/xorg.img.dgst" "/opt/X11/base/xorg.img" &>/dev/null
-if [ $? != 0 ]; then
-	echo "KoBox base rootfs package's signature is invalid! Aborting launch..."
-	echo "false" > /mnt/boot/flags/X11_STARTED
-	exit 1
+checksum_verify /mnt/opt/X11/base/xorg.img
+if [ "$?" != 0 ]; then
+	busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/kobox-graphic-public.pem" "-signature" "/opt/X11/base/xorg.img.dgst" "/opt/X11/base/xorg.img" &>/dev/null
+	if [ $? != 0 ]; then
+		echo "KoBox base rootfs package's signature is invalid! Aborting launch..."
+		echo "false" > /mnt/boot/flags/X11_STARTED
+		exit 1
+	else
+		mknod -m 0660 /dev/loop8 b 7 8
+		losetup /dev/loop8 /mnt/opt/X11/base/xorg.img
+		mount -t ext4 -o ro /dev/loop8 /mnt/opt/X11/base/rootfs
+	fi
 else
 	mknod -m 0660 /dev/loop8 b 7 8
 	losetup /dev/loop8 /mnt/opt/X11/base/xorg.img
@@ -47,11 +79,18 @@ else
 fi
 
 # Mounting VNC/touch input rootfs
-busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/kobox-graphic-public.pem" "-signature" "/opt/X11/base/vnc-touch.img.dgst" "/opt/X11/base/vnc-touch.img" &>/dev/null
+checksum_verify /mnt/opt/X11/base/vnc-touch.img
 if [ $? != 0 ]; then
-	echo "VNC/touch input rootfs package's signature is invalid! Aborting launch..."
-	echo "false" > /mnt/boot/flags/X11_STARTED
-	exit 1
+	busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/kobox-graphic-public.pem" "-signature" "/opt/X11/base/vnc-touch.img.dgst" "/opt/X11/base/vnc-touch.img" &>/dev/null
+	if [ $? != 0 ]; then
+		echo "VNC/touch input rootfs package's signature is invalid! Aborting launch..."
+		echo "false" > /mnt/boot/flags/X11_STARTED
+		exit 1
+	else
+		mknod -m 0660 /dev/loop9 b 7 9
+		losetup /dev/loop9 /mnt/opt/X11/base/vnc-touch.img
+		mount -t ext4 -o ro /dev/loop9 /mnt/opt/X11/vnc-touch
+	fi
 else
 	mknod -m 0660 /dev/loop9 b 7 9
 	losetup /dev/loop9 /mnt/opt/X11/base/vnc-touch.img
@@ -95,18 +134,39 @@ for f in /mnt/opt/X11/extensions-base/*.isa /mnt/opt/X11/extensions-base/*.img ;
 		break
 	fi
 
-	busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/kobox-graphic-public.pem" "-signature" "$FILE_DGST" "$FILE" &>/dev/null
+	checksum_verify "$f"
 	if [ $? != 0 ]; then
-		busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/kobox-nographic-public.pem" "-signature" "$FILE_DGST" "$FILE" &>/dev/null
+		busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/kobox-graphic-public.pem" "-signature" "$FILE_DGST" "$FILE" &>/dev/null
 		if [ $? != 0 ]; then
-			echo "Digital signature of KoBox package '$EXTENSION_NAME' invalid! Aborting launch..."
-			echo "false" > /mnt/boot/flags/X11_STARTED
-			exit 1
+			busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/kobox-nographic-public.pem" "-signature" "$FILE_DGST" "$FILE" &>/dev/null
+			if [ $? != 0 ]; then
+				echo "Digital signature of KoBox package '$EXTENSION_NAME' invalid! Aborting launch..."
+				echo "false" > /mnt/boot/flags/X11_STARTED
+				exit 1
+			else
+				echo "$EXTENSION_NAME" >> /mnt/opt/X11/nographic_extensions_list
+				echo "$EXTENSION_FOLDER" >> /mnt/opt/X11/nographic_extensions_folders_list
+				busybox chroot /mnt "mkdir" "-p" "$EXTENSION_FOLDER"
+		                busybox chroot /mnt "/bin/squashfuse" "$FILE" "$EXTENSION_FOLDER" 2>/dev/null
+				if [ $? != 0 ]; then
+					mknod -m 0660 /dev/loop$loop_number b 7 $loop_number
+					losetup /dev/loop$loop_number "$FILE_RAW"
+					mount -t ext4 -o ro "/dev/loop$loop_number" "$EXTENSION_FOLDER_RAW"
+					loop_number=$((loop_number+1))
+					if [ $? != 0 ]; then
+						echo "Extension $EXTENSION_NAME is not valid! Aborting launch..."
+						echo "false" > /mnt/boot/flags/X11_STARTED
+						exit 1
+					fi
+				fi
+				UNIONFS_FOLDERS_RAW="$UNIONFS_FOLDERS_RAW$EXTENSION_FOLDER:"
+			fi
 		else
-			echo "$EXTENSION_NAME" >> /mnt/opt/X11/nographic_extensions_list
-			echo "$EXTENSION_FOLDER" >> /mnt/opt/X11/nographic_extensions_folders_list
+			echo "$EXTENSION_NAME" >> /mnt/opt/X11/extensions_list
+			echo "$EXTENSION_FOLDER" >> /mnt/opt/X11/extensions_folders_list
+
 			busybox chroot /mnt "mkdir" "-p" "$EXTENSION_FOLDER"
-	                busybox chroot /mnt "/bin/squashfuse" "$FILE" "$EXTENSION_FOLDER" 2>/dev/null
+			busybox chroot /mnt "/bin/squashfuse" "$FILE" "$EXTENSION_FOLDER" 2>/dev/null
 			if [ $? != 0 ]; then
 				mknod -m 0660 /dev/loop$loop_number b 7 $loop_number
 				losetup /dev/loop$loop_number "$FILE_RAW"
@@ -118,26 +178,10 @@ for f in /mnt/opt/X11/extensions-base/*.isa /mnt/opt/X11/extensions-base/*.img ;
 					exit 1
 				fi
 			fi
-	                UNIONFS_FOLDERS_RAW="$UNIONFS_FOLDERS_RAW$EXTENSION_FOLDER:"
+			UNIONFS_FOLDERS_RAW="$UNIONFS_FOLDERS_RAW$EXTENSION_FOLDER:"
 		fi
 	else
-		echo "$EXTENSION_NAME" >> /mnt/opt/X11/extensions_list
-		echo "$EXTENSION_FOLDER" >> /mnt/opt/X11/extensions_folders_list
-
-		busybox chroot /mnt "mkdir" "-p" "$EXTENSION_FOLDER"
-		busybox chroot /mnt "/bin/squashfuse" "$FILE" "$EXTENSION_FOLDER" 2>/dev/null
-		if [ $? != 0 ]; then
-			mknod -m 0660 /dev/loop$loop_number b 7 $loop_number
-			losetup /dev/loop$loop_number "$FILE_RAW"
-			mount -t ext4 -o ro "/dev/loop$loop_number" "$EXTENSION_FOLDER_RAW"
-			loop_number=$((loop_number+1))
-			if [ $? != 0 ]; then
-				echo "Extension $EXTENSION_NAME is not valid! Aborting launch..."
-				echo "false" > /mnt/boot/flags/X11_STARTED
-				exit 1
-			fi
-		fi
-		UNIONFS_FOLDERS_RAW="$UNIONFS_FOLDERS_RAW$EXTENSION_FOLDER:"
+		echo "Verification succeeded (SHA256)"
 	fi
 done
 
