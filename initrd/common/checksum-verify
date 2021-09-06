@@ -1,0 +1,24 @@
+#!/bin/sh
+
+SERVER="pkgs.kobox.fermino.me"
+DEVICE=$(cat /opt/device 2>/dev/null)
+VERSION=$(cat /mnt/opt/version 2>/dev/null)i
+PACKAGE="${1}"
+IS_CONNECTED=$(cat /tmp/wifi_connected 2>/dev/null)
+if [ "${IS_CONNECTED}" != "true" ]; then
+	return 1
+else
+	# Trying firmware relase checksums
+	wget -O - "http://${SERVER}/keyserver/device/${DEVICE}/packages/${VERSION}/${PACKAGE}.sha256"
+	# If not found, then try with KoBox checksums
+	if [ "${?}" != 0 ]; then
+		wget -O - "http://${SERVER}/keyserver/device/${DEVICE}/packages/kobox/${PACKAGE}.sha256"
+		if [ "${?}" != 0 ]; then
+			return 127
+		else
+			return 0
+		fi
+	else
+		return 0
+	fi
+fi
