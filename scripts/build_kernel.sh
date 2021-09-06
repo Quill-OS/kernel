@@ -132,6 +132,7 @@ if [ "$2" == "std" ]; then
 		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n705/etc/init.d/overlay-mount
 		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n705/etc/init.d/initrd-fifo
 		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n705/opt/bin/uidgen
+		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n705/bin/checksum-verify
 		build_id_gen $GITDIR/initrd/n705/opt/build_id
 		mkdir -p $GITDIR/kernel/out/n705
 	elif [ "$1" == "n905c" ]; then
@@ -144,6 +145,7 @@ if [ "$2" == "std" ]; then
 		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n905c/etc/init.d/overlay-mount
 		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n905c/etc/init.d/initrd-fifo
 		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n905c/opt/bin/uidgen
+		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n905c/bin/checksum-verify
 		mkdir -p $GITDIR/kernel/out/n905c
 		build_id_gen $GITDIR/initrd/n905c/opt/build_id
 	elif [ "$1" == "n613" ]; then
@@ -156,6 +158,7 @@ if [ "$2" == "std" ]; then
 		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n613/etc/init.d/overlay-mount
 		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n613/etc/init.d/initrd-fifo
 		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n613/opt/bin/uidgen
+		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n613/bin/checksum-verify
 		mkdir -p $GITDIR/kernel/out/n613
 		build_id_gen $GITDIR/initrd/n613/opt/build_id
 	elif [ "$1" == "n873" ]; then
@@ -168,6 +171,7 @@ if [ "$2" == "std" ]; then
 		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n873/etc/init.d/overlay-mount
 		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n873/etc/init.d/initrd-fifo
 		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n873/opt/bin/uidgen
+		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n873/bin/checksum-verify
 		mkdir -p $GITDIR/kernel/out/n873
 		build_id_gen $GITDIR/initrd/n873/opt/build_id
 	elif [ "$1" == "n905b" ]; then
@@ -180,6 +184,7 @@ if [ "$2" == "std" ]; then
 		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n905b/etc/init.d/overlay-mount
 		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n905b/etc/init.d/initrd-fifo
 		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n905b/opt/bin/uidgen
+		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n905b/bin/checksum-verify
 		mkdir -p $GITDIR/kernel/out/n905b
 		build_id_gen $GITDIR/initrd/n905b/opt/build_id
 	fi
@@ -226,6 +231,7 @@ elif [ "$2" == "root" ]; then
 		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n705/etc/init.d/overlay-mount
 		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n705/etc/init.d/initrd-fifo
 		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n705/opt/bin/uidgen
+		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n705/bin/checksum-verify
 		mkdir -p $GITDIR/kernel/out/n705
 		build_id_gen $GITDIR/initrd/n705/opt/build_id
 	elif [ "$1" == "n905c" ]; then
@@ -238,6 +244,7 @@ elif [ "$2" == "root" ]; then
 		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n905c/etc/init.d/overlay-mount
 		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n905c/etc/init.d/initrd-fifo
 		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n905c/opt/bin/uidgen
+		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n905c/bin/checksum-verify
 		mkdir -p $GITDIR/kernel/out/n905c
 		build_id_gen $GITDIR/initrd/n905c/opt/build_id
 	elif [ "$1" == "n613" ]; then
@@ -250,6 +257,7 @@ elif [ "$2" == "root" ]; then
 		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n613/etc/init.d/overlay-mount
 		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n613/etc/init.d/initrd-fifo
 		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n613/opt/bin/uidgen
+		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n613/bin/checksum-verify
 		mkdir -p $GITDIR/kernel/out/n613
 		build_id_gen $GITDIR/initrd/n613/opt/build_id
 	elif [ "$1" == "n873" ]; then
@@ -262,6 +270,7 @@ elif [ "$2" == "root" ]; then
 		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n873/etc/init.d/overlay-mount
 		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n873/etc/init.d/initrd-fifo
 		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n873/opt/bin/uidgen
+		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n873/bin/checksum-verify
 		mkdir -p $GITDIR/kernel/out/n873
 		build_id_gen $GITDIR/initrd/n873/opt/build_id
 	elif [ "$1" == "n905b" ]; then
@@ -274,6 +283,7 @@ elif [ "$2" == "root" ]; then
 		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n905b/etc/init.d/overlay-mount
 		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n905b/etc/init.d/initrd-fifo
 		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n905b/opt/bin/uidgen
+		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n905b/bin/checksum-verify
 		mkdir -p $GITDIR/kernel/out/n905b
 		build_id_gen $GITDIR/initrd/n905b/opt/build_id
 	fi
