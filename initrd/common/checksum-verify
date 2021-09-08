@@ -9,24 +9,35 @@ verify_checksum() {
 	fi
 }
 
-SERVER="pkgs.kobox.fermino.me"
+SERVER_HOSTNAME="alpinekobox.ddns.net"
+SERVER_PORT="500"
 DEVICE=$(cat /opt/device 2>/dev/null)
-VERSION=$(cat /mnt/opt/version 2>/dev/null)i
+VERSION=$(cat /mnt/opt/version 2>/dev/null)
 PACKAGE="${1}"
 IS_CONNECTED=$(cat /tmp/wifi_connected 2>/dev/null)
 if [ "${IS_CONNECTED}" != "true" ]; then
 	return 1
 else
+	SERVER_IP_ADDRESS=$(nslookup "${SERVER_HOSTNAME}" | awk -F': ' 'NR==6 { print $2 } ' 2>/dev/null)
+	SERVER="${SERVER_IP_ADDRESS}:${SERVER_PORT}"
 	# Trying firmware relase checksums
 	CHECKSUM_VERIFY=$(wget -O - "http://${SERVER}/keyserver/device/${DEVICE}/packages/${VERSION}/${PACKAGE}.sha256")
-	# If not found, then try with KoBox checksums
 	if [ ${?} != 0 ]; then
-		CHECKSUM_VERIFY=$(wget -O - "http://${SERVER}/keyserver/device/${DEVICE}/packages/kobox/${PACKAGE}.sha256" 2>/dev/null)
+		# If not found, then try with common checksums
+		CHECKSUM_VERIFY=$(wget -O - "http://${SERVER}/keyserver/common/packages/${VERSION}/${PACKAGE}.sha256")
 		if [ ${?} != 0 ]; then
-			return 127
+			# If not found, then try with KoBox checksums
+			CHECKSUM_VERIFY=$(wget -O - "http://${SERVER}/keyserver/device/${DEVICE}/packages/kobox/${PACKAGE}.sha256" 2>/dev/null)
+			if [ ${?} != 0 ]; then
+				return 127
+			else
+				verify_checksum "${PACKAGE}"
+				exit ${?}
+			fi
 		else
 			verify_checksum "${PACKAGE}"
 			exit ${?}
+		fi
 	else
 		verify_checksum "${PACKAGE}"
 		exit ${?}
