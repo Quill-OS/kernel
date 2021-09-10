@@ -126,13 +126,13 @@ for f in /mnt/opt/X11/extensions-base/*.isa /mnt/opt/X11/extensions-base/*.img ;
 				if [ $? != 0 ]; then
 					mknod -m 0660 /dev/loop$loop_number b 7 $loop_number
 					losetup /dev/loop$loop_number "$FILE_RAW"
-					loop_number=$((loop_number+1))
 					mount -t ext4 -o ro "/dev/loop$loop_number" "$EXTENSION_FOLDER_RAW"
 					if [ $? != 0 ]; then
 						echo "Extension $EXTENSION_NAME is not valid! Aborting launch..."
 						echo "false" > /mnt/boot/flags/X11_STARTED
 						exit 1
 					fi
+					loop_number=$((loop_number+1))
 				fi
 				UNIONFS_FOLDERS_RAW="$UNIONFS_FOLDERS_RAW$EXTENSION_FOLDER:"
 			fi
@@ -145,13 +145,13 @@ for f in /mnt/opt/X11/extensions-base/*.isa /mnt/opt/X11/extensions-base/*.img ;
 			if [ $? != 0 ]; then
 				mknod -m 0660 /dev/loop$loop_number b 7 $loop_number
 				losetup /dev/loop$loop_number "$FILE_RAW"
-				loop_number=$((loop_number+1))
 				mount -t ext4 -o ro "/dev/loop$loop_number" "$EXTENSION_FOLDER_RAW"
 				if [ $? != 0 ]; then
 					echo "Extension $EXTENSION_NAME is not valid! Aborting launch..."
 					echo "false" > /mnt/boot/flags/X11_STARTED
 					exit 1
 				fi
+				loop_number=$((loop_number+1))
 			fi
 			UNIONFS_FOLDERS_RAW="$UNIONFS_FOLDERS_RAW$EXTENSION_FOLDER:"
 		fi
@@ -191,13 +191,13 @@ for f in /mnt/opt/X11/extensions-user/*.isa /mnt/opt/X11/extensions-user/*.img ;
 				if [ $? != 0 ]; then
 					mknod -m 0660 /dev/loop$loop_number b 7 8
 					losetup /dev/loop$loop_number "$FILE_RAW"
-					loop_number=$((loop_number+1))
 					mount -t ext4 -o ro "/dev/loop$loop_number" "$EXTENSION_FOLDER_RAW"
 					if [ $? != 0 ]; then
 						echo "Extension $EXTENSION_NAME is not valid! Aborting launch..."
 						echo "false" > /mnt/boot/flags/X11_STARTED
 						exit 1
 					fi
+					loop_number=$((loop_number+1))
 				fi
 		                UNIONFS_FOLDERS_RAW="$UNIONFS_FOLDERS_RAW$EXTENSION_FOLDER:"
 			fi
@@ -210,13 +210,13 @@ for f in /mnt/opt/X11/extensions-user/*.isa /mnt/opt/X11/extensions-user/*.img ;
 			if [ $? != 0 ]; then
 				mknod -m 0660 /dev/loop$loop_number b 7 8
 				losetup /dev/loop$loop_number "$FILE_RAW"
-				loop_number=$((loop_number+1))
 				mount -t ext4 -o ro "/dev/loop$loop_number" "$EXTENSION_FOLDER_RAW"
 				if [ $? != 0 ]; then
 					echo "Extension $EXTENSION_NAME is not valid! Aborting launch..."
 					echo "false" > /mnt/boot/flags/X11_STARTED
 					exit 1
 				fi
+				loop_number=$((loop_number+1))
 			fi
 			UNIONFS_FOLDERS_RAW="$UNIONFS_FOLDERS_RAW$EXTENSION_FOLDER:"
 		fi
@@ -229,13 +229,13 @@ for f in /mnt/opt/X11/extensions-user/*.isa /mnt/opt/X11/extensions-user/*.img ;
 		if [ $? != 0 ]; then
 			mknod -m 0660 /dev/loop$loop_number b 7 8
 			losetup /dev/loop$loop_number "$FILE_RAW"
-			loop_number=$((loop_number+1))
 			mount -t ext4 -o ro "/dev/loop$loop_number" "$EXTENSION_FOLDER_RAW"
 			if [ $? != 0 ]; then
 				echo "Extension $EXTENSION_NAME is not valid! Aborting launch..."
 				echo "false" > /mnt/boot/flags/X11_STARTED
 				exit 1
 			fi
+			loop_number=$((loop_number+1))
 		fi
 		UNIONFS_FOLDERS_RAW="$UNIONFS_FOLDERS_RAW$EXTENSION_FOLDER:"
 	fi
