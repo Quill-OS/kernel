@@ -1,8 +1,17 @@
 #!/bin/sh
 
+cleanup() {
+	rm -rf /modules 2>/dev/null
+	sync
+	umount -l -f /user 2>/dev/null
+}
+
 mkdir -p /user
 mount -t ext4 -o nosuid,noexec,nodev /dev/mmcblk0p4 /user
 if [ ${?} != 0 ]; then
+	# Prevent "Device or resource busy" errors
+	sync
+	umount -l -f /user 2>/dev/null
 	exit 1
 else
 	CONFIG_FOLDER="/user/config/17-wifi_connection_information"
@@ -14,13 +23,15 @@ else
 		unsquashfs -f -d /modules /opt/modules.sqsh
 		/usr/local/bin/wifi/connect_to_network.sh "${NETWORK}" "${PASSPHRASE}"
 		if [ ${?} != 0 ]; then
-			rm -rf /modules
+			cleanup
 			exit 1
 		else
 			echo "Successfully connected to network '${NETWORK}'."
+			cleanup
 			exit 0
 		fi
 	else
+		cleanup
 		exit 1
 	fi
 fi
