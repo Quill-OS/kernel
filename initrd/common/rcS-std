@@ -17,7 +17,6 @@ mount -t sysfs sysfs /sys
 sleep 1
 mount -t devtmpfs devtmpfs /dev
 mount -t tmpfs tmpfs /tmp
-mount -t tmpfs tmpfs /run
 hostname kobo
 ifconfig lo up
 
