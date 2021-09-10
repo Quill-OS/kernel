@@ -1,0 +1,26 @@
+#!/bin/sh
+
+mkdir -p /user
+mount -t ext4 -o nosuid,noexec,nodev /dev/mmcblk0p4 /user
+if [ ${?} != 0 ]; then
+	exit 1
+else
+	CONFIG_FOLDER="/user/config/17-wifi_connection_information"
+	if [ -e "${CONFIG_FOLDER}/essid" ] && [ -e "${CONFIG_FOLDER}/passphrase" ]; then
+		NETWORK=$(cat "${CONFIG_FOLDER}/essid")
+		PASSPHRASE=$(cat "${CONFIG_FOLDER}/passphrase")
+		echo "Attempting to connect to network '${NETWORK}' ..."
+		mkdir -p /modules
+		unsquashfs -f -d /modules /opt/modules.sqsh
+		/usr/local/bin/wifi/connect_to_network.sh "${NETWORK}" "${PASSPHRASE}"
+		if [ ${?} != 0 ]; then
+			rm -rf /modules
+			exit 1
+		else
+			echo "Successfully connected to network '${NETWORK}'."
+			exit 0
+		fi
+	else
+		exit 1
+	fi
+fi
