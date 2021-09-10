@@ -1,6 +1,6 @@
 #!/bin/sh
 
-DEVICE=$(cat /opt/inkbox_device)
+DEVICE=$(cat /opt/device)
 
 if [ -z "${1}" ]; then
 	echo "You must provide the 'ESSID' argument."
