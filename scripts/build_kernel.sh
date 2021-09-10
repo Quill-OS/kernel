@@ -172,6 +172,7 @@ if [ "$2" == "std" ]; then
 		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n873/etc/init.d/initrd-fifo
 		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n873/opt/bin/uidgen
 		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n873/bin/checksum-verify
+		sudo cp $GITDIR/initrd/common/setup-wifi $GITDIR/initrd/n873/sbin/setup-wifi
 		mkdir -p $GITDIR/kernel/out/n873
 		build_id_gen $GITDIR/initrd/n873/opt/build_id
 	elif [ "$1" == "n905b" ]; then
@@ -185,6 +186,7 @@ if [ "$2" == "std" ]; then
 		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n905b/etc/init.d/initrd-fifo
 		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n905b/opt/bin/uidgen
 		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n905b/bin/checksum-verify
+		sudo cp $GITDIR/initrd/common/setup-wifi $GITDIR/initrd/n905b/sbin/setup-wifi
 		mkdir -p $GITDIR/kernel/out/n905b
 		build_id_gen $GITDIR/initrd/n905b/opt/build_id
 	fi
@@ -271,6 +273,7 @@ elif [ "$2" == "root" ]; then
 		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n873/etc/init.d/initrd-fifo
 		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n873/opt/bin/uidgen
 		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n873/bin/checksum-verify
+		sudo cp $GITDIR/initrd/common/setup-wifi $GITDIR/initrd/n873/sbin/setup-wifi
 		mkdir -p $GITDIR/kernel/out/n873
 		build_id_gen $GITDIR/initrd/n873/opt/build_id
 	elif [ "$1" == "n905b" ]; then
@@ -284,6 +287,7 @@ elif [ "$2" == "root" ]; then
 		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n905b/etc/init.d/initrd-fifo
 		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n905b/opt/bin/uidgen
 		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n905b/bin/checksum-verify
+		sudo cp $GITDIR/initrd/common/setup-wifi $GITDIR/initrd/n905b/sbin/setup-wifi
 		mkdir -p $GITDIR/kernel/out/n905b
 		build_id_gen $GITDIR/initrd/n905b/opt/build_id
 	fi
