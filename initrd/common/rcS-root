@@ -12,6 +12,20 @@ rotate_screen() {
 	echo ${FB_UR} > /sys/class/graphics/fb0/rotate
 }
 
+mount_alpine_udev() {
+	mkdir -p /alpine
+	mount /mnt/opt/recovery/restore/alpine-udev.sqsh /alpine
+	mount --rbind /proc /mnt/proc
+	mount --rbind /proc /alpine/proc
+	mount --rbind /sys /mnt/sys
+	mount --rbind /sys /alpine/sys
+	mount --rbind /dev /mnt/dev
+	mount --rbind /dev /alpine/dev
+	mount -t tmpfs tmpfs -o nosuid /mnt/tmp
+	mount -t tmpfs tmpfs -o nosuid /alpine/tmp
+	mount -t tmpfs tmpfs -o nosuid /alpine/run
+}
+
 mount -t proc proc /proc
 mount -t sysfs sysfs /sys
 sleep 1
@@ -136,6 +150,23 @@ else
 					/etc/init.d/inkbox-splash update_splash &
 					UPDATE_SPLASH_PID=$!
 					export UPDATE_SPLASH_PID
+				fi
+
+				# Wi-Fi connection
+				if [ "$DEVICE" == "n905b" ] || [ "$DEVICE" == "n873" ]; then
+					EXPRESS_VERIFICATION=1 /etc/init.d/overlay-mount recovery
+					if [ $? == 0 ]; then
+						mount_alpine_udev
+						chroot /alpine /sbin/openrc "sysinit" &>/dev/null
+						if [ $? == 0 ]; then
+							timeout 15s /sbin/setup-wifi
+						fi
+						umount -l -f /alpine
+						umount -l -f /mnt
+						umount -l -f /overlaymount-rootfs
+						umount -l -f /recoveryfs-part
+						losetup -d /dev/loop1
+					fi
 				fi
 
 				# Root filesystem
