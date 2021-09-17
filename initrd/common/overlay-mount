@@ -12,6 +12,12 @@ else
 	RECOVERYFS_PART=2
 fi
 
+if [ "${DEVICE}" == "n905b" ]; then
+	GENUINE_RECOVERYFS_CHECKSUM="7f771fde42624452185b9e46b2990382d8c649ea5d1be5788caa2b3f1676ebe7"
+elif [ "${DEVICE}" == "n873" ]; then
+	GENUINE_RECOVERYFS_CHECKSUM="0000000000000000000000000000000000000000000000000000000000000000"
+fi
+
 if [ "${1}" != "recovery" ]; then
 	## Mounting root filesystem with squashfuse and fuse-overlayfs (read-only by default)
 	mkdir -p /rootfs-part
@@ -80,18 +86,31 @@ else
 	mkdir -p /overlaymount-rootfs
 	mount -t ext4 -o nosuid,ro "/dev/mmcblk0p${RECOVERYFS_PART}" "/recoveryfs-part"
 
-	/usr/bin/unsquashfs -f -d /key /opt/key.sqsh &>/dev/null
-	/usr/bin/openssl dgst -sha256 -verify /key/public.pem -signature /recoveryfs-part/overlaymount-rootfs.squashfs.dgst /recoveryfs-part/overlaymount-rootfs.squashfs &>/dev/null
-	if [ ${?} != 0 ]; then
-		echo "Utility root filesystem's signature is invalid! Shutting down ..."
-		sync
-		umount -l -f /recoveryfs-part
-		/etc/init.d/inkbox-splash alert_splash 5
-		busybox poweroff
-		exit 1
+	if [ -z "${EXPRESS_VERIFICATION}" ]; then
+		# Safe
+		/usr/bin/unsquashfs -f -d /key /opt/key.sqsh &>/dev/null
+		/usr/bin/openssl dgst -sha256 -verify /key/public.pem -signature /recoveryfs-part/overlaymount-rootfs.squashfs.dgst /recoveryfs-part/overlaymount-rootfs.squashfs &>/dev/null
+		if [ ${?} != 0 ]; then
+			echo "Utility root filesystem's signature is invalid! Shutting down ..."
+			sync
+			umount -l -f /recoveryfs-part
+			/etc/init.d/inkbox-splash alert_splash 5
+			busybox poweroff
+			exit 1
+		else
+			losetup /dev/loop1 /recoveryfs-part/overlaymount-rootfs.squashfs
+			mount /dev/loop1 /overlaymount-rootfs
+		fi
 	else
-		losetup /dev/loop1 /recoveryfs-part/overlaymount-rootfs.squashfs
-		mount /dev/loop1 /overlaymount-rootfs
+		# Dangerous
+		LOCAL_RECOVERYFS_CHECKSUM=$(dd if=/recoveryfs-part/recoveryfs.squashfs bs=1M count=1 status=none | sha256sum | awk '{ print $1 }')
+		if [ "${LOCAL_RECOVERYFS_CHECKSUM}" != "${GENUINE_RECOVERYFS_CHECKSUM}" ]; then
+			echo "EXPRESS_VERIFICATION: checksum invalid!"
+			exit 1
+		else
+			losetup /dev/loop1 /recoveryfs-part/overlaymount-rootfs.squashfs
+			mount /dev/loop1 /overlaymount-rootfs
+		fi
 	fi
 
 	# Filesystems
