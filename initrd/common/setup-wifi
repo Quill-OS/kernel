@@ -20,7 +20,9 @@ else
 		PASSPHRASE=$(cat "${CONFIG_FOLDER}/passphrase")
 		echo "Attempting to connect to network '${NETWORK}' ..."
 		mkdir -p /modules
-		unsquashfs -f -d /modules /opt/modules.sqsh
+		mkdir -p /lib/firmware
+		unsquashfs -f -d /modules /opt/modules.sqsh &>/dev/null
+		unsquashfs -f -d /lib/firmware /opt/firmware.sqsh &>/dev/null
 		/usr/local/bin/wifi/connect_to_network.sh "${NETWORK}" "${PASSPHRASE}"
 		if [ ${?} != 0 ]; then
 			cleanup
