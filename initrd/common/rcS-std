@@ -135,6 +135,7 @@ else
 						if [ $? == 0 ]; then
 							timeout 15s /sbin/setup-wifi
 						fi
+						killall udevd
 						umount -l -f /alpine
 						umount -l -f /mnt
 						umount -l -f /overlaymount-rootfs
