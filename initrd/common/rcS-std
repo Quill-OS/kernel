@@ -33,7 +33,6 @@ mount -t devtmpfs devtmpfs /dev
 mount -t tmpfs tmpfs /tmp
 hostname kobo
 ifconfig lo up
-tar -xvf /opt/usr_lib.tar.xz -C /usr/lib
 
 KERNEL_VERSION=`uname -a`
 KERNEL_BUILD_ID=`cat /opt/build_id`
