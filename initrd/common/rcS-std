@@ -223,7 +223,11 @@ else
 				fi
 				cp /opt/device /tmp/device
 				mount --bind /tmp/device /mnt/opt/inkbox_device
-				touch /tmp/resolv.conf
+				if [ -e "/etc/resolv.conf" ]; then
+					cp /etc/resolv.conf /tmp/resolv.conf
+				else
+					touch /tmp/resolv.conf
+				fi
 				mount --bind /tmp/resolv.conf /mnt/etc/resolv.conf
 
 				mount -t tmpfs tmpfs -o nosuid,noexec,nodev,size=2M /mnt/var/db/dhcpcd
