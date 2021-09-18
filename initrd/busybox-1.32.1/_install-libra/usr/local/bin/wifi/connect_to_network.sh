@@ -30,7 +30,7 @@ else
 fi
 
 cleanup() {
-	killall -q dhcpcd wpa_supplicant
+	killall -q dhcpcd wpa_supplicant dhclient
 	if [ "${DEVICE}" == "n705" ] || [ "${DEVICE}" == "n905b" ] || [ "${DEVICE}" == "n905c" ] || [ "${DEVICE}" == "n613" ]; then
 		wlarm_le down
 	fi
@@ -61,11 +61,7 @@ if [ ${?} != 0 ]; then
 	exit 1
 fi
 
-if [ "${DEVICE}" == "n905b" ]; then
-	busybox udhcpc
-else
-	dhcpcd eth0
-fi
+dhclient -v eth0 2>/dev/null
 
 if [ ${?} != 0 ]; then
 	echo "DHCP request failed."
