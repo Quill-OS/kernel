@@ -29,6 +29,7 @@ else
 			exit 1
 		else
 			echo "Successfully connected to network '${NETWORK}'."
+			echo "true" > /tmp/wifi_connected
 			cleanup
 			exit 0
 		fi
