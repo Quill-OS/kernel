@@ -61,7 +61,7 @@ if [ ${?} != 0 ]; then
 	exit 1
 fi
 
-dhclient -v eth0 2>/dev/null
+dhclient -v eth0
 
 if [ ${?} != 0 ]; then
 	echo "DHCP request failed."
