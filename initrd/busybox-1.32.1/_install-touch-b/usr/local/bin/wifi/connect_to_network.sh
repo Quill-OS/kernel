@@ -67,4 +67,6 @@ if [ ${?} != 0 ]; then
 	echo "DHCP request failed."
 	cleanup
 	exit 1
+else
+	echo "true" > /tmp/wifi_connected
 fi
