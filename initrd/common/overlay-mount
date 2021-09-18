@@ -13,8 +13,10 @@ else
 fi
 
 if [ "${DEVICE}" == "n905b" ]; then
+	GENUINE_OROOTFS_CHECKSUM="fc3e573d3b783536629952d3f57b1106ca8645719486c4f1d6302d6b6709c384"
 	GENUINE_RECOVERYFS_CHECKSUM="7f771fde42624452185b9e46b2990382d8c649ea5d1be5788caa2b3f1676ebe7"
 elif [ "${DEVICE}" == "n873" ]; then
+	GENUINE_OROOTFS_CHECKSUM="0000000000000000000000000000000000000000000000000000000000000000"
 	GENUINE_RECOVERYFS_CHECKSUM="0000000000000000000000000000000000000000000000000000000000000000"
 fi
 
@@ -103,9 +105,9 @@ else
 		fi
 	else
 		# Dangerous
-		LOCAL_RECOVERYFS_CHECKSUM=$(dd if=/recoveryfs-part/recoveryfs.squashfs bs=1M count=1 status=none | sha256sum | awk '{ print $1 }')
-		if [ "${LOCAL_RECOVERYFS_CHECKSUM}" != "${GENUINE_RECOVERYFS_CHECKSUM}" ]; then
-			echo "EXPRESS_VERIFICATION: checksum invalid!"
+		LOCAL_OROOTFS_CHECKSUM=$(dd if=/recoveryfs-part/overlaymount-rootfs.squashfs bs=1M count=1 status=none | sha256sum | awk '{ print $1 }')
+		if [ "${LOCAL_OROOTFS_CHECKSUM}" != "${GENUINE_OROOTFS_CHECKSUM}" ]; then
+			echo "EXPRESS_VERIFICATION: overlaymount-rootfs.squashfs: checksum invalid!"
 			exit 1
 		else
 			losetup /dev/loop1 /recoveryfs-part/overlaymount-rootfs.squashfs
@@ -124,21 +126,36 @@ else
 	rm -r /mnt
 	ln -s /overlaymount-rootfs/mnt/recoveryfs /mnt
 
-	echo "Verifying recovery filesystem's digital signature ..."
-	/usr/bin/openssl dgst -sha256 -verify /key/public.pem -signature /recoveryfs-part/recoveryfs.squashfs.dgst /recoveryfs-part/recoveryfs.squashfs &>/dev/null
-	if [ ${?} != 0 ]; then
-		echo "Recovery filesystem's digital signature is invalid! Shutting down ..."
-		sync
-		umount /recoveryfs-part -l -f
-		/etc/init.d/inkbox-splash alert_splash 4
-		busybox poweroff
-		exit 1
-	else
-		echo "Done."
-		busybox chroot /overlaymount-rootfs "/bin/squashfuse" "/mnt/recoveryfs-part/recoveryfs.squashfs" "/mnt/recoveryfs"
-	fi
+	if [ -z "${EXPRESS_VERIFICATION}" ]; then
+		# Safe
+		echo "Verifying recovery filesystem's digital signature ..."
+		/usr/bin/openssl dgst -sha256 -verify /key/public.pem -signature /recoveryfs-part/recoveryfs.squashfs.dgst /recoveryfs-part/recoveryfs.squashfs &>/dev/null
+		if [ ${?} != 0 ]; then
+			echo "Recovery filesystem's digital signature is invalid! Shutting down ..."
+			sync
+			umount /recoveryfs-part -l -f
+			/etc/init.d/inkbox-splash alert_splash 4
+			busybox poweroff
+			exit 1
+		else
+			echo "Done."
+			busybox chroot /overlaymount-rootfs "/bin/squashfuse" "/mnt/recoveryfs-part/recoveryfs.squashfs" "/mnt/recoveryfs"
+		fi
 
-	cp /opt/device /tmp/device
-	mount --bind /tmp/device /overlaymount-rootfs/mnt/recoveryfs/opt/device
+		cp /opt/device /tmp/device
+		mount --bind /tmp/device /overlaymount-rootfs/mnt/recoveryfs/opt/device
+	else
+		# Dangerous
+		LOCAL_RECOVERYFS_CHECKSUM=$(dd if=/recoveryfs-part/recoveryfs.squashfs bs=1M count=1 status=none | sha256sum | awk '{ print $1 }')
+		if [ "${LOCAL_RECOVERYFS_CHECKSUM}" != "${GENUINE_RECOVERYFS_CHECKSUM}" ]; then
+			echo "EXPRESS_VERIFICATION: recoveryfs.squashfs: checksum invalid!"
+			exit 1
+		else
+			busybox chroot /overlaymount-rootfs "/bin/squashfuse" "/mnt/recoveryfs-part/recoveryfs.squashfs" "/mnt/recoveryfs"
+		fi
+
+		cp /opt/device /tmp/device
+		mount --bind /tmp/device /overlaymount-rootfs/mnt/recoveryfs/opt/device
+	fi
 fi
 
