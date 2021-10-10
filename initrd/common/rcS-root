@@ -81,6 +81,7 @@ STARTX=`cat /mnt/flags/X11_START` 2>/dev/null
 MOUNT_RW=`cat /mnt/flags/RW_ROOTFS` 2>/dev/null
 INITRD_DEBUG=`cat /mnt/flags/INITRD_DEBUG` 2>/dev/null
 DONT_BOOT=`cat /mnt/flags/DONT_BOOT` 2>/dev/null
+ENCRYPT_LOCK=`cat /mnt/flags/ENCRYPT_LOCK` 2>/dev/null
 
 if [ "$DONT_BOOT" == "true" ]; then
 	echo "Device is locked down and will not boot."
