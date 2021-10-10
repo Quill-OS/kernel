@@ -81,12 +81,25 @@ FIRST_BOOT=`cat /mnt/flags/FIRST_BOOT` 2>/dev/null
 STARTX=`cat /mnt/flags/X11_START` 2>/dev/null
 MOUNT_RW=`cat /mnt/flags/RW_ROOTFS` 2>/dev/null
 DONT_BOOT=`cat /mnt/flags/DONT_BOOT` 2>/dev/null
+ENCRYPT_LOCK=`cat /mnt/flags/ENCRYPT_LOCK` 2>/dev/null
 
 if [ "$DONT_BOOT" == "true" ]; then
 	echo "Device is locked down and will not boot."
 	/etc/init.d/inkbox-splash alert_splash 1
 	busybox poweroff
 	exit 1
+fi
+
+if [ ! -z "$ENCRYPT_LOCK" ]; then
+	CURRENT_EPOCH=`date +%s`
+	if [ "$CURRENT_EPOCH" -lt "$ENCRYPT_LOCK" ]; then
+		/etc/init.d/inkbox-splash alert_splash 6
+		busybox poweroff
+		exit 1
+	else
+		rm -f /mnt/flags/ENCRYPT_LOCK
+		sync
+	fi
 fi
 
 # Some mountpoints
