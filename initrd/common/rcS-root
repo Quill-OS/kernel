@@ -89,6 +89,18 @@ if [ "$DONT_BOOT" == "true" ]; then
 	exit 1
 fi
 
+if [ ! -z "$ENCRYPT_LOCK" ]; then
+	CURRENT_EPOCH=`date +%s`
+	if [ "$CURRENT_EPOCH" -lt "$ENCRYPT_LOCK" ]; then
+		/etc/init.d/inkbox-splash alert_splash 6
+		busybox poweroff
+		exit 1
+	else
+		rm -f /mnt/flags/ENCRYPT_LOCK
+		sync
+	fi
+fi
+
 ## DEBUG ##
 if [ "$INITRD_DEBUG" == "true" ]; then
 	mkdir -p /dev/pts
