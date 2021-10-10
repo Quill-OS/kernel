@@ -187,7 +187,7 @@ else
 				mount -t ext4 /dev/mmcblk0p1 /mnt/boot
 
 				# Bind-mount a valid passwd file to allow login
-				cp /opt/passwd-root /tmp/passwd
+				cp /opt/passwd_root /tmp/passwd
 				mount --bind /tmp/passwd /mnt/etc/passwd
 
 				## User storage
