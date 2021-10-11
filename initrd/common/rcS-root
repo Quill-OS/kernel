@@ -269,8 +269,8 @@ else
 				# Developer key
 				/etc/init.d/developer-key
 				OVERRIDE_SIGNATURE_VERIFICATION=`cat /mnt/opt/developer/key/valid-key 2>/dev/null`
-				if [ "$OVERRIDE_SIGNATURE_VERIFICATION" == "true" ]; then
-					/etc/init.d/inkbox-splash developer_splash
+				if [ "$OVERRIDE_SIGNATURE_VERIFICATION" == "true" ] && [ "$WILL_UPDATE" != "true" ]; then
+					/etc/init.d/inkbox-splash developer_splash &
 				fi
 
 				# InkBox GUI's rootfs
