@@ -269,6 +269,9 @@ else
 				# Developer key
 				/etc/init.d/developer-key
 				OVERRIDE_SIGNATURE_VERIFICATION=`cat /mnt/opt/developer/key/valid-key 2>/dev/null`
+				if [ "$OVERRIDE_SIGNATURE_VERIFICATION" == "true" ]; then
+					/etc/init.d/inkbox-splash developer_splash
+				fi
 
 				# InkBox GUI's rootfs
 				busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/public.pem" "-signature" "/opt/storage/gui_rootfs.isa.dgst" "/opt/storage/gui_rootfs.isa" &>/dev/null
