@@ -80,7 +80,7 @@ elif [ "${1}" == "developer_splash" ]; then
 	while true; do
 		LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink "-m" "█ █ █ █ Developer mode █ █ █ █" "-y" "2" "-q"
 		sleep 30
-	done &
+	done
 else
 	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink "-k" "-f" "-q"
 	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink "-M" "-m" "-q" "-t" "regular=/opt/fbink/fraunces.ttf,size=${SIZE}" "InkBox"
