@@ -78,7 +78,7 @@ elif [ "${1}" == "alert_splash" ]; then
 	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /bin/sh "-c" "cat /alert.ascii | /opt/fbink/fbink -q -m -y ${ALERT_ROW}"
 elif [ "${1}" == "developer_splash" ]; then
 	while true; do
-		LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/bin/fbink/fbink "-m" "█ █ █ █ Developer mode █ █ █ █" "-y" "2" "-q"
+		LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink "-m" "█ █ █ █ Developer mode █ █ █ █" "-y" "2" "-q"
 		sleep 30
 	done &
 else
