@@ -34,6 +34,25 @@ mount -t tmpfs tmpfs /tmp
 hostname kobo
 ifconfig lo up
 
+# Direct Firmware Loader (DFL) mode
+DFL_KEY_RAW=`timeout 3s evtest /dev/input/event0`
+DFL_KEY=`echo "$DFL_KEY" | awk '/Testing .../{p=1}p'`
+if echo "$DFL_KEY" | grep -q "KEY_POWER" && echo "$DFL_KEY" | grep -q "KEY_HOME"; then
+	echo "Entering DFL mode ..."
+	DEVICE=`cat /opt/device`
+	mkdir -p /modules
+	mount /opt/modules.sqsh /modules
+	if [ "$DEVICE" != "n873" ]; then
+		insmod /modules/arcotg_udc.ko
+	fi
+	insmod /modules/g_mass_storage.ko file=/dev/mmcblk0 removable=y stall=0
+	/etc/init.d/inkbox-splash dfl
+	while true; do
+		echo "This device is in DFL mode. Please reset it to resume normal operation."
+		sleep 30
+	done
+fi
+
 KERNEL_VERSION=`uname -a`
 KERNEL_BUILD_ID=`cat /opt/build_id`
 DEVICE=`cat /opt/device`

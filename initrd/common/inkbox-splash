@@ -81,6 +81,9 @@ elif [ "${1}" == "developer_splash" ]; then
 		LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink "-m" "█ █ █ █ Developer mode █ █ █ █" "-y" "2" "-q"
 		sleep 30
 	done
+elif [ "${1}" == "dfl" ]; then
+	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink "-k" "-f" "-h" "-q"
+	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink "-t" "regular=/opt/fbink/inter-b.ttf,size=45" "DFL" "-m" "-M" "-h" "-q"
 else
 	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink "-k" "-f" "-q"
 	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink "-M" "-m" "-q" "-t" "regular=/opt/fbink/fraunces.ttf,size=${SIZE}" "InkBox"
