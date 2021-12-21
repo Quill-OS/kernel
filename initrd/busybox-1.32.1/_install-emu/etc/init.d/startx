@@ -1,0 +1,317 @@
+#!/bin/sh
+
+DISABLE_SIGNATURE_VERIFICATION=0
+
+if grep -q "true" /mnt/opt/developer/key/valid-key &>/dev/null; then
+	DISABLE_SIGNATURE_VERIFICATION=1
+	cp /opt/bin/fake-openssl /tmp/fake-openssl
+	mount --bind /tmp/fake-openssl /mnt/usr/bin/openssl
+fi
+
+echo
+echo "Starting X11 windowing system ..."
+
+mkdir -p /mnt/xorg
+mkdir -p /mnt/opt/X11/extensions-user
+mkdir -p /mnt/opt/X11/extensions-base
+mkdir -p /mnt/opt/X11/extension-storage-merged
+mkdir -p /mnt/opt/X11/extensions-merged
+mkdir -p /mnt/opt/X11/rootfs/write
+mkdir -p /mnt/opt/X11/rootfs/work
+mkdir -p /mnt/opt/X11/merged
+mkdir -p /mnt/opt/X11/vnc-touch
+mkdir -p /mnt/opt/storage/tmpfs
+
+mount -t tmpfs tmpfs /mnt/opt/storage/tmpfs
+
+if [ $DISABLE_SIGNATURE_VERIFICATION == 1 ]; then
+	echo "DEVMODE: Packages' digital signatures validation disabled."
+else
+	echo "Validating packages' digital signatures ..."
+fi
+
+# Mounting base disk image
+losetup /dev/loop2 /mnt/opt/storage/X11/base.img
+mount -t ext4 -o ro /dev/loop2 /mnt/opt/X11/base
+
+# Mounting X11 rootfs read-only with squashfuse
+/bin/checksum-verify /mnt/opt/X11/base/xorg.img
+if [ "$?" != 0 ]; then
+	busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/kobox-graphic-public.pem" "-signature" "/opt/X11/base/xorg.img.dgst" "/opt/X11/base/xorg.img" &>/dev/null
+	if [ $? != 0 ]; then
+		echo "KoBox base rootfs package's signature is invalid! Aborting launch..."
+		echo "false" > /mnt/boot/flags/X11_STARTED
+		exit 1
+	else
+		mknod -m 0660 /dev/loop8 b 7 8
+		losetup /dev/loop8 /mnt/opt/X11/base/xorg.img
+		mount -t ext4 -o ro /dev/loop8 /mnt/opt/X11/base/rootfs
+	fi
+else
+	mknod -m 0660 /dev/loop8 b 7 8
+	losetup /dev/loop8 /mnt/opt/X11/base/xorg.img
+	mount -t ext4 -o ro /dev/loop8 /mnt/opt/X11/base/rootfs
+fi
+
+# Mounting VNC/touch input rootfs
+/bin/checksum-verify /mnt/opt/X11/base/vnc-touch.img
+if [ $? != 0 ]; then
+	busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/kobox-graphic-public.pem" "-signature" "/opt/X11/base/vnc-touch.img.dgst" "/opt/X11/base/vnc-touch.img" &>/dev/null
+	if [ $? != 0 ]; then
+		echo "VNC/touch input rootfs package's signature is invalid! Aborting launch..."
+		echo "false" > /mnt/boot/flags/X11_STARTED
+		exit 1
+	else
+		mknod -m 0660 /dev/loop9 b 7 9
+		losetup /dev/loop9 /mnt/opt/X11/base/vnc-touch.img
+		mount -t ext4 -o ro /dev/loop9 /mnt/opt/X11/vnc-touch
+	fi
+else
+	mknod -m 0660 /dev/loop9 b 7 9
+	losetup /dev/loop9 /mnt/opt/X11/base/vnc-touch.img
+	mount -t ext4 -o ro /dev/loop9 /mnt/opt/X11/vnc-touch
+fi
+
+# Extensions
+# Mounting base extensions
+mknod -m 0660 /dev/loop10 b 7 10
+losetup /dev/loop10 /mnt/opt/storage/X11/extensions-base.img
+mount -t ext4 -o ro,nosuid /dev/loop10 /mnt/opt/X11/extensions-base 2>/dev/null
+
+# Mounting extensions userstore
+mknod -m 0660 /dev/loop11 b 7 11
+losetup /dev/loop11 /mnt/opt/storage/X11/extensions-user.img
+mount -t vfat -o nosuid /dev/loop11 /mnt/opt/X11/extensions-user 2>/dev/null
+
+# Merging extensions together
+touch /mnt/opt/storage/tmpfs/nographic_extensions_list
+touch /mnt/opt/storage/tmpfs/nographic_extensions_folders_list
+touch /mnt/opt/storage/tmpfs/extensions_list
+touch /mnt/opt/storage/tmpfs/extensions_folders_list
+mount --bind /mnt/opt/storage/tmpfs/nographic_extensions_list /mnt/opt/X11/nographic_extensions_list
+mount --bind /mnt/opt/storage/tmpfs/nographic_extensions_folders_list /mnt/opt/X11/nographic_extensions_folders_list
+mount --bind /mnt/opt/storage/tmpfs/extensions_list /mnt/opt/X11/extensions_list
+mount --bind /mnt/opt/storage/tmpfs/extensions_folders_list /mnt/opt/X11/extensions_folders_list
+
+loop_number=12
+
+for f in /mnt/opt/X11/extensions-base/*.isa /mnt/opt/X11/extensions-base/*.img ; do
+	FILE_RAW="$f"
+	FILE=`echo "$f" | cut -d'/' -f3-`
+	FILE="/$FILE"
+	FILE_DGST="$FILE.dgst"
+	EXTENSION_FOLDER_RAW=`echo "$f" | cut -d'.' -f1`
+	EXTENSION_FOLDER=`echo "$EXTENSION_FOLDER_RAW" | cut -d'/' -f3-`
+	EXTENSION_FOLDER="/$EXTENSION_FOLDER"
+	EXTENSION_NAME_RAW=`echo "$EXTENSION_FOLDER" | cut -d'/' -f5-`
+	EXTENSION_NAME=`echo "$EXTENSION_NAME_RAW" | awk '{ print toupper( substr( $0, 1, 1 ) ) substr( $0, 2); }'`
+	if [ "$EXTENSION_NAME" == "*" ]; then
+		break
+	fi
+
+	/bin/checksum-verify "$f"
+	if [ $? != 0 ]; then
+		busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/kobox-graphic-public.pem" "-signature" "$FILE_DGST" "$FILE" &>/dev/null
+		if [ $? != 0 ]; then
+			busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/kobox-nographic-public.pem" "-signature" "$FILE_DGST" "$FILE" &>/dev/null
+			if [ $? != 0 ]; then
+				echo "Digital signature of KoBox package '$EXTENSION_NAME' invalid! Aborting launch..."
+				echo "false" > /mnt/boot/flags/X11_STARTED
+				exit 1
+			else
+				echo "$EXTENSION_NAME" >> /mnt/opt/X11/nographic_extensions_list
+				echo "$EXTENSION_FOLDER" >> /mnt/opt/X11/nographic_extensions_folders_list
+				busybox chroot /mnt "mkdir" "-p" "$EXTENSION_FOLDER"
+				busybox chroot /mnt "/bin/squashfuse" "$FILE" "$EXTENSION_FOLDER" 2>/dev/null
+				if [ $? != 0 ]; then
+					mknod -m 0660 /dev/loop$loop_number b 7 $loop_number
+					losetup /dev/loop$loop_number "$FILE_RAW"
+					mount -t ext4 -o ro "/dev/loop$loop_number" "$EXTENSION_FOLDER_RAW"
+					if [ $? != 0 ]; then
+						echo "Extension $EXTENSION_NAME is not valid! Aborting launch..."
+						echo "false" > /mnt/boot/flags/X11_STARTED
+						exit 1
+					fi
+					loop_number=$((loop_number+1))
+				fi
+				UNIONFS_FOLDERS_RAW="$UNIONFS_FOLDERS_RAW$EXTENSION_FOLDER:"
+			fi
+		else
+			echo "$EXTENSION_NAME" >> /mnt/opt/X11/extensions_list
+			echo "$EXTENSION_FOLDER" >> /mnt/opt/X11/extensions_folders_list
+
+			busybox chroot /mnt "mkdir" "-p" "$EXTENSION_FOLDER"
+			busybox chroot /mnt "/bin/squashfuse" "$FILE" "$EXTENSION_FOLDER" 2>/dev/null
+			if [ $? != 0 ]; then
+				mknod -m 0660 /dev/loop$loop_number b 7 $loop_number
+				losetup /dev/loop$loop_number "$FILE_RAW"
+				mount -t ext4 -o ro "/dev/loop$loop_number" "$EXTENSION_FOLDER_RAW"
+				if [ $? != 0 ]; then
+					echo "Extension $EXTENSION_NAME is not valid! Aborting launch..."
+					echo "false" > /mnt/boot/flags/X11_STARTED
+					exit 1
+				fi
+				loop_number=$((loop_number+1))
+			fi
+			UNIONFS_FOLDERS_RAW="$UNIONFS_FOLDERS_RAW$EXTENSION_FOLDER:"
+		fi
+	else
+		echo "$FILE: Verification succeeded (SHA256)"
+		echo "$EXTENSION_NAME" >> /mnt/opt/X11/extensions_list
+		echo "$EXTENSION_FOLDER" >> /mnt/opt/X11/extensions_folders_list
+
+		busybox chroot /mnt "mkdir" "-p" "$EXTENSION_FOLDER"
+		busybox chroot /mnt "/bin/squashfuse" "$FILE" "$EXTENSION_FOLDER" 2>/dev/null
+		if [ $? != 0 ]; then
+			mknod -m 0660 /dev/loop$loop_number b 7 $loop_number
+			losetup /dev/loop$loop_number "$FILE_RAW"
+			mount -t ext4 -o ro "/dev/loop$loop_number" "$EXTENSION_FOLDER_RAW"
+			if [ $? != 0 ]; then
+				echo "Extension $EXTENSION_NAME is not valid! Aborting launch..."
+				echo "false" > /mnt/boot/flags/X11_STARTED
+				exit 1
+			fi
+			loop_number=$((loop_number+1))
+		fi
+		UNIONFS_FOLDERS_RAW="$UNIONFS_FOLDERS_RAW$EXTENSION_FOLDER:"
+	fi
+done
+
+for f in /mnt/opt/X11/extensions-user/*.isa /mnt/opt/X11/extensions-user/*.img ; do
+	FILE_RAW="$f"
+	FILE=`echo "$f" | cut -d'/' -f3-`
+	FILE="/$FILE"
+	FILE_DGST="$FILE.dgst"
+	EXTENSION_FOLDER_RAW=`echo "$f" | cut -d'.' -f1`
+	EXTENSION_FOLDER=`echo "$EXTENSION_FOLDER_RAW" | cut -d'/' -f3-`
+	EXTENSION_FOLDER="/$EXTENSION_FOLDER"
+	EXTENSION_NAME_RAW=`echo "$EXTENSION_FOLDER" | cut -d'/' -f5-`
+	EXTENSION_NAME=`echo "$EXTENSION_NAME_RAW" | awk '{ print toupper( substr( $0, 1, 1 ) ) substr( $0, 2); }'`
+	if [ "$EXTENSION_NAME" == "*" ]; then
+		break
+	fi
+
+	/bin/checksum-verify "$f"
+	if [ $? != 0 ]; then
+		busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/kobox-graphic-public.pem" "-signature" "$FILE_DGST" "$FILE" &>/dev/null
+		if [ $? != 0 ]; then
+			busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/kobox-nographic-public.pem" "-signature" "$FILE_DGST" "$FILE" &>/dev/null
+			if [ $? != 0 ]; then
+				echo "Digital signature of KoBox package '$EXTENSION_NAME' invalid! Aborting launch..."
+				echo "false" > /mnt/boot/flags/X11_STARTED
+				exit 1
+			else
+				echo "$EXTENSION_NAME" >> /mnt/opt/X11/nographic_extensions_list
+				echo "$EXTENSION_FOLDER" >> /mnt/opt/X11/nographic_extensions_folders_list
+				busybox chroot /mnt "mkdir" "-p" "$EXTENSION_FOLDER"
+		                busybox chroot /mnt "/bin/squashfuse" "$FILE" "$EXTENSION_FOLDER" 2>/dev/null
+				if [ $? != 0 ]; then
+					mknod -m 0660 /dev/loop$loop_number b 7 8
+					losetup /dev/loop$loop_number "$FILE_RAW"
+					mount -t ext4 -o ro "/dev/loop$loop_number" "$EXTENSION_FOLDER_RAW"
+					if [ $? != 0 ]; then
+						echo "Extension $EXTENSION_NAME is not valid! Aborting launch..."
+						echo "false" > /mnt/boot/flags/X11_STARTED
+						exit 1
+					fi
+					loop_number=$((loop_number+1))
+				fi
+		                UNIONFS_FOLDERS_RAW="$UNIONFS_FOLDERS_RAW$EXTENSION_FOLDER:"
+			fi
+		else
+			echo "$EXTENSION_NAME" >> /mnt/opt/X11/extensions_list
+			echo "$EXTENSION_FOLDER" >> /mnt/opt/X11/extensions_folders_list
+	
+			busybox chroot /mnt "mkdir" "-p" "$EXTENSION_FOLDER"
+			busybox chroot /mnt "/bin/squashfuse" "$FILE" "$EXTENSION_FOLDER" 2>/dev/null
+			if [ $? != 0 ]; then
+				mknod -m 0660 /dev/loop$loop_number b 7 8
+				losetup /dev/loop$loop_number "$FILE_RAW"
+				mount -t ext4 -o ro "/dev/loop$loop_number" "$EXTENSION_FOLDER_RAW"
+				if [ $? != 0 ]; then
+					echo "Extension $EXTENSION_NAME is not valid! Aborting launch..."
+					echo "false" > /mnt/boot/flags/X11_STARTED
+					exit 1
+				fi
+				loop_number=$((loop_number+1))
+			fi
+			UNIONFS_FOLDERS_RAW="$UNIONFS_FOLDERS_RAW$EXTENSION_FOLDER:"
+		fi
+	else
+		echo "$FILE: Verification succeeded (SHA256)"
+		echo "$EXTENSION_NAME" >> /mnt/opt/X11/extensions_list
+		echo "$EXTENSION_FOLDER" >> /mnt/opt/X11/extensions_folders_list
+
+		busybox chroot /mnt "mkdir" "-p" "$EXTENSION_FOLDER"
+		busybox chroot /mnt "/bin/squashfuse" "$FILE" "$EXTENSION_FOLDER" 2>/dev/null
+		if [ $? != 0 ]; then
+			mknod -m 0660 /dev/loop$loop_number b 7 8
+			losetup /dev/loop$loop_number "$FILE_RAW"
+			mount -t ext4 -o ro "/dev/loop$loop_number" "$EXTENSION_FOLDER_RAW"
+			if [ $? != 0 ]; then
+				echo "Extension $EXTENSION_NAME is not valid! Aborting launch..."
+				echo "false" > /mnt/boot/flags/X11_STARTED
+				exit 1
+			fi
+			loop_number=$((loop_number+1))
+		fi
+		UNIONFS_FOLDERS_RAW="$UNIONFS_FOLDERS_RAW$EXTENSION_FOLDER:"
+	fi
+done
+
+UNIONFS_FOLDERS="${UNIONFS_FOLDERS_RAW::-1}"
+
+# Mounting extensions UnionFS-FUSE merge point
+mkdir -p /mnt/opt/X11/extensions-merged
+busybox chroot /mnt "/usr/local/bin/unionfs" "/opt/X11/extensions-base:/opt/X11/extensions-user" "/opt/X11/extension-storage-merged"
+# Replacing 'user' and 'base' strings with 'merged' so we can mount them after
+UNIONFS_FOLDERS=`echo "$UNIONFS_FOLDERS" | sed 's/extensions-base/extension-storage-merged/' | sed 's/extensions-user/extension-storage-merged/'`
+busybox chroot /mnt "/usr/local/bin/unionfs" "$UNIONFS_FOLDERS" "/opt/X11/extensions-merged"
+
+# Merging X11 rootfs and extensions filesystem together
+busybox chroot /mnt "/usr/local/bin/unionfs" "/opt/X11/base/rootfs:/opt/X11/extensions-merged" "/opt/X11/merged"
+
+# Making the union mount read/write and mounting the final overlay to /xorg
+busybox chroot /mnt "/bin/fuse-overlayfs" "-o" "lowerdir=/opt/X11/merged,upperdir=/opt/X11/rootfs/write,workdir=/opt/X11/rootfs/work" "/xorg"
+
+rm /mnt/xorg/var/log -rf
+mkdir -p /mnt/xorg/var/log
+
+mount -t devtmpfs devtmpfs /mnt/xorg/dev
+mkdir -p /mnt/xorg/dev/shm
+mkdir -p /mnt/xorg/dev/pts
+mount -t tmpfs tmpfs /mnt/xorg/tmp
+mount -t tmpfs tmpfs /mnt/xorg/run
+mount -t tmpfs tmpfs /mnt/xorg/dev/shm
+mount -t tmpfs tmpfs /mnt/xorg/var/log
+mount -t sysfs sysfs /mnt/xorg/sys
+mount -t proc proc /mnt/xorg/proc
+mount -t devpts devpts /mnt/xorg/dev/pts
+touch /mnt/xorg/etc/resolv.conf
+mount --bind /tmp/resolv.conf /mnt/xorg/etc/resolv.conf
+
+# Launching X
+busybox chroot /mnt/xorg "X" &
+
+# Mounting miscellanous filesystems for VNC/touch input rootfs
+mount -t devtmpfs devtmpfs /mnt/opt/X11/vnc-touch/dev
+mkdir -p /mnt/opt/X11/vnc-touch/dev/shm
+mkdir -p /mnt/opt/X11/vnc-touch/dev/pts
+mount -t tmpfs tmpfs /mnt/opt/X11/vnc-touch/tmp
+mount -t tmpfs tmpfs /mnt/opt/X11/vnc-touch/run
+mount -t tmpfs tmpfs /mnt/opt/X11/vnc-touch/dev/shm
+mount -t sysfs sysfs /mnt/opt/X11/vnc-touch/sys
+mount -t proc proc /mnt/opt/X11/vnc-touch/proc
+mount -t devpts devpts /mnt/opt/X11/vnc-touch/dev/pts
+mount --bind /tmp/resolv.conf /mnt/opt/X11/vnc-touch/etc/resolv.conf
+
+echo "true" > /mnt/boot/flags/X11_STARTED
+
+# Race condition
+sleep 8
+echo "Done."
+
+if [ $DISABLE_SIGNATURE_VERIFICATION == 1 ]; then
+	umount -l -f /mnt/usr/bin/openssl
+fi
+exit 0
