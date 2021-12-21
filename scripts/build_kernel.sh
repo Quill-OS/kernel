@@ -54,6 +54,8 @@ elif [ "$1" == "n873" ]; then
 	echo "---- Building Kobo Libra (N873) kernel ----"
 elif [ "$1" == "n905b" ]; then
 	echo "---- Building Kobo Touch model B (N905B) kernel ----"
+elif [ "$1" == "emu" ]; then
+	echo "---- Building Emulator (EMU) kernel ----"
 else
 	echo "You must specify a kernel configuration to build for."
 	echo "Available configurations are: n705, n905c, n905b, n613, n873"
@@ -115,6 +117,14 @@ elif [ "$1" == "n905b" ]; then
 		cp $GITDIR/kernel/config/config-n905b-diags $GITDIR/kernel/linux-2.6.35.3-n905b/.config
 	else
 		cp $GITDIR/kernel/config/config-n905b $GITDIR/kernel/linux-2.6.35.3-n905b/.config
+	fi
+elif [ "$1" == "emu" ]; then
+	cd $GITDIR/kernel/linux-5.15.10
+	make ARCH=arm CROSS_COMPILE=$TARGET- mrproper
+	if [ "$2" == "diags" ]; then
+		cp $GITDIR/kernel/config/config-emu-diags $GITDIR/kernel/linux-5.15.10/.config
+	else
+		cp $GITDIR/kernel/config/config-emu $GITDIR/kernel/linux-5.15.10/.config
 	fi
 fi
 
@@ -189,7 +199,22 @@ if [ "$2" == "std" ]; then
 		sudo cp $GITDIR/initrd/common/setup-wifi $GITDIR/initrd/n905b/sbin/setup-wifi
 		mkdir -p $GITDIR/kernel/out/n905b
 		build_id_gen $GITDIR/initrd/n905b/opt/build_id
+	elif [ "$1" == "emu" ]; then
+		sudo mkdir -p $GITDIR/initrd/emu/etc/init.d
+		sudo mkdir -p $GITDIR/initrd/emu/opt/bin
+		sudo cp $GITDIR/initrd/common/rcS-std $GITDIR/initrd/emu/etc/init.d/rcS
+		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/emu/etc/init.d/startx
+		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/emu/etc/init.d/inkbox-splash
+		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/emu/etc/init.d/developer-key
+		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/emu/etc/init.d/overlay-mount
+		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/emu/etc/init.d/initrd-fifo
+		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/emu/opt/bin/uidgen
+		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/emu/bin/checksum-verify
+		build_id_gen $GITDIR/initrd/emu/opt/build_id
+		mkdir -p $GITDIR/kernel/out/emu
+
 	fi
+
 	if [ "$1" == "n705" ] || [ "$1" == "n905c" ] || [ "$1" == "n613" ]; then
 		cd $GITDIR/kernel/linux-2.6.35.3
 		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
@@ -199,6 +224,9 @@ if [ "$2" == "std" ]; then
 	elif [ "$1" == "n905b" ]; then
 		cd $GITDIR/kernel/linux-2.6.35.3-n905b
 		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
+	elif [ "$1" == "emu" ]; then
+		cd $GITDIR/kernel/linux-5.15.10
+		make ARCH=arm CROSS_COMPILE=$TARGET- zImage -j$THREADS
 	else
 		cd $GITDIR/kernel/linux-2.6.35.3
 		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
@@ -209,7 +237,7 @@ if [ "$2" == "std" ]; then
 		if [ "$1" == "n705" ] || [ "$1" == "n905c" ] || [ "$1" == "n613" ] || [ "$1" == "n905b" ]; then
 			cp "arch/arm/boot/uImage" "$GITDIR/kernel/out/$1/uImage-std"
 			echo "---- Output was saved in $GITDIR/kernel/out/$1/uImage-std ----"
-		elif [ "$1" == "n873" ]; then
+		elif [ "$1" == "n873" ] || [ "$1" == "emu" ]; then
 			cp "arch/arm/boot/zImage" "$GITDIR/kernel/out/$1/zImage-std"
 			echo "---- Output was saved in $GITDIR/kernel/out/$1/zImage-std ----"
 		else
@@ -290,6 +318,19 @@ elif [ "$2" == "root" ]; then
 		sudo cp $GITDIR/initrd/common/setup-wifi $GITDIR/initrd/n905b/sbin/setup-wifi
 		mkdir -p $GITDIR/kernel/out/n905b
 		build_id_gen $GITDIR/initrd/n905b/opt/build_id
+	elif [ "$1" == "emu" ]; then
+		sudo mkdir -p $GITDIR/initrd/emu/etc/init.d
+		sudo mkdir -p $GITDIR/initrd/emu/opt/bin
+		sudo cp $GITDIR/initrd/common/rcS-root $GITDIR/initrd/emu/etc/init.d/rcS
+		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/emu/etc/init.d/startx
+		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/emu/etc/init.d/inkbox-splash
+		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/emu/etc/init.d/developer-key
+		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/emu/etc/init.d/overlay-mount
+		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/emu/etc/init.d/initrd-fifo
+		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/emu/opt/bin/uidgen
+		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/emu/bin/checksum-verify
+		mkdir -p $GITDIR/kernel/out/emu
+		build_id_gen $GITDIR/initrd/emu/opt/build_id
 	fi
 
 	if [ "$1" == "n705" ] || [ "$1" == "n905c" ] || [ "$1" == "n613" ]; then
@@ -301,6 +342,9 @@ elif [ "$2" == "root" ]; then
 	elif [ "$1" == "n905b" ]; then
 		cd $GITDIR/kernel/linux-2.6.35.3-n905b
 		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
+	elif [ "$1" == "emu" ]; then
+		cd $GITDIR/kernel/linux-5.15.10
+		make ARCH=arm CROSS_COMPILE=$TARGET- zImage -j$THREADS
 	else
 		cd $GITDIR/kernel/linux-2.6.35.3
 		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
@@ -311,7 +355,7 @@ elif [ "$2" == "root" ]; then
 		if [ "$1" == "n705" ] || [ "$1" == "n905c" ] || [ "$1" == "n613" ] || [ "$1" == "n905b" ]; then
 			cp "arch/arm/boot/uImage" "$GITDIR/kernel/out/$1/uImage-root"
 			echo "---- Output was saved in $GITDIR/kernel/out/$1/uImage-root ----"
-		elif [ "$1" == "n873" ]; then
+		elif [ "$1" == "n873" ] || [ "$1" == "emu" ]; then
 			cp "arch/arm/boot/zImage" "$GITDIR/kernel/out/$1/zImage-root"
 			echo "---- Output was saved in $GITDIR/kernel/out/$1/zImage-root ----"
 		else
@@ -346,6 +390,9 @@ elif [ "$2" == "diags" ]; then
 	elif [ "$1" == "n905b" ]; then
 		cd $GITDIR/kernel/linux-2.6.35.3-n905b
 		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
+	elif [ "$1" == "emu" ]; then
+		cd $GITDIR/kernel/linux-5.15.10
+		make ARCH=arm CROSS_COMPILE=$TARGET- zImage -j$THREADS
 	else
 		cd $GITDIR/kernel/linux-2.6.35.3
 		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
@@ -356,7 +403,7 @@ elif [ "$2" == "diags" ]; then
 		if [ "$1" == "n705" ] || [ "$1" == "n905c" ] || [ "$1" == "n613" ] || [ "$1" == "n905b" ]; then
 			cp "arch/arm/boot/uImage" "$GITDIR/kernel/out/$1/uImage-diags"
 			echo "---- Output was saved in $GITDIR/kernel/out/$1/uImage-diags ----"
-		elif [ "$1" == "n873" ]; then
+		elif [ "$1" == "n873" ] || [ "$1" == "emu" ]; then
 			cp "arch/arm/boot/zImage" "$GITDIR/kernel/out/$1/zImage-diags"
 			echo "---- Output was saved in $GITDIR/kernel/out/$1/uImage-diags ----"
 		else
@@ -368,6 +415,7 @@ elif [ "$2" == "diags" ]; then
 		echo "---- There was an error during the build process, aborting... ----"
 		exit 1
 	fi
+
 elif [ "$2" == "spl" ]; then
 	if [ "$1" == "n873" ]; then
 		cd $GITDIR/kernel/linux-4.1.15-libra
