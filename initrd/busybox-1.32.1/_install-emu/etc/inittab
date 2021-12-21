@@ -1,2 +1,2 @@
 ::sysinit:/etc/init.d/rcS
-ttymxc0::respawn:/usr/sbin/chroot /mnt /sbin/getty "-L" "ttymxc0" "115200" "xterm-256color"
+ttyAMA0::respawn:/usr/sbin/chroot /mnt /sbin/getty "-L" "ttyAMA0" "115200" "xterm-256color"

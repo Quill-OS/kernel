@@ -346,7 +346,11 @@ else
 		fi
 	else
 		rm /usr/sbin/chroot
-		echo -e "#!/bin/sh\n\n/sbin/getty -L ttymxc0 115200 vt100" > /usr/sbin/chroot
+		if [ "${DEVICE}" == "emu" ]; then
+			echo -e "#!/bin/sh\n\n/sbin/getty -L ttyAMA0 115200 vt100" > /usr/sbin/chroot
+		else
+			echo -e "#!/bin/sh\n\n/sbin/getty -L ttymxc0 115200 vt100" > /usr/sbin/chroot
+		fi
 		chmod +x /usr/sbin/chroot
 	fi
 fi
