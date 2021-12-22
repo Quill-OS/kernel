@@ -226,7 +226,7 @@ if [ "$2" == "std" ]; then
 		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
 	elif [ "$1" == "emu" ]; then
 		cd $GITDIR/kernel/linux-5.15.10
-		make ARCH=arm CROSS_COMPILE=$TARGET- zImage -j$THREADS
+		make ARCH=arm CROSS_COMPILE=$TARGET- zImage dtbs -j$THREADS
 	else
 		cd $GITDIR/kernel/linux-2.6.35.3
 		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
@@ -344,7 +344,7 @@ elif [ "$2" == "root" ]; then
 		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
 	elif [ "$1" == "emu" ]; then
 		cd $GITDIR/kernel/linux-5.15.10
-		make ARCH=arm CROSS_COMPILE=$TARGET- zImage -j$THREADS
+		make ARCH=arm CROSS_COMPILE=$TARGET- zImage dtbs -j$THREADS
 	else
 		cd $GITDIR/kernel/linux-2.6.35.3
 		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
@@ -392,7 +392,7 @@ elif [ "$2" == "diags" ]; then
 		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
 	elif [ "$1" == "emu" ]; then
 		cd $GITDIR/kernel/linux-5.15.10
-		make ARCH=arm CROSS_COMPILE=$TARGET- zImage -j$THREADS
+		make ARCH=arm CROSS_COMPILE=$TARGET- zImage dtbs -j$THREADS
 	else
 		cd $GITDIR/kernel/linux-2.6.35.3
 		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
@@ -405,7 +405,7 @@ elif [ "$2" == "diags" ]; then
 			echo "---- Output was saved in $GITDIR/kernel/out/$1/uImage-diags ----"
 		elif [ "$1" == "n873" ] || [ "$1" == "emu" ]; then
 			cp "arch/arm/boot/zImage" "$GITDIR/kernel/out/$1/zImage-diags"
-			echo "---- Output was saved in $GITDIR/kernel/out/$1/uImage-diags ----"
+			echo "---- Output was saved in $GITDIR/kernel/out/$1/zImage-diags ----"
 		else
 			cp "arch/arm/boot/uImage" "$GITDIR/kernel/out/$1/uImage-diags"
 			echo "---- Output was saved in $GITDIR/kernel/out/$1/uImage-diags ----"
