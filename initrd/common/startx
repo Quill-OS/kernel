@@ -1,6 +1,7 @@
 #!/bin/sh
 
 DISABLE_SIGNATURE_VERIFICATION=0
+DEVICE=$(cat /opt/device)
 
 if grep -q "true" /mnt/opt/developer/key/valid-key &>/dev/null; then
 	DISABLE_SIGNATURE_VERIFICATION=1
@@ -308,8 +309,14 @@ mount --bind /tmp/resolv.conf /mnt/opt/X11/vnc-touch/etc/resolv.conf
 echo "true" > /mnt/boot/flags/X11_STARTED
 
 # Race condition
-sleep 8
-echo "Done."
+if [ "${DEVICE}" != "emu" ]; then
+	sleep 8
+	echo "Done."
+else
+	sleep 25
+	busybox chroot /mnt/xorg "x11vnc" "-bg" "-forever" "-quiet" &
+	echo "Done."
+fi
 
 if [ $DISABLE_SIGNATURE_VERIFICATION == 1 ]; then
 	umount -l -f /mnt/usr/bin/openssl
