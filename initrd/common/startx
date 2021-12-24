@@ -313,9 +313,7 @@ if [ "${DEVICE}" != "emu" ]; then
 	sleep 8
 	echo "Done."
 else
-	sleep 25
-	busybox chroot /mnt/xorg "x11vnc" "-bg" "-forever" "-quiet" &
-	echo "Done."
+	sleep 15
 fi
 
 if [ $DISABLE_SIGNATURE_VERIFICATION == 1 ]; then

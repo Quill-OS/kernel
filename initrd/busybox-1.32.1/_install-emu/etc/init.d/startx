@@ -1,6 +1,7 @@
 #!/bin/sh
 
 DISABLE_SIGNATURE_VERIFICATION=0
+DEVICE=$(cat /opt/device)
 
 if grep -q "true" /mnt/opt/developer/key/valid-key &>/dev/null; then
 	DISABLE_SIGNATURE_VERIFICATION=1
