@@ -69,7 +69,7 @@ if [ "${1}" == "update_splash" ]; then
 	ln -s /bin/busybox /splash/bin/sleep
 	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink "-k" "-f" "-h" "-q"
 	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink "-t" "regular=/opt/fbink/inter-b.ttf,size=20" "Updating" "-m" "-M" "-h" "-q"
-	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/bin/update-splash "${ROW}" &
+	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/bin/update-splash "${ROW}" &>/dev/null &
 elif [ "${1}" == "alert_splash" ]; then
 	ln -s /bin/busybox /splash/bin/sh
 	ln -s /bin/busybox /splash/bin/cat
