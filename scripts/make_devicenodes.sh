@@ -9,6 +9,9 @@ else
 		sudo mknod dev/console c 5 1
 		sudo mknod dev/ttymxc0 c 207 16
 		sudo mknod dev/null c 1 3
+		if [ "${1}" == "emu" ]; then
+			sudo mknod dev/ttyAMA0 c 204 64
+		fi
 	}
 
 	cd ${GITDIR}/initrd/n705
@@ -34,8 +37,8 @@ else
 	cd ${GITDIR}/initrd/n905b-diags
 	make_nodes 2>/dev/null
 	cd ${GITDIR}/initrd/emu
-	make_nodes 2>/dev/null
+	make_nodes emu 2>/dev/null
 	cd ${GITDIR}/initrd/emu-diags
-	make_nodes 2>/dev/null
+	make_nodes emu 2>/dev/null
 	echo "Done making devices nodes."
 fi
