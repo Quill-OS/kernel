@@ -40,7 +40,7 @@ DEVICE=`cat /opt/device`
 
 echo "$KERNEL_VERSION"
 echo "InkBox OS, kernel build $KERNEL_BUILD_ID"
-echo "Copyright (C) 2021 Nicolas Mailloux <nicolecrivain@gmail.com>"
+echo "Copyright (C) 2021-2022 Nicolas Mailloux <nicolecrivain@gmail.com>"
 echo
 
 echo "Checking filesystems ..."
