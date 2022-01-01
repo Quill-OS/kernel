@@ -3,7 +3,7 @@
 INKBOX_KERNEL="/boot/zImage-inkbox"
 NICKEL_KERNEL="/boot/zImage-nickel"
 CPR_RL=0.1
-CPR_YR=2021
+CPR_YR="2021-2022"
 
 load_boot() {
 	if [ "${1}" == "nickel" ]; then
