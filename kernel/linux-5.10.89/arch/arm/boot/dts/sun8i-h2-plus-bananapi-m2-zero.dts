@@ -80,18 +80,6 @@
 
 &mmc0 {
 	vmmc-supply = <&reg_vcc3v3>;
-	bus-width = <4>;
-	/*
-	 * On the production batch of this board the card detect GPIO is
-	 * high active (card inserted), although on the early samples it's
-	 * low active.
-	 */
-	cd-gpios = <&pio 5 6 GPIO_ACTIVE_HIGH>; /* PF6 */
-	status = "okay";
-};
-
-&mmc1 {
-	vmmc-supply = <&reg_vcc3v3>;
 	vqmmc-supply = <&reg_vcc3v3>;
 	mmc-pwrseq = <&wifi_pwrseq>;
 	bus-width = <4>;
