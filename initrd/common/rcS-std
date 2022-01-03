@@ -348,6 +348,8 @@ else
 		rm /usr/sbin/chroot
 		if [ "${DEVICE}" == "emu" ]; then
 			echo -e "#!/bin/sh\n\n/sbin/getty -L ttyAMA0 115200 vt100" > /usr/sbin/chroot
+		elif [ "${DEVICE}" == "bpi" ]; then
+			echo -e "#!/bin/sh\n\n/sbin/getty -L ttyS0 115200 vt100" > /usr/sbin/chroot
 		else
 			echo -e "#!/bin/sh\n\n/sbin/getty -L ttymxc0 115200 vt100" > /usr/sbin/chroot
 		fi
