@@ -234,8 +234,7 @@ else
 					losetup /dev/loop4 /opt/firmware.sqsh
 					mount /dev/loop4 /mnt/lib/firmware
 				fi
-				cp /opt/device /tmp/device
-				mount --bind /tmp/device /mnt/opt/inkbox_device
+
 				if [ -e "/etc/resolv.conf" ]; then
 					cp /etc/resolv.conf /tmp/resolv.conf
 				else
