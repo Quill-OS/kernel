@@ -250,7 +250,7 @@
 			clock-names = "usb0_phy\0usb1_phy\0usb2_phy\0usb3_phy";
 			resets = <0x03 0x00 0x03 0x01 0x03 0x02 0x03 0x03>;
 			reset-names = "usb0_reset\0usb1_reset\0usb2_reset\0usb3_reset";
-			status = "okay";
+			status = "disabled";
 			#phy-cells = <0x01>;
 			usb0_id_det-gpios = <0x0f 0x00 0x06 0x00>;
 			phandle = <0x0e>;
@@ -776,7 +776,7 @@
 			dmas = <0x15 0x0f 0x15 0x0f>;
 			dma-names = "rx\0tx";
 			allwinner,codec-analog-controls = <0x1c>;
-			status = "okay";
+			status = "disabled";
 			allwinner,audio-routing = "Line Out\0LINEOUT\0MIC1\0Mic\0Mic\0MBIAS";
 		};
 
@@ -848,7 +848,7 @@
 			resets = <0x03 0x34>;
 			dmas = <0x15 0x09 0x15 0x09>;
 			dma-names = "rx\0tx";
-			status = "okay";
+			status = "disabled";
 			pinctrl-names = "default";
 			pinctrl-0 = <0x21>;
 		};
