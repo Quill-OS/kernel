@@ -207,7 +207,7 @@ for f in /mnt/opt/X11/extensions-user/*.isa /mnt/opt/X11/extensions-user/*.img ;
 				busybox chroot /mnt "mkdir" "-p" "$EXTENSION_FOLDER"
 		                busybox chroot /mnt "/bin/squashfuse" "$FILE" "$EXTENSION_FOLDER" 2>/dev/null
 				if [ $? != 0 ]; then
-					mknod -m 0660 /dev/loop$loop_number b 7 8
+					mknod -m 0660 /dev/loop$loop_number b 7 $loop_number
 					losetup /dev/loop$loop_number "$FILE_RAW"
 					mount -t ext4 -o ro "/dev/loop$loop_number" "$EXTENSION_FOLDER_RAW"
 					if [ $? != 0 ]; then
@@ -226,7 +226,7 @@ for f in /mnt/opt/X11/extensions-user/*.isa /mnt/opt/X11/extensions-user/*.img ;
 			busybox chroot /mnt "mkdir" "-p" "$EXTENSION_FOLDER"
 			busybox chroot /mnt "/bin/squashfuse" "$FILE" "$EXTENSION_FOLDER" 2>/dev/null
 			if [ $? != 0 ]; then
-				mknod -m 0660 /dev/loop$loop_number b 7 8
+				mknod -m 0660 /dev/loop$loop_number b 7 $loop_number
 				losetup /dev/loop$loop_number "$FILE_RAW"
 				mount -t ext4 -o ro "/dev/loop$loop_number" "$EXTENSION_FOLDER_RAW"
 				if [ $? != 0 ]; then
@@ -246,7 +246,7 @@ for f in /mnt/opt/X11/extensions-user/*.isa /mnt/opt/X11/extensions-user/*.img ;
 		busybox chroot /mnt "mkdir" "-p" "$EXTENSION_FOLDER"
 		busybox chroot /mnt "/bin/squashfuse" "$FILE" "$EXTENSION_FOLDER" 2>/dev/null
 		if [ $? != 0 ]; then
-			mknod -m 0660 /dev/loop$loop_number b 7 8
+			mknod -m 0660 /dev/loop$loop_number b 7 $loop_number
 			losetup /dev/loop$loop_number "$FILE_RAW"
 			mount -t ext4 -o ro "/dev/loop$loop_number" "$EXTENSION_FOLDER_RAW"
 			if [ $? != 0 ]; then
