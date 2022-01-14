@@ -335,6 +335,7 @@ else
 
 					chroot /mnt /sbin/openrc "sysinit"
 					set_progress 100
+					echo "stop" > /run/progress_bar_fifo
 					/etc/init.d/initrd-fifo
 					chroot /mnt /sbin/openrc "boot"
 					chroot /mnt /sbin/openrc "default"

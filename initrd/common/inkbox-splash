@@ -31,6 +31,19 @@ calculate() {
         printf "%.0f\n" ${result}
 }
 
+print_progress() {
+	PERCENTAGE=${1}
+	echo "true" > /run/print_busy
+
+	if [ ! -z ${2} ]; then
+		LD_LIBRARY_PATH=/opt/fbink busybox chroot "${CHROOT_DIR}" /opt/fbink/fbink -s top=$(calculate ${viewHeight}/2+${viewHeight}/8),left=$(calculate ${viewWidth}/4),width=$(calculate ${viewWidth}/2),height=$(calculate 2.44140625*100/${viewHeight}*100) -W GC16 -D ORDERED -w &>/dev/null
+		LD_LIBRARY_PATH=/opt/fbink busybox chroot "${CHROOT_DIR}" /opt/fbink/fbink -s top=$(calculate ${viewHeight}/2+${viewHeight}/8+2),left=$(calculate ${viewWidth}/4+2),width=$(calculate ${viewWidth}/2-4),height=$(calculate 2.44140625*100/${viewHeight}*100-4) -W GC16 -D ORDERED -H -w &>/dev/null
+	fi
+
+	LD_LIBRARY_PATH=/opt/fbink busybox chroot "${CHROOT_DIR}" /opt/fbink/fbink -s top=$(calculate ${viewHeight}/2+${viewHeight}/8),left=$(calculate ${viewWidth}/4),width=$(calculate ${viewWidth}/4/2*4*${PERCENTAGE}/100),height=$(calculate 2.44140625*100/${viewHeight}*100) -W GC16 -D ORDERED -w &>/dev/null
+	echo "false" > /run/print_busy
+}
+
 if [ "${DEVICE}" == "n705" ] || [ "${DEVICE}" == "n905b" ] || [ "${DEVICE}" == "n905c" ]; then
         ROW=30
 	ALERT_ROW=18
@@ -84,21 +97,26 @@ elif [ "${1}" == "progress_bar_init" ]; then
 	mkfifo /run/progress_bar_fifo
 	eval $(LD_LIBRARY_PATH=/opt/fbink busybox chroot "${CHROOT_DIR}" /opt/fbink/fbink -e)
 	BOUNDARY_DRAWING_DONE=0
+	QUEUE=""
+	echo "false" > /run/print_busy
 	while true; do
 		if read line < /run/progress_bar_fifo; then
 			if [ "${line}" != "stop" ]; then
-				PERCENTAGE=${line}
-
-				if [ ${BOUNDARY_DRAWING_DONE} == 0 ]; then
-					BOUNDARY_DRAWING_DONE=1
-					LD_LIBRARY_PATH=/opt/fbink busybox chroot "${CHROOT_DIR}" /opt/fbink/fbink -s top=$(calculate ${viewHeight}/2+${viewHeight}/8),left=$(calculate ${viewWidth}/4),width=$(calculate ${viewWidth}/2),height=$(calculate 2.44140625*100/${viewHeight}*100) -W GC16 -D ORDERED -w 2>/dev/null
-					LD_LIBRARY_PATH=/opt/fbink busybox chroot "${CHROOT_DIR}" /opt/fbink/fbink -s top=$(calculate ${viewHeight}/2+${viewHeight}/8+2),left=$(calculate ${viewWidth}/4+2),width=$(calculate ${viewWidth}/2-4),height=$(calculate 2.44140625*100/${viewHeight}*100-4) -W GC16 -D ORDERED -H -w 2>/dev/null
+				if [ $(cat /run/print_busy) != "true" ]; then
+					if [ "${BOUNDARY_DRAWING_DONE}" == 0 ]; then
+						BOUNDARY_DRAWING_DONE=1
+						print_progress "${line}" 1 &
+					else
+						print_progress "${line}" &
+					fi
+				else
+					export QUEUE="${QUEUE}:${line}"
 				fi
-
-				LD_LIBRARY_PATH=/opt/fbink busybox chroot "${CHROOT_DIR}" /opt/fbink/fbink -s top=$(calculate ${viewHeight}/2+${viewHeight}/8),left=$(calculate ${viewWidth}/4),width=$(calculate ${viewWidth}/4/2*4*${PERCENTAGE}/100),height=$(calculate 2.44140625*100/${viewHeight}*100) -W GC16 -D ORDERED -w
-				sleep 1
+				sleep 0.1
 			else
+				rm /run/progress_bar_fifo
 				cleanup
+				echo "${QUEUE}" > /run/queue
 				break
 			fi
 		fi
