@@ -1,5 +1,15 @@
 #!/bin/sh
 
+set_progress() {
+	echo "${1}" > /run/progress_bar_fifo
+	sleep 0.5
+}
+
+calculate() {
+	result=$(awk "BEGIN { print "$*" }")
+	printf "%.0f\n" ${result}
+}
+
 DISABLE_SIGNATURE_VERIFICATION=0
 DEVICE=$(cat /opt/device)
 
@@ -53,6 +63,7 @@ else
 	losetup /dev/loop8 /mnt/opt/X11/base/xorg.img
 	mount -t ext4 -o ro /dev/loop8 /mnt/opt/X11/base/rootfs
 fi
+set_progress 55
 
 # Mounting VNC/touch input rootfs
 /bin/checksum-verify /mnt/opt/X11/base/vnc-touch.img
@@ -72,6 +83,7 @@ else
 	losetup /dev/loop9 /mnt/opt/X11/base/vnc-touch.img
 	mount -t ext4 -o ro /dev/loop9 /mnt/opt/X11/vnc-touch
 fi
+set_progress 60
 
 # Extensions
 # Mounting base extensions
@@ -95,6 +107,15 @@ mount --bind /mnt/opt/storage/tmpfs/extensions_list /mnt/opt/X11/extensions_list
 mount --bind /mnt/opt/storage/tmpfs/extensions_folders_list /mnt/opt/X11/extensions_folders_list
 
 loop_number=12
+base_extensions_number=1
+base_extensions_current_number=1
+
+for f in /mnt/opt/X11/extensions-base/*.isa /mnt/opt/X11/extensions-base/*.img; do
+	if [ "${EXTENSION_NAME}" == "*" ]; then
+		break
+	fi
+	base_extensions_number=$((base_extensions_number+1))
+done
 
 for f in /mnt/opt/X11/extensions-base/*.isa /mnt/opt/X11/extensions-base/*.img ; do
 	FILE_RAW="$f"
@@ -176,6 +197,18 @@ for f in /mnt/opt/X11/extensions-base/*.isa /mnt/opt/X11/extensions-base/*.img ;
 		fi
 		UNIONFS_FOLDERS_RAW="$UNIONFS_FOLDERS_RAW$EXTENSION_FOLDER:"
 	fi
+	set_progress $(calculate 15/${base_extensions_number}*${base_extensions_current_number}+60)
+	base_extensions_current_number=$((base_extensions_current_number+1))
+done
+
+user_extensions_number=1
+user_extensions_current_number=1
+
+for f in /mnt/opt/X11/extensions-user/*.isa /mnt/opt/X11/extensions-user/*.img ; do
+	if [ "${EXTENSION_NAME}" == "*" ]; then
+		break
+	fi
+	user_extensions_number=$((user_extensions_number+1))
 done
 
 for f in /mnt/opt/X11/extensions-user/*.isa /mnt/opt/X11/extensions-user/*.img ; do
@@ -258,6 +291,8 @@ for f in /mnt/opt/X11/extensions-user/*.isa /mnt/opt/X11/extensions-user/*.img ;
 		fi
 		UNIONFS_FOLDERS_RAW="$UNIONFS_FOLDERS_RAW$EXTENSION_FOLDER:"
 	fi
+	set_progress $(calculate 15/${user_extensions_number}*${user_extensions_current_number}+75)
+	user_extensions_current_number=$((user_extensions_current_number+1))
 done
 
 UNIONFS_FOLDERS="${UNIONFS_FOLDERS_RAW::-1}"

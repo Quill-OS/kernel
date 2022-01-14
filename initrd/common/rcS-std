@@ -16,6 +16,10 @@ set_progress() {
 	echo "${1}" > /run/progress_bar_fifo
 }
 
+progress_sleep() {
+	sleep 0.5
+}
+
 mount_alpine_udev() {
 	mkdir -p /alpine
 	mount /mnt/opt/recovery/restore/alpine-udev.sqsh /alpine
@@ -140,6 +144,9 @@ else
 					/etc/init.d/inkbox-splash
 					/etc/init.d/inkbox-splash progress_bar_init &
 					set_progress 0
+					progress_sleep
+					set_progress 5
+					progress_sleep
 				else
 					/etc/init.d/inkbox-splash update_splash &
 					UPDATE_SPLASH_PID=$!
@@ -172,33 +179,32 @@ else
 					exit $OVERLAYMOUNT_EXITCODE
 				fi
 				set_progress 15
+				progress_sleep
 
 				mount -t ext4 -o nosuid /dev/mmcblk0p1 /mnt/boot
-				set_progress 20
 				## User storage
 				mount -t ext4 -o nosuid /dev/mmcblk0p4 /mnt/opt/storage
-				set_progress 30
 				# Config
 				mkdir -p /mnt/opt/storage/config
 				mkdir -p /mnt/opt/config
 				mount --bind /mnt/opt/storage/config /mnt/opt/config
-				set_progress 35
 				# Update bundle
 				mkdir -p /mnt/opt/storage/update
 				mkdir -p /mnt/opt/update
 				mount --bind /mnt/opt/storage/update /mnt/opt/update
-				set_progress 40
 				# X11/KoBox
 				mkdir -p /mnt/opt/storage/X11/rootfs/work
 				mkdir -p /mnt/opt/storage/X11/rootfs/write
 				mkdir -p /mnt/opt/X11/rootfs
 				mount --bind /mnt/opt/storage/X11/rootfs /mnt/opt/X11/rootfs
-				set_progress 45
+				set_progress 30
+				progress_sleep
 				# InkBox GUI's rootfs
 				mkdir -p /mnt/opt/storage/gui_rootfs
 				mkdir -p /mnt/opt/gui_rootfs
 				mount --bind /mnt/opt/storage/gui_rootfs /mnt/opt/gui_rootfs
-				set_progress 55
+				set_progress 40
+				progress_sleep
 
 				echo "Enforcing security policy..."
 
@@ -243,7 +249,8 @@ else
 				mount --rbind /dev /mnt/dev
 				mount -t tmpfs tmpfs -o nosuid /mnt/tmp
 				mount -t tmpfs tmpfs -o nosuid /mnt/var/log
-				set_progress 60
+				set_progress 45
+				progress_sleep
 				
 				# Wi-Fi & Internet
 				if [ -e "/opt/firmware.sqsh" ]; then
@@ -264,7 +271,6 @@ else
 				mount --bind /mnt/opt/storage/dhcpcd_duid /mnt/var/db/dhcpcd/duid
 	
 				mount -t selinuxfs selinuxfs /mnt/selinux 2>/dev/null
-				set_progress 70
 
 				# InkBox GUI's rootfs
 				busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/public.pem" "-signature" "/opt/storage/gui_rootfs.isa.dgst" "/opt/storage/gui_rootfs.isa" &>/dev/null
@@ -281,16 +287,19 @@ else
 
 					echo true > /mnt/kobo/inkbox/remount
 					echo false > /mnt/boot/flags/X11_STARTED
-					set_progress 75
+					set_progress 50
+					progress_sleep
 
 					# Starting an X server
 					if [ "$STARTX" == "true" ]; then
 						/etc/init.d/startx
 					fi
 					set_progress 90
+					progress_sleep
 
 					chroot /mnt /sbin/openrc "sysinit"
 					set_progress 100
+					sleep 1
 					echo "stop" > /run/progress_bar_fifo
 					/etc/init.d/initrd-fifo
 					chroot /mnt /sbin/openrc "boot"
