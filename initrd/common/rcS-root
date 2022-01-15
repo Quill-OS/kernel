@@ -189,6 +189,7 @@ else
 				if [ "$WILL_UPDATE" != "true" ]; then
 					/etc/init.d/inkbox-splash
 					/etc/init.d/inkbox-splash progress_bar_init &
+					sleep 2
 					set_progress 0
 					progress_sleep
 					set_progress 5

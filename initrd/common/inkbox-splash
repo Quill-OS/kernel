@@ -20,10 +20,10 @@ setup() {
 }
 
 cleanup() {
-	umount "${CHROOT_DIR}/dev" -l -f
-	umount "${CHROOT_DIR}/sys" -l -f
-	umount "${CHROOT_DIR}/proc" -l -f
-	rm -rf "${CHROOT_DIR}"
+	umount "${CHROOT_DIR}/dev" -l -f &>/dev/null
+	umount "${CHROOT_DIR}/sys" -l -f &>/dev/null
+	umount "${CHROOT_DIR}/proc" -l -f &>/dev/null
+	rm -rf "${CHROOT_DIR}" &>/dev/null
 }
 
 calculate() {
@@ -133,7 +133,7 @@ elif [ "${1}" == "progress_bar_init" ]; then
 			fi
 			sleep 0.1
 		fi
-	done
+	done &>/dev/null
 elif [ "${1}" == "alert_splash" ]; then
 	ln -s /bin/busybox /splash/bin/sh
 	ln -s /bin/busybox /splash/bin/cat
