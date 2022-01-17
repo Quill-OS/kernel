@@ -47,7 +47,7 @@ ifconfig lo up
 # Direct Firmware Loader (DFL) mode
 DFL_KEY_RAW=`timeout 3s evtest /dev/input/event0` 2>/dev/null
 DFL_KEY=`echo "$DFL_KEY_RAW" | awk '/Testing .../{p=1}p'`
-if echo "$DFL_KEY" | grep -q "KEY_POWER" && echo "$DFL_KEY" | grep -q "KEY_HOME"; then
+if echo "$DFL_KEY" | grep -q "KEY_POWER" && echo "$DFL_KEY" | grep -q "KEY_HOME" || echo "$DFL_KEY" | grep -q "KEY_KATAKANA"; then
 	echo "Entering DFL mode ..."
 	DEVICE=`cat /opt/device`
 	mkdir -p /modules
