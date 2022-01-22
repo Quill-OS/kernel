@@ -1,7 +1,7 @@
 #!/bin/sh
 
 INKBOX_KERNEL="/boot/zImage-inkbox"
-NICKEL_KERNEL="/boot/zImage-nickel"
+NICKEL_KERNEL="/nickel-onboard/zImage-nickel"
 CPR_RL=0.1
 CPR_YR="2021-2022"
 
@@ -24,7 +24,9 @@ uname -a; echo "InkBox Linux SPL kernel release ${CPR_RL} - Copyright (C) ${CPR_
 /usr/local/bin/auto-boot.sh
 if [ ${?} != 0 ]; then
 	mkdir -p /boot
+	mkdir -p /nickel-onboard
 	mount -t ext4 /dev/mmcblk0p1 /boot
+	mount -t vfat /dev/mmcblk0p3 /nickel-onboard
 	# Default sequence will boot InkBox; power button/page turn button press will boot Nickel
 	echo "Waiting 5 seconds for any input event ..."
 	timeout 5 cat /dev/input/event0 > /tmp/input_event
@@ -35,7 +37,9 @@ if [ ${?} != 0 ]; then
 		echo "Booting default InkBox kernel ..."
 		load_boot inkbox "${INKBOX_KERNEL}"
 	fi
+	sync
 	umount -l -f /boot
+	umount -l -f /nickel-onboard
 	sync
 	kexec -e
 else
