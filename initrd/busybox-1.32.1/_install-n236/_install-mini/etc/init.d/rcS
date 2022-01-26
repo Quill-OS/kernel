@@ -1,0 +1,391 @@
+#!/bin/sh
+
+rotate_screen() {
+	if [ "${DEVICE}" == "n705" ] || [ "${DEVICE}" == "n905b" ] || [ "${DEVICE}" == "n905c" ] || [ "${DEVICE}" == "n613" ]; then
+		FB_UR=3
+	elif [ "${DEVICE}" == "n873" ]; then
+		FB_UR=0
+	else
+		FB_UR=3
+	fi
+
+	echo ${FB_UR} > /sys/class/graphics/fb0/rotate
+}
+
+set_progress() {
+	echo "${1}" > /run/progress_bar_fifo
+}
+
+progress_sleep() {
+	sleep 0.5
+}
+
+mount_alpine_udev() {
+	mkdir -p /alpine
+	mount /mnt/opt/recovery/restore/alpine-udev.sqsh /alpine
+	mount --rbind /proc /mnt/proc
+	mount --rbind /proc /alpine/proc
+	mount --rbind /sys /mnt/sys
+	mount --rbind /sys /alpine/sys
+	mount --rbind /dev /mnt/dev
+	mount --rbind /dev /alpine/dev
+	mount -t tmpfs tmpfs -o nosuid /mnt/tmp
+	mount -t tmpfs tmpfs -o nosuid /alpine/tmp
+	mount -t tmpfs tmpfs -o nosuid /alpine/run
+}
+
+export TERM="xterm-256color"
+
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+sleep 1
+mount -t devtmpfs devtmpfs /dev
+mount -t tmpfs tmpfs /tmp
+hostname inkbox
+ifconfig lo up
+
+KERNEL_VERSION=`uname -a`
+KERNEL_BUILD_ID=`cat /opt/build_id`
+DEVICE=`cat /opt/device`
+
+echo "$KERNEL_VERSION"
+echo "InkBox OS, kernel build $KERNEL_BUILD_ID"
+echo "Copyright (C) 2021-2022 Nicolas Mailloux <nicolecrivain@gmail.com>"
+echo
+
+echo "Checking filesystems ..."
+echo
+/usr/bin/fsck.ext4 -y /dev/mmcblk0p1
+if [ "$DEVICE" == "n705" ] || [ "$DEVICE" == "n905b" ] || [ "$DEVICE" == "n905c" ] || [ "$DEVICE" == "n613" ]; then
+	/usr/bin/fsck.ext4 -y /dev/mmcblk0p2
+elif [ "$DEVICE" == "n873" ]; then
+	/usr/bin/fsck.ext4 -y /dev/mmcblk0p5
+else
+	/usr/bin/fsck.ext4 -y /dev/mmcblk0p2
+fi
+if [ "$DEVICE" == "n705" ] || [ "$DEVICE" == "n905b" ] || [ "$DEVICE" == "n905c" ] || [ "$DEVICE" == "n613" ]; then
+	/usr/bin/fsck.ext4 -y /dev/mmcblk0p3
+elif [ "$DEVICE" == "n873" ]; then
+	/usr/bin/fsck.fat -y /dev/mmcblk0p3
+else
+	/usr/bin/fsck.ext4 -y /dev/mmcblk0p3
+fi
+/usr/bin/fsck.ext4 -y /dev/mmcblk0p4
+echo
+
+UID_FLAG_RAW=`dd if=/dev/mmcblk0 bs=256 skip=3 count=1 status=none`
+UID_FLAG=${UID_FLAG_RAW:0:1}
+if [ "$UID_FLAG" != "1" ]; then
+	/opt/bin/uidgen write-mmc
+	echo "1" | dd of=/dev/mmcblk0 bs=256 seek=3
+else
+	:
+fi
+
+# Upgrading kernel if needed
+mount -t ext4 /dev/mmcblk0p1 /mnt
+KERNEL_FLASH=`cat /mnt/flags/KERNEL_FLASH` 2>/dev/null
+WILL_UPDATE=`cat /mnt/flags/WILL_UPDATE` 2>/dev/null
+DIAGS_BOOT=`cat /mnt/flags/DIAGS_BOOT` 2>/dev/null
+FIRST_BOOT=`cat /mnt/flags/FIRST_BOOT` 2>/dev/null
+STARTX=`cat /mnt/flags/X11_START` 2>/dev/null
+MOUNT_RW=`cat /mnt/flags/RW_ROOTFS` 2>/dev/null
+DONT_BOOT=`cat /mnt/flags/DONT_BOOT` 2>/dev/null
+ENCRYPT_LOCK=`cat /mnt/flags/ENCRYPT_LOCK` 2>/dev/null
+
+if [ "$DONT_BOOT" == "true" ]; then
+	echo "Device is locked down and will not boot."
+	/etc/init.d/inkbox-splash alert_splash 1
+	busybox poweroff
+	exit 1
+fi
+
+if [ ! -z "$ENCRYPT_LOCK" ]; then
+	CURRENT_EPOCH=`date +%s`
+	if [ "$CURRENT_EPOCH" -lt "$ENCRYPT_LOCK" ]; then
+		/etc/init.d/inkbox-splash alert_splash 6
+		busybox poweroff
+		exit 1
+	else
+		rm -f /mnt/flags/ENCRYPT_LOCK
+		sync
+	fi
+fi
+
+# Some mountpoints
+mkdir -p /rootfs-part
+
+if [ "$KERNEL_FLASH" == "true" ]; then
+	cp /mnt/boot/uImage /
+	sync
+	echo "Flashing new kernel..."
+	dd if=/uImage of=/dev/mmcblk0 bs=512 seek=81920
+	sync
+	echo "false" > /mnt/flags/KERNEL_FLASH
+	rm /mnt/boot/uImage
+	echo "Done, rebooting..."
+	reboot
+else
+	umount /mnt
+	evtest /dev/input/event0 > /tmp/input-log &
+	EVTEST_PID=$!
+
+	read -t 5 -n 1 -s -r -p "(initrd) Hit any key to stop auto-boot ... " KEY
+	echo
+
+	if [ "$KEY" == "" ]; then
+		INPUT_LOG=`cat /tmp/input-log | grep value`
+		export INPUT_LOG
+
+		if [ "$INPUT_LOG" == "" ]; then
+			if [ "$DIAGS_BOOT" != "true" ]; then
+				# Splash
+				if [ "$WILL_UPDATE" != "true" ]; then
+					/etc/init.d/inkbox-splash
+					/etc/init.d/inkbox-splash progress_bar_init &
+					sleep 2
+					set_progress 0
+					progress_sleep
+					set_progress 5
+					progress_sleep
+				else
+					/etc/init.d/inkbox-splash update_splash &
+					UPDATE_SPLASH_PID=$!
+					export UPDATE_SPLASH_PID
+				fi
+
+				# Enforcing security policy; device is not rooted.
+				# Wi-Fi connection
+				if [ "$DEVICE" == "n905b" ] || [ "$DEVICE" == "n873" ]; then
+					EXPRESS_VERIFICATION=1 /etc/init.d/overlay-mount recovery
+					if [ $? == 0 ]; then
+						mount_alpine_udev
+						chroot /alpine /sbin/openrc "sysinit" &>/dev/null
+						if [ $? == 0 ]; then
+							timeout 15s /sbin/setup-wifi
+						fi
+						killall udevd
+						umount -l -f /alpine
+						umount -l -f /mnt
+						umount -l -f /overlaymount-rootfs
+						umount -l -f /recoveryfs-part
+						losetup -d /dev/loop1
+					fi
+				fi
+
+				# Root filesystem
+				/etc/init.d/overlay-mount ro std
+				OVERLAYMOUNT_EXITCODE=$?
+				if [ $OVERLAYMOUNT_EXITCODE != 0 ]; then
+					exit $OVERLAYMOUNT_EXITCODE
+				fi
+				set_progress 15
+				progress_sleep
+
+				mount -t ext4 -o nosuid /dev/mmcblk0p1 /mnt/boot
+				## User storage
+				mount -t ext4 -o nosuid /dev/mmcblk0p4 /mnt/opt/storage
+				# Config
+				mkdir -p /mnt/opt/storage/config
+				mkdir -p /mnt/opt/config
+				mount --bind /mnt/opt/storage/config /mnt/opt/config
+				# Update bundle
+				mkdir -p /mnt/opt/storage/update
+				mkdir -p /mnt/opt/update
+				mount --bind /mnt/opt/storage/update /mnt/opt/update
+				# X11/KoBox
+				mkdir -p /mnt/opt/storage/X11/rootfs/work
+				mkdir -p /mnt/opt/storage/X11/rootfs/write
+				mkdir -p /mnt/opt/X11/rootfs
+				mount --bind /mnt/opt/storage/X11/rootfs /mnt/opt/X11/rootfs
+				set_progress 30
+				progress_sleep
+				# InkBox GUI's rootfs
+				mkdir -p /mnt/opt/storage/gui_rootfs
+				mkdir -p /mnt/opt/gui_rootfs
+				mount --bind /mnt/opt/storage/gui_rootfs /mnt/opt/gui_rootfs
+				set_progress 40
+				progress_sleep
+
+				echo "Enforcing security policy..."
+
+				mkdir -p /mnt/opt/root
+				mkdir -p /mnt/opt/key
+				mkdir -p /mnt/selinux
+
+				losetup /dev/loop7 /opt/lockdown.sqsh
+				mount /dev/loop7 /mnt/opt/root -o ro,nodev,nosuid,noexec
+				losetup /dev/loop6 /opt/key.sqsh
+				mount /dev/loop6 /mnt/opt/key -o ro,nodev,nosuid,noexec
+				losetup /dev/loop5 /opt/modules.sqsh
+				mount /dev/loop5 /mnt/modules -o ro,nodev,nosuid,noexec
+
+				export ROOTFS_PASSWD=`cat /mnt/etc/passwd`
+				export LOCKDOWN_PASSWD=`cat /opt/passwd_lockdown`
+
+				if [ "$ROOTFS_PASSWD" == "$LOCKDOWN_PASSWD" ]; then
+					:
+				else
+					# passwd file was modified; restoring it to prevent shell access
+					echo "WARNING! passwd file was modified; restoring it to its default state..."
+					rm -f /mnt/etc/passwd
+					sync
+					mount -o remount,rw /mnt
+					cp /opt/passwd_lockdown /mnt/etc/passwd
+					mount -o remount,ro /mnt
+					sync
+					# If this is not the first boot, we set the ALERT flag to show a GUI warning about what happened
+					if [ "$FIRST_BOOT" == "true" ]; then
+						echo "First boot."
+					else
+						echo "true" > /mnt/boot/flags/ALERT
+						sync
+					fi
+					echo "Done."
+					sync
+				fi
+
+				mount --rbind /proc /mnt/proc
+				mount --rbind /sys /mnt/sys
+				mount --rbind /dev /mnt/dev
+				mount -t tmpfs tmpfs -o nosuid /mnt/tmp
+				mount -t tmpfs tmpfs -o nosuid /mnt/var/log
+				set_progress 45
+				progress_sleep
+				
+				# Wi-Fi & Internet
+				if [ -e "/opt/firmware.sqsh" ]; then
+					losetup /dev/loop4 /opt/firmware.sqsh
+					mount /dev/loop4 /mnt/lib/firmware
+				fi
+
+				if [ -e "/etc/resolv.conf" ]; then
+					cp /etc/resolv.conf /tmp/resolv.conf
+				else
+					touch /tmp/resolv.conf
+				fi
+				mount --bind /tmp/resolv.conf /mnt/etc/resolv.conf
+
+				mount -t tmpfs tmpfs -o nosuid,noexec,nodev,size=2M /mnt/var/db/dhcpcd
+				touch /mnt/var/db/dhcpcd/duid
+				touch /mnt/opt/storage/dhcpcd_duid
+				mount --bind /mnt/opt/storage/dhcpcd_duid /mnt/var/db/dhcpcd/duid
+	
+				mount -t selinuxfs selinuxfs /mnt/selinux 2>/dev/null
+
+				# InkBox GUI's rootfs
+				busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/public.pem" "-signature" "/opt/storage/gui_rootfs.isa.dgst" "/opt/storage/gui_rootfs.isa" &>/dev/null
+				if [ $? != 0 ]; then
+					echo "FATAL: InkBox GUI root filesystem's signature is invalid!"
+					echo "Aborting boot and powering off ..."
+					killall -q inkbox-splash
+					/etc/init.d/inkbox-splash alert_splash 2
+					busybox poweroff
+					exit 1
+				else
+					busybox chroot /mnt "/bin/squashfuse" "/opt/storage/gui_rootfs.isa" "/opt/gui_rootfs/read"
+					busybox chroot /mnt "/bin/fuse-overlayfs" "-o" "lowerdir=/opt/gui_rootfs/read,upperdir=/opt/gui_rootfs/write,workdir=/opt/gui_rootfs/work" "/kobo"
+
+					echo true > /mnt/kobo/inkbox/remount
+					echo false > /mnt/boot/flags/X11_STARTED
+					set_progress 50
+					progress_sleep
+
+					# Starting an X server
+					if [ "$STARTX" == "true" ]; then
+						/etc/init.d/startx
+					fi
+					set_progress 90
+					progress_sleep
+
+					chroot /mnt /sbin/openrc "sysinit"
+					set_progress 100
+					sleep 1
+					echo "stop" > /run/progress_bar_fifo
+					/etc/init.d/initrd-fifo
+					chroot /mnt /sbin/openrc "boot"
+					chroot /mnt /sbin/openrc "default"
+					exit 0
+				fi
+			else
+				echo "DIAGS_BOOT is set to 'true', booting into diagnostics..."
+				rotate_screen
+				mkdir -p /alpine
+				/etc/init.d/overlay-mount recovery
+				OVERLAYMOUNT_EXITCODE=$?
+				if [ $OVERLAYMOUNT_EXITCODE != 0 ]; then
+					exit $OVERLAYMOUNT_EXITCODE
+				fi
+
+				mount -t ext4 /dev/mmcblk0p1 /mnt/boot
+
+				losetup /dev/loop7 /opt/lockdown.sqsh
+				mount /dev/loop7 /mnt/opt/root -o ro,nodev,nosuid,noexec
+				losetup /dev/loop6 /opt/key.sqsh
+				mount /dev/loop6 /mnt/opt/key -o ro,nodev,nosuid,noexec
+				losetup /dev/loop5 /opt/modules.sqsh
+				mount /dev/loop5 /mnt/modules -o ro,nodev,nosuid,noexec
+
+				mount /mnt/opt/recovery/restore/alpine-udev.sqsh /alpine
+				mount --rbind /proc /mnt/proc
+				mount --rbind /proc /alpine/proc
+				mount --rbind /sys /mnt/sys
+				mount --rbind /sys /alpine/sys
+				mount --rbind /dev /mnt/dev
+				mount --rbind /dev /alpine/dev
+				mount -t tmpfs tmpfs -o nosuid /mnt/tmp
+				mount -t tmpfs tmpfs -o nosuid /alpine/tmp
+				mount -t tmpfs tmpfs -o nosuid /alpine/run
+				chroot /alpine /sbin/openrc "sysinit" &>/dev/null
+				chroot /mnt /opt/bin/diagnostics_splash
+				sleep 2
+				chroot /mnt /opt/recovery/launch.sh &
+			fi
+		else
+			echo "Input event caught, booting into recovery partition..."
+			rotate_screen
+			mkdir -p /alpine
+			/etc/init.d/overlay-mount recovery
+			OVERLAYMOUNT_EXITCODE=$?
+			if [ $OVERLAYMOUNT_EXITCODE != 0 ]; then
+				exit $OVERLAYMOUNT_EXITCODE
+			fi
+
+			mount -t ext4 /dev/mmcblk0p1 /mnt/boot -o nosuid
+
+			losetup /dev/loop7 /opt/lockdown.sqsh
+			mount /dev/loop7 /mnt/opt/root -o ro,nodev,nosuid,noexec
+			losetup /dev/loop6 /opt/key.sqsh
+			mount /dev/loop6 /mnt/opt/key -o ro,nodev,nosuid,noexec
+			losetup /dev/loop5 /opt/modules.sqsh
+			mount /dev/loop5 /mnt/modules -o ro,nodev,nosuid,noexec
+
+			mount /mnt/opt/recovery/restore/alpine-udev.sqsh /alpine
+			mount --rbind /proc /mnt/proc
+			mount --rbind /proc /alpine/proc
+			mount --rbind /sys /mnt/sys
+			mount --rbind /sys /alpine/sys
+			mount --rbind /dev /mnt/dev
+			mount --rbind /dev  /alpine/dev
+			mount -t tmpfs tmpfs -o nosuid /mnt/tmp
+			mount -t tmpfs tmpfs -o nosuid /alpine/tmp
+			mount -t tmpfs tmpfs -o nosuid /alpine/run
+			chroot /alpine /sbin/openrc "sysinit" &>/dev/null
+			chroot /mnt /opt/bin/diagnostics_splash
+			sleep 2
+			chroot /mnt /opt/recovery/launch.sh &
+		fi
+	else
+		rm /usr/sbin/chroot
+		if [ "${DEVICE}" == "emu" ]; then
+			echo -e "#!/bin/sh\n\n/sbin/getty -L ttyAMA0 115200 vt100" > /usr/sbin/chroot
+		elif [ "${DEVICE}" == "bpi" ]; then
+			echo -e "#!/bin/sh\n\n/sbin/getty -L ttyS0 115200 vt100" > /usr/sbin/chroot
+		else
+			echo -e "#!/bin/sh\n\n/sbin/getty -L ttymxc0 115200 vt100" > /usr/sbin/chroot
+		fi
+		chmod +x /usr/sbin/chroot
+	fi
+fi
+
+kill -9 $EVTEST_PID

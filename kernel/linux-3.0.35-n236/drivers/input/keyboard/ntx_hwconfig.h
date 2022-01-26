@@ -1,0 +1,1 @@
+../../../arch/arm/mach-mx6/ntx_hwconfig.h
