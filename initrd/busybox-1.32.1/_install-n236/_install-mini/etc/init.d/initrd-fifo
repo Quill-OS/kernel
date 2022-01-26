@@ -1,0 +1,112 @@
+#!/bin/sh
+
+DEVICE=$(cat /opt/device)
+if [ "${DEVICE}" != "n873" ]; then
+	ROOTFS_FMT="ext4"
+else
+	ROOTFS_FMT="vfat"
+fi
+
+omega() {
+	# Memento, homo, quia pulvis es, et in pulverem reverteris.
+	# Final system rundown
+	mount -o remount,ro /overlaymount-rootfs/mnt/rootfs/overlay &>/dev/null
+	umount /overlaymount-rootfs/mnt/rootfs/overlay -l -f &>/dev/null
+	umount /overlaymount-rootfs/mnt/rootfs/read -l -f &>/dev/null
+	umount /overlaymount-rootfs/mnt/rootfs -l -f &>/dev/null
+	umount /overlaymount-rootfs/mnt/rootfs-part -l -f &>/dev/null
+	umount /overlaymount-rootfs/mnt -l -f &>/dev/null
+	umount /overlaymount-rootfs/proc -l -f &>/dev/null
+	umount /overlaymount-rootfs/dev -l -f &>/dev/null
+	umount /overlaymount-rootfs/sys -l -f &>/dev/null
+	umount /overlaymount-rootfs -l -f &>/dev/null
+	umount /rootfs-part -l -f &>/dev/null
+}
+
+update_rootfs() {
+	mv /overlaymount-rootfs/mnt/rootfs/overlay/tmp/update/rootfs/rootfs.squashfs /tmp
+	mv /overlaymount-rootfs/mnt/rootfs/overlay/tmp/update/rootfs/rootfs.squashfs.dgst /tmp
+	sync
+	omega
+	mkdir -p /rootfs-part
+	mount -t "${ROOTFS_FMT}" -o nosuid,noexec,nodev /dev/mmcblk0p3 /rootfs-part
+	sync
+	mv /tmp/rootfs.squashfs /rootfs-part/rootfs.squashfs
+	mv /tmp/rootfs.squashfs.dgst /rootfs-part/rootfs.squashfs.dgst
+	sync
+	umount -l -f /rootfs-part
+}
+reset_kobox() {
+	sync
+	mkdir -p /userstore-part
+	mount -t ext4 -o nosuid,noexec,nodev /dev/mmcblk0p4 /userstore-part
+	sync
+	rm -rf /userstore-part/X11/rootfs/write
+	rm -rf /userstore-part/X11/rootfs/work
+	mkdir -p /userstore-part/X11/rootfs/write
+	mkdir -p /userstore-part/X11/rootfs/work
+	sync
+	umount -l -f /userstore-part
+}
+
+if [[ ! -p /mnt/run/initrd-fifo ]]; then
+	rm /mnt/run/initrd-fifo 2>/dev/null
+	mkfifo /mnt/run/initrd-fifo 2>/dev/null
+fi
+
+while true; do
+	if [ -e /mnt/run/initrd-fifo ]; then
+		if read line < /mnt/run/initrd-fifo; then
+			if [[ "$line" == "poweroff" ]]; then
+				omega
+				killall -q openrc
+				busybox poweroff
+				exit 0
+			elif [[ "$line" == "reboot" ]]; then
+				omega
+				killall -q openrc
+				busybox reboot
+				exit 0
+			elif [[ "$line" == "reboot_reset_kobox" ]]; then
+				omega
+				reset_kobox
+				killall -q openrc
+				busybox reboot
+				exit 0
+			elif [[ "$line" == "update_rootfs" ]]; then
+				update_rootfs
+				killall -q openrc
+				busybox reboot
+				exit 0
+			elif [[ "$line" == "get_kernel_build_id" ]]; then
+				KERNEL_BUILD_ID=$(cat /opt/build_id)
+				echo "${KERNEL_BUILD_ID}" > /mnt/run/build_id
+			elif [[ "$line" == "developer_fake-openssl_mount" ]]; then
+				if grep -q "true" /mnt/opt/developer/key/valid-key &>/dev/null; then
+					if [ ! -e /tmp/fake-openssl ]; then
+						cp /opt/bin/fake-openssl /tmp/fake-openssl
+					fi
+					umount -l -f /mnt/usr/bin/openssl &>/dev/null
+					mount --bind /tmp/fake-openssl /mnt/usr/bin/openssl
+				else
+					echo "initrd-fifo: fake-openssl: Permission denied."
+				fi
+			elif [[ "$line" == "developer_fake-openssl_unmount" ]]; then
+				if grep -q "true" /mnt/opt/developer/key/valid-key &>/dev/null; then
+					umount -l -f /mnt/usr/bin/openssl
+				else
+					echo "initrd-fifo: fake-openssl: Permission denied."
+				fi
+			elif [[ "$line" == "alert_splash" ]]; then
+				SPLASH_ERROR_CODE=$(cat /mnt/run/alert_splash_error_code 2>/dev/null)
+				if [ ! -z "${SPLASH_ERROR_CODE}" ]; then
+					/etc/init.d/inkbox-splash alert_splash "${SPLASH_ERROR_CODE}"
+				else
+					/etc/init.d/inkbox-splash alert_splash 255
+				fi
+			fi
+		fi
+	else
+		:
+	fi
+done &
