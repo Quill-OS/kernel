@@ -25,7 +25,7 @@
 #define MMC_CMD_SEPERATED_SDNUM		1// run mmc command with seperated sd number .
 
 // binaries sector number of sd card .
-#define SD_OFFSET_SECS_KERNEL		2048
+#define SD_OFFSET_SECS_KERNEL		81920
 #define SD_OFFSET_SECS_INITRD		12288
 #define SD_OFFSET_SECS_INITRD2		8192
 #ifdef _MX6Q_//[

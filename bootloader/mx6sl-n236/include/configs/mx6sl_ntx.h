@@ -197,7 +197,7 @@
  */
 #define CONFIG_SYS_LONGHELP		/* undef to save memory */
 //#define CONFIG_SYS_PROMPT		"MX6Sl NTX U-Boot > "
-#define CONFIG_SYS_PROMPT		"eBR-1A # "
+#define CONFIG_SYS_PROMPT		"kobo => "
 #define CONFIG_AUTO_COMPLETE
 #define CONFIG_SYS_CBSIZE		1024	/* Console I/O Buffer Size */
 /* Print Buffer Size */
