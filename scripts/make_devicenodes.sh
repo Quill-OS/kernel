@@ -39,6 +39,8 @@ else
 	make_nodes 2>/dev/null
 	cd ${GITDIR}/initrd/n905b-diags
 	make_nodes 2>/dev/null
+	cd ${GITDIR}/initrd/n236
+	make_nodes 2>/dev/null
 	cd ${GITDIR}/initrd/emu
 	make_nodes emu 2>/dev/null
 	cd ${GITDIR}/initrd/emu-diags
