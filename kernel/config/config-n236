@@ -37,7 +37,7 @@ CONFIG_EXPERIMENTAL=y
 CONFIG_BROKEN_ON_SMP=y
 CONFIG_INIT_ENV_ARG_LIMIT=32
 CONFIG_CROSS_COMPILE=""
-CONFIG_LOCALVERSION=""
+CONFIG_LOCALVERSION="-inkbox"
 # CONFIG_LOCALVERSION_AUTO is not set
 CONFIG_HAVE_KERNEL_GZIP=y
 CONFIG_HAVE_KERNEL_LZMA=y
@@ -95,7 +95,7 @@ CONFIG_RD_XZ=y
 # CONFIG_RD_LZO is not set
 # CONFIG_INITRAMFS_COMPRESSION_NONE is not set
 CONFIG_INITRAMFS_COMPRESSION_XZ=y
-CONFIG_CC_OPTIMIZE_FOR_SIZE=n
+# CONFIG_CC_OPTIMIZE_FOR_SIZE is not set
 CONFIG_SYSCTL=y
 CONFIG_ANON_INODES=y
 CONFIG_PANIC_TIMEOUT=0
@@ -463,7 +463,7 @@ CONFIG_ALIGNMENT_TRAP=y
 # CONFIG_USE_OF is not set
 CONFIG_ZBOOT_ROM_TEXT=0x0
 CONFIG_ZBOOT_ROM_BSS=0x0
-CONFIG_CMDLINE="console=ttymxc0,115200 rootwait rw hwcfg_p=0x8ffffe00 hwcfg_sz=110 waveform_p=0x8fee3a00 waveform_sz=1164278 ntxfw_p=0x8fee3600 ntxfw_sz=782 mem=254M boot_port=1 rootfstype=ramfs root=/dev/ram0 rdinit=/sbin/init quiet"
+CONFIG_CMDLINE="console=ttymxc0,115200 rootwait rw hwcfg_p=0x8ffffe00 hwcfg_sz=110 waveform_p=0x8fee3a00 waveform_sz=1164278 ntxfw_p=0x8fee3600 ntxfw_sz=782 mem=254M boot_port=1 rootfstype=ramfs root=/dev/ram0 rdinit=/sbin/init printk.time quiet"
 # CONFIG_CMDLINE_FROM_BOOTLOADER is not set
 # CONFIG_CMDLINE_EXTEND is not set
 CONFIG_CMDLINE_FORCE=y
