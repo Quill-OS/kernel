@@ -36,11 +36,20 @@ print_progress() {
 	echo "true" > /run/print_busy
 
 	if [ ! -z ${2} ]; then
-		LD_LIBRARY_PATH=/opt/fbink busybox chroot "${CHROOT_DIR}" /opt/fbink/fbink -s top=$(calculate ${viewHeight}/2+${viewHeight}/8),left=$(calculate ${viewWidth}/4),width=$(calculate ${viewWidth}/2),height=$(calculate ${HEIGHT_FACTOR}*100/${viewHeight}*100) -W GC16 -D ORDERED -w &>/dev/null
-		LD_LIBRARY_PATH=/opt/fbink busybox chroot "${CHROOT_DIR}" /opt/fbink/fbink -s top=$(calculate ${viewHeight}/2+${viewHeight}/8+2),left=$(calculate ${viewWidth}/4+2),width=$(calculate ${viewWidth}/2-4),height=$(calculate ${HEIGHT_FACTOR}*100/${viewHeight}*100-4) -W GC16 -D ORDERED -H -w &>/dev/null
+		if [ "${DEVICE}" != "n236" ] && [ "${DEVICE}" != "n873" ]; then
+			LD_LIBRARY_PATH=/opt/fbink busybox chroot "${CHROOT_DIR}" /opt/fbink/fbink -s top=$(calculate ${viewHeight}/2+${viewHeight}/8),left=$(calculate ${viewWidth}/4),width=$(calculate ${viewWidth}/2),height=$(calculate ${HEIGHT_FACTOR}*100/${viewHeight}*100) -W GC16 -D ORDERED -w &>/dev/null
+			LD_LIBRARY_PATH=/opt/fbink busybox chroot "${CHROOT_DIR}" /opt/fbink/fbink -s top=$(calculate ${viewHeight}/2+${viewHeight}/8+2),left=$(calculate ${viewWidth}/4+2),width=$(calculate ${viewWidth}/2-4),height=$(calculate ${HEIGHT_FACTOR}*100/${viewHeight}*100-4) -W GC16 -D ORDERED -H -w &>/dev/null
+		else
+			LD_LIBRARY_PATH=/opt/fbink busybox chroot "${CHROOT_DIR}" /opt/fbink/fbink -s top=$(calculate ${viewHeight}/2+${viewHeight}/8),left=$(calculate ${viewWidth}/4),width=$(calculate ${viewWidth}/2),height=$(calculate ${HEIGHT_FACTOR}*100/${viewHeight}*100) -W GC16 -D ORDERED -H -w &>/dev/null
+			LD_LIBRARY_PATH=/opt/fbink busybox chroot "${CHROOT_DIR}" /opt/fbink/fbink -s top=$(calculate ${viewHeight}/2+${viewHeight}/8+2),left=$(calculate ${viewWidth}/4+2),width=$(calculate ${viewWidth}/2-4),height=$(calculate ${HEIGHT_FACTOR}*100/${viewHeight}*100-4) -W GC16 -D ORDERED -w &>/dev/null
+		fi
 	fi
 
-	LD_LIBRARY_PATH=/opt/fbink busybox chroot "${CHROOT_DIR}" /opt/fbink/fbink -s top=$(calculate ${viewHeight}/2+${viewHeight}/8),left=$(calculate ${viewWidth}/4),width=$(calculate ${viewWidth}/4/2*4*${PERCENTAGE}/100),height=$(calculate ${HEIGHT_FACTOR}*100/${viewHeight}*100) -W GC16 -D ORDERED -w &>/dev/null
+	if [ "${DEVICE}" != "n236" ] && [ "${DEVICE}" != "n873" ]; then
+		LD_LIBRARY_PATH=/opt/fbink busybox chroot "${CHROOT_DIR}" /opt/fbink/fbink -s top=$(calculate ${viewHeight}/2+${viewHeight}/8),left=$(calculate ${viewWidth}/4),width=$(calculate ${viewWidth}/4/2*4*${PERCENTAGE}/100),height=$(calculate ${HEIGHT_FACTOR}*100/${viewHeight}*100) -W GC16 -D ORDERED -w &>/dev/null
+	else
+		LD_LIBRARY_PATH=/opt/fbink busybox chroot "${CHROOT_DIR}" /opt/fbink/fbink -s top=$(calculate ${viewHeight}/2+${viewHeight}/8),left=$(calculate ${viewWidth}/4),width=$(calculate ${viewWidth}/4/2*4*${PERCENTAGE}/100),height=$(calculate ${HEIGHT_FACTOR}*100/${viewHeight}*100) -W GC16 -D ORDERED -H -w &>/dev/null
+	fi
 	echo "false" > /run/print_busy
 }
 
@@ -153,6 +162,6 @@ else
 	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink "-M" "-m" "-q" "-t" "regular=/opt/fbink/fraunces.ttf,size=${SIZE}" "InkBox"
 fi
 
-if [ "${1}" != "update_splash" ] || [ "${1}" != "progress_bar_init" ]; then
+if [ "${1}" != "update_splash" ] && [ "${1}" != "progress_bar_init" ]; then
 	cleanup
 fi
