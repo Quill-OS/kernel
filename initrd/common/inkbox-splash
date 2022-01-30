@@ -4,10 +4,12 @@
 DEVICE=$(cat /opt/device)
 PROGRESS_BAR=0
 [ "${1}" == "progress_bar_init" ] && PROGRESS_BAR=1
+[ "${1}" == "display_debug" ] && DISPLAY_DEBUG=1
 
 setup() {
 	CHROOT_DIR="/splash"
 	[ ${PROGRESS_BAR} == 1 ] && CHROOT_DIR="/splash_progress_bar"
+	[ ${DISPLAY_DEBUG} == 1 ] && CHROOT_DIR="/splash_display_debug"
 	mkdir -p "${CHROOT_DIR}"
 	cd "${CHROOT_DIR}"
 	tar -xf /opt/splash-rootfs.tar.xz
@@ -143,6 +145,12 @@ elif [ "${1}" == "progress_bar_init" ]; then
 			sleep 0.1
 		fi
 	done &>/dev/null
+elif [ "${1}" == "display_debug" ]; then
+	ln -s /bin/busybox "${CHROOT_DIR}/bin/sh"
+	ln -s /bin/busybox "${CHROOT_DIR}/bin/cat"
+	touch "${CHROOT_DIR}/run/serial-fifo"
+	mount --bind /tmp/serial-fifo "${CHROOT_DIR}/run/serial-fifo"
+	chroot "${CHROOT_DIR}" /usr/bin/inkvt.armhf --no-timeout -f tewi -c "/usr/bin/serial-debug"
 elif [ "${1}" == "alert_splash" ]; then
 	ln -s /bin/busybox /splash/bin/sh
 	ln -s /bin/busybox /splash/bin/cat
@@ -162,6 +170,6 @@ else
 	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink "-M" "-m" "-q" "-t" "regular=/opt/fbink/fraunces.ttf,size=${SIZE}" "InkBox"
 fi
 
-if [ "${1}" != "update_splash" ] && [ "${1}" != "progress_bar_init" ]; then
+if [ "${1}" != "update_splash" ] && [ "${1}" != "progress_bar_init" ] && [ "${1}" != "display_debug" ]; then
 	cleanup
 fi
