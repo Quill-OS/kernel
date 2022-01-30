@@ -16,7 +16,7 @@ int SD_OFFSET_SECS_KERNEL = 81920;
 #define SD_OFFSET_SECS_LOGO			18432
 #define SD_OFFSET_SECS_WAVEFORM		14336
 
-#define DEFAULT_LOAD_KERNEL_SZ	16384
+#define DEFAULT_LOAD_KERNEL_SZ	18432
 #define KERNEL_RAM_ADDR		CONFIG_LOADADDR
 
 const static unsigned char gszNtxBinMagicA[4]={0xff,0xf5,0xaf,0xff};
