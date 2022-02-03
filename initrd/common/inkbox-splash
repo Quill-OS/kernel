@@ -3,6 +3,7 @@
 
 DEVICE=$(cat /opt/device)
 PROGRESS_BAR=0
+DISPLAY_DEBUG=0
 [ "${1}" == "progress_bar_init" ] && PROGRESS_BAR=1
 [ "${1}" == "display_debug" ] && DISPLAY_DEBUG=1
 
