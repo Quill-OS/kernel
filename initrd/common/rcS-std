@@ -395,7 +395,8 @@ main() {
 }
 
 mount -t ext4 /dev/mmcblk0p1 /mnt
-DISPLAY_DEBUG=$(cat /mnt/flags/DISPLAY_DEBUG)
+mkdir -p /mnt/flags
+DISPLAY_DEBUG=$(cat /mnt/flags/DISPLAY_DEBUG 2>/dev/null)
 umount /mnt
 if [ "${DISPLAY_DEBUG}" == "true" ]; then
 	mkfifo /tmp/serial-fifo
