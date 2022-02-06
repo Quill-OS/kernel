@@ -163,17 +163,19 @@ static void _zForce_ir_touch_report_touch_up(char id)
 		input_report_abs(zForce_ir_touch_data.input, ABS_MT_WIDTH_MAJOR, 0);
 		input_report_abs(zForce_ir_touch_data.input, ABS_MT_POSITION_X, last_x[id]);
 		input_report_abs(zForce_ir_touch_data.input, ABS_MT_POSITION_Y, last_y[id]);
+		input_mt_sync(zForce_ir_touch_data.input);
 		input_report_abs(zForce_ir_touch_data.input, ABS_PRESSURE, 0);
 		input_report_key(zForce_ir_touch_data.input, BTN_TOUCH, 0);
 		if( (1 == id) && (g_touch_pressed&(1<<2)) )  // id 2 still pressed
 		{
-			input_mt_sync(zForce_ir_touch_data.input);
+			// input_mt_sync(zForce_ir_touch_data.input);
 			input_report_abs(zForce_ir_touch_data.input, ABS_MT_TRACKING_ID, 2);
 			input_report_abs(zForce_ir_touch_data.input, ABS_MT_TOUCH_MAJOR, 1);
 			input_report_abs(zForce_ir_touch_data.input, ABS_MT_WIDTH_MAJOR, 1);
 			input_report_abs(zForce_ir_touch_data.input, ABS_MT_POSITION_X, last_x[2]);
 			input_report_abs(zForce_ir_touch_data.input, ABS_MT_POSITION_Y, last_y[2]);
 		}
+		input_sync(zForce_ir_touch_data.input);
 	}
 	else {
 		input_report_abs(zForce_ir_touch_data.input, ABS_MT_TRACKING_ID, id);
