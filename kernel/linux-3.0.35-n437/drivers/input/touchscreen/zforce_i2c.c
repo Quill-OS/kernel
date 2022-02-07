@@ -156,9 +156,9 @@ static void _zForce_ir_touch_report_touch_up(char id)
 			input_report_abs(zForce_ir_touch_data.input, ABS_MT_WIDTH_MAJOR, 1);
 			input_report_abs(zForce_ir_touch_data.input, ABS_MT_POSITION_X, last_x[1]);
 			input_report_abs(zForce_ir_touch_data.input, ABS_MT_POSITION_Y, last_y[1]);
-			input_mt_sync(zForce_ir_touch_data.input);
+			// input_mt_sync(zForce_ir_touch_data.input);
 		}
-		input_report_abs(zForce_ir_touch_data.input, ABS_MT_TRACKING_ID, id);
+		input_report_abs(zForce_ir_touch_data.input, ABS_MT_TRACKING_ID, 0);
 		input_report_abs(zForce_ir_touch_data.input, ABS_MT_TOUCH_MAJOR, 0);
 		input_report_abs(zForce_ir_touch_data.input, ABS_MT_WIDTH_MAJOR, 0);
 		input_report_abs(zForce_ir_touch_data.input, ABS_MT_POSITION_X, last_x[id]);
@@ -175,7 +175,7 @@ static void _zForce_ir_touch_report_touch_up(char id)
 			input_report_abs(zForce_ir_touch_data.input, ABS_MT_POSITION_X, last_x[2]);
 			input_report_abs(zForce_ir_touch_data.input, ABS_MT_POSITION_Y, last_y[2]);
 		}
-		input_sync(zForce_ir_touch_data.input);
+		// input_sync(zForce_ir_touch_data.input);
 	}
 	else {
 		input_report_abs(zForce_ir_touch_data.input, ABS_MT_TRACKING_ID, id);
@@ -184,8 +184,8 @@ static void _zForce_ir_touch_report_touch_up(char id)
 		input_report_abs(zForce_ir_touch_data.input, ABS_MT_POSITION_X, last_x[id]);
 		input_report_abs(zForce_ir_touch_data.input, ABS_MT_POSITION_Y, last_y[id]);
 
-		input_report_abs(zForce_ir_touch_data.input, ABS_Y, last_y[id]);
-		input_report_abs(zForce_ir_touch_data.input, ABS_X, last_x[id]);
+		// input_report_abs(zForce_ir_touch_data.input, ABS_Y, last_y[id]);
+		// input_report_abs(zForce_ir_touch_data.input, ABS_X, last_x[id]);
 		input_report_abs(zForce_ir_touch_data.input, ABS_PRESSURE, 0);
 		input_report_key(zForce_ir_touch_data.input, BTN_TOUCH, 0);
 	} 
@@ -469,13 +469,14 @@ static void zForce_ir_touch_report_data(struct i2c_client *client, uint8_t *buf)
 					input_report_abs(zForce_ir_touch_data.input, ABS_MT_WIDTH_MAJOR, 1);
 					input_report_abs(zForce_ir_touch_data.input, ABS_MT_POSITION_X, last_x[1]);
 					input_report_abs(zForce_ir_touch_data.input, ABS_MT_POSITION_Y, last_y[1]);
-					input_mt_sync(zForce_ir_touch_data.input);
+					// input_mt_sync(zForce_ir_touch_data.input);
 				}
-				input_report_abs(zForce_ir_touch_data.input, ABS_MT_TRACKING_ID, id);
+				input_report_abs(zForce_ir_touch_data.input, ABS_MT_TRACKING_ID, 0);
 				input_report_abs(zForce_ir_touch_data.input, ABS_MT_TOUCH_MAJOR, 1);
 				input_report_abs(zForce_ir_touch_data.input, ABS_MT_WIDTH_MAJOR, 1);
 				input_report_abs(zForce_ir_touch_data.input, ABS_MT_POSITION_X, y);
 				input_report_abs(zForce_ir_touch_data.input, ABS_MT_POSITION_Y, x);
+				input_mt_sync(zForce_ir_touch_data.input);
 				input_report_abs(zForce_ir_touch_data.input, ABS_PRESSURE, 1024);
 				input_report_key(zForce_ir_touch_data.input, BTN_TOUCH, 1);
 				last_y[id] = x;
@@ -483,13 +484,14 @@ static void zForce_ir_touch_report_data(struct i2c_client *client, uint8_t *buf)
 				g_touch_pressed |= (1<<id);
 				if ( (1 == id) && (g_touch_pressed&(1<<2)) )  // id 2 also pressed
 				{
-					input_mt_sync(zForce_ir_touch_data.input);
+					// input_mt_sync(zForce_ir_touch_data.input);
 					input_report_abs(zForce_ir_touch_data.input, ABS_MT_TRACKING_ID, 2);
 					input_report_abs(zForce_ir_touch_data.input, ABS_MT_TOUCH_MAJOR, 1);
 					input_report_abs(zForce_ir_touch_data.input, ABS_MT_WIDTH_MAJOR, 1);
 					input_report_abs(zForce_ir_touch_data.input, ABS_MT_POSITION_X, last_x[2]);
 					input_report_abs(zForce_ir_touch_data.input, ABS_MT_POSITION_Y, last_y[2]);
 				}
+				input_sync(zForce_ir_touch_data.input);
 //			printk (KERN_ERR"[%s-%d] touch down (%d, %d, %d)\n",__func__,__LINE__,x1,y1, pressure);
 				//printk (KERN_ERR"[%s-%d] touch %d (%d, %d) down\n",__func__,__LINE__, id,x,y);
 			}
@@ -503,8 +505,8 @@ static void zForce_ir_touch_report_data(struct i2c_client *client, uint8_t *buf)
 				input_report_abs(zForce_ir_touch_data.input, ABS_MT_POSITION_X, x);
 				input_report_abs(zForce_ir_touch_data.input, ABS_MT_POSITION_Y, y);
 				/** single touch ABS **/
-				input_report_abs(zForce_ir_touch_data.input, ABS_Y, y);
-				input_report_abs(zForce_ir_touch_data.input, ABS_X, x);
+				// input_report_abs(zForce_ir_touch_data.input, ABS_Y, y);
+				// input_report_abs(zForce_ir_touch_data.input, ABS_X, x);
 				input_report_abs(zForce_ir_touch_data.input, ABS_PRESSURE, 1024);
 				input_report_key(zForce_ir_touch_data.input, BTN_TOUCH, 1);
 				//printk (KERN_ERR"[%s-%d] touch %d (%d, %d)\n",__func__,__LINE__, id,x,y);
@@ -526,7 +528,7 @@ static void zForce_ir_touch_report_data(struct i2c_client *client, uint8_t *buf)
 		}
 
 	//	printk ("[%s-%d] flag %04X, id %d\n",__func__,__LINE__,g_touch_pressed,id);
-		input_mt_sync(zForce_ir_touch_data.input);
+		// input_mt_sync(zForce_ir_touch_data.input);
 		packet += (8==gptHWCFG->m_val.bTouchCtrl || 11==gptHWCFG->m_val.bTouchCtrl)?9:7;
 	}
 	input_sync(zForce_ir_touch_data.input);
