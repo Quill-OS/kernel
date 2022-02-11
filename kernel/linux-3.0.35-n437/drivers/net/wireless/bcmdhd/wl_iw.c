@@ -3525,10 +3525,10 @@ wl_iw_set_scan(
 	g_set_essid_before_scan = FALSE;
 #endif
 
-#if defined(CSCAN)
+/*#if defined(CSCAN)
 		WL_ERROR(("%s: Scan from SIOCGIWSCAN not supported\n", __FUNCTION__));
 		return -EINVAL;
-#endif 
+#endif */
 
 #if defined(SOFTAP)
 	
@@ -3656,10 +3656,10 @@ wl_iw_iscan_set_scan(
 
 	WL_TRACE_SCAN(("%s: SIOCSIWSCAN : ISCAN\n", dev->name));
 
-#if defined(CSCAN)
+/*#if defined(CSCAN)
 		WL_ERROR(("%s: Scan from SIOCGIWSCAN not supported\n", __FUNCTION__));
 		return -EINVAL;
-#endif 
+#endif */
 
 	net_os_wake_lock(dev);
 

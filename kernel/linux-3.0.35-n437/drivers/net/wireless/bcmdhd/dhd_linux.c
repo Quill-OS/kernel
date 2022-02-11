@@ -282,8 +282,8 @@ typedef struct dhd_info {
 /* Definitions to provide path to the firmware and nvram
  * example nvram_path[MOD_PARAM_PATHLEN]="/projects/wlan/nvram.txt"
  */
-char firmware_path[MOD_PARAM_PATHLEN]="/system/lib/firmware/wc121/rtecdc.bin";
-char nvram_path[MOD_PARAM_PATHLEN]="/system/lib/firmware/wc121/nvram.txt";
+char firmware_path[MOD_PARAM_PATHLEN]="/lib/firmware/wc121/rtecdc.bin";
+char nvram_path[MOD_PARAM_PATHLEN]="/lib/firmware/wc121/nvram.txt";
 
 extern int wl_control_wl_start(struct net_device *dev);
 extern int net_os_send_hang_message(struct net_device *dev);
