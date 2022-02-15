@@ -340,6 +340,12 @@ mount -t sysfs sysfs /mnt/opt/X11/vnc-touch/sys
 mount -t proc proc /mnt/opt/X11/vnc-touch/proc
 mount -t devpts devpts /mnt/opt/X11/vnc-touch/dev/pts
 mount --bind /tmp/resolv.conf /mnt/opt/X11/vnc-touch/etc/resolv.conf
+# Touch input broken on some devices with newer Qt5 platform plugin
+if [ "${DEVICE}" != "n236" ] && [ "${DEVICE}" != "n437" ] && [ "${DEVICE}" != "n873" ]; then
+	mount --bind /mnt/lib/qt5-plugins/libkobo.so.1 /mnt/opt/X11/vnc-touch/opt/qt5/plugins/platforms/libkobo.so
+else
+	mount --bind /mnt/lib/qt5-plugins/libkobo.so.2 /mnt/opt/X11/vnc-touch/opt/qt5/plugins/platforms/libkobo.so
+fi
 
 echo "true" > /mnt/boot/flags/X11_STARTED
 
