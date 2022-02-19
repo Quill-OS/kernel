@@ -16,8 +16,11 @@ VERSION=$(cat /mnt/opt/version 2>/dev/null)
 PACKAGE_PATH="${1}"
 PACKAGE=$(basename "${PACKAGE_PATH}")
 IS_CONNECTED=$(cat /tmp/wifi_connected 2>/dev/null)
+
 if [ "${IS_CONNECTED}" != "true" ]; then
-	return 1
+	exit 1
+elif grep -q "true" /mnt/opt/developer/key/valid-key &>/dev/null; then
+	exit 0
 else
 	# Doing this because busybox wget can't resolve an Internet address
 	SERVER_IP_ADDRESS=$(nslookup "${SERVER_HOSTNAME}" | awk -F': ' 'NR==6 { print $2 } ' 2>/dev/null)
