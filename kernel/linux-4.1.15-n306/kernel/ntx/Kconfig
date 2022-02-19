@@ -1,0 +1,10 @@
+#
+# NTX subsystem related configuration options
+#
+
+config NTX_TIMESTAMPS
+	bool "NTX Timestamps mesurement Support"
+	help
+	  This option enables ntx_timestamp measurement support.
+
+

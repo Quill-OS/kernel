@@ -1,0 +1,17 @@
+
+#include "imx6sll-e80k02.dts"
+
+&i2c1 {
+	wacom@09 {
+		compatible = "wacom_i2c";
+		reg = <0x09>;
+		//interrupt-parent = <&gpio3>;
+		//interrupts = <30 0>;
+		gpio_intr = <&gpio3 30 1>;
+		//interrupt-names = "INT";
+		gpio_rst = <&gpio4 26 1>;
+		wacom,rst= <122> ; //<&gpio4 26 1>
+		wacom,int= <94> ; //<&gpio3 30 1>		
+	};		
+};
+
