@@ -1,0 +1,6 @@
+MX6ULL NTX BOARD
+M:	Gallen <gallen.lin@netronixinc.com>
+S:	Maintained
+F:	board/freescale/mx6ull_ntx/
+F:	include/configs/mx6ull_ntx.h
+F:	configs/mx6ull_ntx_defconfig
