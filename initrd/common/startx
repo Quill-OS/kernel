@@ -344,6 +344,8 @@ mount --bind /tmp/resolv.conf /mnt/opt/X11/vnc-touch/etc/resolv.conf
 if [ "${DEVICE}" != "n437" ]; then
 	mount --bind /mnt/lib/qt5-plugins/libkobo.so.1 /mnt/opt/X11/vnc-touch/opt/qt5/plugins/platforms/libkobo.so
 else
+	mount --bind /mnt/opt/inkbox_device /mnt/opt/X11/vnc-touch/opt/inkbox_device
+	mount --bind /mnt/bin/kobo_config.sh /mnt/opt/X11/vnc-touch/bin/kobo_config.sh
 	mount --bind /mnt/lib/qt5-plugins/libkobo.so.2 /mnt/opt/X11/vnc-touch/opt/qt5/plugins/platforms/libkobo.so
 fi
 
