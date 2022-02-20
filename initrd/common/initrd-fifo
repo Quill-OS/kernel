@@ -80,7 +80,10 @@ while true; do
 				exit 0
 			elif [[ "$line" == "get_kernel_build_id" ]]; then
 				KERNEL_BUILD_ID=$(cat /opt/build_id)
-				echo "${KERNEL_BUILD_ID}" > /mnt/run/build_id
+				echo "${KERNEL_BUILD_ID}" > /mnt/run/kernel_build_id
+			elif [[ "$line" == "get_kernel_commit" ]]; then
+				KERNEL_COMMIT=$(cat /opt/commit)
+				echo "${KERNEL_COMMIT}" > /mnt/run/kernel_commit
 			elif [[ "$line" == "developer_fake-openssl_mount" ]]; then
 				if grep -q "true" /mnt/opt/developer/key/valid-key &>/dev/null; then
 					if [ ! -e /tmp/fake-openssl ]; then

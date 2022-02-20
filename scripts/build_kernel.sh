@@ -5,8 +5,11 @@ build_id_gen() {
 		echo "You must specify a file."
 	else
 		BUILD_ID=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 8)
-		echo "---- Build ID is: ${BUILD_ID} ----"
-		sudo su -c "echo ${BUILD_ID} > '${1}'"
+		GIT_COMMIT=$(git rev-parse HEAD | head -c 7)
+		echo "---- Kernel build ID is: ${BUILD_ID} ----"
+		echo "---- Kernel commit is: ${GIT_COMMIT} ----"
+		sudo su -c "echo ${BUILD_ID} > '${1}/build_id'"
+		sudo su -c "echo ${BUILD_ID} > '${1}/commit'"
 	fi
 }
 
@@ -171,7 +174,7 @@ if [ "$2" == "std" ]; then
 		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n705/etc/init.d/initrd-fifo
 		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n705/opt/bin/uidgen
 		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n705/bin/checksum-verify
-		build_id_gen $GITDIR/initrd/n705/opt/build_id
+		build_id_gen $GITDIR/initrd/n705/opt/
 		mkdir -p $GITDIR/kernel/out/n705
 	elif [ "$1" == "n905c" ]; then
 		sudo mkdir -p $GITDIR/initrd/n905c/etc/init.d
@@ -185,7 +188,7 @@ if [ "$2" == "std" ]; then
 		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n905c/opt/bin/uidgen
 		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n905c/bin/checksum-verify
 		mkdir -p $GITDIR/kernel/out/n905c
-		build_id_gen $GITDIR/initrd/n905c/opt/build_id
+		build_id_gen $GITDIR/initrd/n905c/opt/
 	elif [ "$1" == "n613" ]; then
 		sudo mkdir -p $GITDIR/initrd/n613/etc/init.d
 		sudo mkdir -p $GITDIR/initrd/n613/opt/bin
@@ -198,7 +201,7 @@ if [ "$2" == "std" ]; then
 		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n613/opt/bin/uidgen
 		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n613/bin/checksum-verify
 		mkdir -p $GITDIR/kernel/out/n613
-		build_id_gen $GITDIR/initrd/n613/opt/build_id
+		build_id_gen $GITDIR/initrd/n613/opt/
 	elif [ "$1" == "n873" ]; then
 		sudo mkdir -p $GITDIR/initrd/n873/etc/init.d
 		sudo mkdir -p $GITDIR/initrd/n873/opt/bin
@@ -212,7 +215,7 @@ if [ "$2" == "std" ]; then
 		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n873/bin/checksum-verify
 		sudo cp $GITDIR/initrd/common/setup-wifi $GITDIR/initrd/n873/sbin/setup-wifi
 		mkdir -p $GITDIR/kernel/out/n873
-		build_id_gen $GITDIR/initrd/n873/opt/build_id
+		build_id_gen $GITDIR/initrd/n873/opt/
 	elif [ "$1" == "n905b" ]; then
 		sudo mkdir -p $GITDIR/initrd/n905b/etc/init.d
 		sudo mkdir -p $GITDIR/initrd/n905b/opt/bin
@@ -226,7 +229,7 @@ if [ "$2" == "std" ]; then
 		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n905b/bin/checksum-verify
 		sudo cp $GITDIR/initrd/common/setup-wifi $GITDIR/initrd/n905b/sbin/setup-wifi
 		mkdir -p $GITDIR/kernel/out/n905b
-		build_id_gen $GITDIR/initrd/n905b/opt/build_id
+		build_id_gen $GITDIR/initrd/n905b/opt/
 	elif [ "$1" == "n236" ]; then
 		sudo mkdir -p "${GITDIR}/initrd/n236/etc/init.d"
 		sudo mkdir -p "${GITDIR}/initrd/n236/opt/bin"
@@ -240,7 +243,7 @@ if [ "$2" == "std" ]; then
 		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n236/bin/checksum-verify
 		sudo cp $GITDIR/initrd/common/setup-wifi $GITDIR/initrd/n236/sbin/setup-wifi
 		mkdir -p $GITDIR/kernel/out/n236
-		build_id_gen $GITDIR/initrd/n236/opt/build_id
+		build_id_gen $GITDIR/initrd/n236/opt/
 	elif [ "$1" == "n437" ]; then
 		sudo mkdir -p "${GITDIR}/initrd/n437/etc/init.d"
 		sudo mkdir -p "${GITDIR}/initrd/n437/opt/bin"
@@ -254,7 +257,7 @@ if [ "$2" == "std" ]; then
 		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n437/bin/checksum-verify
 		sudo cp $GITDIR/initrd/common/setup-wifi $GITDIR/initrd/n437/sbin/setup-wifi
 		mkdir -p $GITDIR/kernel/out/n437
-		build_id_gen $GITDIR/initrd/n437/opt/build_id
+		build_id_gen $GITDIR/initrd/n437/opt/
 	elif [ "$1" == "n306" ]; then
 		sudo mkdir -p "${GITDIR}/initrd/n306/etc/init.d"
 		sudo mkdir -p "${GITDIR}/initrd/n306/opt/bin"
@@ -268,7 +271,7 @@ if [ "$2" == "std" ]; then
 		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n306/bin/checksum-verify
 		sudo cp $GITDIR/initrd/common/setup-wifi $GITDIR/initrd/n306/sbin/setup-wifi
 		mkdir -p $GITDIR/kernel/out/n306
-		build_id_gen $GITDIR/initrd/n306/opt/build_id
+		build_id_gen $GITDIR/initrd/n306/opt/
 	elif [ "$1" == "emu" ]; then
 		sudo mkdir -p $GITDIR/initrd/emu/etc/init.d
 		sudo mkdir -p $GITDIR/initrd/emu/opt/bin
@@ -280,7 +283,7 @@ if [ "$2" == "std" ]; then
 		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/emu/etc/init.d/initrd-fifo
 		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/emu/opt/bin/uidgen
 		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/emu/bin/checksum-verify
-		build_id_gen $GITDIR/initrd/emu/opt/build_id
+		build_id_gen $GITDIR/initrd/emu/opt/
 		mkdir -p $GITDIR/kernel/out/emu
 	elif [ "$1" == "bpi" ]; then
 		sudo mkdir -p $GITDIR/initrd/bpi/etc/init.d
@@ -293,7 +296,7 @@ if [ "$2" == "std" ]; then
 		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/bpi/etc/init.d/initrd-fifo
 		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/bpi/opt/bin/uidgen
 		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/bpi/bin/checksum-verify
-		build_id_gen $GITDIR/initrd/bpi/opt/build_id
+		build_id_gen $GITDIR/initrd/bpi/opt/
 		mkdir -p $GITDIR/kernel/out/bpi
 	fi
 
@@ -357,7 +360,7 @@ elif [ "$2" == "root" ]; then
 		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n705/opt/bin/uidgen
 		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n705/bin/checksum-verify
 		mkdir -p $GITDIR/kernel/out/n705
-		build_id_gen $GITDIR/initrd/n705/opt/build_id
+		build_id_gen $GITDIR/initrd/n705/opt/
 	elif [ "$1" == "n905c" ]; then
 		sudo mkdir -p $GITDIR/initrd/n905c/etc/init.d
 		sudo mkdir -p $GITDIR/initrd/n905c/opt/bin
@@ -370,7 +373,7 @@ elif [ "$2" == "root" ]; then
 		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n905c/opt/bin/uidgen
 		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n905c/bin/checksum-verify
 		mkdir -p $GITDIR/kernel/out/n905c
-		build_id_gen $GITDIR/initrd/n905c/opt/build_id
+		build_id_gen $GITDIR/initrd/n905c/opt/
 	elif [ "$1" == "n613" ]; then
 		sudo mkdir -p $GITDIR/initrd/n613/etc/init.d
 		sudo mkdir -p $GITDIR/initrd/n613/opt/bin
@@ -383,7 +386,7 @@ elif [ "$2" == "root" ]; then
 		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n613/opt/bin/uidgen
 		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n613/bin/checksum-verify
 		mkdir -p $GITDIR/kernel/out/n613
-		build_id_gen $GITDIR/initrd/n613/opt/build_id
+		build_id_gen $GITDIR/initrd/n613/opt/
 	elif [ "$1" == "n873" ]; then
 		sudo mkdir -p $GITDIR/initrd/n873/etc/init.d
 		sudo mkdir -p $GITDIR/initrd/n873/opt/bin
@@ -397,7 +400,7 @@ elif [ "$2" == "root" ]; then
 		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n873/bin/checksum-verify
 		sudo cp $GITDIR/initrd/common/setup-wifi $GITDIR/initrd/n873/sbin/setup-wifi
 		mkdir -p $GITDIR/kernel/out/n873
-		build_id_gen $GITDIR/initrd/n873/opt/build_id
+		build_id_gen $GITDIR/initrd/n873/opt/
 	elif [ "$1" == "n905b" ]; then
 		sudo mkdir -p $GITDIR/initrd/n905b/etc/init.d
 		sudo mkdir -p $GITDIR/initrd/n905b/opt/bin
@@ -411,7 +414,7 @@ elif [ "$2" == "root" ]; then
 		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n905b/bin/checksum-verify
 		sudo cp $GITDIR/initrd/common/setup-wifi $GITDIR/initrd/n905b/sbin/setup-wifi
 		mkdir -p $GITDIR/kernel/out/n905b
-		build_id_gen $GITDIR/initrd/n905b/opt/build_id
+		build_id_gen $GITDIR/initrd/n905b/opt/
 	elif [ "$1" == "n236" ]; then
 		sudo mkdir -p "${GITDIR}/initrd/n236/etc/init.d"
 		sudo mkdir -p "${GITDIR}/initrd/n236/opt/bin"
@@ -425,7 +428,7 @@ elif [ "$2" == "root" ]; then
 		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n236/bin/checksum-verify
 		sudo cp $GITDIR/initrd/common/setup-wifi $GITDIR/initrd/n236/sbin/setup-wifi
 		mkdir -p $GITDIR/kernel/out/n236
-		build_id_gen $GITDIR/initrd/n236/opt/build_id
+		build_id_gen $GITDIR/initrd/n236/opt/
 	elif [ "$1" == "n437" ]; then
 		sudo mkdir -p "${GITDIR}/initrd/n437/etc/init.d"
 		sudo mkdir -p "${GITDIR}/initrd/n437/opt/bin"
@@ -439,7 +442,7 @@ elif [ "$2" == "root" ]; then
 		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n437/bin/checksum-verify
 		sudo cp $GITDIR/initrd/common/setup-wifi $GITDIR/initrd/n437/sbin/setup-wifi
 		mkdir -p $GITDIR/kernel/out/n437
-		build_id_gen $GITDIR/initrd/n437/opt/build_id
+		build_id_gen $GITDIR/initrd/n437/opt/
 	elif [ "$1" == "n306" ]; then
 		sudo mkdir -p "${GITDIR}/initrd/n306/etc/init.d"
 		sudo mkdir -p "${GITDIR}/initrd/n306/opt/bin"
@@ -453,7 +456,7 @@ elif [ "$2" == "root" ]; then
 		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n306/bin/checksum-verify
 		sudo cp $GITDIR/initrd/common/setup-wifi $GITDIR/initrd/n306/sbin/setup-wifi
 		mkdir -p $GITDIR/kernel/out/n306
-		build_id_gen $GITDIR/initrd/n306/opt/build_id
+		build_id_gen $GITDIR/initrd/n306/opt/
 	elif [ "$1" == "emu" ]; then
 		sudo mkdir -p $GITDIR/initrd/emu/etc/init.d
 		sudo mkdir -p $GITDIR/initrd/emu/opt/bin
@@ -466,7 +469,7 @@ elif [ "$2" == "root" ]; then
 		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/emu/opt/bin/uidgen
 		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/emu/bin/checksum-verify
 		mkdir -p $GITDIR/kernel/out/emu
-		build_id_gen $GITDIR/initrd/emu/opt/build_id
+		build_id_gen $GITDIR/initrd/emu/opt/
 	elif [ "$1" == "bpi" ]; then
 		sudo mkdir -p $GITDIR/initrd/bpi/etc/init.d
 		sudo mkdir -p $GITDIR/initrd/bpi/opt/bin
@@ -479,7 +482,7 @@ elif [ "$2" == "root" ]; then
 		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/bpi/opt/bin/uidgen
 		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/bpi/bin/checksum-verify
 		mkdir -p $GITDIR/kernel/out/bpi
-		build_id_gen $GITDIR/initrd/bpi/opt/build_id
+		build_id_gen $GITDIR/initrd/bpi/opt/
 	fi
 
 	if [ "$1" == "n705" ] || [ "$1" == "n905c" ] || [ "$1" == "n613" ]; then
