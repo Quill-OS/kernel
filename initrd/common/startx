@@ -159,6 +159,7 @@ for f in /mnt/opt/X11/extensions-base/*.isa /mnt/opt/X11/extensions-base/*.img ;
 				UNIONFS_FOLDERS_RAW="$UNIONFS_FOLDERS_RAW$EXTENSION_FOLDER:"
 			fi
 		else
+			echo "$FILE: Verification succeeded"
 			echo "$EXTENSION_NAME" >> /mnt/opt/X11/extensions_list
 			echo "$EXTENSION_FOLDER" >> /mnt/opt/X11/extensions_folders_list
 
@@ -253,6 +254,7 @@ for f in /mnt/opt/X11/extensions-user/*.isa /mnt/opt/X11/extensions-user/*.img ;
 		                UNIONFS_FOLDERS_RAW="$UNIONFS_FOLDERS_RAW$EXTENSION_FOLDER:"
 			fi
 		else
+			echo "$FILE: Verification succeeded"
 			echo "$EXTENSION_NAME" >> /mnt/opt/X11/extensions_list
 			echo "$EXTENSION_FOLDER" >> /mnt/opt/X11/extensions_folders_list
 	
