@@ -9,7 +9,7 @@ build_id_gen() {
 		echo "---- Kernel build ID is: ${BUILD_ID} ----"
 		echo "---- Kernel commit is: ${GIT_COMMIT} ----"
 		sudo su -c "echo ${BUILD_ID} > '${1}/build_id'"
-		sudo su -c "echo ${BUILD_ID} > '${1}/commit'"
+		sudo su -c "echo ${GIT_COMMIT} > '${1}/commit'"
 	fi
 }
 
