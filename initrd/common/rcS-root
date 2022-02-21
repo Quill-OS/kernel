@@ -269,8 +269,8 @@ main() {
 					[ ! -e /mnt/opt/storage/ssh ] && mkdir -p /mnt/opt/storage/ssh
 					[ ! -e /mnt/opt/storage/ssh/sshd_config ] && touch /mnt/opt/storage/ssh/sshd_config
 					mount --bind /mnt/opt/storage/ssh /mnt/etc/ssh
-					echo "PermitRootLogin yes" > /run/sshd_config
-					mount --bind /run/sshd_config /mnt/etc/ssh/sshd_config
+					echo "PermitRootLogin yes" > /tmp/sshd_config
+					mount --bind /tmp/sshd_config /mnt/etc/ssh/sshd_config
 					set_progress 40
 					progress_sleep
 
