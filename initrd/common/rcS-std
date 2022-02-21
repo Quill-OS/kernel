@@ -46,11 +46,12 @@ ifconfig lo up
 
 KERNEL_VERSION=`uname -a`
 KERNEL_BUILD_ID=`cat /opt/build_id`
+KERNEL_GIT_COMMIT=`cat /opt/commit`
 DEVICE=`cat /opt/device`
 
 main() {
 	echo "$KERNEL_VERSION"
-	echo "InkBox OS, kernel build $KERNEL_BUILD_ID"
+	echo "InkBox OS, kernel build $KERNEL_BUILD_ID, commit $KERNEL_GIT_COMMIT"
 	echo "Copyright (C) 2021-2022 Nicolas Mailloux <nicolecrivain@gmail.com>"
 	echo
 
