@@ -318,10 +318,10 @@ mkdir -p /mnt/xorg/var/log
 mount -t devtmpfs devtmpfs /mnt/xorg/dev
 mkdir -p /mnt/xorg/dev/shm
 mkdir -p /mnt/xorg/dev/pts
-mount -t tmpfs tmpfs /mnt/xorg/tmp
-mount -t tmpfs tmpfs /mnt/xorg/run
+mount -t tmpfs tmpfs -o size=32M /mnt/xorg/tmp
+mount -t tmpfs tmpfs -o size=8M /mnt/xorg/run
 mount -t tmpfs tmpfs /mnt/xorg/dev/shm
-mount -t tmpfs tmpfs /mnt/xorg/var/log
+mount -t tmpfs tmpfs -o size=8M /mnt/xorg/var/log
 mount -t sysfs sysfs /mnt/xorg/sys
 mount -t proc proc /mnt/xorg/proc
 mount -t devpts devpts /mnt/xorg/dev/pts
@@ -335,8 +335,8 @@ busybox chroot /mnt/xorg "X" &
 mount -t devtmpfs devtmpfs /mnt/opt/X11/vnc-touch/dev
 mkdir -p /mnt/opt/X11/vnc-touch/dev/shm
 mkdir -p /mnt/opt/X11/vnc-touch/dev/pts
-mount -t tmpfs tmpfs /mnt/opt/X11/vnc-touch/tmp
-mount -t tmpfs tmpfs /mnt/opt/X11/vnc-touch/run
+mount -t tmpfs tmpfs -o size=16M /mnt/opt/X11/vnc-touch/tmp
+mount -t tmpfs tmpfs -o size=8M /mnt/opt/X11/vnc-touch/run
 mount -t tmpfs tmpfs /mnt/opt/X11/vnc-touch/dev/shm
 mount -t sysfs sysfs /mnt/opt/X11/vnc-touch/sys
 mount -t proc proc /mnt/opt/X11/vnc-touch/proc

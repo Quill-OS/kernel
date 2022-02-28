@@ -34,13 +34,13 @@ mount_alpine_udev() {
 	mount -t tmpfs tmpfs -o nosuid /alpine/run
 }
 
-export TERM="xterm-256color"
+export TERM="linux"
 
 mount -t proc proc /proc
 mount -t sysfs sysfs /sys
 sleep 1
 mount -t devtmpfs devtmpfs /dev
-mount -t tmpfs tmpfs /tmp
+mount -t tmpfs tmpfs -o size=16M /tmp
 hostname inkbox
 ifconfig lo up
 
@@ -113,6 +113,7 @@ main() {
 	INITRD_DEBUG=`cat /mnt/flags/INITRD_DEBUG` 2>/dev/null
 	DONT_BOOT=`cat /mnt/flags/DONT_BOOT` 2>/dev/null
 	ENCRYPT_LOCK=`cat /mnt/flags/ENCRYPT_LOCK` 2>/dev/null
+	USE_FISH_SHELL=`cat /mnt/flags/USE_FISH_SHELL` 2>/dev/null
 
 	if [ "$DONT_BOOT" == "true" ]; then
 		echo "Device is locked down and will not boot."
@@ -242,8 +243,13 @@ main() {
 					mount -t ext4 /dev/mmcblk0p1 /mnt/boot
 
 					# Bind-mount a valid passwd file to allow login
+					if [ "$USE_FISH_SHELL" == "true" ]; then
+						sed -i '1s/.*/root:x:0:0:root:\/root:\/usr\/bin\/fish/' /opt/passwd_root
+						sed -i '30s/.*/user:x:1000:1000:Linux User,,,:\/:\/usr\/bin\/fish/' /opt/passwd_root
+					fi
 					cp /opt/passwd_root /tmp/passwd
 					mount --bind /tmp/passwd /mnt/etc/passwd
+					mount -t tmpfs tmpfs -o size=8M /mnt/root
 
 					## User storage
 					mount -t ext4 /dev/mmcblk0p4 /mnt/opt/storage
@@ -289,9 +295,9 @@ main() {
 					mount --rbind /proc /mnt/proc
 					mount --rbind /sys /mnt/sys
 					mount --rbind /dev /mnt/dev
-					mount -t tmpfs tmpfs /mnt/tmp
-					mount -t tmpfs tmpfs /mnt/var/log
-					mount -t tmpfs tmpfs /mnt/opt/developer
+					mount -t tmpfs tmpfs -o size=16M /mnt/tmp
+					mount -t tmpfs tmpfs -o size=8M /mnt/var/log
+					mount -t tmpfs tmpfs -o size=128K /mnt/opt/developer
 					set_progress 45
 					progress_sleep
 
@@ -308,7 +314,7 @@ main() {
 					fi
 					mount --bind /tmp/resolv.conf /mnt/etc/resolv.conf
 					
-					mount -t tmpfs tmpfs -o nosuid,noexec,nodev,size=2M /mnt/var/db/dhcpcd
+					mount -t tmpfs tmpfs -o nosuid,noexec,nodev,size=512K /mnt/var/db/dhcpcd
 					touch /mnt/var/db/dhcpcd/duid
 					touch /mnt/opt/storage/dhcpcd_duid
 					mount --bind /mnt/opt/storage/dhcpcd_duid /mnt/var/db/dhcpcd/duid

@@ -40,7 +40,7 @@ mount -t proc proc /proc
 mount -t sysfs sysfs /sys
 sleep 1
 mount -t devtmpfs devtmpfs /dev
-mount -t tmpfs tmpfs /tmp
+mount -t tmpfs tmpfs -o size=16M /tmp
 hostname inkbox
 ifconfig lo up
 
@@ -252,8 +252,8 @@ main() {
 					mount --rbind /proc /mnt/proc
 					mount --rbind /sys /mnt/sys
 					mount --rbind /dev /mnt/dev
-					mount -t tmpfs tmpfs -o nosuid /mnt/tmp
-					mount -t tmpfs tmpfs -o nosuid /mnt/var/log
+					mount -t tmpfs tmpfs -o nosuid,size=16M /mnt/tmp
+					mount -t tmpfs tmpfs -o nosuid,size=8M /mnt/var/log
 					set_progress 45
 					progress_sleep
 					
@@ -270,7 +270,7 @@ main() {
 					fi
 					mount --bind /tmp/resolv.conf /mnt/etc/resolv.conf
 
-					mount -t tmpfs tmpfs -o nosuid,noexec,nodev,size=2M /mnt/var/db/dhcpcd
+					mount -t tmpfs tmpfs -o nosuid,noexec,nodev,size=512K /mnt/var/db/dhcpcd
 					touch /mnt/var/db/dhcpcd/duid
 					touch /mnt/opt/storage/dhcpcd_duid
 					mount --bind /mnt/opt/storage/dhcpcd_duid /mnt/var/db/dhcpcd/duid
