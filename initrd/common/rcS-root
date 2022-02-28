@@ -125,7 +125,7 @@ main() {
 	if [ ! -z "$ENCRYPT_LOCK" ]; then
 		CURRENT_EPOCH=`date +%s`
 		if [ "$CURRENT_EPOCH" -lt "$ENCRYPT_LOCK" ]; then
-			/etc/init.d/inkbox-splash alert_splash 6
+			/etc/init.d/inkbox-splash alert_splash 7
 			busybox poweroff
 			exit 1
 		else
