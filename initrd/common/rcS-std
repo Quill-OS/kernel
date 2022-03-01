@@ -34,7 +34,7 @@ mount_alpine_udev() {
 	mount -t tmpfs tmpfs -o nosuid /alpine/run
 }
 
-export TERM="xterm-256color"
+export TERM="linux"
 
 mount -t proc proc /proc
 mount -t sysfs sysfs /sys

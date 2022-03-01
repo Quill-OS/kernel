@@ -113,7 +113,7 @@ main() {
 	INITRD_DEBUG=`cat /mnt/flags/INITRD_DEBUG` 2>/dev/null
 	DONT_BOOT=`cat /mnt/flags/DONT_BOOT` 2>/dev/null
 	ENCRYPT_LOCK=`cat /mnt/flags/ENCRYPT_LOCK` 2>/dev/null
-	USE_FISH_SHELL=`cat /mnt/flags/USE_FISH_SHELL` 2>/dev/null
+	LOGIN_SHELL=`cat /mnt/flags/LOGIN_SHELL` 2>/dev/null
 
 	if [ "$DONT_BOOT" == "true" ]; then
 		echo "Device is locked down and will not boot."
@@ -243,10 +243,18 @@ main() {
 					mount -t ext4 /dev/mmcblk0p1 /mnt/boot
 
 					# Bind-mount a valid passwd file to allow login
-					if [ "$USE_FISH_SHELL" == "true" ]; then
+					if [ "$LOGIN_SHELL" == "bash" ]; then
+						sed -i '1s/.*/root:x:0:0:root:\/root:\/bin\/bash/' /opt/passwd_root
+						sed -i '30s/.*/user:x:1000:1000:Linux User,,,:\/:\/bin\/bash/' /opt/passwd_root
+					elif [ "$LOGIN_SHELL" == "fish" ]; then
 						sed -i '1s/.*/root:x:0:0:root:\/root:\/usr\/bin\/fish/' /opt/passwd_root
 						sed -i '30s/.*/user:x:1000:1000:Linux User,,,:\/:\/usr\/bin\/fish/' /opt/passwd_root
+					else
+						if [ "$LOGIN_SHELL" != "ash" ]; then
+							echo "WARNING: '$LOGIN_SHELL' is not a valid login shell. Falling back to default."
+						fi
 					fi
+
 					cp /opt/passwd_root /tmp/passwd
 					mount --bind /tmp/passwd /mnt/etc/passwd
 					mount -t tmpfs tmpfs -o size=8M /mnt/root
