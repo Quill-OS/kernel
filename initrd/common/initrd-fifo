@@ -24,6 +24,7 @@ omega() {
 }
 
 update_rootfs() {
+	mount -o remount,size=50% /tmp
 	mv /overlaymount-rootfs/mnt/rootfs/overlay/tmp/update/rootfs/rootfs.squashfs /tmp
 	mv /overlaymount-rootfs/mnt/rootfs/overlay/tmp/update/rootfs/rootfs.squashfs.dgst /tmp
 	sync
