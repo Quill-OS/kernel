@@ -1,10 +1,13 @@
 initrd/busybox-1.32.1/_install-*/etc/init.d/
 initrd/busybox-1.32.1/_install-*/opt/build_id
+initrd/busybox-1.32.1/_install-*/opt/commit
 initrd/busybox-1.32.1/_install-*/opt/bin/uidgen
 initrd/busybox-1.32.1/_install-*/bin/checksum-verify
+initrd/busybox-1.32.1/_install-*/sbin/setup-wifi
 
 kernel/out
 
-kernel/linux-2.6.35.3/arch/arm/boot/uImage
-kernel/linux-2.6.35.3/.config
-kernel/linux-2.6.35.3/arch/arm/boot/compressed/lib1funcs.S
+kernel/linux-2.6.35.3*/arch/arm/boot/uImage
+kernel/linux-2.6.35.3*/.config
+kernel/linux-2.6.35.3*/arch/arm/boot/compressed/lib1funcs.S
+bootloader/*/u-boot.*

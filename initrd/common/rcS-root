@@ -246,11 +246,14 @@ main() {
 					if [ "$LOGIN_SHELL" == "bash" ]; then
 						sed -i '1s/.*/root:x:0:0:root:\/root:\/bin\/bash/' /opt/passwd_root
 						sed -i '30s/.*/user:x:1000:1000:Linux User,,,:\/:\/bin\/bash/' /opt/passwd_root
+					elif [ "$LOGIN_SHELL" == "zsh" ]; then
+						sed -i '1s/.*/root:x:0:0:root:\/root:\/usr\/local\/bin\/zsh/' /opt/passwd_root
+						sed -i '30s/.*/user:x:1000:1000:Linux User,,,:\/:\/usr\/local\/bin\/zsh/' /opt/passwd_root
 					elif [ "$LOGIN_SHELL" == "fish" ]; then
 						sed -i '1s/.*/root:x:0:0:root:\/root:\/usr\/bin\/fish/' /opt/passwd_root
 						sed -i '30s/.*/user:x:1000:1000:Linux User,,,:\/:\/usr\/bin\/fish/' /opt/passwd_root
 					else
-						if [ "$LOGIN_SHELL" != "ash" ]; then
+						if [ ! -z "$LOGIN_SHELL" ] && [ "$LOGIN_SHELL" != "ash" ]; then
 							echo "WARNING: '$LOGIN_SHELL' is not a valid login shell. Falling back to default."
 						fi
 					fi
