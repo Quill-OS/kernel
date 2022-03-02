@@ -241,6 +241,7 @@ main() {
 					progress_sleep
 
 					mount -t ext4 /dev/mmcblk0p1 /mnt/boot
+					mount -t tmpfs tmpfs -o size=8M /mnt/root
 
 					# Bind-mount a valid passwd file to allow login
 					if [ "$LOGIN_SHELL" == "bash" ]; then
@@ -252,6 +253,8 @@ main() {
 					elif [ "$LOGIN_SHELL" == "fish" ]; then
 						sed -i '1s/.*/root:x:0:0:root:\/root:\/usr\/bin\/fish/' /opt/passwd_root
 						sed -i '30s/.*/user:x:1000:1000:Linux User,,,:\/:\/usr\/bin\/fish/' /opt/passwd_root
+						mkdir -p /mnt/root/.config/fish
+						echo -e "# This file contains fish universal variable definitions.\n# VERSION: 3.0\nSETUVAR __fish_init_2_3_0:\\x1d\nSETUVAR __fish_init_3_x:\\x1d\nSETUVAR --export fish_user_paths:/usr/local/bin" > /mnt/root/.config/fish/fish_variables
 					else
 						if [ ! -z "$LOGIN_SHELL" ] && [ "$LOGIN_SHELL" != "ash" ]; then
 							echo "WARNING: '$LOGIN_SHELL' is not a valid login shell. Falling back to default."
@@ -260,7 +263,6 @@ main() {
 
 					cp /opt/passwd_root /tmp/passwd
 					mount --bind /tmp/passwd /mnt/etc/passwd
-					mount -t tmpfs tmpfs -o size=8M /mnt/root
 
 					## User storage
 					mount -t ext4 /dev/mmcblk0p4 /mnt/opt/storage
