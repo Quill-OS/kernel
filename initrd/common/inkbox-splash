@@ -159,9 +159,14 @@ elif [ "${1}" == "display_debug" ]; then
 elif [ "${1}" == "alert_splash" ]; then
 	ln -s /bin/busybox /splash/bin/sh
 	ln -s /bin/busybox /splash/bin/cat
+	eval $(LD_LIBRARY_PATH=/opt/fbink busybox chroot "${CHROOT_DIR}" /opt/fbink/fbink -e)
 	/opt/bin/alert-ascii.sh /splash/alert.ascii "${2}"
 	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink "-k" "-f" "-q"
 	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /bin/sh "-c" "cat /alert.ascii | /opt/fbink/fbink -q -m -y ${ALERT_ROW}"
+	cd /splash/tmp && env IMGSIZE="$(calculate ${viewWidth}/3)" STRING="https://inkbox.ddns.net/wiki/index.php?title=Boot_error_codes#${2}" /opt/bin/qr-to-png
+	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink -g file=/tmp/out.png,halign=CENTER,valign=TOP,y=60
+	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink -g file=/tmp/out.png,halign=CENTER,valign=BOTTOM,y=-60
+	rm -f /splash/tmp/out.png
 elif [ "${1}" == "developer_splash" ]; then
 	while true; do
 		LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink "-m" "█ █ █ █ Developer mode █ █ █ █" "-y" "2" "-q"
