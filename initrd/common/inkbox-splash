@@ -165,7 +165,7 @@ elif [ "${1}" == "alert_splash" ]; then
 	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /bin/sh "-c" "cat /alert.ascii | /opt/fbink/fbink -q -m -y ${ALERT_ROW}"
 	cd /splash/tmp && env IMGSIZE="$(calculate ${viewWidth}/3)" STRING="https://inkbox.ddns.net/wiki/index.php?title=Boot_error_codes#${2}" /opt/bin/qr-to-png
 	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink -g file=/tmp/out.png,halign=CENTER,valign=TOP,y=60
-	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink -g file=/tmp/out.png,halign=CENTER,valign=BOTTOM,y=-60
+	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink -g file=/tmp/out.png,halign=CENTER,valign=BOTTOM,y=-50
 	rm -f /splash/tmp/out.png
 elif [ "${1}" == "developer_splash" ]; then
 	while true; do
