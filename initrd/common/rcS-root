@@ -354,6 +354,8 @@ main() {
 					[ ! -e /mnt/opt/storage/ssh/sshd_config ] && touch /mnt/opt/storage/ssh/sshd_config
 					mount --bind /mnt/opt/storage/ssh /mnt/etc/ssh
 					echo "PermitRootLogin yes" > /tmp/sshd_config
+					echo "Subsystem sftp internal-sftp" >> /tmp/sshd_config
+					echo "# If sshfs doesn't work, first enable read-write support, then begin a connection with sshfs"  >> /tmp/sshd_config
 					mount --bind /tmp/sshd_config /mnt/etc/ssh/sshd_config
 					set_progress 40
 					progress_sleep
