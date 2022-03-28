@@ -1200,8 +1200,8 @@ static int __maybe_unused elants_i2c_suspend(struct device *dev)
 	}
 
 	if (device_may_wakeup(dev))
-		ts->wake_irq_enabled = (enable_irq_wake(client->irq) == 0);
-
+		// ts->wake_irq_enabled = (enable_irq_wake(client->irq) == 0);
+		// Edited by szybet to avoid waking up from sleep by touchscreen. i dont know that i do but it works
 	return 0;
 }
 
