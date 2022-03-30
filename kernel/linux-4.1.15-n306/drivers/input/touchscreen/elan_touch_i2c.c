@@ -771,7 +771,8 @@ static int elan_touch_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	if (gSleep_Mode_Suspend) {
 		gpio_set_value(elan_touch_data.rst_gpio, 0);
-//		disable_irq_wake (elan_touch_data.client->irq);
+		// Edited by szybet to avoid waking up from sleep by touchscreen. i dont know that i do but it works
+		// disable_irq_wake (elan_touch_data.client->irq);
 		free_irq(elan_touch_data.client->irq, &elan_touch_data);
 		gTouchDisabled = 1;
 		isCalibrated = 0;
@@ -790,7 +791,8 @@ static int elan_touch_suspend(struct platform_device *pdev, pm_message_t state)
 		return -1;
 	}
 	else
-		enable_irq_wake (elan_touch_data.client->irq);
+		// Edited by szybet to avoid waking up from sleep by touchscreen. i dont know that i do but it works
+		// enable_irq_wake (elan_touch_data.client->irq);
 	return 0;
 }
 
@@ -804,7 +806,8 @@ static int elan_touch_resume(struct platform_device *pdev)
 		elan_touch_register_interrupt(elan_touch_data.client);
 	}
 	else
-		disable_irq_wake (elan_touch_data.client->irq);
+		// Edited by szybet to avoid waking up from sleep by touchscreen. i dont know that i do but it works
+		// disable_irq_wake (elan_touch_data.client->irq);
 	gTouchDisabled = 0;
 
 	return 0;
