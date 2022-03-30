@@ -34,6 +34,73 @@ mount_alpine_udev() {
 	mount -t tmpfs tmpfs -o nosuid /alpine/run
 }
 
+launch_dfl() {
+	echo "Entering DFL mode ..."
+	DEVICE=$(cat /opt/device)
+	mkdir -p /modules
+	mount /opt/modules.sqsh /modules
+	if [ "${DEVICE}" == "n306" ] || [ "${DEVICE}" == "n873" ]; then
+		insmod /modules/fs/configfs/configfs.ko
+		insmod /modules/drivers/usb/gadget/libcomposite.ko
+		insmod /modules/drivers/usb/gadget/function/usb_f_mass_storage.ko
+	fi
+	if [ "${DEVICE}" != "emu" ]; then
+		insmod /modules/g_mass_storage.ko file=/dev/mmcblk0 removable=y stall=0
+	fi
+	/etc/init.d/inkbox-splash dfl
+	while true; do
+		echo "This device is in DFL mode. Please reset it to resume normal operation."
+		sleep 30
+	done
+}
+
+setup_usbnet() {
+	mkdir -p /modules
+	mount /opt/modules.sqsh /modules
+	if [ "${DEVICE}" == "n705" ] || [ "${DEVICE}" == "n905b" ] || [ "${DEVICE}" == "n905c" ] || [ "${DEVICE}" == "n613" ] || [ "${DEVICE}" == "n236" ] || [ "${DEVICE}" == "n437" ]; then
+		insmod "/modules/g_ether.ko"
+	elif [ "${DEVICE}" == "n306" ] || [ "${DEVICE}" == "n873" ] || [ "${DEVICE}" == "bpi" ]; then
+		insmod "/modules/fs/configfs/configfs.ko"
+		insmod "/modules/drivers/usb/gadget/libcomposite.ko"
+		insmod "/modules/drivers/usb/gadget/function/u_ether.ko"
+		insmod "/modules/drivers/usb/gadget/function/usb_f_ecm.ko"
+		[ -e "/modules/drivers/usb/gadget/function/usb_f_eem.ko" ] && insmod "/modules/drivers/usb/gadget/function/usb_f_eem.ko"
+		insmod "/modules/drivers/usb/gadget/function/usb_f_ecm_subset.ko"
+		insmod "/modules/drivers/usb/gadget/function/usb_f_rndis.ko"
+		insmod "/modules/drivers/usb/gadget/legacy/g_ether.ko"
+	elif [ "${DEVICE}" == "emu" ]; then
+		:
+	else
+		insmod "/modules/g_ether.ko"
+	fi
+
+	ifconfig usb0 up
+	if [ ! -z "${USBNET_IP}" ]; then
+		ifconfig usb0 "${USBNET_IP}"
+		if [ ${?} != 0 ]; then
+			ifconfig usb0 192.168.2.2
+		fi
+	else
+		ifconfig usb0 192.168.2.2
+	fi
+}
+
+setup_usb_debug() {
+	mkdir -p /dev/pts
+	mount -t devpts devpts /dev/pts
+	busybox telnetd &>/dev/null
+	tcpsvd -vE 0.0.0.0 21 ftpd -A -w / &>/dev/null &
+
+	if [ "${1}" == "boot" ]; then
+		setup_usbnet
+		/etc/init.d/inkbox-splash usb_debug
+		while true; do
+			echo "This device is in boot-time USB debug mode. Please reset or reboot it to resume normal operation."
+			sleep 30
+		done
+	fi
+}
+
 export TERM="linux"
 
 mount -t proc proc /proc
@@ -48,19 +115,7 @@ ifconfig lo up
 DFL_KEY_RAW=`timeout 3s evtest /dev/input/event0` 2>/dev/null
 DFL_KEY=`echo "$DFL_KEY_RAW" | awk '/Testing .../{p=1}p'`
 if echo "$DFL_KEY" | grep -q "KEY_POWER" && echo "$DFL_KEY" | grep -q "KEY_HOME" || echo "$DFL_KEY" | grep -q "KEY_KATAKANA"; then
-	echo "Entering DFL mode ..."
-	DEVICE=`cat /opt/device`
-	mkdir -p /modules
-	mount /opt/modules.sqsh /modules
-	if [ "$DEVICE" != "n873" ]; then
-		insmod /modules/arcotg_udc.ko
-	fi
-	insmod /modules/g_mass_storage.ko file=/dev/mmcblk0 removable=y stall=0
-	/etc/init.d/inkbox-splash dfl
-	while true; do
-		echo "This device is in DFL mode. Please reset it to resume normal operation."
-		sleep 30
-	done
+	launch_dfl
 fi
 
 KERNEL_VERSION=`uname -a`
@@ -114,6 +169,9 @@ main() {
 	DONT_BOOT=`cat /mnt/flags/DONT_BOOT` 2>/dev/null
 	ENCRYPT_LOCK=`cat /mnt/flags/ENCRYPT_LOCK` 2>/dev/null
 	LOGIN_SHELL=`cat /mnt/flags/LOGIN_SHELL` 2>/dev/null
+	USBNET_IP=`cat /mnt/flags/USBNET_IP` 2>/dev/null
+	BOOT_USB_DEBUG=`cat /mnt/flags/BOOT_USB_DEBUG` 2>/dev/null
+	DFL=`cat /mnt/flags/DFL` 2>/dev/null
 
 	if [ "$DONT_BOOT" == "true" ]; then
 		echo "Device is locked down and will not boot."
@@ -135,10 +193,16 @@ main() {
 	fi
 
 	## DEBUG ##
-	if [ "$INITRD_DEBUG" == "true" ]; then
-		mkdir -p /dev/pts
-		mount -t devpts devpts /dev/pts
-		busybox telnetd
+	if [ "${DFL}" == "true" ]; then
+		echo "false" > /mnt/flags/DFL
+		launch_dfl
+	fi
+	if [ "${BOOT_USB_DEBUG}" == "true" ]; then
+		echo "false" > /mnt/flags/BOOT_USB_DEBUG
+		setup_usb_debug boot
+	fi
+	if [ "${INITRD_DEBUG}" == "true" ]; then
+		setup_usb_debug
 	fi
 
 	if [ "$KERNEL_FLASH" == "true" ]; then
