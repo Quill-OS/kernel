@@ -58,7 +58,12 @@ print_progress() {
 
 print_qr() {
 	eval $(LD_LIBRARY_PATH=/opt/fbink busybox chroot "${CHROOT_DIR}" /opt/fbink/fbink -e)
-	cd /splash/tmp && env IMGSIZE="$(calculate ${viewWidth}/3)" STRING="${1}" /opt/bin/qr-to-png &>/dev/null
+	cd /splash/tmp
+
+	# For some reason, `qr-to-png' randomly fails on older devices and needs to be run multiple times to actually work
+	command="env IMGSIZE=$(calculate ${viewWidth}/3) STRING=${1} /opt/bin/qr-to-png"
+	while true; do if ${command}; then break; fi; done &>/dev/null
+
 	if [ "${2}" == "invert" ]; then
 		LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink -q -h -g file=/tmp/out.png,halign=CENTER,valign=TOP,y=60
 		LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink -q -h -g file=/tmp/out.png,halign=CENTER,valign=BOTTOM,y=-50
