@@ -237,7 +237,7 @@ static ssize_t state_extended_store(struct kobject *kobj, struct kobj_attribute 
 			msp430_homepad_enable(0);
 		}
 	}
-	else {
+	else if ('2' == *buf) {
 		gSleep_Mode_Suspend = 0;
 //	printk ("[%s-%d] %s() %d\n",__FILE__,__LINE__,__func__,gSleep_Mode_Suspend);
 		if(36==gptHWCFG->m_val.bPCB || 40==gptHWCFG->m_val.bPCB || 49==gptHWCFG->m_val.bPCB) {
