@@ -2074,7 +2074,6 @@ void ntx_gpio_suspend (void)
 	led_green(0);
 
 	gpiofn_suspend();
-	gSleep_Mode_Suspend = 1;
 	if (gSleep_Mode_Suspend) {
 	
 		ntx_gpio_insuspend_dir[0]=0xffffff80;
