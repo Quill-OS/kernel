@@ -385,7 +385,7 @@ static ssize_t state_extended_store(struct kobject *kobj, struct kobj_attribute 
 
 		gSleep_Mode_Suspend = 1;
 	}
-	else {
+	else if ('2' == *buf) {
 
 		if(0 == gSleep_Mode_Suspend) {
 			return n;
