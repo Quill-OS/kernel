@@ -219,7 +219,7 @@ static ssize_t state_extended_store(struct kobject *kobj, struct kobj_attribute 
 	
 	if ('1' == *buf)
 		gSleep_Mode_Suspend = 1;
-	else 
+	else if ('2' == *buf)
 		gSleep_Mode_Suspend = 0;
 //	printk ("[%s-%d] %s() %d\n",__FILE__,__LINE__,__func__,gSleep_Mode_Suspend);
 
