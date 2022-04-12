@@ -1,26 +1,59 @@
-#!/bin/bash
-# Warning! This script is not intended to be ran alone. Instead, it is executed along by the build_all.sh script.
+#!/bin/bash -e
 
-echo "---- Building U-Boot 2009.08-inkbox ----"
+cd "$(dirname '${0}')"
+GITDIR="${PWD}"
 
-cd $TOOLCHAINDIR/bin
-export PATH=$PATH:$PWD
-cd - &> /dev/null
+[ -z "${TOOLCHAINDIR}" ] && printf "You must specify the 'TOOLCHAINDIR' environment variable.\n" && exit 1
+[ -z "${TARGET}" ] && printf "You must specify the 'TARGET' environment variable. Example: 'arm-linux-gnueabihf'\n" && exit 1
+[ -z "${THREADS}" ] && THREADS=1
+[ -z "${1}" ] && printf "You must specify the 'device' argument. Available options are: n705, n905b, n905c, n613, n236, n437, n306\n" && exit 1
+DEVICE="${1}"
 
-cd $GITDIR/imx507/bootloader/board/freescale/mx50_rdp
+mkdir -p "${GITDIR}/bootloader/out/"
+pushd "${TOOLCHAINDIR}/bin" && PATH="${PATH}:${PWD}" && popd
 
-rm flash_header.S && sync && sleep 1
-ln -s flash_header-20120622_FSL_RAM_PARMS_DSadd2.S flash_header.S
+if [ "${DEVICE}" == "n705" ] || [ "${DEVICE}" == "n905c" ] || [ "${DEVICE}" == "n613" ]; then
+	pushd "${GITDIR}/bootloader/imx507"
+	
+	pushd "board/freescale/mx50_rdp"
+	rm flash_header.S && sync
+	ln -s flash_header-20120622_FSL_RAM_PARMS_DSadd2.S flash_header.S && sync
+	popd
+	
+	make ARCH=arm CROSS_COMPILE="${TARGET}-" -j${THREADS} distclean
+	make ARCH=arm CROSS_COMPILE="${TARGET}-" -j${THREADS} mx50_rdp_config
+	make ARCH=arm CROSS_COMPILE="${TARGET}-" -j${THREADS}
+	cp "u-boot.bin" "${GITDIR}/bootloader/out/u-boot_inkbox.${DEVICE}.bin"
 
-cd - &>/dev/null
-cd $GITDIR/imx507/bootloader
+	popd
+elif [ "${DEVICE}" == "n905b" ]; then
+	pushd "${GITDIR}/bootloader/imx508"
 
-make ARCH=arm CROSS_COMPILE=$TARGET- -j$THREADS distclean
-make ARCH=arm CROSS_COMPILE=$TARGET- -j$THREADS mx50_rdp_config
-make ARCH=arm CROSS_COMPILE=$TARGET- -j$THREADS
+	make ARCH=arm CROSS_COMPILE="${TARGET}-" -j${THREADS} distclean
+	make ARCH=arm CROSS_COMPILE="${TARGET}-" -j${THREADS} mx50_rdp_config
+	make ARCH=arm CROSS_COMPILE="${TARGET}-" -j${THREADS}
+	cp "u-boot.bin" "${GITDIR}/bootloader/out/u-boot_inkbox.${DEVICE}.bin"
 
-cp u-boot.bin $GITDIR/kernel/out/u-boot.bin
+	popd
+elif [ "${DEVICE}" == "n236" ]; then
+	pushd "${GITDIR}/bootloader/mx6sl-n236"
 
-cd - &>/dev/null
+	make ARCH=arm CROSS_COMPILE="${TARGET}-" -j${THREADS} distclean
+	make ARCH=arm CROSS_COMPILE="${TARGET}-" -j${THREADS} mx6sl_ntx_lpddr2_256m_config
+	make ARCH=arm CROSS_COMPILE="${TARGET}-" -j${THREADS}
+	cp "u-boot.bin" "${GITDIR}/bootloader/out/u-boot_inkbox.${DEVICE}.bin"
+elif [ "${DEVICE}" == "n437" ]; then
+	pushd "${GITDIR}/bootloader/mx6sl-n236"
 
-echo "---- Done. Output was saved in $GITDIR/kernel/out/u-boot.bin ----"
+	make ARCH=arm CROSS_COMPILE="${TARGET}-" -j${THREADS} distclean
+	make ARCH=arm CROSS_COMPILE="${TARGET}-" -j${THREADS} mx6sl_ntx_lpddr2_config
+	make ARCH=arm CROSS_COMPILE="${TARGET}-" -j${THREADS}
+	cp "u-boot.bin" "${GITDIR}/bootloader/out/u-boot_inkbox.${DEVICE}.bin"
+elif [ "${DEVICE}" == "n306" ]; then
+	pushd "${GITDIR}/bootloader/mx6ull-n306"
+
+	make ARCH=arm CROSS_COMPILE="${TARGET}-" -j${THREADS} distclean
+	make ARCH=arm CROSS_COMPILE="${TARGET}-" -j${THREADS} mx6ull_ntx_lpddr2_256m_defconfig
+	make ARCH=arm CROSS_COMPILE="${TARGET}-" -j${THREADS}
+	cp "u-boot.imx" "${GITDIR}/bootloader/out/u-boot_inkbox.${DEVICE}.imx"
+fi
