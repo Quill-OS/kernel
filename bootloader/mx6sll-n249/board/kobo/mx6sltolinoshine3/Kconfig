@@ -1,0 +1,13 @@
+if TARGET_MX6SLTOLINOSHINE3
+
+config SYS_BOARD
+	default "mx6sltolinoshine3"
+
+config SYS_VENDOR
+	default "kobo"
+
+config SYS_CONFIG_NAME
+	default "mx6sltolinoshine3"
+
+source "board/kobo/common/Kconfig"
+endif
