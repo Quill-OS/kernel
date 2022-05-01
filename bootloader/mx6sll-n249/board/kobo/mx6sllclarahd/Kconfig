@@ -1,0 +1,13 @@
+if TARGET_MX6SLLKOBOCLARAHD
+
+config SYS_BOARD
+	default "mx6sllclarahd"
+
+config SYS_VENDOR
+	default "kobo"
+
+config SYS_CONFIG_NAME
+	default "mx6sllclarahd"
+
+source "board/kobo/common/Kconfig"
+endif

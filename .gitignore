@@ -10,4 +10,5 @@ kernel/out
 kernel/linux-2.6.35.3*/arch/arm/boot/uImage
 kernel/linux-2.6.35.3*/.config
 kernel/linux-2.6.35.3*/arch/arm/boot/compressed/lib1funcs.S
+bootloader/out
 bootloader/*/u-boot.*
