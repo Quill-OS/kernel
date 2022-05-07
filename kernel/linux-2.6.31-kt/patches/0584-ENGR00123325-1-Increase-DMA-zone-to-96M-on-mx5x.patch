@@ -1,0 +1,43 @@
+From e10c81171db91e8408e2fdc67104f41a21dd3c8c Mon Sep 17 00:00:00 2001
+From: Sammy He <r62914@freescale.com>
+Date: Tue, 11 May 2010 22:08:02 +0800
+Subject: [PATCH] ENGR00123325-1 Increase DMA zone to 96M on mx5x
+
+Increase DMA zone to 96M to fix memory not enough issue with 1080p
+video playback.
+
+Signed-off-by: Sammy He <r62914@freescale.com>
+---
+ arch/arm/plat-mxc/Kconfig               |    2 +-
+ arch/arm/plat-mxc/include/mach/memory.h |    2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm/plat-mxc/Kconfig b/arch/arm/plat-mxc/Kconfig
+index 3f49618..8b51687 100644
+--- a/arch/arm/plat-mxc/Kconfig
++++ b/arch/arm/plat-mxc/Kconfig
+@@ -87,7 +87,7 @@ config MXC_FB_IRAM
+ 
+ config DMA_ZONE_SIZE
+ 	int "DMA memory zone size"
+-	range 0 64
++	range 0 96
+ 	default 24
+ 	help
+ 	  This is the size in MB for the DMA zone. The DMA zone is used for
+diff --git a/arch/arm/plat-mxc/include/mach/memory.h b/arch/arm/plat-mxc/include/mach/memory.h
+index c9609c4..3861342 100644
+--- a/arch/arm/plat-mxc/include/mach/memory.h
++++ b/arch/arm/plat-mxc/include/mach/memory.h
+@@ -63,7 +63,7 @@
+ #endif /* CONFIG_MX3_VIDEO */
+ 
+ #ifdef CONFIG_ARCH_MX5
+-#define CONSISTENT_DMA_SIZE	(64 * SZ_1M)
++#define CONSISTENT_DMA_SIZE	(96 * SZ_1M)
+ #else
+ #define CONSISTENT_DMA_SIZE	(32 * SZ_1M)
+ #endif
+-- 
+1.5.4.4
+

@@ -1,0 +1,51 @@
+From b3f983d3f07b862408916da507c1ff1b92cd283e Mon Sep 17 00:00:00 2001
+From: Jun Li <r65092@freescale.com>
+Date: Wed, 19 May 2010 13:20:59 +0800
+Subject: [PATCH] ENGR00123491 i.mx53 arc usb host increase tx fifo threshold.
+
+There are bad turnaround erros when copying data from SD to Udisk
+via Host port in i.mx53. Tunning TX fifo fill threshold from 2 to 8.
+
+FIFO Burst Threshold:(Read/Write) [Default = 2] This register controls
+the number of data bursts that are posted to the TX latency FIFO in host
+mode before the packet begins on to the bus. The minimum value is 2 and
+this value should be a low as possible to maximize USB performance. A
+higher value can be used in systems with unpredictable latency and/or
+insufficient bandwidth where the FIFO may underrun because the data
+transferred from the latency FIFO to USB occurs before it can be
+replenished from system memory. This value is ignored if the Stream
+Disable bit in USBMODE register is set.
+
+Signed-off-by: Li Jun <r65092@freescale.com>
+---
+ arch/arm/plat-mxc/include/mach/fsl_usb.h |   11 ++++++++++-
+ 1 files changed, 10 insertions(+), 1 deletions(-)
+
+diff --git a/arch/arm/plat-mxc/include/mach/fsl_usb.h b/arch/arm/plat-mxc/include/mach/fsl_usb.h
+index d1235fc..7126336 100644
+--- a/arch/arm/plat-mxc/include/mach/fsl_usb.h
++++ b/arch/arm/plat-mxc/include/mach/fsl_usb.h
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2005-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2005-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -88,4 +88,13 @@ static inline void fsl_platform_set_ahb_burst(struct usb_hcd *hcd)
+ 		writel((temp & (~(0x3f << 16))) | (0x20 << 16),
+ 			hcd->regs + FSL_SOC_USB_TXFILLTUNING);
+ 	}
++
++	/* Increase TX fifo threshold for USB+SD in Hostx */
++	if (cpu_is_mx53() && (strcmp("DR", pdata->name))) {
++		temp = readl(hcd->regs + FSL_SOC_USB_TXFILLTUNING);
++		/* Change TX FIFO threshold to be 0x08 */
++		writel((temp & (~(0x3f << 16))) | (0x08 << 16),
++				hcd->regs + FSL_SOC_USB_TXFILLTUNING);
++	}
++
+ }
+-- 
+1.5.4.4
+

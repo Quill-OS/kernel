@@ -1,0 +1,35 @@
+From 3975fa294e8cd0cf6174ba35d98266b287787783 Mon Sep 17 00:00:00 2001
+From: Jeremy.Yao <r65161@freescale.com>
+Date: Thu, 20 May 2010 13:08:44 +0800
+Subject: [PATCH] ENGR00123438: iMX23 Mount as usb device then go to standby, system halt
+
+Fix system timer suspend/resume operation in mx23 pm module
+
+Signed-off-by: Jeremy Yao <r65161@freescale.com>
+---
+ arch/arm/mach-mx23/pm.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/arch/arm/mach-mx23/pm.c b/arch/arm/mach-mx23/pm.c
+index c44a81f..0538326 100644
+--- a/arch/arm/mach-mx23/pm.c
++++ b/arch/arm/mach-mx23/pm.c
+@@ -280,6 +280,7 @@ static inline void do_standby(void)
+ 	}
+ 
+ 	local_fiq_disable();
++	mxs_nomatch_suspend_timer();
+ 
+ 	__raw_writel(BM_POWER_CTRL_ENIRQ_PSWITCH,
+ 		REGS_POWER_BASE + HW_POWER_CTRL_SET);
+@@ -502,7 +503,6 @@ static suspend_state_t saved_state;
+ 
+ static int mx23_pm_begin(suspend_state_t state)
+ {
+-	mxs_nomatch_suspend_timer();
+ 	saved_state = state;
+ 	return 0;
+ }
+-- 
+1.5.4.4
+

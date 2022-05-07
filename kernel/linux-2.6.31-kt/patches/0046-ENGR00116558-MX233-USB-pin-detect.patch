@@ -1,0 +1,975 @@
+From 695d6c8b294e36cf4e0018cff8c8cf2837a59a03 Mon Sep 17 00:00:00 2001
+From: Rob Herring <r.herring@freescale.com>
+Date: Wed, 14 Oct 2009 14:09:27 -0500
+Subject: [PATCH] ENGR00116558: MX233: USB pin detect
+
+MX233: Restructure the STMP378xxx USB Host and Gadget device structures
+to be similar to MXC structures. Enable fsl_otg_arc driver to work on
+MX233 platform. Remove FSL_USB2_DONT_REMAP requirement.
+
+Signed-off-by: Dinh Nguyen <Dinh.Nguyen@freescale.com>
+
+Conflicts:
+
+	arch/arm/mach-stmp3xxx/Kconfig
+	arch/arm/mach-stmp3xxx/Makefile
+	arch/arm/mach-stmp3xxx/devices.c
+	arch/arm/mach-stmp3xxx/include/mach/stmp3xxx.h
+	arch/arm/mach-stmp3xxx/stmp378x_devb.c
+---
+ arch/arm/configs/imx233_defconfig              |    5 +
+ arch/arm/mach-stmp378x/Kconfig                 |   12 +
+ arch/arm/plat-stmp3xxx/Makefile                |    6 +-
+ arch/arm/plat-stmp3xxx/devices.c               |   60 -----
+ arch/arm/plat-stmp3xxx/include/mach/stmp3xxx.h |    3 -
+ arch/arm/plat-stmp3xxx/usb.h                   |  101 ++++++++
+ arch/arm/plat-stmp3xxx/usb_common.c            |  312 ++++++++++++++++++++++++
+ arch/arm/plat-stmp3xxx/usb_dr.c                |  112 +++++++++
+ arch/arm/plat-stmp3xxx/utmixc.c                |   82 ++++++
+ drivers/usb/gadget/Kconfig                     |    2 +-
+ drivers/usb/gadget/arcotg_udc.c                |   20 +-
+ drivers/usb/gadget/arcotg_udc.h                |    1 -
+ drivers/usb/host/ehci-arc.c                    |   32 +--
+ include/linux/fsl_devices.h                    |    1 -
+ 14 files changed, 644 insertions(+), 105 deletions(-)
+
+diff --git a/arch/arm/configs/imx233_defconfig b/arch/arm/configs/imx233_defconfig
+index af4cd4e..66f8e76 100644
+--- a/arch/arm/configs/imx233_defconfig
++++ b/arch/arm/configs/imx233_defconfig
+@@ -199,6 +199,11 @@ CONFIG_CPU_CP15=y
+ CONFIG_CPU_CP15_MMU=y
+ 
+ #
++# Power management
++#
++CONFIG_UTMI_MXC=y
++
++#
+ # Processor Features
+ #
+ CONFIG_ARM_THUMB=y
+diff --git a/arch/arm/mach-stmp378x/Kconfig b/arch/arm/mach-stmp378x/Kconfig
+index e017667..27bb523 100644
+--- a/arch/arm/mach-stmp378x/Kconfig
++++ b/arch/arm/mach-stmp378x/Kconfig
+@@ -56,4 +56,16 @@ config DMA_ZONE_SIZE
+ 	help
+ 	  This is the size in MB for the DMA zone. The DMA zone is used for
+ 	  dedicated memory for large contiguous video buffers
++
++# set if we need the UTMI transceiver code
++config UTMI_MXC
++	bool
++	select UTMI_MXC_OTG if USB_GADGET && USB_EHCI_HCD && USB_OTG
++	default y if USB_EHCI_FSL_UTMI || USB_GADGET_FSL_UTMI
++
++config UTMI_MXC_OTG
++	tristate
++	help
++	  Support for USB OTG pin detect using the UTMI transceiver on STMP378xxx platforms.
++
+ endif
+diff --git a/arch/arm/plat-stmp3xxx/Makefile b/arch/arm/plat-stmp3xxx/Makefile
+index 50114dc..2391d1f 100644
+--- a/arch/arm/plat-stmp3xxx/Makefile
++++ b/arch/arm/plat-stmp3xxx/Makefile
+@@ -6,13 +6,17 @@ obj-y += core.o timer.o irq.o dma.o clock.o pinmux.o devices.o \
+ 	 lradc.o spi.o mmc.o \
+ 	  power-test.o
+ 
+-obj-$(CONFIG_ARCH_STMP378X) += dcp-bootstream.o
++obj-$(CONFIG_ARCH_STMP378X) += dcp-bootstream.o usb_common.o utmixc.o
+ 
+ # Power Management
+ obj-$(CONFIG_CPU_FREQ) += cpufreq.o
+ 
+ obj-$(CONFIG_STMP3XXX_UNIQUE_ID)	+= unique-id.o
+ 
++ifneq ($(strip $(CONFIG_USB_GADGET_ARC) $(CONFIG_USB_EHCI_ARC_OTG)),)
++    obj-y += usb_dr.o
++endif
++
+ # charging/current limitation testing
+ obj-m += power-test.o
+ 
+diff --git a/arch/arm/plat-stmp3xxx/devices.c b/arch/arm/plat-stmp3xxx/devices.c
+index a7b9ddb..406631a 100644
+--- a/arch/arm/plat-stmp3xxx/devices.c
++++ b/arch/arm/plat-stmp3xxx/devices.c
+@@ -32,7 +32,6 @@
+ #include <mach/regs-uartapp.h>
+ #include <mach/regs-gpmi.h>
+ #include <mach/regs-usbctrl.h>
+-#include <mach/regs-usbphy.h>
+ #include <mach/regs-ssp.h>
+ #include <mach/regs-rtc.h>
+ #include <mach/regs-digctl.h>
+@@ -190,65 +189,6 @@ struct platform_device stmp3xxx_mmc = {
+ 	.num_resources = ARRAY_SIZE(mmc1_resource),
+ };
+ 
+-static struct resource usb_resources[] = {
+-	{
+-		.start	= REGS_USBCTRL_PHYS,
+-		.end	= REGS_USBCTRL_PHYS + SZ_4K,
+-		.flags	= IORESOURCE_MEM,
+-	}, {
+-		.start	= IRQ_USB_CTRL,
+-		.end	= IRQ_USB_CTRL,
+-		.flags	= IORESOURCE_IRQ,
+-	},
+-};
+-
+-static struct fsl_usb2_platform_data udc_platform_data = {
+-	.operating_mode = FSL_USB2_DR_DEVICE,
+-	.phy_mode	= FSL_USB2_PHY_UTMI,
+-	.port_enables	= FSL_USB2_DONT_REMAP,
+-	.platform_init	= NULL,
+-	.platform_uninit = NULL,
+-};
+-
+-struct platform_device stmp3xxx_udc = {
+-	.name		= "fsl-usb2-udc",
+-	.id		= -1,
+-	.dev		= {
+-		.dma_mask		= &common_dmamask,
+-		.coherent_dma_mask	= DMA_BIT_MASK(32),
+-		.platform_data		= &udc_platform_data,
+-	},
+-	.resource = usb_resources,
+-	.num_resources = ARRAY_SIZE(usb_resources),
+-};
+-
+-static void usb_host_phy_resume(struct fsl_usb2_platform_data *pdata)
+-{
+-	stmp3xxx_clearl(BM_USBPHY_CTRL_ENHOSTDISCONDETECT,
+-				REGS_USBPHY_BASE + HW_USBPHY_CTRL);
+-}
+-
+-static struct fsl_usb2_platform_data ehci_platform_data = {
+-	.operating_mode = FSL_USB2_DR_HOST,
+-	.phy_mode	= FSL_USB2_PHY_UTMI,
+-	.port_enables	= FSL_USB2_DONT_REMAP,
+-	.platform_init	= NULL,
+-	.platform_uninit = NULL,
+-	.platform_resume = usb_host_phy_resume,
+-};
+-
+-struct platform_device stmp3xxx_ehci = {
+-	.name		= "fsl-ehci",
+-	.id		= -1,
+-	.dev		= {
+-		.dma_mask		= &common_dmamask,
+-		.coherent_dma_mask	= DMA_BIT_MASK(32),
+-		.platform_data		= &ehci_platform_data,
+-	},
+-	.resource	= usb_resources,
+-	.num_resources	= ARRAY_SIZE(usb_resources),
+-};
+-
+ static struct resource rtc_resources[] = {
+ 	{
+ 		.start	= REGS_RTC_PHYS,
+diff --git a/arch/arm/plat-stmp3xxx/include/mach/stmp3xxx.h b/arch/arm/plat-stmp3xxx/include/mach/stmp3xxx.h
+index a697124..3139914 100644
+--- a/arch/arm/plat-stmp3xxx/include/mach/stmp3xxx.h
++++ b/arch/arm/plat-stmp3xxx/include/mach/stmp3xxx.h
+@@ -67,9 +67,6 @@ extern struct platform_device stmp3xxx_dbguart,
+ 			      stmp3xxx_gpmi,
+ 			      stmp3xxx_mmc,
+ 			      stmp3xxx_mmc2,
+-			      stmp3xxx_udc,
+-			      stmp3xxx_ehci,
+-			      stmp3xxx_usb,
+ 			      stmp3xxx_rtc,
+ 			      stmp3xxx_spi1,
+ 			      stmp3xxx_spi2,
+diff --git a/arch/arm/plat-stmp3xxx/usb.h b/arch/arm/plat-stmp3xxx/usb.h
+new file mode 100644
+index 0000000..9c617fe
+--- /dev/null
++++ b/arch/arm/plat-stmp3xxx/usb.h
+@@ -0,0 +1,101 @@
++/*
++ * Copyright 2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ */
++
++/*
++ * The code contained herein is licensed under the GNU General Public
++ * License. You may obtain a copy of the GNU General Public License
++ * Version 2 or later at the following locations:
++ *
++ * http://www.opensource.org/licenses/gpl-license.html
++ * http://www.gnu.org/copyleft/gpl.html
++ */
++
++
++extern int usbotg_init(struct platform_device *pdev);
++extern void usbotg_uninit(struct fsl_usb2_platform_data *pdata);
++extern struct platform_device *host_pdev_register(struct resource *res,
++		  int n_res, struct fsl_usb2_platform_data *config);
++
++static void usb_host_phy_resume(struct fsl_usb2_platform_data *);
++
++/*
++ * Determine which platform_data struct to use for the DR controller,
++ * based on which transceiver is configured.
++ * PDATA is a pointer to it.
++ */
++#if defined(CONFIG_UTMI_MXC)
++static struct fsl_usb2_platform_data __maybe_unused dr_utmi_config;
++#define PDATA (&dr_utmi_config)
++#endif
++
++
++/*
++ * Used to set pdata->operating_mode before registering the platform_device.
++ * If OTG is configured, the controller operates in OTG mode,
++ * otherwise it's either host or device.
++ */
++#ifdef CONFIG_USB_OTG
++#define DR_UDC_MODE	FSL_USB2_DR_OTG
++#define DR_HOST_MODE	FSL_USB2_DR_OTG
++#else
++#define DR_UDC_MODE	FSL_USB2_DR_DEVICE
++#define DR_HOST_MODE	FSL_USB2_DR_HOST
++#endif
++
++
++#ifdef CONFIG_USB_EHCI_ARC_OTG
++static inline void dr_register_host(struct resource *r, int rs)
++{
++	PDATA->operating_mode = DR_HOST_MODE;
++	host_pdev_register(r, rs, PDATA);
++}
++#else
++static inline void dr_register_host(struct resource *r, int rs)
++{
++}
++#endif
++
++#ifdef CONFIG_USB_GADGET_ARC
++static struct platform_device dr_udc_device;
++
++static inline void dr_register_udc(void)
++{
++	PDATA->operating_mode = DR_UDC_MODE;
++	dr_udc_device.dev.platform_data = PDATA;
++
++	if (platform_device_register(&dr_udc_device))
++		printk(KERN_ERR "usb: can't register DR gadget\n");
++	else
++		printk(KERN_INFO "usb: DR gadget (%s) registered\n",
++		       PDATA->transceiver);
++}
++#else
++static inline void dr_register_udc(void)
++{
++}
++#endif
++
++#ifdef CONFIG_USB_OTG
++static struct platform_device dr_otg_device;
++
++/*
++ * set the proper operating_mode and
++ * platform_data pointer, then register the
++ * device.
++ */
++static inline void dr_register_otg(void)
++{
++	PDATA->operating_mode = FSL_USB2_DR_OTG;
++	dr_otg_device.dev.platform_data = PDATA;
++
++	if (platform_device_register(&dr_otg_device))
++		printk(KERN_ERR "usb: can't register otg device\n");
++	else
++		printk(KERN_INFO "usb: DR OTG registered\n");
++}
++#else
++static inline void dr_register_otg(void)
++{
++}
++#endif
+diff --git a/arch/arm/plat-stmp3xxx/usb_common.c b/arch/arm/plat-stmp3xxx/usb_common.c
+new file mode 100644
+index 0000000..aac884c
+--- /dev/null
++++ b/arch/arm/plat-stmp3xxx/usb_common.c
+@@ -0,0 +1,312 @@
++/*
++ * Copyright 2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ *
++ *	otg_{get,set}_transceiver() are from arm/plat-omap/usb.c.
++ *	which is Copyright (C) 2004 Texas Instruments, Inc.
++ */
++
++/*
++ * The code contained herein is licensed under the GNU General Public
++ * License. You may obtain a copy of the GNU General Public License
++ * Version 2 or later at the following locations:
++ *
++ * http://www.opensource.org/licenses/gpl-license.html
++ * http://www.gnu.org/copyleft/gpl.html
++ */
++
++/*!
++ *@defgroup USB ARC OTG USB Driver
++ */
++
++/*!
++ * @file usb_common.c
++ *
++ * @brief platform related part of usb driver.
++ * @ingroup USB
++ */
++
++/*!
++ *Include files
++ */
++#include <linux/module.h>
++#include <linux/kernel.h>
++#include <linux/types.h>
++#include <linux/errno.h>
++#include <linux/init.h>
++#include <linux/interrupt.h>
++#include <linux/clk.h>
++#include <linux/err.h>
++#include <linux/delay.h>
++#include <linux/platform_device.h>
++#include <linux/fsl_devices.h>
++#include <linux/usb/otg.h>
++#include <linux/usb/fsl_xcvr.h>
++#include <mach/arc_otg.h>
++#include <mach/platform.h>
++#include <mach/regs-power.h>
++#include <mach/regs-digctl.h>
++#include <mach/regs-clkctrl.h>
++#include <mach/regs-usbctrl.h>
++#include <mach/regs-usbphy.h>
++#include <mach/pinmux.h>
++
++#define MXC_NUMBER_USB_TRANSCEIVER 6
++struct fsl_xcvr_ops *g_xc_ops[MXC_NUMBER_USB_TRANSCEIVER] = { NULL };
++
++void fsl_usb_xcvr_register(struct fsl_xcvr_ops *xcvr_ops)
++{
++	int i;
++
++	pr_debug("%s\n", __func__);
++	for (i = 0; i < MXC_NUMBER_USB_TRANSCEIVER; i++) {
++		if (g_xc_ops[i] == NULL) {
++			g_xc_ops[i] = xcvr_ops;
++			return;
++		}
++	}
++
++	pr_debug("Failed %s\n", __func__);
++}
++EXPORT_SYMBOL(fsl_usb_xcvr_register);
++
++void fsl_usb_xcvr_unregister(struct fsl_xcvr_ops *xcvr_ops)
++{
++	int i;
++
++	pr_debug("%s\n", __func__);
++	for (i = 0; i < MXC_NUMBER_USB_TRANSCEIVER; i++) {
++		if (g_xc_ops[i] == xcvr_ops) {
++			g_xc_ops[i] = NULL;
++			return;
++		}
++	}
++
++	pr_debug("Failed %s\n", __func__);
++}
++EXPORT_SYMBOL(fsl_usb_xcvr_unregister);
++
++#if defined(CONFIG_USB_OTG)
++static struct otg_transceiver *xceiv;
++
++/**
++ * otg_get_transceiver - find the (single) OTG transceiver driver
++ *
++ * Returns the transceiver driver, after getting a refcount to it; or
++ * null if there is no such transceiver.  The caller is responsible for
++ * releasing that count.
++ */
++struct otg_transceiver *otg_get_transceiver(void)
++{
++	pr_debug("%s xceiv=0x%p\n", __func__, xceiv);
++	if (xceiv)
++		get_device(xceiv->dev);
++	return xceiv;
++}
++EXPORT_SYMBOL(otg_get_transceiver);
++
++int otg_set_transceiver(struct otg_transceiver *x)
++{
++	pr_debug("%s xceiv=0x%p  x=0x%p\n", __func__, xceiv, x);
++	/*
++	if (x == NULL)
++		stmp3xxx_release_pin_group(&usb_mux_pins, "usb");
++		*/
++	if (xceiv && x)
++		return -EBUSY;
++	xceiv = x;
++	return 0;
++}
++EXPORT_SYMBOL(otg_set_transceiver);
++
++static struct resource *otg_resources;
++
++struct resource *otg_get_resources(void)
++{
++	pr_debug("otg_get_resources\n");
++	return otg_resources;
++}
++EXPORT_SYMBOL(otg_get_resources);
++
++int otg_set_resources(struct resource *resources)
++{
++	//stmp3xxx_request_pin_group(&usb_mux_pins, "usb");
++	otg_resources = resources;
++	return 0;
++}
++EXPORT_SYMBOL(otg_set_resources);
++#endif
++
++static struct fsl_xcvr_ops *fsl_usb_get_xcvr(char *name)
++{
++	int i;
++
++	pr_debug("%s\n", __func__);
++	if (name == NULL) {
++		printk(KERN_ERR "get_xcvr(): No tranceiver name\n");
++		return NULL;
++	}
++
++	for (i = 0; i < MXC_NUMBER_USB_TRANSCEIVER; i++) {
++		if (strcmp(g_xc_ops[i]->name, name) == 0) {
++			return g_xc_ops[i];
++		}
++	}
++	pr_debug("Failed %s\n", __func__);
++	return NULL;
++}
++
++/* The dmamask must be set for EHCI to work */
++static u64 ehci_dmamask = ~(u32) 0;
++
++static int instance_id;
++struct platform_device *host_pdev_register(struct resource *res, int n_res,
++					   struct fsl_usb2_platform_data *config)
++{
++	struct platform_device *pdev;
++	int rc;
++	instance_id = 0;
++
++	pr_debug("register host res=0x%p, size=%d\n", res, n_res);
++
++	pdev = platform_device_register_simple("fsl-ehci",
++					       instance_id, res, n_res);
++	if (IS_ERR(pdev)) {
++		pr_debug("can't register %s Host, %ld\n",
++			 config->name, PTR_ERR(pdev));
++		return NULL;
++	}
++
++	pdev->dev.coherent_dma_mask = 0xffffffff;
++	pdev->dev.dma_mask = &ehci_dmamask;
++
++	/*
++	 * platform_device_add_data() makes a copy of
++	 * the platform_data passed in.  That makes it
++	 * impossible to share the same config struct for
++	 * all OTG devices (host,gadget,otg).  So, just
++	 * set the platorm_data pointer ourselves.
++	 */
++	rc = platform_device_add_data(pdev, config,
++				      sizeof(struct fsl_usb2_platform_data));
++	if (rc) {
++		platform_device_unregister(pdev);
++		return NULL;
++	}
++
++	pr_debug(KERN_INFO "usb: %s host (%s) registered\n", config->name,
++	       config->transceiver);
++	pr_debug("pdev=0x%p  dev=0x%p  resources=0x%p  pdata=0x%p\n",
++		 pdev, &pdev->dev, pdev->resource, pdev->dev.platform_data);
++
++	instance_id++;
++
++	return pdev;
++}
++
++int usb_phy_enable(void)
++{
++	u32 tmp;
++	/*
++	* Set these bits so that we can force the OTG bits high
++	* so the ARC core operates properly
++	*/
++	stmp3xxx_clearl(BM_POWER_CTRL_CLKGATE,
++		      REGS_POWER_BASE + HW_POWER_CTRL);
++	stmp3xxx_setl(BM_POWER_DEBUG_VBUSVALIDPIOLOCK |
++			 BM_POWER_DEBUG_AVALIDPIOLOCK |
++			 BM_POWER_DEBUG_BVALIDPIOLOCK,
++			 REGS_POWER_BASE + HW_POWER_DEBUG);
++	tmp = __raw_readl(REGS_POWER_BASE + HW_POWER_STS);
++	tmp |= BM_POWER_STS_BVALID | BM_POWER_STS_AVALID |
++		       BM_POWER_STS_VBUSVALID;
++	__raw_writel(tmp, REGS_POWER_BASE + HW_POWER_STS);
++
++	/* Reset USBPHY module */
++	stmp3xxx_setl(BM_USBPHY_CTRL_SFTRST,
++		      REGS_USBPHY_BASE + HW_USBPHY_CTRL);
++	udelay(10);
++
++	/* Remove CLKGATE and SFTRST */
++	stmp3xxx_clearl(BM_USBPHY_CTRL_CLKGATE | BM_USBPHY_CTRL_SFTRST,
++		      REGS_USBPHY_BASE + HW_USBPHY_CTRL);
++
++	/* Turn on the USB clocks */
++	stmp3xxx_setl(BM_CLKCTRL_PLLCTRL0_EN_USB_CLKS,
++		     REGS_CLKCTRL_BASE + HW_CLKCTRL_PLLCTRL0);
++	stmp3xxx_clearl(BM_DIGCTL_CTRL_USB_CLKGATE,
++		      REGS_DIGCTL_BASE + HW_DIGCTL_CTRL);
++
++	/* set UTMI xcvr */
++	/* Workaround an IC issue for ehci driver:
++	 * when turn off root hub port power, EHCI set
++	 * PORTSC reserved bits to be 0, but PTW with 0
++	 * means 8 bits tranceiver width, here change
++	 * it back to be 16 bits and do PHY diable and
++	 * then enable.
++	 */
++	tmp = __raw_readl(REGS_USBCTRL_BASE + HW_USBCTRL_PORTSC1) & ~PORTSC_PTS_MASK;
++	tmp |= (PORTSC_PTS_UTMI | PORTSC_PTW);
++	__raw_writel(tmp, REGS_USBCTRL_BASE + HW_USBCTRL_PORTSC1);
++
++	/* Power up the PHY */
++	__raw_writel(0, REGS_USBPHY_BASE + HW_USBPHY_PWD);
++
++	/*
++	* Set precharge bit to cure overshoot problems at the
++	* start of packets
++	*/
++	stmp3xxx_setl(1, REGS_USBPHY_BASE + HW_USBPHY_CTRL);
++
++#if defined(CONFIG_USB_EHCI_HCD) || defined(CONFIG_USB_EHCI_HCD_MODULE)
++	/* enable disconnect detector */
++	/* enable disconnect detector must be after entry high speed mode*/
++	/*HW_USBPHY_CTRL_SET(BM_USBPHY_CTRL_ENHOSTDISCONDETECT);
++	*/
++#endif
++	return 0;
++}
++EXPORT_SYMBOL(usb_phy_enable);
++
++static int otg_used;
++
++int usbotg_init(struct platform_device *pdev)
++{
++	struct fsl_usb2_platform_data *pdata = pdev->dev.platform_data;
++	struct fsl_xcvr_ops *xops;
++
++	pr_debug("%s: pdev=0x%p  pdata=0x%p\n", __func__, pdev, pdata);
++
++	xops = fsl_usb_get_xcvr(pdata->transceiver);
++	if (!xops) {
++		printk(KERN_ERR "DR transceiver ops missing\n");
++		return -EINVAL;
++	}
++	pdata->xcvr_ops = xops;
++	pdata->xcvr_type = xops->xcvr_type;
++	pdata->pdev = pdev;
++
++	otg_used = 0;
++	if (!otg_used) {
++		pr_debug("%s: grab pins\n", __func__);
++		if (xops->init)
++			xops->init(xops);
++		usb_phy_enable();
++	}
++
++	otg_used++;
++	pr_debug("%s: success\n", __func__);
++	return 0;
++}
++EXPORT_SYMBOL(usbotg_init);
++
++void usbotg_uninit(struct fsl_usb2_platform_data *pdata)
++{
++	pr_debug("%s\n", __func__);
++
++	if (pdata->xcvr_ops && pdata->xcvr_ops->uninit)
++		pdata->xcvr_ops->uninit(pdata->xcvr_ops);
++
++	pdata->regs = NULL;
++	otg_used--;
++}
++EXPORT_SYMBOL(usbotg_uninit);
+diff --git a/arch/arm/plat-stmp3xxx/usb_dr.c b/arch/arm/plat-stmp3xxx/usb_dr.c
+new file mode 100644
+index 0000000..50ca59c
+--- /dev/null
++++ b/arch/arm/plat-stmp3xxx/usb_dr.c
+@@ -0,0 +1,112 @@
++/*
++ * Copyright 2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ */
++
++/*
++ * The code contained herein is licensed under the GNU General Public
++ * License. You may obtain a copy of the GNU General Public License
++ * Version 2 or later at the following locations:
++ *
++ * http://www.opensource.org/licenses/gpl-license.html
++ * http://www.gnu.org/copyleft/gpl.html
++ */
++
++#include <linux/kernel.h>
++#include <linux/types.h>
++#include <linux/clk.h>
++#include <linux/io.h>
++#include <linux/platform_device.h>
++#include <linux/fsl_devices.h>
++#include <mach/arc_otg.h>
++#include <mach/irqs.h>
++#include <mach/platform.h>
++#include <mach/regs-usbctrl.h>
++#include <mach/regs-usbphy.h>
++#include "usb.h"
++
++/*
++ * platform data structs
++ * 	- Which one to use is determined by CONFIG options in usb.h
++ * 	- operating_mode plugged at run time
++ */
++static struct fsl_usb2_platform_data __maybe_unused dr_utmi_config = {
++	.name              = "DR",
++	.platform_init     = usbotg_init,
++	.platform_uninit   = usbotg_uninit,
++	.phy_mode          = FSL_USB2_PHY_UTMI_WIDE,
++	.power_budget      = 500,	/* 500 mA max power */
++	.platform_resume = usb_host_phy_resume,
++	.transceiver       = "utmi",
++};
++
++/*
++ * resources
++ */
++static struct resource otg_resources[] = {
++	[0] = {
++		.start	= (u32)REGS_USBCTRL_PHYS,
++		.end	= (u32)(REGS_USBCTRL_PHYS + SZ_4K),
++		.flags	= IORESOURCE_MEM,
++	},
++
++	[1] = {
++		.start	= IRQ_USB_CTRL,
++		.flags	= IORESOURCE_IRQ,
++	},
++};
++
++static u64 dr_udc_dmamask = ~(u32) 0;
++static void dr_udc_release(struct device *dev)
++{
++}
++
++/*
++ * platform device structs
++ * 	dev.platform_data field plugged at run time
++ */
++static struct platform_device dr_udc_device = {
++	.name = "fsl-usb2-udc",
++	.id   = -1,
++	.dev  = {
++		.release           = dr_udc_release,
++		.dma_mask          = &dr_udc_dmamask,
++		.coherent_dma_mask = 0xffffffff,
++	},
++	.resource      = otg_resources,
++	.num_resources = ARRAY_SIZE(otg_resources),
++};
++
++static u64 dr_otg_dmamask = ~(u32) 0;
++static void dr_otg_release(struct device *dev)
++{}
++
++static struct platform_device __maybe_unused dr_otg_device = {
++	.name = "fsl-usb2-otg",
++	.id = -1,
++	.dev  = {
++		.release           = dr_otg_release,
++		.dma_mask          = &dr_otg_dmamask,
++		.coherent_dma_mask = 0xffffffff,
++	},
++	.resource      = otg_resources,
++	.num_resources = ARRAY_SIZE(otg_resources),
++};
++
++static void usb_host_phy_resume(struct fsl_usb2_platform_data *plat)
++{
++	stmp3xxx_clearl(BM_USBPHY_CTRL_ENHOSTDISCONDETECT, 
++			REGS_USBPHY_BASE + HW_USBPHY_CTRL);
++}
++
++static int __init usb_dr_init(void)
++{
++	pr_debug("%s: \n", __func__);
++
++	dr_register_otg();
++	dr_register_host(otg_resources, ARRAY_SIZE(otg_resources));
++	dr_register_udc();
++
++	return 0;
++}
++
++module_init(usb_dr_init);
+diff --git a/arch/arm/plat-stmp3xxx/utmixc.c b/arch/arm/plat-stmp3xxx/utmixc.c
+new file mode 100644
+index 0000000..dcab25a
+--- /dev/null
++++ b/arch/arm/plat-stmp3xxx/utmixc.c
+@@ -0,0 +1,82 @@
++/*
++ * Copyright 2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ */
++
++/*
++ * The code contained herein is licensed under the GNU General Public
++ * License. You may obtain a copy of the GNU General Public License
++ * Version 2 or later at the following locations:
++ *
++ * http://www.opensource.org/licenses/gpl-license.html
++ * http://www.gnu.org/copyleft/gpl.html
++ */
++
++#include <linux/module.h>
++#include <linux/kernel.h>
++#include <linux/types.h>
++#include <linux/device.h>
++#include <linux/errno.h>
++#include <linux/init.h>
++#include <linux/err.h>
++#include <linux/platform_device.h>
++#include <linux/fsl_devices.h>
++#include <linux/usb/fsl_xcvr.h>
++#include <linux/pmic_external.h>
++
++#include <mach/hardware.h>
++#include <mach/arc_otg.h>
++#include <asm/mach-types.h>
++
++static struct regulator *usbotg_regux;
++
++static void usb_utmi_init(struct fsl_xcvr_ops *this)
++{
++}
++
++static void usb_utmi_uninit(struct fsl_xcvr_ops *this)
++{
++}
++
++/*!
++ * set vbus power
++ *
++ * @param       view  viewport register
++ * @param       on    power on or off
++ */
++static void set_power(struct fsl_xcvr_ops *this,
++		      struct fsl_usb2_platform_data *pdata, int on)
++{
++	struct device *dev = &pdata->pdev->dev;
++
++	pr_debug("real %s(on=%d) pdata=0x%p\n", __func__, on, pdata);
++}
++
++static struct fsl_xcvr_ops utmi_ops = {
++	.name = "utmi",
++	.xcvr_type = PORTSC_PTS_UTMI,
++	.init = usb_utmi_init,
++	.uninit = usb_utmi_uninit,
++	.set_vbus_power = set_power,
++};
++
++extern void fsl_usb_xcvr_register(struct fsl_xcvr_ops *xcvr_ops);
++
++static int __init utmixc_init(void)
++{
++	fsl_usb_xcvr_register(&utmi_ops);
++	return 0;
++}
++
++extern void fsl_usb_xcvr_unregister(struct fsl_xcvr_ops *xcvr_ops);
++
++static void __exit utmixc_exit(void)
++{
++	fsl_usb_xcvr_unregister(&utmi_ops);
++}
++
++module_init(utmixc_init);
++module_exit(utmixc_exit);
++
++MODULE_AUTHOR("Freescale Semiconductor, Inc.");
++MODULE_DESCRIPTION("utmi xcvr driver");
++MODULE_LICENSE("GPL");
+diff --git a/drivers/usb/gadget/Kconfig b/drivers/usb/gadget/Kconfig
+index 83d395d..0c89ffb 100644
+--- a/drivers/usb/gadget/Kconfig
++++ b/drivers/usb/gadget/Kconfig
+@@ -609,7 +609,7 @@ endchoice
+ config USB_OTG
+ 	boolean "OTG Support"
+ 	depends on (USB_GADGET_OMAP && ARCH_OMAP_OTG && USB_OHCI_HCD) || \
+-		   (USB_GADGET_ARC && ARCH_MXC && USB_EHCI_HCD)
++		   (USB_GADGET_ARC && (ARCH_MXC || ARCH_STMP3XXX) && USB_EHCI_HCD)
+ 	help
+ 	   The most notable feature of USB OTG is support for a
+ 	   "Dual-Role" device, which can act as either a device
+diff --git a/drivers/usb/gadget/arcotg_udc.c b/drivers/usb/gadget/arcotg_udc.c
+index 64a6215..acc1b95 100644
+--- a/drivers/usb/gadget/arcotg_udc.c
++++ b/drivers/usb/gadget/arcotg_udc.c
+@@ -2713,16 +2713,10 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
+ 	}
+ #endif
+ 
+-	if ((pdata->port_enables & FSL_USB2_DONT_REMAP) == 0) {
+-		dr_regs = ioremap(res->start, resource_size(res));
+-		if (!dr_regs) {
+-			ret = -ENOMEM;
+-			goto err1;
+-		}
+-		udc_controller->dr_remapped = !0;
+-	} else {
+-		dr_regs = (void *)res->start;
+-		dev_warn(&pdev->dev, "does not remap its address space\n");
++	dr_regs = ioremap(res->start, resource_size(res));
++	if (!dr_regs) {
++		ret = -ENOMEM;
++		goto err1;
+ 	}
+ 	pdata->regs = (void *)dr_regs;
+ 	/*
+@@ -2859,8 +2853,7 @@ err2:
+ 	if (pdata->platform_uninit)
+ 		pdata->platform_uninit(pdata);
+ err2a:
+-	if (udc_controller->dr_remapped)
+-		iounmap((u8 __iomem *)dr_regs);
++	iounmap((u8 __iomem *)dr_regs);
+ err1:
+ 	if (!udc_controller->transceiver)
+ 		release_mem_region(res->start, resource_size(res));
+@@ -2902,8 +2895,7 @@ static int __exit fsl_udc_remove(struct platform_device *pdev)
+ #endif
+ 	dma_pool_destroy(udc_controller->td_pool);
+ 	free_irq(udc_controller->irq, udc_controller);
+-	if (udc_controller->dr_remapped)
+-		iounmap((u8 __iomem *)dr_regs);
++	iounmap((u8 __iomem *)dr_regs);
+ 
+ #ifndef CONFIG_USB_OTG
+ 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+diff --git a/drivers/usb/gadget/arcotg_udc.h b/drivers/usb/gadget/arcotg_udc.h
+index 82bde01..d8d33eb 100644
+--- a/drivers/usb/gadget/arcotg_udc.h
++++ b/drivers/usb/gadget/arcotg_udc.h
+@@ -594,7 +594,6 @@ struct fsl_udc {
+ 	unsigned stopped:1;
+ 	unsigned remote_wakeup:1;
+ 	unsigned already_stopped:1;
+-	unsigned dr_remapped:1;
+ 
+ 	struct ep_queue_head *ep_qh;	/* Endpoints Queue-Head */
+ 	struct fsl_req *status_req;	/* ep0 status request */
+diff --git a/drivers/usb/host/ehci-arc.c b/drivers/usb/host/ehci-arc.c
+index 17a0f5d..78d6e91 100644
+--- a/drivers/usb/host/ehci-arc.c
++++ b/drivers/usb/host/ehci-arc.c
+@@ -28,7 +28,6 @@
+ 
+ extern struct resource *otg_get_resources(void);
+ 
+-static int regs_remapped /* = 0 */;
+ #undef EHCI_PROC_PTC
+ #ifdef EHCI_PROC_PTC		/* /proc PORTSC:PTC support */
+ /*
+@@ -158,14 +157,6 @@ int usb_hcd_fsl_probe(const struct hc_driver *driver,
+ 	} else
+ #endif
+ 	{
+-		if ((pdev->dev.parent) &&
+-			(to_platform_device(pdev->dev.parent)->resource)) {
+-			pdev->resource =
+-				to_platform_device(pdev->dev.parent)->resource;
+-			pdev->num_resources =
+-			to_platform_device(pdev->dev.parent)->num_resources;
+-		}
+-
+ 		res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+ 		if (!res) {
+ 			dev_err(&pdev->dev,
+@@ -187,18 +178,13 @@ int usb_hcd_fsl_probe(const struct hc_driver *driver,
+ 		}
+ 	}
+ 
+-	if (!(pdata->port_enables & FSL_USB2_DONT_REMAP)) {
+-		hcd->regs = ioremap(hcd->rsrc_start, hcd->rsrc_len);
+-
+-		if (hcd->regs == NULL) {
+-			dev_dbg(&pdev->dev, "error mapping memory\n");
+-			retval = -EFAULT;
+-			goto err3;
+-		}
+-		regs_remapped = 1;
+-	} else
+-		hcd->regs = (void __iomem *)(u32)(hcd->rsrc_start);
++	hcd->regs = ioremap(hcd->rsrc_start, hcd->rsrc_len);
+ 
++	if (hcd->regs == NULL) {
++		dev_dbg(&pdev->dev, "error mapping memory\n");
++		retval = -EFAULT;
++		goto err3;
++	}
+ 	pdata->regs = hcd->regs;
+ 
+ 	/*
+@@ -254,8 +240,7 @@ int usb_hcd_fsl_probe(const struct hc_driver *driver,
+ 	return retval;
+ 
+ err4:
+-	if (regs_remapped)
+-		iounmap(hcd->regs);
++	iounmap(hcd->regs);
+ err3:
+ 	if (pdata->operating_mode != FSL_USB2_DR_OTG)
+ 		release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
+@@ -305,8 +290,7 @@ static void usb_hcd_fsl_remove(struct usb_hcd *hcd,
+ 	if (pdata->platform_uninit)
+ 		pdata->platform_uninit(pdata);
+ 
+-	if (regs_remapped)
+-		iounmap(hcd->regs);
++	iounmap(hcd->regs);
+ }
+ 
+ static void fsl_setup_phy(struct ehci_hcd *ehci,
+diff --git a/include/linux/fsl_devices.h b/include/linux/fsl_devices.h
+index 9535b51..d6a348b 100644
+--- a/include/linux/fsl_devices.h
++++ b/include/linux/fsl_devices.h
+@@ -115,7 +115,6 @@ struct fsl_usb2_platform_data {
+ /* Flags in fsl_usb2_mph_platform_data */
+ #define FSL_USB2_PORT0_ENABLED	0x00000001
+ #define FSL_USB2_PORT1_ENABLED	0x00000002
+-#define FSL_USB2_DONT_REMAP	0x10000000
+ 
+ struct spi_device;
+ 
+-- 
+1.5.4.4
+

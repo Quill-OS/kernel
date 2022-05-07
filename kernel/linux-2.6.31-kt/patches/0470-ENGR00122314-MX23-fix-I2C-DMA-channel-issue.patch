@@ -1,0 +1,64 @@
+From 0cd3ca85134dcee3b92b4a28e53b2c9ec7599c5c Mon Sep 17 00:00:00 2001
+From: Frank Li <Frank.Li@freescale.com>
+Date: Wed, 7 Apr 2010 13:33:17 +0800
+Subject: [PATCH] ENGR00122314 MX23 fix I2C DMA channel issue
+
+fix I2C DMA issue.
+
+Signed-off-by: Frank Li <Frank.Li@freescale.com>
+---
+ arch/arm/mach-mx23/device.c           |    4 ++--
+ arch/arm/mach-mx23/include/mach/dma.h |   18 +++++++++---------
+ 2 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/arch/arm/mach-mx23/device.c b/arch/arm/mach-mx23/device.c
+index 9d56f9a..33c4d7d 100644
+--- a/arch/arm/mach-mx23/device.c
++++ b/arch/arm/mach-mx23/device.c
+@@ -236,8 +236,8 @@ static struct resource i2c_resource[] = {
+ 	 },
+ 	{
+ 	 .flags = IORESOURCE_DMA,
+-	 .start = MXS_DMA_CHANNEL_AHB_APBX_I2C0,
+-	 .end   = MXS_DMA_CHANNEL_AHB_APBX_I2C0,
++	 .start = MXS_DMA_CHANNEL_AHB_APBX_I2C,
++	 .end   = MXS_DMA_CHANNEL_AHB_APBX_I2C,
+ 	 },
+ 	{
+ 	 .flags = IORESOURCE_IRQ,
+diff --git a/arch/arm/mach-mx23/include/mach/dma.h b/arch/arm/mach-mx23/include/mach/dma.h
+index 5fc2427..ae4b778 100644
+--- a/arch/arm/mach-mx23/include/mach/dma.h
++++ b/arch/arm/mach-mx23/include/mach/dma.h
+@@ -41,19 +41,19 @@ enum {
+ 	MXS_DMA_CHANNEL_AHB_APBX_AUDIOADC = MXS_DMA_CHANNEL_AHB_APBX,
+ 	MXS_DMA_CHANNEL_AHB_APBX_AUDIODAC,
+ 	MXS_DMA_CHANNEL_AHB_APBX_SPDIF,
+-	MXS_DMA_CHANNEL_AHB_APBX_03,
+-	MXS_DMA_CHANNEL_AHB_APBX_SAIF0,
++	MXS_DMA_CHANNEL_AHB_APBX_I2C,
+ 	MXS_DMA_CHANNEL_AHB_APBX_SAIF1,
++	MXS_DMA_CHANNEL_AHB_APBX_DRI,
+ 	MXS_DMA_CHANNEL_AHB_APBX_UART1_RX,
+ 	MXS_DMA_CHANNEL_AHB_APBX_UART1_TX,
+ 	MXS_DMA_CHANNEL_AHB_APBX_UART2_RX,
+ 	MXS_DMA_CHANNEL_AHB_APBX_UART2_TX,
+-	MXS_DMA_CHANNEL_AHB_APBX_I2C0,
+-	MXS_DMA_CHANNEL_AHB_APBX_I2C1,
+-	MXS_DMA_CHANNEL_AHB_APBX_UART0_RX,
+-	MXS_DMA_CHANNEL_AHB_APBX_UART0_TX,
+-	MXS_DMA_CHANNEL_AHB_APBX_UART3_RX,
+-	MXS_DMA_CHANNEL_AHB_APBX_UART3_TX,
++	MXS_DMA_CHANNEL_AHB_APBX_SAIF2,
++	MXS_DMA_CHANNEL_AHB_APBX_RESERVED1,
++	MXS_DMA_CHANNEL_AHB_APBX_RESERVED2,
++	MXS_DMA_CHANNEL_AHB_APBX_RESERVED3,
++	MXS_DMA_CHANNEL_AHB_APBX_RESERVED4,
++	MXS_DMA_CHANNEL_AHB_APBX_RESERVED5,
+ 	MAX_DMA_CHANNELS,
+ };
+-#endif /* __ASM_ARCH_MACH_MX28_H__ */
++#endif /* __ASM_ARCH_MACH_MX23_H__ */
+-- 
+1.5.4.4
+

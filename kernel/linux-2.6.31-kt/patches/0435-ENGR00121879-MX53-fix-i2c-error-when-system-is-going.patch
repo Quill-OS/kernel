@@ -1,0 +1,47 @@
+From 25dbaf35e77de60b2853caf5bcd0252579147351 Mon Sep 17 00:00:00 2001
+From: Shen Yong <b00984@freescale.com>
+Date: Thu, 25 Mar 2010 17:45:20 +0800
+Subject: [PATCH] ENGR00121879 MX53 fix i2c error when system is going down
+
+there is no battery on mx53 evk, which cause this issue.
+remove PMIC battery driver can fix this
+
+Signed-off-by: Shen Yong <b00984@freescale.com>
+---
+ drivers/mxc/pmic/core/pmic_core_i2c.c |    8 ++++++--
+ 1 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/mxc/pmic/core/pmic_core_i2c.c b/drivers/mxc/pmic/core/pmic_core_i2c.c
+index ef32386..d2f982e 100644
+--- a/drivers/mxc/pmic/core/pmic_core_i2c.c
++++ b/drivers/mxc/pmic/core/pmic_core_i2c.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -36,6 +36,7 @@
+ #include <linux/pmic_status.h>
+ 
+ #include <asm/uaccess.h>
++#include <mach/hardware.h>
+ 
+ #include "pmic.h"
+ 
+@@ -94,7 +95,10 @@ static struct platform_device bleds_ldm = {
+ static void pmic_pdev_register(struct device *dev)
+ {
+ 	platform_device_register(&adc_ldm);
+-	platform_device_register(&battery_ldm);
++
++	if (!cpu_is_mx53())
++		platform_device_register(&battery_ldm);
++
+ 	platform_device_register(&rtc_ldm);
+ 	platform_device_register(&power_ldm);
+ 	platform_device_register(&light_ldm);
+-- 
+1.5.4.4
+

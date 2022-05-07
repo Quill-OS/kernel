@@ -1,0 +1,148 @@
+From 4d63362112d071f91cd1272d46a9d5acc451033e Mon Sep 17 00:00:00 2001
+From: Liu Ying <b17645@freescale.com>
+Date: Fri, 25 Jun 2010 13:16:27 -0400
+Subject: [PATCH] ENGR00124082-1 IPUv3:Fix some bugs related with VDI
+
+1) Read buffer 1 ready register before setting buffer 1 ready.
+2) Enable ISP in IPU_CONF when using VDI.
+3) Fix link issue between MEM_VDI_PRP_VF_MEM and MEM_ROT_VF_MEM.
+4) Correct g_channel_init_mask value.
+5) Use fixed top field for VDI.
+
+Signed-off-by: Liu Ying <b17645@freescale.com>
+---
+ drivers/mxc/ipu3/ipu_common.c |   26 +++++++++++++++-----------
+ drivers/mxc/ipu3/ipu_ic.c     |   15 +--------------
+ 2 files changed, 16 insertions(+), 25 deletions(-)
+
+diff --git a/drivers/mxc/ipu3/ipu_common.c b/drivers/mxc/ipu3/ipu_common.c
+index 4f51510..bd00daa 100644
+--- a/drivers/mxc/ipu3/ipu_common.c
++++ b/drivers/mxc/ipu3/ipu_common.c
+@@ -52,8 +52,8 @@ unsigned char g_dc_di_assignment[10];
+ ipu_channel_t g_ipu_csi_channel[2];
+ int g_ipu_irq[2];
+ int g_ipu_hw_rev;
+-bool g_sec_chan_en[22];
+-bool g_thrd_chan_en[21];
++bool g_sec_chan_en[24];
++bool g_thrd_chan_en[24];
+ uint32_t g_channel_init_mask;
+ uint32_t g_channel_enable_mask;
+ DEFINE_SPINLOCK(ipu_lock);
+@@ -753,8 +753,8 @@ void ipu_uninit_channel(ipu_channel_t channel)
+ 
+ 	/* Make sure channel is disabled */
+ 	/* Get input and output dma channels */
+-	in_dma = channel_2_dma(channel, IPU_OUTPUT_BUFFER);
+-	out_dma = channel_2_dma(channel, IPU_VIDEO_IN_BUFFER);
++	in_dma = channel_2_dma(channel, IPU_VIDEO_IN_BUFFER);
++	out_dma = channel_2_dma(channel, IPU_OUTPUT_BUFFER);
+ 
+ 	if (idma_is_set(IDMAC_CHA_EN, in_dma) ||
+ 	    idma_is_set(IDMAC_CHA_EN, out_dma)) {
+@@ -774,8 +774,10 @@ void ipu_uninit_channel(ipu_channel_t channel)
+ 	reg = __raw_readl(IPU_CHA_DB_MODE_SEL(out_dma));
+ 	__raw_writel(reg & ~idma_mask(out_dma), IPU_CHA_DB_MODE_SEL(out_dma));
+ 
+-	g_sec_chan_en[IPU_CHAN_ID(channel)] = false;
+-	g_thrd_chan_en[IPU_CHAN_ID(channel)] = false;
++	if (_ipu_is_ic_chan(in_dma) || _ipu_is_dp_graphic_chan(in_dma)) {
++		g_sec_chan_en[IPU_CHAN_ID(channel)] = false;
++		g_thrd_chan_en[IPU_CHAN_ID(channel)] = false;
++	}
+ 
+ 	switch (channel) {
+ 	case CSI_MEM0:
+@@ -827,6 +829,9 @@ void ipu_uninit_channel(ipu_channel_t channel)
+ 		reg = __raw_readl(IPU_FS_PROC_FLOW1);
+ 		__raw_writel(reg & ~FS_VF_IN_VALID, IPU_FS_PROC_FLOW1);
+ 		break;
++	case MEM_VDI_PRP_VF_MEM_P:
++	case MEM_VDI_PRP_VF_MEM_N:
++		break;
+ 	case MEM_ROT_VF_MEM:
+ 		ipu_rot_use_count--;
+ 		ipu_ic_use_count--;
+@@ -891,6 +896,7 @@ void ipu_uninit_channel(ipu_channel_t channel)
+ 	if (ipu_ic_use_count == 0)
+ 		ipu_conf &= ~IPU_CONF_IC_EN;
+ 	if (ipu_vdi_use_count == 0) {
++		ipu_conf &= ~IPU_CONF_ISP_EN;
+ 		ipu_conf &= ~IPU_CONF_VDI_EN;
+ 		ipu_conf &= ~IPU_CONF_IC_INPUT;
+ 	}
+@@ -1217,8 +1223,6 @@ int32_t ipu_select_buffer(ipu_channel_t channel, ipu_buffer_t type,
+ 		__raw_writel(idma_mask(dma_chan) | reg,
+ 			     IPU_CHA_BUF1_RDY(dma_chan));
+ 	}
+-	if (channel == MEM_VDI_PRP_VF_MEM)
+-		_ipu_vdi_toggle_top_field_man();
+ 	return 0;
+ }
+ EXPORT_SYMBOL(ipu_select_buffer);
+@@ -1247,10 +1251,9 @@ int32_t ipu_select_multi_vdi_buffer(uint32_t bufNum)
+ 		__raw_writel(mask_bit | reg, IPU_CHA_BUF0_RDY(dma_chan));
+ 	} else {
+ 		/*Mark buffer 1 as ready. */
+-		reg = __raw_readl(IPU_CHA_BUF0_RDY(dma_chan));
++		reg = __raw_readl(IPU_CHA_BUF1_RDY(dma_chan));
+ 		__raw_writel(mask_bit | reg, IPU_CHA_BUF1_RDY(dma_chan));
+ 	}
+-	_ipu_vdi_toggle_top_field_man();
+ 	return 0;
+ }
+ EXPORT_SYMBOL(ipu_select_multi_vdi_buffer);
+@@ -1260,7 +1263,7 @@ static int proc_dest_sel[] =
+   { 0, 1, 1, 3, 5, 5, 4, 7, 8, 9, 10, 11, 12, 14, 15, 16,
+     0, 1, 1, 5, 5, 5, 5, 5, 7, 8, 9, 10, 11, 12, 14, 31 };
+ static int proc_src_sel[] = { 0, 6, 7, 6, 7, 8, 5, NA, NA, NA,
+-  NA, NA, NA, NA, NA,  1,  2,  3,  4,  7,  8, NA, NA, NA };
++  NA, NA, NA, NA, NA,  1,  2,  3,  4,  7,  8, NA, 8, NA };
+ static int disp_src_sel[] = { 0, 6, 7, 8, 3, 4, 5, NA, NA, NA,
+   NA, NA, NA, NA, NA,  1, NA,  2, NA,  3,  4,  4,  4,  4 };
+ 
+@@ -1670,6 +1673,7 @@ int32_t ipu_enable_channel(ipu_channel_t channel)
+ 	if (ipu_ic_use_count > 0)
+ 		ipu_conf |= IPU_CONF_IC_EN;
+ 	if (ipu_vdi_use_count > 0) {
++		ipu_conf |= IPU_CONF_ISP_EN;
+ 		ipu_conf |= IPU_CONF_VDI_EN;
+ 		ipu_conf |= IPU_CONF_IC_INPUT;
+ 	}
+diff --git a/drivers/mxc/ipu3/ipu_ic.c b/drivers/mxc/ipu3/ipu_ic.c
+index 4edf0a5..8bb28c9 100644
+--- a/drivers/mxc/ipu3/ipu_ic.c
++++ b/drivers/mxc/ipu3/ipu_ic.c
+@@ -157,7 +157,6 @@ void _ipu_vdi_init(ipu_channel_t channel, ipu_channel_params_t *params)
+ {
+ 	uint32_t reg;
+ 	uint32_t pixel_fmt;
+-	bool top_field_0;
+ 
+ 	reg = ((params->mem_prp_vf_mem.in_height-1) << 16) |
+ 	  (params->mem_prp_vf_mem.in_width-1);
+@@ -186,19 +185,7 @@ void _ipu_vdi_init(ipu_channel_t channel, ipu_channel_params_t *params)
+ 	}
+ 	__raw_writel(reg, VDI_C);
+ 
+-	/* MED_MOTION and LOW_MOTION algorithm that are using 3 fields
+-	 * should start presenting using the 2nd field.
+-	 */
+-	if (((params->mem_prp_vf_mem.field_fmt == V4L2_FIELD_INTERLACED_TB) &&
+-	     (params->mem_prp_vf_mem.motion_sel != HIGH_MOTION)) ||
+-	    ((params->mem_prp_vf_mem.field_fmt == V4L2_FIELD_INTERLACED_BT) &&
+-	     (params->mem_prp_vf_mem.motion_sel == HIGH_MOTION)))
+-		top_field_0 = false;
+-	else
+-		top_field_0 = true;
+-
+-	/* Buffer selection toggle the value therefore init val is inverted. */
+-	_ipu_vdi_set_top_field_man(!top_field_0);
++	_ipu_vdi_set_top_field_man(false);
+ 
+ 	_ipu_vdi_set_motion(params->mem_prp_vf_mem.motion_sel);
+ 
+-- 
+1.5.4.4
+

@@ -1,0 +1,37 @@
+From ed2e2b398ceb7df0a91a26fbda79abd2de7d79f4 Mon Sep 17 00:00:00 2001
+From: Jason Chen <b02280@freescale.com>
+Date: Sat, 10 Oct 2009 13:09:46 +0800
+Subject: [PATCH] ENGR00079396 mx37: enable clock event for oprofile
+
+Only clock event be enabled.
+
+Signed-off-by: Jason Chen <b02280@freescale.com>
+---
+ arch/arm/plat-mxc/include/mach/mx37.h |    4 +++-
+ 1 files changed, 3 insertions(+), 1 deletions(-)
+
+diff --git a/arch/arm/plat-mxc/include/mach/mx37.h b/arch/arm/plat-mxc/include/mach/mx37.h
+index 7539900..0faa6d7 100644
+--- a/arch/arm/plat-mxc/include/mach/mx37.h
++++ b/arch/arm/plat-mxc/include/mach/mx37.h
+@@ -143,6 +143,8 @@
+ #define FEC_BASE_ADDR		(AIPS1_BASE_ADDR + 0x000E8000)
+ #define RNGC_BASE_ADDR		(AIPS1_BASE_ADDR + 0x000EC000)
+ #define TVE_BASE_ADDR		(AIPS1_BASE_ADDR + 0x000F0000)
++#define ECT_CTIO_BASE_ADDR	(AIPS1_BASE_ADDR + 0x00018000)
++#define CLKCTL_BASE_ADDR	(AIPS1_BASE_ADDR + 0x0000C000)
+ 
+ /*
+  * SPBA global module enabled #0
+@@ -449,7 +451,7 @@
+ /*!
+  * Interrupt Number for ARM11 PMU
+  */
+-#define ARM11_PMU_IRQ		MXC_INT_EVTMON
++#define ARM11_PMU_IRQ		MXC_INT_PER_MEASURE
+ 
+ /* gpio and gpio based interrupt handling */
+ #define GPIO_DR                 0x00
+-- 
+1.5.4.4
+

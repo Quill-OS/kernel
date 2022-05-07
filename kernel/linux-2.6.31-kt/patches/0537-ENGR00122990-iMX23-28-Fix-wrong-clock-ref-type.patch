@@ -1,0 +1,28 @@
+From 72fc56aaefde9c0cd2bf30c9c5fe454a8e0eac69 Mon Sep 17 00:00:00 2001
+From: Frank Li <Frank.Li@freescale.com>
+Date: Wed, 28 Apr 2010 17:24:41 +0800
+Subject: [PATCH] ENGR00122990 iMX23/28 Fix wrong clock ref type
+
+clock ref wrong set to __s8
+
+Signed-off-by: Frank Li <Frank.Li@freescale.com>
+---
+ arch/arm/plat-mxs/include/mach/clock.h |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/arch/arm/plat-mxs/include/mach/clock.h b/arch/arm/plat-mxs/include/mach/clock.h
+index 9222788..33674d7 100644
+--- a/arch/arm/plat-mxs/include/mach/clock.h
++++ b/arch/arm/plat-mxs/include/mach/clock.h
+@@ -30,7 +30,7 @@ struct clk {
+ 	struct clk *secondary;
+ 	unsigned long flags;
+ 
+-	__s8 ref;
++	int ref;
+ 	unsigned int scale_bits;
+ 	unsigned int enable_bits;
+ 	unsigned int bypass_bits;
+-- 
+1.5.4.4
+

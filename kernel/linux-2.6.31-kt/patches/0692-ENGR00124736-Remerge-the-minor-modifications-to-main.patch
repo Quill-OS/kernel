@@ -1,0 +1,227 @@
+From 38dac99bb0b7adcb114b3624d5681c629a3b4142 Mon Sep 17 00:00:00 2001
+From: Richard Zhu <r65037@freescale.com>
+Date: Tue, 29 Jun 2010 15:07:56 +0800
+Subject: [PATCH] ENGR00124736 Remerge the minor modifications to mainline
+
+1 correct the pata platform device resource check codes
+2 Change the end statment of the sdhc1 det pin
+iomux definition on mx51 board from ',' to ';'.
+3 sdhc driver max blk count on MX31, sinc
+customer report that the emmc would be failed when
+the blk count is more than 32.
+
+Signed-off-by: Richard Zhu <r65037@freescale.com>
+---
+ arch/arm/mach-mx3/mx31ads.c      |   20 ++++++++++----------
+ arch/arm/mach-mx3/mx3_3stack.c   |   20 ++++++++++----------
+ arch/arm/mach-mx35/mx35_3stack.c |   20 ++++++++++----------
+ arch/arm/mach-mx37/mx37_3stack.c |   20 ++++++++++----------
+ arch/arm/mach-mx5/mx51_3stack.c  |    4 ++--
+ arch/arm/mach-mx5/mx51_babbage.c |    2 --
+ drivers/ata/pata_fsl.c           |    5 +++--
+ drivers/mmc/host/mxc_mmc.c       |    4 ++--
+ 8 files changed, 47 insertions(+), 48 deletions(-)
+
+diff --git a/arch/arm/mach-mx3/mx31ads.c b/arch/arm/mach-mx3/mx31ads.c
+index 92c1604..b5d6333 100644
+--- a/arch/arm/mach-mx3/mx31ads.c
++++ b/arch/arm/mach-mx3/mx31ads.c
+@@ -1241,16 +1241,16 @@ static struct fsl_ata_platform_data ata_data = {
+ };
+ 
+ static struct resource pata_fsl_resources[] = {
+-	[0] = {			/* I/O */
+-	       .start = ATA_BASE_ADDR + 0x00,
+-	       .end = ATA_BASE_ADDR + 0xD8,
+-	       .flags = IORESOURCE_MEM,
+-	       },
+-	[2] = {			/* IRQ */
+-	       .start = MXC_INT_ATA,
+-	       .end = MXC_INT_ATA,
+-	       .flags = IORESOURCE_IRQ,
+-	       },
++	{
++		.start = ATA_BASE_ADDR,
++		.end = ATA_BASE_ADDR + 0x000000D8,
++		.flags = IORESOURCE_MEM,
++	},
++	{
++		.start = MXC_INT_ATA,
++		.end = MXC_INT_ATA,
++		.flags = IORESOURCE_IRQ,
++	},
+ };
+ 
+ static struct platform_device pata_fsl_device = {
+diff --git a/arch/arm/mach-mx3/mx3_3stack.c b/arch/arm/mach-mx3/mx3_3stack.c
+index 347f470..516890f 100644
+--- a/arch/arm/mach-mx3/mx3_3stack.c
++++ b/arch/arm/mach-mx3/mx3_3stack.c
+@@ -855,16 +855,16 @@ static struct fsl_ata_platform_data ata_data = {
+ };
+ 
+ static struct resource pata_fsl_resources[] = {
+-	[0] = {			/* I/O */
+-	       .start = ATA_BASE_ADDR + 0x00,
+-	       .end = ATA_BASE_ADDR + 0xD8,
+-	       .flags = IORESOURCE_MEM,
+-	       },
+-	[2] = {			/* IRQ */
+-	       .start = MXC_INT_ATA,
+-	       .end = MXC_INT_ATA,
+-	       .flags = IORESOURCE_IRQ,
+-	       },
++	{
++		.start = ATA_BASE_ADDR,
++		.end = ATA_BASE_ADDR + 0x000000D8,
++		.flags = IORESOURCE_MEM,
++	},
++	{
++		.start = MXC_INT_ATA,
++		.end = MXC_INT_ATA,
++		.flags = IORESOURCE_IRQ,
++	},
+ };
+ 
+ static struct platform_device pata_fsl_device = {
+diff --git a/arch/arm/mach-mx35/mx35_3stack.c b/arch/arm/mach-mx35/mx35_3stack.c
+index 3208230..35d639b 100644
+--- a/arch/arm/mach-mx35/mx35_3stack.c
++++ b/arch/arm/mach-mx35/mx35_3stack.c
+@@ -781,16 +781,16 @@ static struct fsl_ata_platform_data ata_data = {
+ };
+ 
+ static struct resource pata_fsl_resources[] = {
+-	[0] = {			/* I/O */
+-	       .start = ATA_BASE_ADDR,
+-	       .end = ATA_BASE_ADDR + 0x000000C8,
+-	       .flags = IORESOURCE_MEM,
+-	       },
+-	[2] = {			/* IRQ */
+-	       .start = MXC_INT_ATA,
+-	       .end = MXC_INT_ATA,
+-	       .flags = IORESOURCE_IRQ,
+-	       },
++	{
++		.start = ATA_BASE_ADDR,
++		.end = ATA_BASE_ADDR + 0x000000C8,
++		.flags = IORESOURCE_MEM,
++	},
++	{
++		.start = MXC_INT_ATA,
++		.end = MXC_INT_ATA,
++		.flags = IORESOURCE_IRQ,
++	},
+ };
+ 
+ static struct platform_device pata_fsl_device = {
+diff --git a/arch/arm/mach-mx37/mx37_3stack.c b/arch/arm/mach-mx37/mx37_3stack.c
+index ef92b96..26be2f4 100644
+--- a/arch/arm/mach-mx37/mx37_3stack.c
++++ b/arch/arm/mach-mx37/mx37_3stack.c
+@@ -549,16 +549,16 @@ static struct fsl_ata_platform_data ata_data = {
+ };
+ 
+ static struct resource pata_fsl_resources[] = {
+-	[0] = {			/* I/O */
+-	       .start = ATA_BASE_ADDR,
+-	       .end = ATA_BASE_ADDR + 0x000000C8,
+-	       .flags = IORESOURCE_MEM,
+-	       },
+-	[2] = {			/* IRQ */
+-	       .start = MXC_INT_ATA,
+-	       .end = MXC_INT_ATA,
+-	       .flags = IORESOURCE_IRQ,
+-	       },
++	{
++		.start = ATA_BASE_ADDR,
++		.end = ATA_BASE_ADDR + 0x000000C8,
++		.flags = IORESOURCE_MEM,
++	},
++	{
++		.start = MXC_INT_ATA,
++		.end = MXC_INT_ATA,
++		.flags = IORESOURCE_IRQ,
++	},
+ };
+ 
+ static struct platform_device pata_fsl_device = {
+diff --git a/arch/arm/mach-mx5/mx51_3stack.c b/arch/arm/mach-mx5/mx51_3stack.c
+index b8fd434..abfb6e8 100644
+--- a/arch/arm/mach-mx5/mx51_3stack.c
++++ b/arch/arm/mach-mx5/mx51_3stack.c
+@@ -905,8 +905,8 @@ static void __init mxc_board_init(void)
+ 	mxc_register_device(&mxc_pwm1_device, NULL);
+ 	mxc_register_device(&mxc_pwm_backlight_device, &mxc_pwm_backlight_data);
+ 	mxc_register_device(&mxc_keypad_device, &keypad_plat_data);
+-	mxcsdhc1_device.resource[2].start = IOMUX_TO_IRQ(MX51_PIN_GPIO1_0),
+-	mxcsdhc1_device.resource[2].end = IOMUX_TO_IRQ(MX51_PIN_GPIO1_0),
++	mxcsdhc1_device.resource[2].start = IOMUX_TO_IRQ(MX51_PIN_GPIO1_0);
++	mxcsdhc1_device.resource[2].end = IOMUX_TO_IRQ(MX51_PIN_GPIO1_0);
+ 	mxc_register_device(&mxcsdhc1_device, &mmc1_data);
+ 	mxc_register_device(&mxcsdhc2_device, &mmc2_data);
+ 	mxc_register_device(&mxc_sim_device, &sim_data);
+diff --git a/arch/arm/mach-mx5/mx51_babbage.c b/arch/arm/mach-mx5/mx51_babbage.c
+index 5d75172..686f8f0 100644
+--- a/arch/arm/mach-mx5/mx51_babbage.c
++++ b/arch/arm/mach-mx5/mx51_babbage.c
+@@ -864,8 +864,6 @@ static void __init mxc_board_init(void)
+ 	mxc_register_device(&mxc_pwm1_device, NULL);
+ 	mxc_register_device(&mxc_pwm_backlight_device, &mxc_pwm_backlight_data);
+ 	mxc_register_device(&mxc_keypad_device, &keypad_plat_data);
+-	mxcsdhc1_device.resource[2].start = IOMUX_TO_IRQ(MX51_PIN_GPIO1_0),
+-	mxcsdhc1_device.resource[2].end = IOMUX_TO_IRQ(MX51_PIN_GPIO1_0),
+ 	mxc_register_device(&mxcsdhc1_device, &mmc1_data);
+ 	mxc_register_device(&mxcsdhc2_device, &mmc2_data);
+ 	mxc_register_device(&mxc_ssi1_device, NULL);
+diff --git a/drivers/ata/pata_fsl.c b/drivers/ata/pata_fsl.c
+index c1d0528..9550950 100644
+--- a/drivers/ata/pata_fsl.c
++++ b/drivers/ata/pata_fsl.c
+@@ -3,7 +3,7 @@
+  */
+ 
+ /*
+- * Copyright 2007-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2007-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -766,10 +766,11 @@ static int __devinit pata_fsl_probe(struct platform_device *pdev)
+ 	/*
+ 	 * Set up resources
+ 	 */
+-	if (unlikely(pdev->num_resources != 3)) {
++	if (unlikely(pdev->num_resources != 2)) {
+ 		dev_err(&pdev->dev, "invalid number of resources\n");
+ 		return -EINVAL;
+ 	}
++
+ 	/*
+ 	 * Get an ata_host structure for this device
+ 	 */
+diff --git a/drivers/mmc/host/mxc_mmc.c b/drivers/mmc/host/mxc_mmc.c
+index 980dc98..9cb492f 100644
+--- a/drivers/mmc/host/mxc_mmc.c
++++ b/drivers/mmc/host/mxc_mmc.c
+@@ -13,7 +13,7 @@
+  */
+ 
+ /*
+- * Copyright 2004-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2004-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -1232,7 +1232,7 @@ static int mxcmci_probe(struct platform_device *pdev)
+ 	mmc->f_max = mmc_plat->max_clk;
+ 	mmc->max_req_size = 32 * 1024;
+ 	mmc->max_seg_size = mmc->max_req_size;
+-	mmc->max_blk_count = 65536;
++	mmc->max_blk_count = 32;
+ 
+ 	spin_lock_init(&host->lock);
+ 	host->mmc = mmc;
+-- 
+1.5.4.4
+

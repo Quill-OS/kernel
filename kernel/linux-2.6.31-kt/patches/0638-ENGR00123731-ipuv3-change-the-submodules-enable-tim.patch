@@ -1,0 +1,88 @@
+From 6ff5e23129c46d5d53e6dd90ea73f3dcd463a86f Mon Sep 17 00:00:00 2001
+From: Jason Chen <b02280@freescale.com>
+Date: Wed, 2 Jun 2010 16:01:13 +0800
+Subject: [PATCH] ENGR00123731 ipuv3: change the submodules enable timming
+
+change the ipu submodules enable timming.
+
+Signed-off-by: Jason Chen <b02280@freescale.com>
+---
+ drivers/mxc/ipu3/ipu_common.c |   48 ++++++++++++++++++++++------------------
+ 1 files changed, 26 insertions(+), 22 deletions(-)
+
+diff --git a/drivers/mxc/ipu3/ipu_common.c b/drivers/mxc/ipu3/ipu_common.c
+index c19a937..e12483d 100644
+--- a/drivers/mxc/ipu3/ipu_common.c
++++ b/drivers/mxc/ipu3/ipu_common.c
+@@ -724,28 +724,6 @@ int32_t ipu_init_channel(ipu_channel_t channel, ipu_channel_params_t *params)
+ 
+ 	/* Enable IPU sub module */
+ 	g_channel_init_mask |= 1L << IPU_CHAN_ID(channel);
+-	if (ipu_ic_use_count == 1)
+-		ipu_conf |= IPU_CONF_IC_EN;
+-	if (ipu_vdi_use_count == 1) {
+-		ipu_conf |= IPU_CONF_VDI_EN;
+-		ipu_conf |= IPU_CONF_IC_INPUT;
+-	}
+-	if (ipu_rot_use_count == 1)
+-		ipu_conf |= IPU_CONF_ROT_EN;
+-	if (ipu_dc_use_count == 1)
+-		ipu_conf |= IPU_CONF_DC_EN;
+-	if (ipu_dp_use_count == 1)
+-		ipu_conf |= IPU_CONF_DP_EN;
+-	if (ipu_dmfc_use_count == 1)
+-		ipu_conf |= IPU_CONF_DMFC_EN;
+-	if (ipu_di_use_count[0] == 1) {
+-		ipu_conf |= IPU_CONF_DI0_EN;
+-	}
+-	if (ipu_di_use_count[1] == 1) {
+-		ipu_conf |= IPU_CONF_DI1_EN;
+-	}
+-	if (ipu_smfc_use_count == 1)
+-		ipu_conf |= IPU_CONF_SMFC_EN;
+ 
+ 	__raw_writel(ipu_conf, IPU_CONF);
+ 
+@@ -1659,6 +1637,7 @@ int32_t ipu_enable_channel(ipu_channel_t channel)
+ {
+ 	uint32_t reg;
+ 	unsigned long lock_flags;
++	uint32_t ipu_conf;
+ 	uint32_t in_dma;
+ 	uint32_t out_dma;
+ 	uint32_t sec_dma;
+@@ -1675,6 +1654,31 @@ int32_t ipu_enable_channel(ipu_channel_t channel)
+ 
+ 	spin_lock_irqsave(&ipu_lock, lock_flags);
+ 
++	ipu_conf = __raw_readl(IPU_CONF);
++	if (ipu_di_use_count[0] == 1) {
++		ipu_conf |= IPU_CONF_DI0_EN;
++	}
++	if (ipu_di_use_count[1] == 1) {
++		ipu_conf |= IPU_CONF_DI1_EN;
++	}
++	if (ipu_dp_use_count == 1)
++		ipu_conf |= IPU_CONF_DP_EN;
++	if (ipu_dc_use_count == 1)
++		ipu_conf |= IPU_CONF_DC_EN;
++	if (ipu_dmfc_use_count == 1)
++		ipu_conf |= IPU_CONF_DMFC_EN;
++	if (ipu_ic_use_count == 1)
++		ipu_conf |= IPU_CONF_IC_EN;
++	if (ipu_vdi_use_count == 1) {
++		ipu_conf |= IPU_CONF_VDI_EN;
++		ipu_conf |= IPU_CONF_IC_INPUT;
++	}
++	if (ipu_rot_use_count == 1)
++		ipu_conf |= IPU_CONF_ROT_EN;
++	if (ipu_smfc_use_count == 1)
++		ipu_conf |= IPU_CONF_SMFC_EN;
++	__raw_writel(ipu_conf, IPU_CONF);
++
+ 	if (idma_is_valid(in_dma)) {
+ 		reg = __raw_readl(IDMAC_CHA_EN(in_dma));
+ 		__raw_writel(reg | idma_mask(in_dma), IDMAC_CHA_EN(in_dma));
+-- 
+1.5.4.4
+

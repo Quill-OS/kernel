@@ -1,0 +1,90 @@
+From 2600ad497269a45bec54de7e1cea3106070fb474 Mon Sep 17 00:00:00 2001
+From: Sammy He <r62914@freescale.com>
+Date: Tue, 2 Mar 2010 16:57:26 +0800
+Subject: [PATCH] ENGR00121097-3 mx37: Change registered vpu resource in device
+
+Change registered vpu resource, move vpu iram allocator from
+device to vpu driver and add vpu_reset function.
+
+Signed-off-by: Sammy He <r62914@freescale.com>
+---
+ arch/arm/mach-mx37/cpu.c     |   16 ++++++++++++++++
+ arch/arm/mach-mx37/devices.c |   16 +++++++++++-----
+ 2 files changed, 27 insertions(+), 5 deletions(-)
+
+diff --git a/arch/arm/mach-mx37/cpu.c b/arch/arm/mach-mx37/cpu.c
+index 990c9ef..3729ac1 100644
+--- a/arch/arm/mach-mx37/cpu.c
++++ b/arch/arm/mach-mx37/cpu.c
+@@ -36,6 +36,22 @@ void __init mxc_cpu_init(void)
+ 	}
+ }
+ 
++void mx37_vpu_reset(void)
++{
++	u32 reg;
++	void __iomem *src_base;
++
++	src_base = ioremap(SRC_BASE_ADDR, PAGE_SIZE);
++
++	reg = __raw_readl(src_base);
++	reg |= 0x02;    /* SW_VPU_RST_BIT */
++	 __raw_writel(reg, src_base);
++	while (__raw_readl(src_base) & 0x02)
++		;
++
++	iounmap(src_base);
++}
++
+ #define MXC_ARM1176_BASE	IO_ADDRESS(ARM1176_BASE_ADDR)
+ 
+ /*!
+diff --git a/arch/arm/mach-mx37/devices.c b/arch/arm/mach-mx37/devices.c
+index 638059b..31d0b78 100644
+--- a/arch/arm/mach-mx37/devices.c
++++ b/arch/arm/mach-mx37/devices.c
+@@ -807,21 +807,29 @@ int __init mxc_register_gpios(void)
+ #if defined(CONFIG_MXC_VPU) || defined(CONFIG_MXC_VPU_MODULE)
+ static struct resource vpu_resources[] = {
+ 	[0] = {
++	       .start = VPU_BASE_ADDR,
++	       .end = VPU_BASE_ADDR + SZ_4K - 1,
+ 	       .flags = IORESOURCE_MEM,
+ 	       },
+ 	[1] = {
+-	       .start = IO_ADDRESS(SRC_BASE_ADDR),
+-	       .end = IO_ADDRESS(SRC_BASE_ADDR),
+-	       .flags = IORESOURCE_MEM,
++	       .start  = MXC_INT_VPU,
++	       .end = MXC_INT_VPU,
++	       .flags  = IORESOURCE_IRQ,
+ 	       },
+ };
+ 
++extern void mx37_vpu_reset(void);
++static struct mxc_vpu_platform_data mxc_vpu_data = {
++	.reset = mx37_vpu_reset,
++};
++
+ /*! Platform Data for MXC VPU */
+ static struct platform_device mxcvpu_device = {
+ 	.name = "mxc_vpu",
+ 	.id = 0,
+ 	.dev = {
+ 		.release = mxc_nop_release,
++		.platform_data = &mxc_vpu_data,
+ 		},
+ 	.num_resources = ARRAY_SIZE(vpu_resources),
+ 	.resource = vpu_resources,
+@@ -829,8 +837,6 @@ static struct platform_device mxcvpu_device = {
+ 
+ static inline void mxc_init_vpu(void)
+ {
+-	iram_alloc(VPU_IRAM_SIZE, (unsigned long *)&vpu_resources[0].start);
+-	vpu_resources[0].end = vpu_resources[0].start + VPU_IRAM_SIZE - 1;
+ 	if (platform_device_register(&mxcvpu_device) < 0)
+ 		printk(KERN_ERR "Error: Registering the VPU.\n");
+ }
+-- 
+1.5.4.4
+

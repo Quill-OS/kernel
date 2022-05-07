@@ -1,0 +1,59 @@
+From 7eb94c61364295befd7e93f340a339ea2e8bba15 Mon Sep 17 00:00:00 2001
+From: Xinyu Chen <xinyu.chen@freescale.com>
+Date: Mon, 26 Oct 2009 11:13:00 +0800
+Subject: [PATCH] ENGR00116921 Keypad will not respond if pressing during boot
+
+The keypad interrupt registering must be put at the end of probe,
+behind the timer init. Otherwise, interrupt will occur during keypad initial.
+
+Signed-off-by: Xinyu Chen <xinyu.chen@freescale.com>
+---
+ drivers/input/keyboard/mxc_keyb.c |   23 ++++++++++++-----------
+ 1 files changed, 12 insertions(+), 11 deletions(-)
+
+diff --git a/drivers/input/keyboard/mxc_keyb.c b/drivers/input/keyboard/mxc_keyb.c
+index 248b8e5..99dd7cf 100644
+--- a/drivers/input/keyboard/mxc_keyb.c
++++ b/drivers/input/keyboard/mxc_keyb.c
+@@ -774,19 +774,8 @@ static int mxc_kpp_probe(struct platform_device *pdev)
+ 	kpp_dev.kpp_rows = keypad->rowmax;
+ 	key_pad_enabled = 0;
+ 
+-	/*
+-	 * Request for IRQ number for keypad port. The Interrupt handler
+-	 * function (mxc_kpp_interrupt) is called when ever interrupt occurs on
+-	 * keypad port.
+-	 */
+ 	irq = platform_get_irq(pdev, 0);
+ 	keypad->irq = irq;
+-	retval = request_irq(irq, mxc_kpp_interrupt, 0, MOD_NAME, MOD_NAME);
+-	if (retval) {
+-		pr_debug("KPP: request_irq(%d) returned error %d\n",
+-			 MXC_INT_KPP, retval);
+-		return retval;
+-	}
+ 
+ 	/* Enable keypad clock */
+ 	kpp_clk = clk_get(&pdev->dev, "kpp_clk");
+@@ -915,6 +904,18 @@ static int mxc_kpp_probe(struct platform_device *pdev)
+ 	/* Initialize the polling timer */
+ 	init_timer(&kpp_dev.poll_timer);
+ 
++	/*
++	 * Request for IRQ number for keypad port. The Interrupt handler
++	 * function (mxc_kpp_interrupt) is called when ever interrupt occurs on
++	 * keypad port.
++	 */
++	retval = request_irq(irq, mxc_kpp_interrupt, 0, MOD_NAME, MOD_NAME);
++	if (retval) {
++		pr_debug("KPP: request_irq(%d) returned error %d\n",
++			 MXC_INT_KPP, retval);
++		goto err3;
++	}
++
+ 	/* By default, devices should wakeup if they can */
+ 	/* So keypad is set as "should wakeup" as it can */
+ 	device_init_wakeup(&pdev->dev, 1);
+-- 
+1.5.4.4
+

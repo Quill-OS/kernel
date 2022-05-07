@@ -1,0 +1,216 @@
+From 32b8bc1ce874bee8547f6a96d28eab9fa96a718b Mon Sep 17 00:00:00 2001
+From: William Lai <b04597@freescale.com>
+Date: Tue, 2 Feb 2010 14:47:08 +0800
+Subject: [PATCH] ENGR00120661-3 MX28 CAN: MX28 platform support
+
+Register platform devices of FlexCAN.
+
+Signed-off-by: William Lai <b04597@freescale.com>
+---
+ arch/arm/mach-mx28/clock.c        |    6 ++-
+ arch/arm/mach-mx28/device.c       |   96 +++++++++++++++++++++++++++++++++++++
+ arch/arm/mach-mx28/mx28evk_pins.c |   54 +++++++++++++++++++++
+ 3 files changed, 154 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm/mach-mx28/clock.c b/arch/arm/mach-mx28/clock.c
+index 0bf8a0f..758965b 100644
+--- a/arch/arm/mach-mx28/clock.c
++++ b/arch/arm/mach-mx28/clock.c
+@@ -921,11 +921,13 @@ static struct clk_lookup onchip_clocks[] = {
+ 	 .clk = &hsadc_clk,
+ 	 },
+ 	{
+-	 .con_id = "flexcan.0",
++	 .con_id = "can_clk",
++	 .dev_id = "FlexCAN.0",
+ 	 .clk = &flexcan_clk[0],
+ 	 },
+ 	{
+-	 .con_id = "flexcan.1",
++	 .con_id = "can_clk",
++	 .dev_id = "FlexCAN.1",
+ 	 .clk = &flexcan_clk[1],
+ 	 },
+ 	{
+diff --git a/arch/arm/mach-mx28/device.c b/arch/arm/mach-mx28/device.c
+index 1b6a08f..3faaf17 100644
+--- a/arch/arm/mach-mx28/device.c
++++ b/arch/arm/mach-mx28/device.c
+@@ -752,6 +752,101 @@ static void __init mx28_init_ts(void)
+ }
+ #endif
+ 
++#if defined(CONFIG_CAN_FLEXCAN) || defined(CONFIG_CAN_FLEXCAN_MODULE)
++static void flexcan_xcvr_enable(int id, int en)
++{
++	static int pwdn;
++	if (en) {
++		if (!pwdn++)
++			gpio_set_value(MXS_PIN_TO_GPIO(PINID_SSP1_CMD), 1);
++	} else {
++		if (!--pwdn)
++			gpio_set_value(MXS_PIN_TO_GPIO(PINID_SSP1_CMD), 0);
++	}
++}
++
++struct flexcan_platform_data flexcan_data[] = {
++	{
++	.core_reg = NULL,
++	.io_reg = NULL,
++	.xcvr_enable = flexcan_xcvr_enable,
++	.br_clksrc = 1,
++	.br_rjw = 2,
++	.br_presdiv = 2,
++	.br_propseg = 2,
++	.br_pseg1 = 3,
++	.br_pseg2 = 7,
++	.bcc = 1,
++	.srx_dis = 1,
++	.smp = 1,
++	.boff_rec = 1,
++	.ext_msg = 1,
++	.std_msg = 1,
++	},
++	{
++	.core_reg = NULL,
++	.io_reg = NULL,
++	.xcvr_enable = flexcan_xcvr_enable,
++	.br_clksrc = 1,
++	.br_rjw = 2,
++	.br_presdiv = 2,
++	.br_propseg = 2,
++	.br_pseg1 = 3,
++	.br_pseg2 = 7,
++	.bcc = 1,
++	.srx_dis = 1,
++	.boff_rec = 1,
++	.ext_msg = 1,
++	.std_msg = 1,
++	},
++};
++
++static struct resource flexcan0_resources[] = {
++	{
++	    .start = CAN0_PHYS_ADDR,
++	    .end = CAN0_PHYS_ADDR + 0x1FFF,
++	    .flags = IORESOURCE_MEM,},
++	{
++	    .start = IRQ_CAN0,
++	    .end = IRQ_CAN0,
++	    .flags = IORESOURCE_IRQ,},
++};
++static struct resource flexcan1_resources[] = {
++	{
++	    .start = CAN1_PHYS_ADDR,
++	    .end = CAN1_PHYS_ADDR + 0x1FFF,
++	    .flags = IORESOURCE_MEM,},
++	{
++	    .start = IRQ_CAN1,
++	    .end = IRQ_CAN1,
++	    .flags = IORESOURCE_IRQ,},
++};
++
++static inline void mx28_init_flexcan(void)
++{
++	struct platform_device *pdev;
++	pdev = mxs_get_device("FlexCAN", 0);
++	if (pdev == NULL || IS_ERR(pdev))
++		return;
++	pdev->resource = flexcan0_resources;
++	pdev->num_resources = ARRAY_SIZE(flexcan0_resources);
++	pdev->dev.platform_data = &flexcan_data[0];
++	mxs_add_device(pdev, 2);
++
++	pdev = mxs_get_device("FlexCAN", 1);
++	if (pdev == NULL || IS_ERR(pdev))
++		return;
++	pdev->resource = flexcan1_resources;
++	pdev->num_resources = ARRAY_SIZE(flexcan1_resources);
++	pdev->dev.platform_data = &flexcan_data[1];
++	mxs_add_device(pdev, 2);
++}
++#else
++static inline void mx28_init_flexcan(void)
++{
++}
++#endif
++
+ int __init mx28_device_init(void)
+ {
+ 	mx28_init_dma();
+@@ -763,6 +858,7 @@ int __init mx28_device_init(void)
+ 	mx28_init_wdt();
+ 	mx28_init_rtc();
+ 	mx28_init_fec();
++	mx28_init_flexcan();
+ 	mx28_init_kbd();
+ 	mx28_init_ts();
+ 	mx28_init_lcdif();
+diff --git a/arch/arm/mach-mx28/mx28evk_pins.c b/arch/arm/mach-mx28/mx28evk_pins.c
+index b8f98a2..faefa61 100644
+--- a/arch/arm/mach-mx28/mx28evk_pins.c
++++ b/arch/arm/mach-mx28/mx28evk_pins.c
+@@ -93,6 +93,60 @@ static struct pin_desc mx28evk_fixed_pins[] = {
+ 	 .fun   = PIN_GPIO,
+ 	 .data  = 1,
+ 	 },
++#if defined(CONFIG_CAN_FLEXCAN) || defined(CONFIG_CAN_FLEXCAN_MODULE)
++	{
++	 .name	= "CAN1_TX",
++	 .id	= PINID_GPMI_CE2N,
++	 .fun	= PIN_FUN2,
++	 .strength	= PAD_4MA,
++	 .voltage	= PAD_3_3V,
++	 .pullup	= 0,
++	 .drive 	= 1,
++	 .pull 		= 0,
++	 },
++	{
++	 .name	= "CAN1_RX",
++	 .id	= PINID_GPMI_CE3N,
++	 .fun	= PIN_FUN2,
++	 .strength	= PAD_4MA,
++	 .voltage	= PAD_3_3V,
++	 .pullup	= 0,
++	 .drive 	= 1,
++	 .pull 		= 0,
++	 },
++	{
++	 .name	= "CAN0_TX",
++	 .id	= PINID_GPMI_RDY2,
++	 .fun	= PIN_FUN2,
++	 .strength	= PAD_4MA,
++	 .voltage	= PAD_3_3V,
++	 .pullup	= 0,
++	 .drive 	= 1,
++	 .pull 		= 0,
++	 },
++	{
++	 .name	= "CAN0_RX",
++	 .id	= PINID_GPMI_RDY3,
++	 .fun	= PIN_FUN2,
++	 .strength	= PAD_4MA,
++	 .voltage	= PAD_3_3V,
++	 .pullup	= 0,
++	 .drive 	= 1,
++	 .pull 		= 0,
++	 },
++	{
++	 .name	= "CAN_PWDN",
++	 .id	= PINID_SSP1_CMD,
++	 .fun	= PIN_GPIO,
++	 .strength	= PAD_4MA,
++	 .voltage	= PAD_3_3V,
++	 .pullup	= 0,
++	 .drive 	= 1,
++	 .pull 		= 0,
++	 .data		= 0,
++	 },
++
++#endif
+ 
+ #if defined(CONFIG_I2C_MXS) || \
+ 	defined(CONFIG_I2C_MXS_MODULE)
+-- 
+1.5.4.4
+

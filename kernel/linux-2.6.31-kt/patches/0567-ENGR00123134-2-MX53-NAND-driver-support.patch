@@ -1,0 +1,175 @@
+From d0825102d836d8c9be30724e5d96d53e6ce5de39 Mon Sep 17 00:00:00 2001
+From: Jason Liu <r64343@freescale.com>
+Date: Thu, 6 May 2010 10:46:14 +0800
+Subject: [PATCH] ENGR00123134-2 MX53 NAND driver support
+
+MX53 NAND driver support
+
+Signed-off-by:Jason Liu <r64343@freescale.com>
+---
+ drivers/mtd/nand/mxc_nd2.c |   20 +++++++++-----------
+ drivers/mtd/nand/mxc_nd2.h |   43 +++++++++++++++++++++----------------------
+ 2 files changed, 30 insertions(+), 33 deletions(-)
+
+diff --git a/drivers/mtd/nand/mxc_nd2.c b/drivers/mtd/nand/mxc_nd2.c
+index f803fa5..eb65bf6 100644
+--- a/drivers/mtd/nand/mxc_nd2.c
++++ b/drivers/mtd/nand/mxc_nd2.c
+@@ -553,10 +553,7 @@ static int mxc_check_ecc_status(struct mtd_info *mtd)
+ 	u32 ecc_stat, err;
+ 	int no_subpages = 1;
+ 	int ret = 0;
+-	u8 ecc_bit_mask, err_limit;
+-
+-	ecc_bit_mask = (IS_4BIT_ECC ? 0x7 : 0xf);
+-	err_limit = (IS_4BIT_ECC ? 0x4 : 0x8);
++	u8 ecc_bit_mask = 0xf;
+ 
+ 	no_subpages = mtd->writesize >> 9;
+ 
+@@ -565,7 +562,7 @@ static int mxc_check_ecc_status(struct mtd_info *mtd)
+ 	ecc_stat = GET_NFC_ECC_STATUS();
+ 	do {
+ 		err = ecc_stat & ecc_bit_mask;
+-		if (err > err_limit) {
++		if (err == ecc_bit_mask) {
+ 			mtd->ecc_stats.failed++;
+ 			printk(KERN_WARNING "UnCorrectable RS-ECC Error\n");
+ 			return -1;
+@@ -575,8 +572,7 @@ static int mxc_check_ecc_status(struct mtd_info *mtd)
+ 		ecc_stat >>= 4;
+ 	} while (--no_subpages);
+ 
+-	mtd->ecc_stats.corrected += ret;
+-	pr_debug("%d Symbol Correctable RS-ECC Error\n", ret);
++	pr_debug("Correctable ECC Error(%d)\n", ret);
+ 
+ 	return ret;
+ }
+@@ -1164,11 +1160,13 @@ static void mxc_nfc_init(void)
+ 	/* Unlock the internal RAM Buffer */
+ 	raw_write(NFC_SET_BLS(NFC_BLS_UNLCOKED), REG_NFC_BLS);
+ 
+-	/* Blocks to be unlocked */
+-	UNLOCK_ADDR(0x0, 0xFFFF);
++	if (!(cpu_is_mx53())) {
++		/* Blocks to be unlocked */
++		UNLOCK_ADDR(0x0, 0xFFFF);
+ 
+-	/* Unlock Block Command for given address range */
+-	raw_write(NFC_SET_WPC(NFC_WPC_UNLOCK), REG_NFC_WPC);
++		/* Unlock Block Command for given address range */
++		raw_write(NFC_SET_WPC(NFC_WPC_UNLOCK), REG_NFC_WPC);
++	}
+ 
+ 	/* Enable symetric mode by default except mx37TO1.0 */
+ 	if (!(cpu_is_mx37_rev(CHIP_REV_1_0) == 1))
+diff --git a/drivers/mtd/nand/mxc_nd2.h b/drivers/mtd/nand/mxc_nd2.h
+index 890c117..4ac0da3 100644
+--- a/drivers/mtd/nand/mxc_nd2.h
++++ b/drivers/mtd/nand/mxc_nd2.h
+@@ -104,13 +104,6 @@
+ #define NFC_SPAS_WIDTH 8
+ #define NFC_SPAS_SHIFT 16
+ 
+-#define IS_4BIT_ECC \
+-( \
+-	cpu_is_mx51_rev(CHIP_REV_2_0) > 0 ? \
+-		!((raw_read(NFC_CONFIG2) & NFC_ECC_MODE_4) >> 6) : \
+-		((raw_read(NFC_CONFIG2) & NFC_ECC_MODE_4) >> 6) \
+-)
+-
+ #define NFC_SET_SPAS(v)			\
+ 	raw_write((((raw_read(NFC_CONFIG2) & \
+ 	NFC_FIELD_RESET(NFC_SPAS_WIDTH, NFC_SPAS_SHIFT)) | ((v) << 16))), \
+@@ -118,23 +111,31 @@
+ 
+ #define NFC_SET_ECC_MODE(v)		\
+ do { \
+-	if (cpu_is_mx51_rev(CHIP_REV_2_0) > 0) { \
++	if (cpu_is_mx53() > 0) { \
+ 		if ((v) == NFC_SPAS_218 || (v) == NFC_SPAS_112) \
+ 			raw_write(((raw_read(NFC_CONFIG2) & \
+-					NFC_ECC_MODE_MASK) | \
+-					NFC_ECC_MODE_4), NFC_CONFIG2); \
++					~(3 << 6)) | \
++					NFC_ECC_MODE_16), NFC_CONFIG2); \
+ 		else \
+ 			raw_write(((raw_read(NFC_CONFIG2) & \
+-					NFC_ECC_MODE_MASK) & \
++					~(3 << 6)) & \
++					NFC_ECC_MODE_4), NFC_CONFIG2); \
++	} else if (cpu_is_mx51_rev(CHIP_REV_2_0) > 0) { \
++		if ((v) == NFC_SPAS_218 || (v) == NFC_SPAS_112) \
++			raw_write(((raw_read(NFC_CONFIG2) & \
++					~(1 << 6)) | \
+ 					NFC_ECC_MODE_8), NFC_CONFIG2); \
++		else \
++			raw_write(((raw_read(NFC_CONFIG2) & \
++					~(1 << 6)) & \
++					NFC_ECC_MODE_4), NFC_CONFIG2); \
+ 	} else { \
+ 		if ((v) == NFC_SPAS_218 || (v) == NFC_SPAS_112) \
+ 			raw_write(((raw_read(NFC_CONFIG2) & \
+-					NFC_ECC_MODE_MASK) & \
+-					NFC_ECC_MODE_8), NFC_CONFIG2); \
++					~(1 << 6))), NFC_CONFIG2); \
+ 		else \
+ 			raw_write(((raw_read(NFC_CONFIG2) & \
+-					NFC_ECC_MODE_MASK) | \
++					~(1 << 6)) | \
+ 					NFC_ECC_MODE_4), NFC_CONFIG2); \
+ 	} \
+ } while (0)
+@@ -149,7 +150,6 @@ do { \
+ 	} while(0)
+ 
+ #else
+-#define IS_4BIT_ECC			1
+ #define NFC_SET_SPAS(v)
+ #define NFC_SET_ECC_MODE(v)
+ #define NFC_SET_NFMS(v)	(NFMS |= (v))
+@@ -290,9 +290,10 @@ do { \
+ #define NFC_WPC_RESET			~(7)
+ #if defined(CONFIG_ARCH_MXC_HAS_NFC_V3_1) || \
+     defined(CONFIG_ARCH_MXC_HAS_NFC_V3_2)
+-#define NFC_ECC_MODE_4    		(1 << 6)
+-#define NFC_ECC_MODE_8			~(1 << 6)
+-#define NFC_ECC_MODE_MASK 		~(1 << 6)
++#define NFC_ECC_MODE_4    		(0x0 << 6)
++#define NFC_ECC_MODE_8			(0x1 << 6)
++#define NFC_ECC_MODE_14                 (0x3 << 6)
++#define NFC_ECC_MODE_16                 (0x3 << 6)
+ #define NFC_SPAS_16			8
+ #define NFC_SPAS_64		 	32
+ #define NFC_SPAS_128			64
+@@ -452,7 +453,8 @@ do {	\
+ 		NFC_SET_ST_CMD(0x70); \
+ 		raw_write(raw_read(NFC_CONFIG3) | NFC_NO_SDMA, NFC_CONFIG3); \
+ 		raw_write(raw_read(NFC_CONFIG3) | NFC_RBB_MODE, NFC_CONFIG3); \
+-		SET_NFC_DELAY_LINE(0); \
++		if (cpu_is_mx51()) \
++			SET_NFC_DELAY_LINE(0); \
+ 	} \
+ } while (0)
+ #endif
+@@ -536,8 +538,6 @@ do {	\
+ #define SPAS_SHIFT		(0)
+ #define REG_NFC_SPAS NFC_SPAS
+ #define SPAS_MASK	(0xFF00)
+-#define IS_4BIT_ECC			\
+-	((raw_read(REG_NFC_ECC_MODE) & NFC_ECC_MODE_4) >> 0)
+ 
+ #define NFC_SET_SPAS(v)			\
+ 	raw_write(((raw_read(REG_NFC_SPAS) & SPAS_MASK) | ((v<<SPAS_SHIFT))), \
+@@ -575,7 +575,6 @@ do { \
+ 	} \
+ } while (0)
+ #else
+-#define IS_4BIT_ECC			(1)
+ #define NFC_SET_SPAS(v)
+ #define NFC_SET_ECC_MODE(v)
+ #define GET_ECC_STATUS()  raw_read(REG_NFC_ECC_STATUS_RESULT);
+-- 
+1.5.4.4
+

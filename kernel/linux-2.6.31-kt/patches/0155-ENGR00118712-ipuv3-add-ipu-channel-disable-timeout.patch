@@ -1,0 +1,56 @@
+From e2fafa3b3e3970323d0b5a025a4f12c78e92ff73 Mon Sep 17 00:00:00 2001
+From: Jason Chen <b02280@freescale.com>
+Date: Tue, 1 Dec 2009 16:04:06 +0800
+Subject: [PATCH] ENGR00118712 ipuv3: add ipu channel disable timeout
+
+Add timeout in ipu channel disable while loop.
+
+Signed-off-by: Jason Chen <b02280@freescale.com>
+---
+ drivers/mxc/ipu3/ipu_common.c |   17 ++++++++++++-----
+ 1 files changed, 12 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/mxc/ipu3/ipu_common.c b/drivers/mxc/ipu3/ipu_common.c
+index b7ad5c2..5c1a16c 100644
+--- a/drivers/mxc/ipu3/ipu_common.c
++++ b/drivers/mxc/ipu3/ipu_common.c
+@@ -1692,9 +1692,8 @@ int32_t ipu_disable_channel(ipu_channel_t channel, bool wait_for_stop)
+ 			(g_sec_chan_en[IPU_CHAN_ID(channel)] &&
+ 			idma_is_set(IDMAC_CHA_BUSY, sec_dma)) ||
+ 			(g_thrd_chan_en[IPU_CHAN_ID(channel)] &&
+-			idma_is_set(IDMAC_CHA_BUSY, thrd_dma)) ||
+-		       (_ipu_channel_status(channel) == TASK_STAT_ACTIVE)) {
+-			uint32_t ret, irq = out_dma;
++			idma_is_set(IDMAC_CHA_BUSY, thrd_dma))) {
++			uint32_t ret, irq = 0xffffffff;
+ 			DECLARE_COMPLETION_ONSTACK(disable_comp);
+ 
+ 			if (idma_is_set(IDMAC_CHA_BUSY, out_dma))
+@@ -1708,14 +1707,22 @@ int32_t ipu_disable_channel(ipu_channel_t channel, bool wait_for_stop)
+ 			if (idma_is_set(IDMAC_CHA_BUSY, in_dma))
+ 				irq = in_dma;
+ 
++			if (irq == 0xffffffff) {
++				dev_err(g_ipu_dev, "warning: no channel busy, break\n");
++				break;
++			}
+ 			ret = ipu_request_irq(irq, disable_chan_irq_handler, 0, NULL, &disable_comp);
+ 			if (ret < 0) {
+ 				dev_err(g_ipu_dev, "irq %d in use\n", irq);
++				break;
+ 			} else {
+-				ret = wait_for_completion_timeout(&disable_comp, msecs_to_jiffies(50));
++				ret = wait_for_completion_timeout(&disable_comp, msecs_to_jiffies(200));
+ 				ipu_free_irq(irq, &disable_comp);
+-				if (ret == msecs_to_jiffies(50))
++				if (ret == 0) {
+ 					ipu_dump_registers();
++					dev_err(g_ipu_dev, "warning: disable ipu dma channel %d during its busy state\n", irq);
++					break;
++				}
+ 			}
+ 		}
+ 	}
+-- 
+1.5.4.4
+

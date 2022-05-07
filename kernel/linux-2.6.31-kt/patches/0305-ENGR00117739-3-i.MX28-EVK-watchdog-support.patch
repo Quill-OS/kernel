@@ -1,0 +1,44 @@
+From 83098d5e5cc022905311553ac1fa5813292d4212 Mon Sep 17 00:00:00 2001
+From: Fred Fan <r01011@freescale.com>
+Date: Tue, 26 Jan 2010 19:33:19 +0800
+Subject: [PATCH] ENGR00117739-3 i.MX28 EVK watchdog support
+
+Change i.MX28 evk defconfig
+
+Signed-off-by: Fred.fan <r01011@freescale.com>
+---
+ arch/arm/configs/imx28evk_defconfig |   11 +++++++++--
+ 1 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm/configs/imx28evk_defconfig b/arch/arm/configs/imx28evk_defconfig
+index 6adbcfb..3afc5ba 100644
+--- a/arch/arm/configs/imx28evk_defconfig
++++ b/arch/arm/configs/imx28evk_defconfig
+@@ -1,7 +1,7 @@
+ #
+ # Automatically generated make config: don't edit
+ # Linux kernel version: 2.6.31
+-# Mon Jan 25 15:59:49 2010
++# Tue Jan 26 17:25:51 2010
+ #
+ CONFIG_ARM=y
+ CONFIG_SYS_SUPPORTS_APM_EMULATION=y
+@@ -641,7 +641,14 @@ CONFIG_GPIOLIB=y
+ # CONFIG_HWMON is not set
+ # CONFIG_THERMAL is not set
+ # CONFIG_THERMAL_HWMON is not set
+-# CONFIG_WATCHDOG is not set
++CONFIG_WATCHDOG=y
++# CONFIG_WATCHDOG_NOWAYOUT is not set
++
++#
++# Watchdog Device Drivers
++#
++# CONFIG_SOFT_WATCHDOG is not set
++CONFIG_MXS_WATCHDOG=y
+ CONFIG_SSB_POSSIBLE=y
+ 
+ #
+-- 
+1.5.4.4
+

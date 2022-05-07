@@ -1,0 +1,162 @@
+From 5e68bb9e0e629e8aa24ade21ba260a30dae7cde4 Mon Sep 17 00:00:00 2001
+From: Richard Zhu <r65037@freescale.com>
+Date: Wed, 17 Mar 2010 15:57:27 +0800
+Subject: [PATCH] ENGR00121661 [MX28] Fix the CD isn't functional issue on SSP ports
+
+There are IOMUX conflictions between SSP1 and GPMI device,
+when the GPMI is enabled, and the SSP1 device is not
+enabled properly. The Card Detect func would be failed.
+Solution: Just register the functional device into system
+can solve this problem
+
+Signed-off-by: Richard Zhu <r65037@freescale.com>
+---
+ arch/arm/mach-mx28/device.c              |   37 +++++++++++++----------------
+ arch/arm/mach-mx28/pinctrl.c             |   14 +++++++++++
+ arch/arm/plat-mxs/include/mach/pinctrl.h |    2 +
+ arch/arm/plat-mxs/pinctrl.c              |   19 +++++++++++++++
+ 4 files changed, 52 insertions(+), 20 deletions(-)
+
+diff --git a/arch/arm/mach-mx28/device.c b/arch/arm/mach-mx28/device.c
+index 0b5e440..429625e 100644
+--- a/arch/arm/mach-mx28/device.c
++++ b/arch/arm/mach-mx28/device.c
+@@ -39,6 +39,7 @@
+ #include <mach/lradc.h>
+ #include <mach/lcdif.h>
+ #include <mach/ddi_bc.h>
++#include <mach/pinctrl.h>
+ 
+ #include "regs-digctl.h"
+ #include "device.h"
+@@ -574,29 +575,25 @@ static struct resource mmc1_resource[] = {
+ 
+ static void __init mx28_init_mmc(void)
+ {
+-	int i;
+-	struct mxs_dev_lookup *lookup;
+ 	struct platform_device *pdev;
+ 
+-	lookup = mxs_get_devices("mxs-mmc");
+-	if (lookup == NULL || IS_ERR(lookup))
+-		return;
+-	for (i = 0; i < lookup->size; i++) {
+-		pdev = lookup->pdev + i;
+-		switch (pdev->id) {
+-		case 0:
+-			pdev->resource = mmc0_resource;
+-			pdev->num_resources = ARRAY_SIZE(mmc0_resource);
+-			pdev->dev.platform_data = &mmc0_data;
+-			break;
+-		case 1:
+-			pdev->resource = mmc1_resource;
+-			pdev->num_resources = ARRAY_SIZE(mmc1_resource);
+-			pdev->dev.platform_data = &mmc1_data;
+-			break;
+-		default:
++	if (mxs_get_type(PINID_SSP0_CMD) == PIN_FUN1) {
++		pdev = mxs_get_device("mxs-mmc", 0);
++		if (pdev == NULL || IS_ERR(pdev))
+ 			return;
+-		}
++		pdev->resource = mmc0_resource;
++		pdev->num_resources = ARRAY_SIZE(mmc0_resource);
++		pdev->dev.platform_data = &mmc0_data;
++		mxs_add_device(pdev, 2);
++	}
++
++	if (mxs_get_type(PINID_GPMI_RDY1) == PIN_FUN2) {
++		pdev = mxs_get_device("mxs-mmc", 1);
++		if (pdev == NULL || IS_ERR(pdev))
++			return;
++		pdev->resource = mmc1_resource;
++		pdev->num_resources = ARRAY_SIZE(mmc1_resource);
++		pdev->dev.platform_data = &mmc1_data;
+ 		mxs_add_device(pdev, 2);
+ 	}
+ }
+diff --git a/arch/arm/mach-mx28/pinctrl.c b/arch/arm/mach-mx28/pinctrl.c
+index 32c6e1f..296f403 100644
+--- a/arch/arm/mach-mx28/pinctrl.c
++++ b/arch/arm/mach-mx28/pinctrl.c
+@@ -96,6 +96,19 @@ static void mx28_set_type(struct pin_bank *bank,
+ 	__raw_writel(cfg << id, addr + SET_REGISTER);
+ }
+ 
++static int mx28_get_type(struct pin_bank *bank,
++			  unsigned int id)
++{
++	void __iomem *addr;
++	int ret;
++	addr = PINCTRL_BASE_ADDR + HW_PINCTRL_MUXSEL0;
++	addr += 0x20 * bank->id + 0x10 * (id >> 4);
++	id &= 0xF;
++	id *= 2;
++	ret = (__raw_readl(addr) >> id) & 0x3;
++	return ret;
++}
++
+ static struct pin_bank mx28_pin_banks[6] = {
+ 	[0] = {
+ 	       .id = 0,
+@@ -132,6 +145,7 @@ static struct pinctrl_chip mx28_pinctrl = {
+ 	.set_voltage = mx28_set_voltage,
+ 	.set_pullup = mx28_set_pullup,
+ 	.set_type = mx28_set_type,
++	.get_type = mx28_get_type,
+ };
+ 
+ int __init mx28_pinctrl_init(void)
+diff --git a/arch/arm/plat-mxs/include/mach/pinctrl.h b/arch/arm/plat-mxs/include/mach/pinctrl.h
+index b9dd380..2933bb1 100644
+--- a/arch/arm/plat-mxs/include/mach/pinctrl.h
++++ b/arch/arm/plat-mxs/include/mach/pinctrl.h
+@@ -136,6 +136,7 @@ struct pinctrl_chip {
+ 	void (*set_voltage) (struct pin_bank *, unsigned int, enum pad_voltage);
+ 	void (*set_pullup) (struct pin_bank *, unsigned int, int);
+ 	void (*set_type) (struct pin_bank *, unsigned int, enum pin_fun);
++	int (*get_type) (struct pin_bank *, unsigned int);
+ };
+ 
+ extern int __init mxs_set_pinctrl_chip(struct pinctrl_chip *);
+@@ -143,6 +144,7 @@ extern int __init mxs_set_pinctrl_chip(struct pinctrl_chip *);
+ extern unsigned int mxs_pin2gpio(unsigned int);
+ extern int mxs_request_pin(unsigned int, enum pin_fun, const char *);
+ extern int mxs_set_type(unsigned int, enum pin_fun, const char *);
++extern int mxs_get_type(unsigned int);
+ extern int mxs_set_strength(unsigned int, enum pad_strength, const char *);
+ extern int mxs_set_voltage(unsigned int, enum pad_voltage, const char *);
+ extern int mxs_set_pullup(unsigned int, int, const char *);
+diff --git a/arch/arm/plat-mxs/pinctrl.c b/arch/arm/plat-mxs/pinctrl.c
+index 47fba76..cdef3e0 100644
+--- a/arch/arm/plat-mxs/pinctrl.c
++++ b/arch/arm/plat-mxs/pinctrl.c
+@@ -49,6 +49,25 @@ int mxs_request_pin(unsigned int pin, enum pin_fun fun, const char *lab)
+ }
+ EXPORT_SYMBOL(mxs_request_pin);
+ 
++int mxs_get_type(unsigned int pin)
++{
++	int bank, index;
++	struct pin_bank *pb;
++	int ret = 0;
++	if (g_chip == NULL)
++		return -ENODEV;
++
++	bank = g_chip->pin2id(g_chip, pin, &index);
++	if (bank < 0 || index < 0 || bank >= g_chip->bank_size)
++		return -EFAULT;
++
++	pb = g_chip->banks + bank;
++	if (g_chip->get_type)
++		ret = g_chip->get_type(pb, index);
++	return ret;
++}
++EXPORT_SYMBOL(mxs_get_type);
++
+ int mxs_set_type(unsigned int pin, enum pin_fun fun, const char *lab)
+ {
+ 	int bank, index;
+-- 
+1.5.4.4
+

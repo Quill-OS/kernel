@@ -1,0 +1,45 @@
+From a8773ff7f6ee5012b79694c10f4b592d709c627e Mon Sep 17 00:00:00 2001
+From: Sammy He <r62914@freescale.com>
+Date: Tue, 9 Mar 2010 12:50:16 +0800
+Subject: [PATCH] ENGR00121416 mx31: Fix build failure due to vpu restructure
+
+Fix build failure due to vpu driver code restructure
+
+Signed-off-by: Sammy He <r62914@freescale.com>
+---
+ arch/arm/mach-mx3/devices.c           |    5 +++++
+ arch/arm/plat-mxc/include/mach/mx31.h |    2 ++
+ 2 files changed, 7 insertions(+), 0 deletions(-)
+
+diff --git a/arch/arm/mach-mx3/devices.c b/arch/arm/mach-mx3/devices.c
+index a5eafff..2861ecf 100644
+--- a/arch/arm/mach-mx3/devices.c
++++ b/arch/arm/mach-mx3/devices.c
+@@ -802,6 +802,11 @@ static struct resource vpu_resources[] = {
+ 	 .end = VL2CC_BASE_ADDR + SZ_8K - 1,
+ 	 .flags = IORESOURCE_MEM,
+ 	 },
++	{
++	.start  = MXC_INT_VPU,
++	.end = MXC_INT_VPU,
++	.flags  = IORESOURCE_IRQ,
++	},
+ };
+ 
+ /*! Platform Data for MXC VPU */
+diff --git a/arch/arm/plat-mxc/include/mach/mx31.h b/arch/arm/plat-mxc/include/mach/mx31.h
+index e2799d5..3f4ac42 100644
+--- a/arch/arm/plat-mxc/include/mach/mx31.h
++++ b/arch/arm/plat-mxc/include/mach/mx31.h
+@@ -11,6 +11,8 @@
+ #define USB_IRAM_SIZE 0
+ #endif
+ 
++#define VPU_IRAM_SIZE 0
++
+ #define OTG_BASE_ADDR		(AIPS1_BASE_ADDR + 0x00088000)
+ #define ATA_BASE_ADDR		(AIPS1_BASE_ADDR + 0x0008C000)
+ #define UART4_BASE_ADDR 	(AIPS1_BASE_ADDR + 0x000B0000)
+-- 
+1.5.4.4
+

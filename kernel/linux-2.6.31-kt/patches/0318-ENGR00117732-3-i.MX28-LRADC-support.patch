@@ -1,0 +1,36 @@
+From 05a2326e4f4c0d7a3cef3b7d2b7e29d42c61cedd Mon Sep 17 00:00:00 2001
+From: Fred Fan <r01011@freescale.com>
+Date: Wed, 27 Jan 2010 21:35:40 +0800
+Subject: [PATCH] ENGR00117732-3 i.MX28 LRADC support
+
+Update kernel default configuration on i.MX28 EVK platform
+
+Signed-off-by: Fred.fan <r01011@freescale.com>
+---
+ arch/arm/configs/imx28evk_defconfig |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletions(-)
+
+diff --git a/arch/arm/configs/imx28evk_defconfig b/arch/arm/configs/imx28evk_defconfig
+index 2f89e93..529d539 100644
+--- a/arch/arm/configs/imx28evk_defconfig
++++ b/arch/arm/configs/imx28evk_defconfig
+@@ -1,7 +1,7 @@
+ #
+ # Automatically generated make config: don't edit
+ # Linux kernel version: 2.6.31
+-# Wed Jan 27 13:36:54 2010
++# Wed Jan 27 18:03:15 2010
+ #
+ CONFIG_ARM=y
+ CONFIG_SYS_SUPPORTS_APM_EMULATION=y
+@@ -202,6 +202,7 @@ CONFIG_MACH_MX28EVK=y
+ CONFIG_MXS_ICOLL=y
+ CONFIG_MXS_EARLY_CONSOLE=y
+ CONFIG_MXS_DMA_ENGINE=y
++CONFIG_MXS_LRADC=y
+ 
+ #
+ # Processor Type
+-- 
+1.5.4.4
+

@@ -1,0 +1,318 @@
+From 5511e8f777f46637510f6302529d59abc40417f4 Mon Sep 17 00:00:00 2001
+From: Robby Cai <R63905@freescale.com>
+Date: Sun, 18 Apr 2010 19:22:48 +0800
+Subject: [PATCH] ENGR00122636-1 [MX23] Add MSL-related code for SPI driver
+
+Add SPI platform data
+
+Signed-off-by: Robby Cai <R63905@freescale.com>
+---
+ arch/arm/mach-mx23/device.c             |   41 ++++++++++++++++++
+ arch/arm/mach-mx23/mx23evk.c            |   36 ++++++++++++++++
+ arch/arm/mach-mx23/mx23evk.h            |    3 +-
+ arch/arm/mach-mx23/mx23evk_pins.c       |   68 +++++++++++++++++++++++++++++++
+ arch/arm/plat-mxs/device.c              |   22 ++++++++++
+ arch/arm/plat-mxs/include/mach/device.h |    5 ++
+ arch/arm/plat-mxs/include/mach/system.h |    1 +
+ 7 files changed, 175 insertions(+), 1 deletions(-)
+
+diff --git a/arch/arm/mach-mx23/device.c b/arch/arm/mach-mx23/device.c
+index 38ad3f7..b7276a7 100644
+--- a/arch/arm/mach-mx23/device.c
++++ b/arch/arm/mach-mx23/device.c
+@@ -636,6 +636,46 @@ static void mx23_init_mmc(void)
+ }
+ #endif
+ 
++#if defined(CONFIG_SPI_MXS) || defined(CONFIG_SPI_MXS_MODULE)
++static struct resource ssp1_resources[] = {
++	{
++		.start	= SSP1_PHYS_ADDR,
++		.end	= SSP1_PHYS_ADDR + 0x1FFF,
++		.flags	= IORESOURCE_MEM,
++	}, {
++		.start	= IRQ_SSP1_DMA,
++		.end	= IRQ_SSP1_DMA,
++		.flags	= IORESOURCE_IRQ,
++	}, {
++		.start	= IRQ_SSP_ERROR,
++		.end	= IRQ_SSP_ERROR,
++		.flags	= IORESOURCE_IRQ,
++	}, {
++		.start	= MXS_DMA_CHANNEL_AHB_APBH_SSP1,
++		.end	= MXS_DMA_CHANNEL_AHB_APBH_SSP1,
++		.flags	= IORESOURCE_DMA,
++	},
++};
++
++static void __init mx23_init_spi(void)
++{
++	struct platform_device *pdev;
++
++	pdev = mxs_get_device("mxs-spi", 0);
++	if (pdev == NULL || IS_ERR(pdev))
++		return;
++	pdev->resource = ssp1_resources;
++	pdev->num_resources = ARRAY_SIZE(ssp1_resources);
++
++	mxs_add_device(pdev, 3);
++}
++#else
++static void mx23_init_spi(void)
++{
++	;
++}
++#endif
++
+ #if defined(CONFIG_BATTERY_MXS)
+ /* battery info data */
+ static ddi_bc_Cfg_t battery_data = {
+@@ -849,6 +889,7 @@ int __init mx23_device_init(void)
+ 	mx23_init_rtc();
+ 	mx23_init_dcp();
+ 	mx23_init_mmc();
++	mx23_init_spi();
+ 	mx23_init_spdif();
+ 	mx23_init_lcdif();
+ 	mx23_init_pxp();
+diff --git a/arch/arm/mach-mx23/mx23evk.c b/arch/arm/mach-mx23/mx23evk.c
+index 53f9587..2a5f0b3 100644
+--- a/arch/arm/mach-mx23/mx23evk.c
++++ b/arch/arm/mach-mx23/mx23evk.c
+@@ -22,6 +22,7 @@
+ #include <linux/clk.h>
+ #include <linux/platform_device.h>
+ #include <linux/i2c.h>
++#include <linux/spi/spi.h>
+ 
+ #include <asm/setup.h>
+ #include <asm/mach-types.h>
+@@ -30,6 +31,7 @@
+ #include <mach/hardware.h>
+ #include <mach/device.h>
+ #include <mach/pinctrl.h>
++#include <mach/regs-ocotp.h>
+ 
+ #include "device.h"
+ #include "mx23evk.h"
+@@ -58,6 +60,28 @@ static void i2c_device_init(void)
+ 	i2c_register_board_info(0, &mma7450_i2c_device, 1);
+ }
+ 
++static struct mxs_spi_platform_data enc_data = {
++	.hw_pin_init = mxs_spi_enc_pin_init,
++	.hw_pin_release = mxs_spi_enc_pin_release,
++};
++static struct spi_board_info spi_board_info[] __initdata = {
++#if defined(CONFIG_ENC28J60) || defined(CONFIG_ENC28J60_MODULE)
++	{
++		.modalias       = "enc28j60",
++		.max_speed_hz   = 6 * 1000 * 1000,
++		.bus_num	= 1,
++		.chip_select    = 0,
++		.platform_data  = &enc_data,
++	},
++#endif
++};
++
++static void spi_device_init(void)
++{
++	spi_board_info[0].irq = gpio_to_irq(MXS_PIN_TO_GPIO(PINID_SSP1_DATA1));
++	spi_register_board_info(spi_board_info, ARRAY_SIZE(spi_board_info));
++}
++
+ static void __init fixup_board(struct machine_desc *desc, struct tag *tags,
+ 			       char **cmdline, struct meminfo *mi)
+ {
+@@ -80,11 +104,23 @@ static void __init mx23evk_init_adc(void)
+ }
+ #endif
+ 
++#define REGS_OCOTP_BASE	IO_ADDRESS(OCOTP_PHYS_ADDR)
++int get_evk_board_version()
++{
++	int boardid;
++	boardid = __raw_readl(REGS_OCOTP_BASE + HW_OCOTP_CUSTCAP);
++	boardid &= 0x30000000;
++	boardid = boardid >> 28;
++
++	return boardid;
++}
++EXPORT_SYMBOL_GPL(get_evk_board_version);
+ 
+ static void __init mx23evk_device_init(void)
+ {
+ 	/* Add mx23evk special code */
+ 	i2c_device_init();
++	spi_device_init();
+ 	mx23evk_init_adc();
+ }
+ 
+diff --git a/arch/arm/mach-mx23/mx23evk.h b/arch/arm/mach-mx23/mx23evk.h
+index afe7bcf..9ed134a 100644
+--- a/arch/arm/mach-mx23/mx23evk.h
++++ b/arch/arm/mach-mx23/mx23evk.h
+@@ -22,5 +22,6 @@
+ extern void __init mx23evk_pins_init(void);
+ extern void  mx23evk_mma7450_pin_init(void);
+ extern int mx23evk_mma7450_pin_release(void);
+-
++extern int mxs_spi_enc_pin_init(void);
++extern int mxs_spi_enc_pin_release(void);
+ #endif /* __ASM_ARM_MACH_MX23EVK_H */
+diff --git a/arch/arm/mach-mx23/mx23evk_pins.c b/arch/arm/mach-mx23/mx23evk_pins.c
+index 5e60a2b..c2551e6 100644
+--- a/arch/arm/mach-mx23/mx23evk_pins.c
++++ b/arch/arm/mach-mx23/mx23evk_pins.c
+@@ -395,6 +395,41 @@ static struct pin_desc mx23evk_fixed_pins[] = {
+ 	 },
+ #endif
+ 
++#if defined(CONFIG_SPI_MXS) || defined(CONFIG_SPI_MXS_MODULE)
++	{
++	 .name	= "SSP1_DATA0",
++	 .id	= PINID_SSP1_DATA0,
++	 .fun	= PIN_FUN1,
++	 .strength	= PAD_4MA,
++	 .voltage	= PAD_3_3V,
++	 .drive 	= 1,
++	 },
++	{
++	 .name	= "SSP1_DATA3",
++	 .id	= PINID_SSP1_DATA3,
++	 .fun	= PIN_FUN1,
++	 .strength	= PAD_4MA,
++	 .voltage	= PAD_3_3V,
++	 .drive 	= 1,
++	 },
++	{
++	 .name	= "SSP1_CMD",
++	 .id	= PINID_SSP1_CMD,
++	 .fun	= PIN_FUN1,
++	 .strength	= PAD_4MA,
++	 .voltage	= PAD_3_3V,
++	 .drive 	= 1,
++	 },
++	{
++	 .name	= "SSP1_SCK",
++	 .id	= PINID_SSP1_SCK,
++	 .fun	= PIN_FUN1,
++	 .strength	= PAD_8MA,
++	 .voltage	= PAD_3_3V,
++	 .drive 	= 1,
++	 },
++#endif
++
+ #if defined(CONFIG_FEC) || defined(CONFIG_FEC_MODULE)
+ 	{
+ 	 .name = "ENET0_MDC",
+@@ -537,6 +572,39 @@ int mx23evk_mma7450_pin_release(void)
+ }
+ #endif
+ 
++extern int mxs_spi_enc_pin_init(void);
++extern int mxs_spi_enc_pin_release(void);
++#if defined(CONFIG_ENC28J60) || defined(CONFIG_ENC28J60_MODULE)
++int mxs_spi_enc_pin_init(void)
++{
++	unsigned gpio = MXS_PIN_TO_GPIO(PINID_SSP1_DATA1);
++
++	gpio_request(gpio, "ENC28J60_INTR");
++	gpio_direction_input(gpio);
++	set_irq_type(gpio_to_irq(gpio), IRQ_TYPE_EDGE_FALLING);
++
++	return 0;
++}
++int mxs_spi_enc_pin_release(void)
++{
++	unsigned gpio = MXS_PIN_TO_GPIO(PINID_SSP1_DATA1);
++
++	gpio_free(gpio);
++	set_irq_type(gpio_to_irq(gpio), IRQ_TYPE_NONE);
++
++	return 0;
++}
++#else
++int mxs_spi_enc_pin_init(void)
++{
++	return 0;
++}
++int mxs_spi_enc_pin_release(void)
++{
++	return 0;
++}
++#endif
++
+ #if defined(CONFIG_FEC) || defined(CONFIG_FEC_MODULE)
+ int mx23evk_enet_gpio_init(void)
+ {
+diff --git a/arch/arm/plat-mxs/device.c b/arch/arm/plat-mxs/device.c
+index 0018084..a4213a5 100644
+--- a/arch/arm/plat-mxs/device.c
++++ b/arch/arm/plat-mxs/device.c
+@@ -175,6 +175,20 @@ static struct platform_device mxs_mmc[] = {
+ };
+ #endif
+ 
++#if defined(CONFIG_SPI_MXS) || defined(CONFIG_SPI_MXS_MODULE)
++static struct platform_device mxs_spi[] = {
++	{
++	 .name	= "mxs-spi",
++	 .id	= 0,
++	 .dev = {
++		.dma_mask	       = &common_dmamask,
++		.coherent_dma_mask      = DMA_BIT_MASK(32),
++		.release = mxs_nop_release,
++		},
++	 },
++};
++#endif
++
+ #if defined(CONFIG_MXS_WATCHDOG) || defined(CONFIG_MXS_WATCHDOG_MODULE)
+ static struct platform_device mxs_wdt = {
+ 	.name = "mxs-wdt",
+@@ -500,6 +514,14 @@ static struct mxs_dev_lookup dev_lookup[] = {
+ 	},
+ #endif
+ 
++#if defined(CONFIG_SPI_MXS) || defined(CONFIG_SPI_MXS_MODULE)
++	{
++	.name = "mxs-spi",
++	.size = ARRAY_SIZE(mxs_spi),
++	.pdev = mxs_spi,
++	},
++#endif
++
+ #if defined(CONFIG_MXS_WATCHDOG) || defined(CONFIG_MXS_WATCHDOG_MODULE)
+ 	{
+ 	 .name = "mxs-wdt",
+diff --git a/arch/arm/plat-mxs/include/mach/device.h b/arch/arm/plat-mxs/include/mach/device.h
+index 7a99647..fadec70 100644
+--- a/arch/arm/plat-mxs/include/mach/device.h
++++ b/arch/arm/plat-mxs/include/mach/device.h
+@@ -119,6 +119,11 @@ struct mxs_mma7450_platform_data {
+ 	int int2;
+ };
+ 
++struct mxs_spi_platform_data {
++	int (*hw_pin_init)(void);
++	int (*hw_pin_release)(void);
++};
++
+ struct flexcan_platform_data {
+ 	char *core_reg;
+ 	char *io_reg;
+diff --git a/arch/arm/plat-mxs/include/mach/system.h b/arch/arm/plat-mxs/include/mach/system.h
+index 63604de..faaa2ff 100644
+--- a/arch/arm/plat-mxs/include/mach/system.h
++++ b/arch/arm/plat-mxs/include/mach/system.h
+@@ -25,5 +25,6 @@ extern void arch_idle(void);
+ void arch_reset(char mode, const char *cmd);
+ extern void (*machine_arch_reset)(char mode, const char *cmd);
+ int mxs_reset_block(void __iomem *hwreg, int just_enable);
++int get_evk_board_version(void);
+ 
+ #endif /* __ASM_ARCH_SYSTEM_H__ */
+-- 
+1.5.4.4
+

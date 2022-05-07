@@ -1,0 +1,39 @@
+From bf0722e38e85c6de976710c333558bcd3ea9bf46 Mon Sep 17 00:00:00 2001
+From: Rob Herring <r.herring@freescale.com>
+Date: Wed, 21 Oct 2009 15:22:45 -0500
+Subject: [PATCH] ENGR00117540 z160: add memory region for scratch buffers
+
+The z160 needs 88KB memory for temp buffers.
+
+Signed-off-by: Rob Herring <r.herring@freescale.com>
+---
+ arch/arm/mach-mx51/devices.c |    6 ++++++
+ 1 files changed, 6 insertions(+), 0 deletions(-)
+
+diff --git a/arch/arm/mach-mx51/devices.c b/arch/arm/mach-mx51/devices.c
+index 5689fa7..29f603c 100644
+--- a/arch/arm/mach-mx51/devices.c
++++ b/arch/arm/mach-mx51/devices.c
+@@ -1177,6 +1177,9 @@ static struct resource mxc_gpu2d_resources[] = {
+ 	{
+ 	 .flags = IORESOURCE_MEM,
+ 	 },
++	{
++	 .flags = IORESOURCE_MEM,
++	 },
+ };
+ 
+ #if defined(CONFIG_UIO_PDRV_GENIRQ) || defined(CONFIG_UIO_PDRV_GENIRQ_MODULE)
+@@ -1242,6 +1245,9 @@ static inline void mxc_init_gpu2d(void)
+ 	dma_alloc_coherent(&mxc_gpu2d_device.dev, SZ_8K, &mxc_gpu2d_resources[1].start, GFP_DMA);
+ 	mxc_gpu2d_resources[1].end = mxc_gpu2d_resources[1].start + SZ_8K - 1;
+ 
++	dma_alloc_coherent(&mxc_gpu2d_device.dev, 88 * SZ_1K, &mxc_gpu2d_resources[2].start, GFP_DMA);
++	mxc_gpu2d_resources[2].end = mxc_gpu2d_resources[2].start + (88 * SZ_1K) - 1;
++
+ 	platform_device_register(&mxc_gpu2d_device);
+ }
+ #else
+-- 
+1.5.4.4
+

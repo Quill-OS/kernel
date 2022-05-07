@@ -1,0 +1,75 @@
+From 49ca33c6e4898d39e95adb420bbe796f436b9bfb Mon Sep 17 00:00:00 2001
+From: Ranjani Vaidyanathan-RA5478 <Ranjani.Vaidyanathan@freescale.com>
+Date: Wed, 24 Mar 2010 12:07:19 -0500
+Subject: [PATCH] ENGR00121951: MX51: Fix system crash when DVFS-PER is enabled
+
+Enabling DVFS-PER during video playback caused system to crash.
+Also fixed warnings associated with dvfs_core resources.
+
+Signed-off-by: Ranjani Vaidyanathan-RA5478 <Ranjani.Vaidyanathan@freescale.com>
+---
+ arch/arm/mach-mx5/bus_freq.c          |    3 +--
+ arch/arm/mach-mx5/devices.c           |    4 ++--
+ arch/arm/plat-mxc/include/mach/mx5x.h |    3 ++-
+ 3 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/arch/arm/mach-mx5/bus_freq.c b/arch/arm/mach-mx5/bus_freq.c
+index ce265fc..1463ef4 100644
+--- a/arch/arm/mach-mx5/bus_freq.c
++++ b/arch/arm/mach-mx5/bus_freq.c
+@@ -155,7 +155,6 @@ int set_high_bus_freq(int high_bus_freq)
+ 
+ 	if (bus_freq_scaling_initialized) {
+ 		stop_sdram_autogating();
+-		stop_dvfs_per();
+ 
+ 		if (low_bus_freq_mode) {
+ 			/* Relock PLL3 to 133MHz */
+@@ -193,6 +192,7 @@ int set_high_bus_freq(int high_bus_freq)
+ 			/*Change the DDR freq to 200MHz*/
+ 			clk_set_rate(ddr_hf_clk,
+ 				    clk_round_rate(ddr_hf_clk, DDR_NORMAL_CLK));
++			start_dvfs_per();
+ 		}
+ 		if (bus_freq_scaling_is_active) {
+ 			/*
+@@ -224,7 +224,6 @@ int set_high_bus_freq(int high_bus_freq)
+ 			}
+ 		}
+ 		start_sdram_autogating();
+-		start_dvfs_per();
+ 	}
+ 	return 0;
+ }
+diff --git a/arch/arm/mach-mx5/devices.c b/arch/arm/mach-mx5/devices.c
+index 567d5c8..35e65bc 100644
+--- a/arch/arm/mach-mx5/devices.c
++++ b/arch/arm/mach-mx5/devices.c
+@@ -499,8 +499,8 @@ struct platform_device mxc_tve_device = {
+ 
+ static struct resource dvfs_core_resources[] = {
+ 	{
+-		.start = MXC_DVFS_CORE_BASE,
+-		.end = MXC_DVFS_CORE_BASE + 4 * SZ_16 - 1,
++		.start = DVFSCORE_BASE_ADDR,
++		.end = DVFSCORE_BASE_ADDR + 4 * SZ_16 - 1,
+ 		.flags = IORESOURCE_MEM,
+ 	},
+ 	{
+diff --git a/arch/arm/plat-mxc/include/mach/mx5x.h b/arch/arm/plat-mxc/include/mach/mx5x.h
+index 3316b08..3770197 100644
+--- a/arch/arm/plat-mxc/include/mach/mx5x.h
++++ b/arch/arm/plat-mxc/include/mach/mx5x.h
+@@ -209,7 +209,8 @@
+ #define I2C3_BASE_ADDR		(AIPS1_BASE_ADDR + 0x000EC000)
+ #define UART4_BASE_ADDR	(AIPS1_BASE_ADDR + 0x000F0000)
+ 
+-#define DVFSPER_BASE_ADDR 	(GPC_BASE_ADDR + 0x1C4)
++#define DVFSCORE_BASE_ADDR 	(GPC_BASE_ADDR + 0x180)
++#define DVFSPER_BASE_ADDR 		(GPC_BASE_ADDR + 0x1C4)
+ /*!
+  * Defines for modules using static and dynamic DMA channels
+  */
+-- 
+1.5.4.4
+

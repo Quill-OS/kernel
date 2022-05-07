@@ -1,0 +1,45 @@
+From d86a30601e71d605bae924611f1e8c8fa2eac455 Mon Sep 17 00:00:00 2001
+From: Jeremy.Yao <r65161@freescale.com>
+Date: Thu, 25 Mar 2010 15:51:17 +0800
+Subject: [PATCH] ENGR00121977: iMX28 Fix Keypad Driver
+
+Stop using btn irq
+
+Signed-off-by: Jeremy Yao <r65161@freescale.com>
+---
+ arch/arm/mach-mx28/device.c      |    5 -----
+ drivers/input/keyboard/mxs-kbd.c |    2 +-
+ 2 files changed, 1 insertions(+), 6 deletions(-)
+
+diff --git a/arch/arm/mach-mx28/device.c b/arch/arm/mach-mx28/device.c
+index 9f553ac..33ee4b6 100644
+--- a/arch/arm/mach-mx28/device.c
++++ b/arch/arm/mach-mx28/device.c
+@@ -813,11 +813,6 @@ static struct resource mx28_kbd_res[] = {
+ 	 .start = IRQ_LRADC_CH1,
+ 	 .end   = IRQ_LRADC_CH1,
+ 	 },
+-	{
+-	 .flags = IORESOURCE_IRQ,
+-	 .start = IRQ_LRADC_BUTTON1,
+-	 .end   = IRQ_LRADC_BUTTON1,
+-	 },
+ };
+ 
+ static void __init mx28_init_kbd(void)
+diff --git a/drivers/input/keyboard/mxs-kbd.c b/drivers/input/keyboard/mxs-kbd.c
+index 7f58935..ed04a7e 100644
+--- a/drivers/input/keyboard/mxs-kbd.c
++++ b/drivers/input/keyboard/mxs-kbd.c
+@@ -122,7 +122,7 @@ static unsigned mxskbd_decode_button(struct mxskbd_keypair *codes,
+ {
+ 	pr_debug("Decoding %d\n", raw_button);
+ 	while (codes->raw != -1) {
+-		if ((raw_button > (codes->raw - LRADC_NOISE_MARGIN)) &&
++		if ((raw_button >= (codes->raw - LRADC_NOISE_MARGIN)) &&
+ 		    (raw_button < (codes->raw + LRADC_NOISE_MARGIN))) {
+ 			pr_debug("matches code 0x%x = %d\n",
+ 				codes->kcode, codes->kcode);
+-- 
+1.5.4.4
+

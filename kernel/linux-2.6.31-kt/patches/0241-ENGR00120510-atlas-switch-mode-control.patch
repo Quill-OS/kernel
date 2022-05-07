@@ -1,0 +1,64 @@
+From d54fdc5ef76d406be4762b67aa3653b92ad345ea Mon Sep 17 00:00:00 2001
+From: b00984 <b00984@yong.(none)>
+Date: Wed, 27 Jan 2010 15:33:15 +0800
+Subject: [PATCH] ENGR00120510 atlas switch mode control
+
+To reduce power consumed on atlas itself, set atlas swith to auto mode
+
+Signed-off-by: Shen Yong <b00984@freescale.com>
+---
+ arch/arm/mach-mx51/mx51_babbage_pmic_mc13892.c |   24 +++++++++++++++++++++++-
+ 1 files changed, 23 insertions(+), 1 deletions(-)
+
+diff --git a/arch/arm/mach-mx51/mx51_babbage_pmic_mc13892.c b/arch/arm/mach-mx51/mx51_babbage_pmic_mc13892.c
+index 7425d93..daedc43 100644
+--- a/arch/arm/mach-mx51/mx51_babbage_pmic_mc13892.c
++++ b/arch/arm/mach-mx51/mx51_babbage_pmic_mc13892.c
+@@ -2,7 +2,7 @@
+  * mx51-3stack-pmic-mc13892.c  --  i.MX51 3STACK Driver for Atlas MC13892 PMIC
+  */
+  /*
+-  * Copyright 2009 Freescale Semiconductor, Inc. All Rights Reserved.
++  * Copyright 2009-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+   */
+ 
+  /*
+@@ -77,6 +77,15 @@
+ #define REG_MODE_1_ALL_MASK	(CAM_STBY_MASK | VIDEO_STBY_MASK |\
+ 				AUDIO_STBY_MASK | SD_STBY_MASK)
+ 
++/* switch mode setting */
++#define	SW1MODE_LSB	0
++#define	SW2MODE_LSB	10
++#define	SW3MODE_LSB	0
++#define	SW4MODE_LSB	8
++
++#define	SWMODE_MASK	0xF
++#define SWMODE_AUTO	0x8
++
+ /* CPU */
+ static struct regulator_consumer_supply sw1_consumers[] = {
+ 	{
+@@ -331,6 +340,19 @@ static int mc13892_regulator_init(struct mc13892 *mc13892)
+ 	value |= REG_MODE_1_ALL_MASK;
+ 	pmic_write_reg(REG_MODE_1, value, 0xffffff);
+ 
++	/* enable switch audo mode */
++	pmic_read_reg(REG_SW_4, &value, 0xffffff);
++	register_mask = (SWMODE_MASK << SW1MODE_LSB) | (SWMODE_MASK << SW2MODE_LSB);
++	value &= ~register_mask;
++	value |= (SWMODE_AUTO << SW1MODE_LSB) | (SWMODE_AUTO << SW2MODE_LSB);
++	pmic_write_reg(REG_SW_4, value, 0xffffff);
++
++	pmic_read_reg(REG_SW_5, &value, 0xffffff);
++	register_mask = (SWMODE_MASK << SW3MODE_LSB) | (SWMODE_MASK << SW4MODE_LSB);
++	value &= ~register_mask;
++	value |= (SWMODE_AUTO << SW3MODE_LSB) | (SWMODE_AUTO << SW4MODE_LSB);
++	pmic_write_reg(REG_SW_5, value, 0xffffff);
++
+ 	/* Enable coin cell charger */
+ 	value = BITFVAL(CIONCHEN, 1) | BITFVAL(VCOIN, VCOIN_3_0V);
+ 	register_mask = BITFMASK(CIONCHEN) | BITFMASK(VCOIN);
+-- 
+1.5.4.4
+

@@ -1,0 +1,218 @@
+From 50bf24a56903a381a3182466ca9e2ee52bf83a88 Mon Sep 17 00:00:00 2001
+From: Frank Li <Frank.Li@freescale.com>
+Date: Mon, 15 Mar 2010 17:44:45 +0800
+Subject: [PATCH] ENGR00121581 MX23 and iMX28 add iram alloc support
+
+Add iram allocate support
+
+Signed-off-by: Frank Li <Frank.Li@freescale.com>
+---
+ arch/arm/mach-mx23/device.c              |    6 +++
+ arch/arm/mach-mx23/include/mach/mx23.h   |    9 ++++
+ arch/arm/mach-mx23/mx23evk.c             |    4 ++
+ arch/arm/mach-mx28/mx28evk.c             |    3 +
+ arch/arm/plat-mxs/Kconfig                |    5 ++
+ arch/arm/plat-mxs/Makefile               |    2 +-
+ arch/arm/plat-mxs/include/mach/arc_otg.h |    8 ++++
+ arch/arm/plat-mxs/include/mach/device.h  |    2 +
+ arch/arm/plat-mxs/iram.c                 |   62 ++++++++++++++++++++++++++++++
+ 9 files changed, 100 insertions(+), 1 deletions(-)
+
+diff --git a/arch/arm/mach-mx23/device.c b/arch/arm/mach-mx23/device.c
+index 4fde597..7d50436 100644
+--- a/arch/arm/mach-mx23/device.c
++++ b/arch/arm/mach-mx23/device.c
+@@ -714,6 +714,12 @@ static struct __initdata map_desc mx23_io_desc[] = {
+ 	 .length = MX23_SOC_IO_AREA_SIZE,
+ 	 .type = MT_DEVICE,
+ 	 },
++	{
++	 .virtual = MX23_OCRAM_BASE,
++	 .pfn = __phys_to_pfn(MX23_OCRAM_PHBASE),
++	 .length = MX23_OCRAM_SIZE,
++	 .type  = MT_DEVICE,
++	},
+ };
+ 
+ void __init mx23_map_io(void)
+diff --git a/arch/arm/mach-mx23/include/mach/mx23.h b/arch/arm/mach-mx23/include/mach/mx23.h
+index c9f6fd2..51bfb0c 100644
+--- a/arch/arm/mach-mx23/include/mach/mx23.h
++++ b/arch/arm/mach-mx23/include/mach/mx23.h
+@@ -26,6 +26,15 @@
+ #define MX23_SOC_IO_VIRT_BASE	0xF0000000
+ #define MX23_SOC_IO_AREA_SIZE	SZ_1M
+ 
++/* Virtual address where OCRAM is mapped */
++#define MX23_OCRAM_PHBASE   0x00000000
++#ifdef __ASSEMBLER__
++#define MX23_OCRAM_BASE     0xf1000000
++#else
++#define MX23_OCRAM_BASE     (void __iomem *)0xf1000000
++#endif
++#define MX23_OCRAM_SIZE     (32 * SZ_1K)
++
+ #define ICOLL_PHYS_ADDR		(MX23_SOC_IO_PHYS_BASE + 0x000000)
+ #define APBH_DMA_PHYS_ADDR	(MX23_SOC_IO_PHYS_BASE + 0x004000)
+ #define BCH_PHYS_ADDR		(MX23_SOC_IO_PHYS_BASE + 0x00A000)
+diff --git a/arch/arm/mach-mx23/mx23evk.c b/arch/arm/mach-mx23/mx23evk.c
+index 4bf7ae3..f3d20de 100644
+--- a/arch/arm/mach-mx23/mx23evk.c
++++ b/arch/arm/mach-mx23/mx23evk.c
+@@ -47,6 +47,10 @@ static void __init mx23evk_device_init(void)
+ static void __init mx23evk_init_machine(void)
+ {
+ 	mx23_pinctrl_init();
++
++	/* Init iram allocate */
++	iram_init(MX23_OCRAM_PHBASE, MX23_OCRAM_SIZE);
++
+ 	mx23_gpio_init();
+ 	mx23evk_pins_init();
+ 	mx23_device_init();
+diff --git a/arch/arm/mach-mx28/mx28evk.c b/arch/arm/mach-mx28/mx28evk.c
+index c3254e3..9aa3f3d 100644
+--- a/arch/arm/mach-mx28/mx28evk.c
++++ b/arch/arm/mach-mx28/mx28evk.c
+@@ -104,6 +104,9 @@ static void __init mx28evk_device_init(void)
+ static void __init mx28evk_init_machine(void)
+ {
+ 	mx28_pinctrl_init();
++	/* Init iram allocate */
++	iram_init(MX28_OCRAM_PHBASE, MX28_OCRAM_SIZE);
++
+ 	mx28_gpio_init();
+ 	mx28evk_pins_init();
+ 	mx28_device_init();
+diff --git a/arch/arm/plat-mxs/Kconfig b/arch/arm/plat-mxs/Kconfig
+index 897e185..d44a42b 100644
+--- a/arch/arm/plat-mxs/Kconfig
++++ b/arch/arm/plat-mxs/Kconfig
+@@ -153,6 +153,11 @@ config MXS_RAM_FREQ_SCALING
+         bool "RAM frequency scaling support"
+         depends on ARCH_MXS
+         default y
++
++config IRAM_ALLOC
++        bool
++        default y
++        select GENERIC_ALLOCATOR
+ endmenu
+ 
+ endif
+diff --git a/arch/arm/plat-mxs/Makefile b/arch/arm/plat-mxs/Makefile
+index 95b4c05..69b065e 100644
+--- a/arch/arm/plat-mxs/Makefile
++++ b/arch/arm/plat-mxs/Makefile
+@@ -5,7 +5,7 @@
+ obj-y += core.o clock.o pinctrl.o device.o timer-nomatch.o
+ 
+ obj-$(CONFIG_MXS_TIMER_WITH_MACH) += timer-match.o
+-
++obj-$(CONFIG_IRAM_ALLOC) += iram.o
+ obj-$(CONFIG_GENERIC_GPIO) += gpio.o
+ 
+ obj-$(CONFIG_MXS_ICOLL) += icoll.o
+diff --git a/arch/arm/plat-mxs/include/mach/arc_otg.h b/arch/arm/plat-mxs/include/mach/arc_otg.h
+index d8f83d5..7213e27 100644
+--- a/arch/arm/plat-mxs/include/mach/arc_otg.h
++++ b/arch/arm/plat-mxs/include/mach/arc_otg.h
+@@ -20,6 +20,14 @@
+ #ifndef __ASM_ARCH_MXC_ARC_OTG_H__
+ #define __ASM_ARCH_MXC_ARC_OTG_H__
+ 
++
++#if defined(CONFIG_USB_STATIC_IRAM) \
++    || defined(CONFIG_USB_STATIC_IRAM_PPH)
++#define USB_IRAM_SIZE   SZ_8K
++#else
++#define USB_IRAM_SIZE 0
++#endif
++
+ #define OTG_BASE_ADDR		USBCTRL0_PHYS_ADDR
+ #define USB_OTGREGS_BASE	(OTG_BASE_ADDR + 0x000)
+ /*
+diff --git a/arch/arm/plat-mxs/include/mach/device.h b/arch/arm/plat-mxs/include/mach/device.h
+index c5a5e34..b1908cc 100644
+--- a/arch/arm/plat-mxs/include/mach/device.h
++++ b/arch/arm/plat-mxs/include/mach/device.h
+@@ -222,6 +222,8 @@ extern int mxs_add_device(struct platform_device *, int level);
+ extern struct platform_device *mxs_get_device(char *name, int id);
+ extern struct mxs_dev_lookup *mxs_get_devices(char *name);
+ 
++extern int iram_init(unsigned long base, unsigned long size);
++
+ /* mxs ssp sd/mmc data definitons */
+ struct mxs_mmc_platform_data {
+ 	int (*hw_init)(void);
+diff --git a/arch/arm/plat-mxs/iram.c b/arch/arm/plat-mxs/iram.c
+new file mode 100644
+index 0000000..3d2a391
+--- /dev/null
++++ b/arch/arm/plat-mxs/iram.c
+@@ -0,0 +1,62 @@
++/*
++ * Copyright (C) 2010 Freescale Semiconductor, Inc. All Rights Reserved.
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version 2
++ * of the License, or (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
++ * MA 02110-1301, USA.
++ */
++
++#include <linux/kernel.h>
++#include <linux/io.h>
++#include <linux/module.h>
++#include <linux/spinlock.h>
++#include <linux/genalloc.h>
++
++static unsigned long iram_phys_base;
++static __iomem void *iram_virt_base;
++static struct gen_pool *iram_pool;
++
++#define iram_phys_to_virt(p) (iram_virt_base + ((p) - iram_phys_base))
++
++void *iram_alloc(unsigned int size, unsigned long *dma_addr)
++{
++	if (!iram_pool)
++		return NULL;
++
++	*dma_addr = gen_pool_alloc(iram_pool, size);
++	pr_debug("iram alloc - %dB@0x%p\n", size, (void *)*dma_addr);
++	return iram_phys_to_virt(*dma_addr);
++}
++EXPORT_SYMBOL(iram_alloc);
++
++void iram_free(unsigned long addr, unsigned int size)
++{
++	if (!iram_pool)
++		return;
++
++	gen_pool_free(iram_pool, addr, size);
++}
++EXPORT_SYMBOL(iram_free);
++
++int __init iram_init(unsigned long base, unsigned long size)
++{
++	iram_phys_base = base;
++
++	iram_pool = gen_pool_create(12, -1);
++	gen_pool_add(iram_pool, base, size, -1);
++	iram_virt_base = ioremap(iram_phys_base, size);
++
++	pr_info("i.MX IRAM pool: %ld KB@0x%p\n", size / 1024, iram_virt_base);
++	return 0;
++}
+-- 
+1.5.4.4
+

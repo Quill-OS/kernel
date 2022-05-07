@@ -1,0 +1,138 @@
+From 4e23fb4a323c5f3779a7e51efdefcc666cbbc323 Mon Sep 17 00:00:00 2001
+From: Dinh Nguyen <r00091@freescale.com>
+Date: Fri, 19 Feb 2010 06:53:27 -0600
+Subject: [PATCH] ENGR00121003 Fix IRAM enabling for USB Gadget driver
+
+In order to add IRAM to the USB Gadget driver, there are 2 kconfig
+options to enable. One kconfig option was for USB host and the other
+was for Gadget. The current SW required both kconfig to be
+enable which is confusing. Also need to add iram_alloc function in
+the Gadget driver.
+
+Signed-off-by: Dinh Nguyen <Dinh.Nguyen@freescale.com>
+---
+ arch/arm/mach-mx51/clock.c            |    5 +++++
+ arch/arm/plat-mxc/include/mach/mx25.h |    7 ++++---
+ arch/arm/plat-mxc/include/mach/mx31.h |    5 +++--
+ arch/arm/plat-mxc/include/mach/mx37.h |    3 ++-
+ arch/arm/plat-mxc/include/mach/mx51.h |    7 +++++++
+ drivers/usb/gadget/Kconfig            |    2 +-
+ drivers/usb/gadget/arcotg_udc.c       |    1 +
+ 7 files changed, 23 insertions(+), 7 deletions(-)
+
+diff --git a/arch/arm/mach-mx51/clock.c b/arch/arm/mach-mx51/clock.c
+index 8a6ace6..a3b06e9 100644
+--- a/arch/arm/mach-mx51/clock.c
++++ b/arch/arm/mach-mx51/clock.c
+@@ -2489,7 +2489,12 @@ static struct clk usboh3_clk[] = {
+ 	{
+ 	 .name = "usb_sec_clk",
+ 	 .parent = &tmax2_clk,
++#if defined(CONFIG_USB_STATIC_IRAM) \
++    || defined(CONFIG_USB_STATIC_IRAM_PPH)
++	 .secondary = &emi_intr_clk,
++#else
+ 	 .secondary = &emi_fast_clk,
++#endif
+ 	 },
+ };
+ static struct clk usb_ahb_clk = {
+diff --git a/arch/arm/plat-mxc/include/mach/mx25.h b/arch/arm/plat-mxc/include/mach/mx25.h
+index 15305c4..c3935d1 100644
+--- a/arch/arm/plat-mxc/include/mach/mx25.h
++++ b/arch/arm/plat-mxc/include/mach/mx25.h
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -65,8 +65,9 @@
+ #define SND_RAM_SIZE 0
+ #endif
+ 
+-#ifdef CONFIG_USB_STATIC_IRAM_PPH
+-#define USB_IRAM_SIZE	(2*SZ_8K)
++#if defined(CONFIG_USB_STATIC_IRAM) \
++    || defined(CONFIG_USB_STATIC_IRAM_PPH)
++#define USB_IRAM_SIZE	SZ_8K
+ #else
+ #define USB_IRAM_SIZE 0
+ #endif
+diff --git a/arch/arm/plat-mxc/include/mach/mx31.h b/arch/arm/plat-mxc/include/mach/mx31.h
+index 4cf6d00..e2799d5 100644
+--- a/arch/arm/plat-mxc/include/mach/mx31.h
++++ b/arch/arm/plat-mxc/include/mach/mx31.h
+@@ -4,8 +4,9 @@
+ #define MX31_IRAM_BASE_ADDR		0x1FFC0000	/* internal ram */
+ #define MX31_IRAM_SIZE			SZ_16K
+ 
+-#ifdef CONFIG_USB_STATIC_IRAM
+-#define USB_IRAM_SIZE   (2*SZ_8K)
++#if defined(CONFIG_USB_STATIC_IRAM) \
++    || defined(CONFIG_USB_STATIC_IRAM_PPH)
++#define USB_IRAM_SIZE	SZ_8K
+ #else
+ #define USB_IRAM_SIZE 0
+ #endif
+diff --git a/arch/arm/plat-mxc/include/mach/mx37.h b/arch/arm/plat-mxc/include/mach/mx37.h
+index 8f0e38e..3013d19 100644
+--- a/arch/arm/plat-mxc/include/mach/mx37.h
++++ b/arch/arm/plat-mxc/include/mach/mx37.h
+@@ -54,7 +54,8 @@
+ #define SND_RAM_SIZE 0
+ #endif
+ 
+-#ifdef CONFIG_USB_STATIC_IRAM
++#if defined(CONFIG_USB_STATIC_IRAM) \
++    || defined(CONFIG_USB_STATIC_IRAM_PPH)
+ #define USB_IRAM_SIZE	SZ_8K
+ #else
+ #define USB_IRAM_SIZE 0
+diff --git a/arch/arm/plat-mxc/include/mach/mx51.h b/arch/arm/plat-mxc/include/mach/mx51.h
+index 82e2eac..32bfb01 100644
+--- a/arch/arm/plat-mxc/include/mach/mx51.h
++++ b/arch/arm/plat-mxc/include/mach/mx51.h
+@@ -87,6 +87,13 @@
+ #define VPU_IRAM_SIZE 0
+ #endif
+ 
++#if defined(CONFIG_USB_STATIC_IRAM) \
++    || defined(CONFIG_USB_STATIC_IRAM_PPH)
++#define USB_IRAM_SIZE	SZ_8K
++#else
++#define USB_IRAM_SIZE 0
++#endif
++
+ /*
+  * NFC
+  */
+diff --git a/drivers/usb/gadget/Kconfig b/drivers/usb/gadget/Kconfig
+index 05ddb4b..2742a81 100644
+--- a/drivers/usb/gadget/Kconfig
++++ b/drivers/usb/gadget/Kconfig
+@@ -478,7 +478,7 @@ config USB_GADGET_ARC
+ 
+ config USB_STATIC_IRAM_PPH
+ 	bool "Apply static IRAM patch"
+-	depends on USB_GADGET_ARC && (ARCH_MX37 || ARCH_MX3 || ARCH_MX25)
++	depends on USB_GADGET_ARC && (ARCH_MX37 || ARCH_MX3 || ARCH_MX25 || ARCH_MX51)
+ 	help
+ 	   Apply static IRAM patch to peripheral driver.
+ 
+diff --git a/drivers/usb/gadget/arcotg_udc.c b/drivers/usb/gadget/arcotg_udc.c
+index 5e9a0ee..69a18fe 100644
+--- a/drivers/usb/gadget/arcotg_udc.c
++++ b/drivers/usb/gadget/arcotg_udc.c
+@@ -2839,6 +2839,7 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
+ 		goto err4;
+ 	}
+ 	if (g_iram_size) {
++		g_iram_addr = iram_alloc(USB_IRAM_SIZE, &g_iram_base);
+ 		for (i = 0; i < IRAM_PPH_NTD; i++) {
+ 			udc_controller->iram_buffer[i] =
+ 				g_iram_base + i * g_iram_size;
+-- 
+1.5.4.4
+

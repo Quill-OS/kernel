@@ -1,0 +1,28 @@
+From 01d3be4c8cea7644a69e739d2066974e49e2407c Mon Sep 17 00:00:00 2001
+From: Zhou Jingyu <b02241@freescale.com>
+Date: Wed, 19 May 2010 10:58:13 +0800
+Subject: [PATCH] ENGR00123441 imx23, fix ethernet can not suspend
+
+fix ethernet can not enter suspend state
+
+Signed-off-by: Zhou Jingyu <Jingyu.Zhou@freescale.com>
+---
+ arch/arm/plat-mxs/gpio.c |    2 ++
+ 1 files changed, 2 insertions(+), 0 deletions(-)
+
+diff --git a/arch/arm/plat-mxs/gpio.c b/arch/arm/plat-mxs/gpio.c
+index f12d417..6c67c2b 100644
+--- a/arch/arm/plat-mxs/gpio.c
++++ b/arch/arm/plat-mxs/gpio.c
+@@ -175,6 +175,8 @@ static struct irq_chip gpio_irq_chip = {
+ 	.ack = mxs_gpio_ack_irq,
+ 	.mask = mxs_gpio_mask_irq,
+ 	.unmask = mxs_gpio_unmask_irq,
++	.enable = mxs_gpio_unmask_irq,
++	.disable = mxs_gpio_mask_irq,
+ 	.set_type = mxs_gpio_set_irq_type,
+ };
+ 
+-- 
+1.5.4.4
+

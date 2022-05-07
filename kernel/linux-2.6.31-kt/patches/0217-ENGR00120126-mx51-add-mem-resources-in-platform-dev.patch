@@ -1,0 +1,70 @@
+From 1b2744ab70de0b872c5a4093192679b1a8456180 Mon Sep 17 00:00:00 2001
+From: Wu Guoxing <b02248@freescale.com>
+Date: Thu, 14 Jan 2010 13:50:34 +0800
+Subject: [PATCH] ENGR00120126 mx51: add mem resources in platform device for gpu2d and gpu3d.
+
+mx51: add mem resources in platform device for gpu2d and gpu3d registers.
+
+Signed-off-by: Wu Guoxing <b02248@freescale.com>
+---
+ arch/arm/mach-mx51/devices.c          |   17 ++++++++++++++++-
+ arch/arm/plat-mxc/include/mach/mx51.h |    5 +++--
+ 2 files changed, 19 insertions(+), 3 deletions(-)
+
+diff --git a/arch/arm/mach-mx51/devices.c b/arch/arm/mach-mx51/devices.c
+index 70c8658..f17e860 100644
+--- a/arch/arm/mach-mx51/devices.c
++++ b/arch/arm/mach-mx51/devices.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -1206,6 +1206,21 @@ static struct resource mxc_gpu_resources[] = {
+ 		.end = MXC_INT_GPU,
+ 		.name = "gpu_3d_irq",
+ 		.flags = IORESOURCE_IRQ,},
++	[2] = {
++		.start = GPU2D_BASE_ADDR,
++		.end = GPU2D_BASE_ADDR + SZ_4K - 1,
++		.name = "gpu_2d_registers",
++		.flags = IORESOURCE_MEM,},
++	[3] = {
++		.start = GPU_BASE_ADDR,
++		.end = GPU_BASE_ADDR + SZ_128K - 1,
++		.name = "gpu_3d_registers",
++		.flags = IORESOURCE_MEM,},
++	[4] = {
++		.start = GPU_GMEM_BASE_ADDR,
++		.end = GPU_GMEM_BASE_ADDR + SZ_128K - 1,
++		.name = "gpu_graphics_mem",
++		.flags = IORESOURCE_MEM,},
+ };
+ 
+ static struct platform_device gpu_device = {
+diff --git a/arch/arm/plat-mxc/include/mach/mx51.h b/arch/arm/plat-mxc/include/mach/mx51.h
+index c22a0fe..b8330ec 100644
+--- a/arch/arm/plat-mxc/include/mach/mx51.h
++++ b/arch/arm/plat-mxc/include/mach/mx51.h
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -115,7 +115,8 @@
+ /*
+  * Graphics Memory of GPU
+  */
+-#define GPU_BASE_ADDR			0x20000000
++#define GPU_GMEM_BASE_ADDR	0x20000000
++#define GPU_BASE_ADDR			0x30000000
+ #define GPU2D_BASE_ADDR			0xD0000000
+ 
+ #define TZIC_BASE_ADDR		0x8FFFC000
+-- 
+1.5.4.4
+

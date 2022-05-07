@@ -1,0 +1,51 @@
+From abf46fda8189a9f8bacf52f4b3cea73794e09fd4 Mon Sep 17 00:00:00 2001
+From: Robby Cai <R63905@freescale.com>
+Date: Mon, 15 Mar 2010 17:02:45 +0800
+Subject: [PATCH] ENGR00121574-3 rename filename for pxp to mxs_pxp
+
+update default config
+
+Signed-off-by: Robby Cai <R63905@freescale.com>
+---
+ arch/arm/configs/imx23evk_defconfig |    4 ++--
+ arch/arm/configs/imx28evk_defconfig |    2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/arch/arm/configs/imx23evk_defconfig b/arch/arm/configs/imx23evk_defconfig
+index 5c646a4..4511569 100644
+--- a/arch/arm/configs/imx23evk_defconfig
++++ b/arch/arm/configs/imx23evk_defconfig
+@@ -1,7 +1,7 @@
+ #
+ # Automatically generated make config: don't edit
+ # Linux kernel version: 2.6.31
+-# Mon Mar 15 09:38:37 2010
++# Mon Mar 15 16:08:57 2010
+ #
+ CONFIG_ARM=y
+ CONFIG_SYS_SUPPORTS_APM_EMULATION=y
+@@ -693,7 +693,7 @@ CONFIG_VIDEO_CAPTURE_DRIVERS=y
+ # CONFIG_VIDEO_FIXED_MINOR_RANGES is not set
+ CONFIG_VIDEO_HELPER_CHIPS_AUTO=y
+ # CONFIG_VIDEO_VIVI is not set
+-CONFIG_VIDEO_PXP=y
++CONFIG_VIDEO_MXS_PXP=y
+ # CONFIG_VIDEO_CPIA is not set
+ # CONFIG_VIDEO_SAA5246A is not set
+ # CONFIG_VIDEO_SAA5249 is not set
+diff --git a/arch/arm/configs/imx28evk_defconfig b/arch/arm/configs/imx28evk_defconfig
+index 37733e7..8c2becc 100644
+--- a/arch/arm/configs/imx28evk_defconfig
++++ b/arch/arm/configs/imx28evk_defconfig
+@@ -961,7 +961,7 @@ CONFIG_VIDEO_CAPTURE_DRIVERS=y
+ # CONFIG_VIDEO_UPD64031A is not set
+ # CONFIG_VIDEO_UPD64083 is not set
+ # CONFIG_VIDEO_VIVI is not set
+-CONFIG_VIDEO_PXP=y
++CONFIG_VIDEO_MXS_PXP=y
+ # CONFIG_VIDEO_SAA5246A is not set
+ # CONFIG_VIDEO_SAA5249 is not set
+ # CONFIG_SOC_CAMERA is not set
+-- 
+1.5.4.4
+

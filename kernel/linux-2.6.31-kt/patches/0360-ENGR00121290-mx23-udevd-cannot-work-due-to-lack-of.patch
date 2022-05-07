@@ -1,0 +1,37 @@
+From 03723ad4f8ae0094f8dca16d138fe6c868a38bcd Mon Sep 17 00:00:00 2001
+From: Robby Cai <R63905@freescale.com>
+Date: Thu, 4 Mar 2010 17:40:27 +0800
+Subject: [PATCH] ENGR00121290 [mx23] udevd cannot work due to lack of unix domain socket config
+
+udevd can not work because the 'unix domain socket' config missed
+
+Signed-off-by: Robby Cai <R63905@freescale.com>
+---
+ arch/arm/configs/imx23evk_defconfig |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm/configs/imx23evk_defconfig b/arch/arm/configs/imx23evk_defconfig
+index c7ae3da..0b02a6f 100644
+--- a/arch/arm/configs/imx23evk_defconfig
++++ b/arch/arm/configs/imx23evk_defconfig
+@@ -1,7 +1,7 @@
+ #
+ # Automatically generated make config: don't edit
+ # Linux kernel version: 2.6.31
+-# Thu Mar  4 11:14:26 2010
++# Thu Mar  4 17:39:51 2010
+ #
+ CONFIG_ARM=y
+ CONFIG_SYS_SUPPORTS_APM_EMULATION=y
+@@ -326,7 +326,7 @@ CONFIG_NET=y
+ # Networking options
+ #
+ # CONFIG_PACKET is not set
+-# CONFIG_UNIX is not set
++CONFIG_UNIX=y
+ # CONFIG_NET_KEY is not set
+ # CONFIG_INET is not set
+ # CONFIG_NETWORK_SECMARK is not set
+-- 
+1.5.4.4
+

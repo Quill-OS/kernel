@@ -1,0 +1,62 @@
+From a95b05f8e36d966fb972082e2eaa8a0d2051a6e7 Mon Sep 17 00:00:00 2001
+From: Jason Liu <r64343@freescale.com>
+Date: Tue, 18 May 2010 13:05:44 +0800
+Subject: [PATCH] ENGR00123446 Can not get ip address after ifconfig eth0 down
+
+-Fix the fec_enet_mdio_write function with correct FEC_MMFR_OP_WRITE
+-Correct comments "start a read op" inside the fec_enet_mdio_write function
+-Need do fec_restart in fec open since we do fec_stop in fec close
+-Need do phy_stop in fec close to set the correct phy state machine
+
+Signed-off-by:Jason Liu <r64343@freescale.com>
+---
+ drivers/net/fec.c |   11 ++++++-----
+ 1 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/net/fec.c b/drivers/net/fec.c
+index 47a4326..46799e0 100644
+--- a/drivers/net/fec.c
++++ b/drivers/net/fec.c
+@@ -716,7 +716,6 @@ static int fec_enet_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
+ {
+ 	struct fec_enet_private *fep = bus->priv;
+ 
+-
+ 	/* clear MII end of transfer bit*/
+ 	writel(FEC_ENET_MII, fep->hwp + FEC_IEVENT);
+ 
+@@ -739,8 +738,8 @@ static int fec_enet_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
+ 	/* clear MII end of transfer bit*/
+ 	writel(FEC_ENET_MII, fep->hwp + FEC_IEVENT);
+ 
+-	/* start a read op */
+-	writel(FEC_MMFR_ST | FEC_MMFR_OP_READ |
++	/* start a write op */
++	writel(FEC_MMFR_ST | FEC_MMFR_OP_WRITE |
+ 		FEC_MMFR_PA(mii_id) | FEC_MMFR_RA(regnum) |
+ 		FEC_MMFR_TA | FEC_MMFR_DATA(value),
+ 		fep->hwp + FEC_MII_DATA);
+@@ -1019,6 +1018,7 @@ fec_enet_open(struct net_device *dev)
+ 	       return ret;
+ 	}
+ 	phy_start(fep->phy_dev);
++	fec_restart(dev, fep->phy_dev->duplex);
+ 	netif_start_queue(dev);
+ 	fep->opened = 1;
+ 	return 0;
+@@ -1034,9 +1034,10 @@ fec_enet_close(struct net_device *dev)
+ 	netif_stop_queue(dev);
+ 	fec_stop(dev);
+ 
+-	if (fep->phy_dev)
++	if (fep->phy_dev) {
++		phy_stop(fep->phy_dev);
+ 		phy_disconnect(fep->phy_dev);
+-
++	}
+         fec_enet_free_buffers(dev);
+ 	clk_disable(fep->clk);
+ 
+-- 
+1.5.4.4
+

@@ -1,0 +1,27 @@
+From 9d15f10eb2db4670ef97915e950c18cf227e0343 Mon Sep 17 00:00:00 2001
+From: Patrick Turley <patrick.turley@freescale.com>
+Date: Thu, 25 Mar 2010 09:58:44 -0500
+Subject: [PATCH] ENGR00122007  Kernel panic caused by i.MX28 GPMI NAND Flash driver
+
+Fixed the driver to properly initialize a variable.
+
+Signed-off-by: Patrick Turley <patrick.turley@freescale.com>
+---
+ drivers/mtd/nand/gpmi1/gpmi-bbt.c |    1 +
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+
+diff --git a/drivers/mtd/nand/gpmi1/gpmi-bbt.c b/drivers/mtd/nand/gpmi1/gpmi-bbt.c
+index eeab0b7..7888e5f 100644
+--- a/drivers/mtd/nand/gpmi1/gpmi-bbt.c
++++ b/drivers/mtd/nand/gpmi1/gpmi-bbt.c
+@@ -157,6 +157,7 @@ static void gpmi_write_fcbs(struct mtd_info *mtd)
+ 	ops.oobbuf = (u8 *)fcb + mtd->writesize;
+ 	ops.ooblen = mtd->oobsize;
+ 	ops.ooboffs = 0;
++	ops.mode = MTD_OOB_RAW;
+ 
+ 	/* Loop over FCB locations in the search area. */
+ 
+-- 
+1.5.4.4
+

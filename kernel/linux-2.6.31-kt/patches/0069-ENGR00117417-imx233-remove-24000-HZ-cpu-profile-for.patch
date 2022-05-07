@@ -1,0 +1,30 @@
+From 0372261d6435904952be70916b6005f35c677018 Mon Sep 17 00:00:00 2001
+From: Zhou Jingyu <b02241@freescale.com>
+Date: Fri, 23 Oct 2009 16:56:57 +0800
+Subject: [PATCH] ENGR00117417 imx233: remove 24000 HZ cpu profile for ddr
+
+remove 24000 HZ cpu profile for ddr
+
+Signed-off-by: Zhou Jingyu <Jingyu.Zhou@freescale.com>
+---
+ arch/arm/plat-stmp3xxx/cpufreq.c |    2 ++
+ 1 files changed, 2 insertions(+), 0 deletions(-)
+
+diff --git a/arch/arm/plat-stmp3xxx/cpufreq.c b/arch/arm/plat-stmp3xxx/cpufreq.c
+index 4c7486b..533d1ec 100644
+--- a/arch/arm/plat-stmp3xxx/cpufreq.c
++++ b/arch/arm/plat-stmp3xxx/cpufreq.c
+@@ -56,8 +56,10 @@ static struct profile {
+ 	int vdda;
+ 	int pll_off;
+ } profiles[] = {
++#ifdef CONFIG_STMP378X_RAM_MDDR
+ 	{  24000,  24000,  24000, 3, 1050000,
+ 	975000, 150000, 3075000, 1725000, 1 },
++#endif
+ 	{  64000,  64000,  48000, 3, 1050000,
+ 	925000, 150000, 3300000, 1750000, 0 },
+ 	{ 261820, 130910, 130910, 0, 1275000,
+-- 
+1.5.4.4
+

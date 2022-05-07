@@ -1,0 +1,62 @@
+From adb8edf654fc1885df95e5b49c4725566640eebc Mon Sep 17 00:00:00 2001
+From: Dinh Nguyen <r00091@freescale.com>
+Date: Mon, 8 Mar 2010 14:14:30 -0600
+Subject: [PATCH] ENGR00121385 MX51: Leave MC13892 VUSB Turned on for USB OTG to work
+
+    Short-term solution is to leave VUSB always on for USB OTG port
+    to work. Long-term solution would be for USB driver to enable the
+    necessary regulators. That will be addressed by a different CR.
+
+    Signed-off-by: Dinh Nguyen <Dinh.Nguyen@freescale.com>
+---
+ arch/arm/mach-mx5/mx51_3stack_pmic_mc13892.c  |    3 ++-
+ arch/arm/mach-mx5/mx51_babbage_pmic_mc13892.c |    5 +++--
+ 2 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/arch/arm/mach-mx5/mx51_3stack_pmic_mc13892.c b/arch/arm/mach-mx5/mx51_3stack_pmic_mc13892.c
+index 3dcaf37..7b4cd31 100644
+--- a/arch/arm/mach-mx5/mx51_3stack_pmic_mc13892.c
++++ b/arch/arm/mach-mx5/mx51_3stack_pmic_mc13892.c
+@@ -2,7 +2,7 @@
+  * mx51-3stack-pmic-mc13892.c  --  i.MX51 3STACK Driver for Atlas MC13892 PMIC
+  */
+  /*
+-  * Copyright 2009 Freescale Semiconductor, Inc. All Rights Reserved.
++  * Copyright (C) 2009-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+   */
+ 
+  /*
+@@ -137,6 +137,7 @@ static struct regulator_init_data vusb_init = {
+ 	.constraints = {
+ 		.name = "VUSB",
+ 		.boot_on = 1,
++		.always_on = 1,
+ 	}
+ };
+ 
+diff --git a/arch/arm/mach-mx5/mx51_babbage_pmic_mc13892.c b/arch/arm/mach-mx5/mx51_babbage_pmic_mc13892.c
+index df57517..5f703fb 100644
+--- a/arch/arm/mach-mx5/mx51_babbage_pmic_mc13892.c
++++ b/arch/arm/mach-mx5/mx51_babbage_pmic_mc13892.c
+@@ -1,8 +1,8 @@
+ /*
+- * mx51-3stack-pmic-mc13892.c  --  i.MX51 3STACK Driver for Atlas MC13892 PMIC
++ * mx51-babbage-pmic-mc13892.c  --  i.MX51 Babbage Driver for Atlas MC13892 PMIC
+  */
+  /*
+-  * Copyright 2009-2010 Freescale Semiconductor, Inc. All Rights Reserved.
++  * Copyright (C) 2009-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+   */
+ 
+  /*
+@@ -182,6 +182,7 @@ static struct regulator_init_data vusb_init = {
+ 	.constraints = {
+ 		.name = "VUSB",
+ 		.boot_on = 1,
++		.always_on = 1,
+ 	}
+ };
+ 
+-- 
+1.5.4.4
+

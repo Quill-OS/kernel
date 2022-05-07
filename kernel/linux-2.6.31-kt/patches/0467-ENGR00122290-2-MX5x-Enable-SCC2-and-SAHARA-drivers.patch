@@ -1,0 +1,186 @@
+From e9782b2d2077a1bbc7cff68a375dca79e105b36f Mon Sep 17 00:00:00 2001
+From: Anish Trivedi <anish@freescale.com>
+Date: Wed, 7 Apr 2010 17:00:01 -0500
+Subject: [PATCH] ENGR00122290-2 MX5x Enable SCC2 and SAHARA drivers
+
+SCC2 driver changes to set base address of registers and
+scc ram based on resources
+
+Signed-off-by: Anish Trivedi <anish@freescale.com>
+---
+ drivers/mxc/security/scc2_driver.c    |   88 ++++++++++++++++++++++++++++++++-
+ drivers/mxc/security/scc2_internals.h |   16 ++-----
+ 2 files changed, 90 insertions(+), 14 deletions(-)
+
+diff --git a/drivers/mxc/security/scc2_driver.c b/drivers/mxc/security/scc2_driver.c
+index 03f1986..3249405 100644
+--- a/drivers/mxc/security/scc2_driver.c
++++ b/drivers/mxc/security/scc2_driver.c
+@@ -106,13 +106,14 @@ typedef char *(*reg_print_routine_t) (uint32_t value, char *print_buffer,
+  * 32 bits wide.
+  */
+ static volatile void *scc_base;
++uint32_t scc_phys_base;
+ 
+ /** Array to hold function pointers registered by
+     #scc_monitor_security_failure() and processed by
+     #scc_perform_callbacks() */
+ static void (*scc_callbacks[SCC_CALLBACK_SIZE]) (void);
+ /*SCC need IRAM's base address but use only the partitions allocated for it.*/
+-uint32_t scm_ram_phys_base = IRAM_BASE_ADDR;
++uint32_t scm_ram_phys_base;
+ 
+ void *scm_ram_base = NULL;
+ 
+@@ -543,7 +544,7 @@ static int scc_init(void)
+ 		}
+ 		/* Map the SCC (SCM and SMN) memory on the internal bus into
+ 		   kernel address space */
+-		scc_base = (void *)ioremap(SCC_BASE, SZ_4K);
++		scc_base = (void *)ioremap(scc_phys_base, SZ_4K);
+ 		if (scc_base == NULL) {
+ 			os_printk(KERN_ERR
+ 				  "SCC2: Register mapping failed.  Exiting.\n");
+@@ -2304,3 +2305,86 @@ void dbg_scc_write_register(uint32_t offset, uint32_t value)
+ }
+ 
+ #endif				/* SCC_REGISTER_DEBUG */
++
++static int scc_dev_probe(struct platform_device *pdev)
++{
++	struct resource *r;
++	int ret = 0;
++
++	/* get the scc registers base address */
++	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
++	if (!r) {
++		dev_err(&pdev->dev, "can't get IORESOURCE_MEM (0)\n");
++		ret = -ENXIO;
++		goto exit;
++	}
++
++	scc_phys_base = r->start;
++
++
++	/* get the scc ram base address */
++	r = platform_get_resource(pdev, IORESOURCE_MEM, 1);
++	if (!r) {
++		dev_err(&pdev->dev, "can't get IORESOURCE_MEM (1)\n");
++		ret = -ENXIO;
++		goto exit;
++	}
++
++	scm_ram_phys_base = r->start;
++
++	/* now initialize the SCC */
++	ret = scc_init();
++
++exit:
++	return ret;
++}
++
++static int scc_dev_remove(struct platform_device *pdev)
++{
++	scc_cleanup();
++	return 0;
++}
++
++
++#ifdef CONFIG_PM
++static int scc_suspend(struct platform_device *pdev,
++		pm_message_t state)
++{
++	return 0;
++}
++
++static int scc_resume(struct platform_device *pdev)
++{
++	return 0;
++}
++#else
++#define scc_suspend	NULL
++#define	scc_resume	NULL
++#endif
++
++/*! Linux Driver definition
++ *
++ */
++static struct platform_driver mxcscc_driver = {
++	.driver = {
++		   .name = SCC_DRIVER_NAME,
++		   },
++	.probe = scc_dev_probe,
++	.remove = scc_dev_remove,
++	.suspend = scc_suspend,
++	.resume = scc_resume,
++};
++
++static int __init scc_driver_init(void)
++{
++	return platform_driver_register(&mxcscc_driver);
++}
++
++module_init(scc_driver_init);
++
++static void __exit scc_driver_exit(void)
++{
++	platform_driver_unregister(&mxcscc_driver);
++}
++
++module_exit(scc_driver_exit);
+diff --git a/drivers/mxc/security/scc2_internals.h b/drivers/mxc/security/scc2_internals.h
+index 475c8de..1c047de 100644
+--- a/drivers/mxc/security/scc2_internals.h
++++ b/drivers/mxc/security/scc2_internals.h
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2004-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2004-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -298,12 +298,6 @@
+ #endif
+ 
+ /**
+- * Calculate the physical address of a partition from the partition number.
+- */
+-#define SCM_PART_PHYS_ADDRESS(part)                                     \
+- ((uint32_t)scm_ram_phys_base + (part*scc_configuration.partition_size_bytes))
+-
+-/**
+  * Calculate the kernel virtual address of a partition from the partition number.
+  */
+ #define SCM_PART_ADDRESS(part)                                          \
+@@ -374,7 +368,7 @@
+ 
+ 
+ /** Name of the driver.  Used (on Linux, anyway) when registering interrupts */
+-#define SCC_DRIVER_NAME "scc"
++#define SCC_DRIVER_NAME "mxc_scc"
+ 
+ 
+ /* Port -- these symbols are defined in Linux 2.6 and later.  They are defined
+@@ -432,6 +426,8 @@ struct scc_key_slot
+ /* Forward-declare a number routines which are not part of user api */
+ static int scc_init(void);
+ static void scc_cleanup(void);
++static int __init scc_driver_init(void);
++static void __exit scc_driver_exit(void);
+ 
+ /* Forward defines of internal functions */
+ OS_DEV_ISR(scc_irq);
+@@ -512,10 +508,6 @@ EXPORT_SYMBOL(scc_diminish_permissions);
+ EXPORT_SYMBOL(scc_encrypt_region);
+ EXPORT_SYMBOL(scc_decrypt_region);
+ /*EXPORT_SYMBOL(make_vpu_partition);*/
+-/* Tell Linux where to invoke driver at boot/module load time */
+-module_init(scc_init);
+-/* Tell Linux where to invoke driver on module unload  */
+-module_exit(scc_cleanup);
+ 
+ 
+ /* Tell Linux this is not GPL code */
+-- 
+1.5.4.4
+

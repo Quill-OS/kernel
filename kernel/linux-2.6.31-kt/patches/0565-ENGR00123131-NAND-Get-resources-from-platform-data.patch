@@ -1,0 +1,361 @@
+From ff310cd76c053666bc7a533a4ac201ed2265668c Mon Sep 17 00:00:00 2001
+From: Jason Liu <r64343@freescale.com>
+Date: Thu, 6 May 2010 10:43:35 +0800
+Subject: [PATCH] ENGR00123131 NAND:Get resources from platform data
+
+Get resources from platform data
+
+Signed-off-by:Jason Liu <r64343@freescale.com>
+---
+ arch/arm/mach-mx25/mx25_3stack.c |   17 +++++++++++
+ arch/arm/mach-mx3/mx3_3stack.c   |   16 ++++++++++
+ arch/arm/mach-mx35/mx35_3stack.c |   16 ++++++++++
+ arch/arm/mach-mx37/mx37_3stack.c |   23 ++++++++++++++
+ arch/arm/mach-mx5/devices.c      |   22 ++++++++++++++
+ arch/arm/mach-mx5/devices.h      |    1 +
+ drivers/mtd/nand/mxc_nd2.c       |   60 ++++++++++++++++++++++++++++++++------
+ drivers/mtd/nand/mxc_nd2.h       |   17 ++++------
+ 8 files changed, 153 insertions(+), 19 deletions(-)
+
+diff --git a/arch/arm/mach-mx25/mx25_3stack.c b/arch/arm/mach-mx25/mx25_3stack.c
+index 6ccf1fa..cc651bf 100644
+--- a/arch/arm/mach-mx25/mx25_3stack.c
++++ b/arch/arm/mach-mx25/mx25_3stack.c
+@@ -166,6 +166,21 @@ static struct mtd_partition mxc_nand_partitions[] = {
+ 	 .size = MTDPART_SIZ_FULL},
+ };
+ 
++static struct resource mxc_nand_resources[] = {
++	{
++		.flags = IORESOURCE_MEM,
++		.name  = "NFC_AXI_BASE",
++		.start = NFC_BASE_ADDR,
++		.end   = NFC_BASE_ADDR + SZ_8K - 1,
++	},
++	{
++		.flags = IORESOURCE_IRQ,
++		.start = MXC_INT_NANDFC,
++		.end   = MXC_INT_NANDFC,
++	},
++};
++
++
+ static struct flash_platform_data mxc_nand_data = {
+ 	.parts = mxc_nand_partitions,
+ 	.nr_parts = ARRAY_SIZE(mxc_nand_partitions),
+@@ -179,6 +194,8 @@ static struct platform_device mxc_nand_mtd_device = {
+ 		.release = mxc_nop_release,
+ 		.platform_data = &mxc_nand_data,
+ 		},
++	.resource = mxc_nand_resources,
++	.num_resources = ARRAY_SIZE(mxc_nand_resources),
+ };
+ 
+ static void mxc_init_nand_mtd(void)
+diff --git a/arch/arm/mach-mx3/mx3_3stack.c b/arch/arm/mach-mx3/mx3_3stack.c
+index 4164f62..347f470 100644
+--- a/arch/arm/mach-mx3/mx3_3stack.c
++++ b/arch/arm/mach-mx3/mx3_3stack.c
+@@ -172,6 +172,20 @@ static struct platform_device mxc_nand_mtd_device = {
+ 		},
+ };
+ 
++static struct resource mxc_nand_resources[] = {
++	{
++		.flags = IORESOURCE_MEM,
++		.name  = "NFC_AXI_BASE",
++		.start = NFC_BASE_ADDR,
++		.end   = NFC_BASE_ADDR + SZ_4K - 1,
++	},
++	{
++		.flags = IORESOURCE_IRQ,
++		.start = MXC_INT_NANDFC,
++		.end   = MXC_INT_NANDFC,
++	},
++};
++
+ static struct platform_device mxc_nandv2_mtd_device = {
+ 	.name = "mxc_nandv2_flash",
+ 	.id = 0,
+@@ -179,6 +193,8 @@ static struct platform_device mxc_nandv2_mtd_device = {
+ 		.release = mxc_nop_release,
+ 		.platform_data = &mxc_nand_data,
+ 		},
++	.resource = mxc_nand_resources,
++	.num_resources = ARRAY_SIZE(mxc_nand_resources),
+ };
+ 
+ static void mxc_init_nand_mtd(void)
+diff --git a/arch/arm/mach-mx35/mx35_3stack.c b/arch/arm/mach-mx35/mx35_3stack.c
+index c6752fe..658bfb7 100644
+--- a/arch/arm/mach-mx35/mx35_3stack.c
++++ b/arch/arm/mach-mx35/mx35_3stack.c
+@@ -171,6 +171,20 @@ static struct mtd_partition mxc_nand_partitions[] = {
+ 	 .size = MTDPART_SIZ_FULL},
+ };
+ 
++static struct resource mxc_nand_resources[] = {
++	{
++		.flags = IORESOURCE_MEM,
++		.name  = "NFC_AXI_BASE",
++		.start = NFC_BASE_ADDR,
++		.end   = NFC_BASE_ADDR + SZ_8K - 1,
++	},
++	{
++		.flags = IORESOURCE_IRQ,
++		.start = MXC_INT_NANDFC,
++		.end   = MXC_INT_NANDFC,
++	},
++};
++
+ static struct flash_platform_data mxc_nand_data = {
+ 	.parts = mxc_nand_partitions,
+ 	.nr_parts = ARRAY_SIZE(mxc_nand_partitions),
+@@ -184,6 +198,8 @@ static struct platform_device mxc_nand_mtd_device = {
+ 		.release = mxc_nop_release,
+ 		.platform_data = &mxc_nand_data,
+ 		},
++	.resource = mxc_nand_resources,
++	.num_resources = ARRAY_SIZE(mxc_nand_resources),
+ };
+ 
+ static void mxc_init_nand_mtd(void)
+diff --git a/arch/arm/mach-mx37/mx37_3stack.c b/arch/arm/mach-mx37/mx37_3stack.c
+index 2a52000..cfdb0f2 100644
+--- a/arch/arm/mach-mx37/mx37_3stack.c
++++ b/arch/arm/mach-mx37/mx37_3stack.c
+@@ -206,6 +206,26 @@ static struct mtd_partition mxc_nand_partitions[] = {
+ 	 .size = MTDPART_SIZ_FULL},
+ };
+ 
++static struct resource mxc_nand_resources[] = {
++	{
++		.flags = IORESOURCE_MEM,
++		.name  = "NFC_AXI_BASE",
++		.start = NFC_BASE_ADDR_AXI,
++		.end   = NFC_BASE_ADDR_AXI + SZ_8K - 1,
++	},
++	{
++		.flags = IORESOURCE_MEM,
++		.name  = "NFC_IP_BASE",
++		.start = NFC_BASE_ADDR + 0x00,
++		.end   = NFC_BASE_ADDR + 0x34 - 1,
++	},
++	{
++		.flags = IORESOURCE_IRQ,
++		.start = MXC_INT_EMI,
++		.end   = MXC_INT_EMI,
++	},
++};
++
+ static struct flash_platform_data mxc_nand_data = {
+ 	.parts = mxc_nand_partitions,
+ 	.nr_parts = ARRAY_SIZE(mxc_nand_partitions),
+@@ -219,6 +239,9 @@ static struct platform_device mxc_nandv2_mtd_device = {
+ 		.release = mxc_nop_release,
+ 		.platform_data = &mxc_nand_data,
+ 		},
++	.resource = mxc_nand_resources,
++	.num_resources = ARRAY_SIZE(mxc_nand_resources),
++
+ };
+ 
+ static void mxc_init_nand_mtd(void)
+diff --git a/arch/arm/mach-mx5/devices.c b/arch/arm/mach-mx5/devices.c
+index 2c8d566..32f0f0e 100644
+--- a/arch/arm/mach-mx5/devices.c
++++ b/arch/arm/mach-mx5/devices.c
+@@ -112,9 +112,31 @@ struct platform_device mxc_rtc_device = {
+ 	.resource = rtc_resources,
+ };
+ 
++static struct resource mxc_nand_resources[] = {
++	{
++		.flags = IORESOURCE_MEM,
++		.name  = "NFC_AXI_BASE",
++		.start = MX51_NFC_BASE_ADDR_AXI,
++		.end   = MX51_NFC_BASE_ADDR_AXI + SZ_8K - 1,
++	},
++	{
++		.flags = IORESOURCE_MEM,
++		.name  = "NFC_IP_BASE",
++		.start = NFC_BASE_ADDR + 0x00,
++		.end   = NFC_BASE_ADDR + 0x34 - 1,
++	},
++	{
++		.flags = IORESOURCE_IRQ,
++		.start = MXC_INT_NFC,
++		.end   = MXC_INT_NFC,
++	},
++};
++
+ struct platform_device mxc_nandv2_mtd_device = {
+ 	.name = "mxc_nandv2_flash",
+ 	.id = 0,
++	.resource = mxc_nand_resources,
++	.num_resources = ARRAY_SIZE(mxc_nand_resources),
+ };
+ 
+ static struct resource imx_nfc_resources[] = {
+diff --git a/arch/arm/mach-mx5/devices.h b/arch/arm/mach-mx5/devices.h
+index eeb06e4..cd5b846 100644
+--- a/arch/arm/mach-mx5/devices.h
++++ b/arch/arm/mach-mx5/devices.h
+@@ -62,3 +62,4 @@ extern struct platform_device mxc_usbdr_host_device;
+ extern struct platform_device mxc_usbh1_device;
+ extern struct platform_device mxc_usbh2_device;
+ extern struct platform_device mxc_mlb_device;
++extern struct platform_device mxc_nandv2_mtd_device;
+diff --git a/drivers/mtd/nand/mxc_nd2.c b/drivers/mtd/nand/mxc_nd2.c
+index 3fb5cf3..f803fa5 100644
+--- a/drivers/mtd/nand/mxc_nd2.c
++++ b/drivers/mtd/nand/mxc_nd2.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2004-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2004-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -1107,6 +1107,52 @@ static int mxc_nand_scan_bbt(struct mtd_info *mtd)
+ 	return nand_scan_bbt(mtd, this->badblock_pattern);
+ }
+ 
++static int mxc_get_resources(struct platform_device *pdev)
++{
++	struct resource *r;
++	int error = 0;
++
++#define	MXC_NFC_NO_IP_REG \
++	(cpu_is_mx25() || cpu_is_mx31() || cpu_is_mx32() || cpu_is_mx35())
++
++	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
++	if (!r) {
++		error = -ENXIO;
++		goto out_0;
++	}
++	nfc_axi_base = ioremap(r->start, resource_size(r));
++
++	if (!MXC_NFC_NO_IP_REG) {
++		r = platform_get_resource(pdev, IORESOURCE_MEM, 1);
++		if (!r) {
++			error = -ENXIO;
++			goto out_1;
++		}
++	}
++	nfc_ip_base = ioremap(r->start, resource_size(r));
++
++	r = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
++	if (!r) {
++		error = -ENXIO;
++		goto out_2;
++	}
++
++	init_waitqueue_head(&irq_waitq);
++	error = request_irq(r->start, mxc_nfc_irq, 0, "mxc_nd", NULL);
++	if (error)
++		goto out_3;
++
++	return 0;
++out_3:
++out_2:
++	if (!MXC_NFC_NO_IP_REG)
++		iounmap(nfc_ip_base);
++out_1:
++	iounmap(nfc_axi_base);
++out_0:
++	return error;
++}
++
+ static void mxc_nfc_init(void)
+ {
+ 	/* Disable interrupt */
+@@ -1230,8 +1276,10 @@ static int __init mxcnd_probe(struct platform_device *pdev)
+ 	struct flash_platform_data *flash = pdev->dev.platform_data;
+ 	int nr_parts = 0, err = 0;
+ 
+-	nfc_axi_base = IO_ADDRESS(NFC_AXI_BASE_ADDR);
+-	nfc_ip_base = IO_ADDRESS(NFC_BASE_ADDR);
++	/* get the resource */
++	err = mxc_get_resources(pdev);
++	if (err)
++		goto out;
+ 
+ 	/* init the nfc */
+ 	mxc_nfc_init();
+@@ -1280,12 +1328,6 @@ static int __init mxcnd_probe(struct platform_device *pdev)
+ 	nfc_clk = clk_get(&pdev->dev, "nfc_clk");
+ 	clk_enable(nfc_clk);
+ 
+-	init_waitqueue_head(&irq_waitq);
+-	err = request_irq(MXC_INT_NANDFC, mxc_nfc_irq, 0, "mxc_nd", NULL);
+-	if (err) {
+-		goto out_1;
+-	}
+-
+ 	if (hardware_ecc) {
+ 		this->ecc.read_page = mxc_nand_read_page;
+ 		this->ecc.write_page = mxc_nand_write_page;
+diff --git a/drivers/mtd/nand/mxc_nd2.h b/drivers/mtd/nand/mxc_nd2.h
+index 7ada4fe..890c117 100644
+--- a/drivers/mtd/nand/mxc_nd2.h
++++ b/drivers/mtd/nand/mxc_nd2.h
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2004-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2004-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -40,8 +40,6 @@
+ /*
+  * For V3 NFC registers Definition
+  */
+-/* AXI Bus Mapped */
+-#define NFC_AXI_BASE_ADDR		NFC_BASE_ADDR_AXI
+ 
+ #if defined(CONFIG_ARCH_MXC_HAS_NFC_V3_1)	/* mx37 */
+ #define MXC_INT_NANDFC			MXC_INT_EMI
+@@ -472,14 +470,13 @@ do {	\
+  * For V1/V2 NFC registers Definition
+  */
+ 
+-#define NFC_AXI_BASE_ADDR      		0x00
+ /*
+  * Addresses for NFC registers
+  */
+ #ifdef CONFIG_ARCH_MXC_HAS_NFC_V2_1
+-#define NFC_REG_BASE			(nfc_ip_base + 0x1000)
++#define NFC_REG_BASE			(nfc_axi_base + 0x1000)
+ #else
+-#define NFC_REG_BASE			nfc_ip_base
++#define NFC_REG_BASE			nfc_axi_base
+ #endif
+ #define NFC_BUF_SIZE            	(NFC_REG_BASE + 0xE00)
+ #define NFC_BUF_ADDR            	(NFC_REG_BASE + 0xE04)
+@@ -517,18 +514,18 @@ do {	\
+ /*!
+  * Addresses for NFC RAM BUFFER Main area 0
+  */
+-#define MAIN_AREA0      		(u16 *)(nfc_ip_base + 0x000)
+-#define MAIN_AREA1      		(u16 *)(nfc_ip_base + 0x200)
++#define MAIN_AREA0      		(u16 *)(nfc_axi_base + 0x000)
++#define MAIN_AREA1      		(u16 *)(nfc_axi_base + 0x200)
+ 
+ /*!
+  * Addresses for NFC SPARE BUFFER Spare area 0
+  */
+ #ifdef CONFIG_ARCH_MXC_HAS_NFC_V2_1
+-#define SPARE_AREA0     		(u16 *)(nfc_ip_base + 0x1000)
++#define SPARE_AREA0     		(u16 *)(nfc_axi_base + 0x1000)
+ #define SPARE_LEN			64
+ #define SPARE_COUNT			8
+ #else
+-#define SPARE_AREA0     		(u16 *)(nfc_ip_base + 0x800)
++#define SPARE_AREA0     		(u16 *)(nfc_axi_base + 0x800)
+ #define SPARE_LEN       		16
+ #define SPARE_COUNT     		4
+ #endif
+-- 
+1.5.4.4
+

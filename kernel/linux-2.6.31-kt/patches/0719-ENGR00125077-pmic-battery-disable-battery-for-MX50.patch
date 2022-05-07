@@ -1,0 +1,35 @@
+From e2603aea2d08407ca5834710045d66e56a5156df Mon Sep 17 00:00:00 2001
+From: Zhou Jingyu <b02241@freescale.com>
+Date: Tue, 13 Jul 2010 11:28:20 +0800
+Subject: [PATCH] ENGR00125077: pmic battery: disable battery for MX50 Arm2 board
+
+pmic battery: disable battery for MX50 Arm2 board
+
+Signed-off-by: Zhou Jingyu <Jingyu.Zhou@freescale.com>
+---
+ drivers/mxc/pmic/mc13892/pmic_battery.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/mxc/pmic/mc13892/pmic_battery.c b/drivers/mxc/pmic/mc13892/pmic_battery.c
+index 8535eb0..5849ab1 100644
+--- a/drivers/mxc/pmic/mc13892/pmic_battery.c
++++ b/drivers/mxc/pmic/mc13892/pmic_battery.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2009-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -536,7 +536,7 @@ static int pmic_battery_probe(struct platform_device *pdev)
+ 		pr_debug("Battery driver is only applied for MC13892 V2.0\n");
+ 		return -1;
+ 	}
+-	if (machine_is_mx51_babbage()) {
++	if (machine_is_mx51_babbage() || machine_is_mx50_arm2()) {
+ 		pr_debug("mc13892 charger is not used for this platform\n");
+ 		return -1;
+ 	}
+-- 
+1.5.4.4
+

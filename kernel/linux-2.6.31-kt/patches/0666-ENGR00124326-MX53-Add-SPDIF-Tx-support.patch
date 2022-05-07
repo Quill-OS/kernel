@@ -1,0 +1,107 @@
+From 8c2b87df003170f0064baaa99af7ddc5ef361538 Mon Sep 17 00:00:00 2001
+From: Lily Zhang <r58066@freescale.com>
+Date: Fri, 11 Jun 2010 09:47:28 +0800
+Subject: [PATCH] ENGR00124326 MX53: Add SPDIF Tx support
+
+Add SPDIF Tx support for MX53 EVK board.
+1. Support 44.1KHZ sample rate.
+2. 48K and 32K sample rates require 24.576MHZ OSC connected to
+CKIH2. But it's "DNP" in EVK.
+
+Test conditions:
+1. Connect MX51 Accessory Card with J94 port in EVK.
+2. SPDIF_OUT pin conflicts with 12V pin used by CAN feature.
+Add "spdif" command option in the command line to enable SPDIF
+
+Signed-off-by: Lily Zhang <r58066@freescale.com>
+---
+ arch/arm/mach-mx5/mx53_evk.c      |   14 ++++++++++++--
+ arch/arm/mach-mx5/mx53_evk_gpio.c |   25 +++++++++++++++++++++----
+ 2 files changed, 33 insertions(+), 6 deletions(-)
+
+diff --git a/arch/arm/mach-mx5/mx53_evk.c b/arch/arm/mach-mx5/mx53_evk.c
+index 2165273..1e87687 100644
+--- a/arch/arm/mach-mx5/mx53_evk.c
++++ b/arch/arm/mach-mx5/mx53_evk.c
+@@ -617,6 +617,15 @@ static struct flash_platform_data mxc_nand_data = {
+ 	.init = nand_init,
+ };
+ 
++static struct mxc_spdif_platform_data mxc_spdif_data = {
++	.spdif_tx = 1,
++	.spdif_rx = 0,
++	.spdif_clk_44100 = 0,	/* Souce from CKIH1 for 44.1K */
++	.spdif_clk_48000 = 7,	/* Source from CKIH2 for 48k and 32k */
++	.spdif_clkid = 0,
++	.spdif_clk = NULL,	/* spdif bus clk */
++};
++
+ /*!
+  * Board specific fixup function. It is called by \b setup_arch() in
+  * setup.c file very early on during kernel starts. It allows the user to
+@@ -709,6 +718,8 @@ static void __init mxc_board_init(void)
+ {
+ 	mxc_ipu_data.di_clk[0] = clk_get(NULL, "ipu_di0_clk");
+ 	mxc_ipu_data.di_clk[1] = clk_get(NULL, "ipu_di1_clk");
++	mxc_spdif_data.spdif_core_clk = clk_get(NULL, "spdif_xtal_clk");
++	clk_put(mxc_spdif_data.spdif_core_clk);
+ 
+ 	/* SD card detect irqs */
+ 	if (board_is_mx53_arm2()) {
+@@ -769,9 +780,8 @@ static void __init mxc_board_init(void)
+ 	mxc_register_device(&mxcsdhc3_device, &mmc3_data);
+ 	mxc_register_device(&mxc_ssi1_device, NULL);
+ 	mxc_register_device(&mxc_ssi2_device, NULL);
+-	/*
+ 	mxc_register_device(&mxc_alsa_spdif_device, &mxc_spdif_data);
+-	*/
++
+ 	mxc_register_device(&mxc_fec_device, &fec_data);
+ 	spi_register_board_info(mxc_dataflash_device,
+ 				ARRAY_SIZE(mxc_dataflash_device));
+diff --git a/arch/arm/mach-mx5/mx53_evk_gpio.c b/arch/arm/mach-mx5/mx53_evk_gpio.c
+index 15e8a60..9ed0dba 100644
+--- a/arch/arm/mach-mx5/mx53_evk_gpio.c
++++ b/arch/arm/mach-mx5/mx53_evk_gpio.c
+@@ -794,6 +794,15 @@ static struct mxc_iomux_pin_cfg __initdata nand_iomux_pins[] = {
+ 	},
+ };
+ 
++static int __initdata enable_spdif = { 0 };
++static int __init spdif_setup(char *__unused)
++{
++	enable_spdif = 1;
++	return 1;
++}
++
++__setup("spdif", spdif_setup);
++
+ void __init mx53_evk_io_init(void)
+ {
+ 	int i;
+@@ -957,10 +966,18 @@ void __init mx53_evk_io_init(void)
+ 	gpio_direction_output(IOMUX_TO_GPIO(MX53_PIN_GPIO_14), 0);
+ 	gpio_set_value(IOMUX_TO_GPIO(MX53_PIN_GPIO_14), 0);
+ 
+-	/* GPIO for 12V */
+-	gpio_direction_output(IOMUX_TO_GPIO(MX53_PIN_GPIO_19), 0);
+-	gpio_set_value(IOMUX_TO_GPIO(MX53_PIN_GPIO_19), 0);
+-
++	if (enable_spdif) {
++		mxc_free_iomux(MX53_PIN_GPIO_19, IOMUX_CONFIG_ALT1);
++		mxc_request_iomux(MX53_PIN_GPIO_19, IOMUX_CONFIG_ALT3);
++		mxc_iomux_set_pad(MX53_PIN_GPIO_19,
++			PAD_CTL_DRV_HIGH | PAD_CTL_HYS_ENABLE |
++			PAD_CTL_PUE_PULL | PAD_CTL_100K_PU |
++			PAD_CTL_PKE_ENABLE);
++	} else {
++		/* GPIO for CAN 12V */
++		gpio_direction_output(IOMUX_TO_GPIO(MX53_PIN_GPIO_19), 0);
++		gpio_set_value(IOMUX_TO_GPIO(MX53_PIN_GPIO_19), 0);
++	}
+ }
+ 
+ /* workaround for ecspi chipselect pin may not keep correct level when idle */
+-- 
+1.5.4.4
+

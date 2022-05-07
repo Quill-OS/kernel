@@ -1,0 +1,57 @@
+From 42671b2c77b43783fc15deb2fbd28b33999c3a03 Mon Sep 17 00:00:00 2001
+From: Xinyu Chen <xinyu.chen@freescale.com>
+Date: Thu, 8 Apr 2010 09:49:22 +0800
+Subject: [PATCH] ENGR00121291 System can not suspend after RTC alarm wakeup
+
+The set irq type routing of GPIO irqchip did not set the correct handler
+when user want to set it's trigger mode to level.
+The PMIC irq request as level trigger, but actually, handle_edge_irq is set.
+PMIC irq handler disables the irq, and re-enable it after all event
+callbacks complete in thread.
+Therefore edge irq handle can not handle this pending irq case correctly,
+left the IRQ_PENDING flag always on.
+This made the kernel refuse to enter suspend mode.
+
+Signed-off-by: Xinyu Chen <xinyu.chen@freescale.com>
+---
+ arch/arm/plat-mxc/gpio.c |   10 ++++++++--
+ 1 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm/plat-mxc/gpio.c b/arch/arm/plat-mxc/gpio.c
+index a4ff5d7..0ad808e 100644
+--- a/arch/arm/plat-mxc/gpio.c
++++ b/arch/arm/plat-mxc/gpio.c
+@@ -3,7 +3,7 @@
+  * Copyright 2008 Juergen Beisert, kernel@pengutronix.de
+  *
+  * Based on code from Freescale,
+- * Copyright 2004-2006 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2004-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  *
+  * This program is free software; you can redistribute it and/or
+  * modify it under the terms of the GNU General Public License
+@@ -123,6 +123,12 @@ static int gpio_set_irq_type(u32 irq, u32 type)
+ 		return -EINVAL;
+ 	}
+ 
++	/* set the correct irq handler */
++	if (type & IRQ_TYPE_EDGE_BOTH)
++		set_irq_handler(irq, handle_edge_irq);
++	else if (type & (IRQ_TYPE_LEVEL_LOW | IRQ_TYPE_LEVEL_HIGH))
++		set_irq_handler(irq, handle_level_irq);
++
+ 	reg += GPIO_ICR1 + ((gpio & 0x10) >> 2); /* lower or upper register */
+ 	bit = gpio & 0xf;
+ 	val = __raw_readl(reg) & ~(0x3 << (bit << 1));
+@@ -418,7 +424,7 @@ int __init mxc_gpio_init(struct mxc_gpio_port *port, int cnt)
+ 		for (j = port[i].virtual_irq_start;
+ 			j < port[i].virtual_irq_start + 32; j++) {
+ 			set_irq_chip(j, &gpio_irq_chip);
+-			set_irq_handler(j, handle_edge_irq);
++			set_irq_handler(j, handle_level_irq);
+ 			set_irq_flags(j, IRQF_VALID);
+ 		}
+ 
+-- 
+1.5.4.4
+

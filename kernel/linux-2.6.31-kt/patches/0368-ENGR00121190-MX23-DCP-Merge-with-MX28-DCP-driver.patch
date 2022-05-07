@@ -1,0 +1,249 @@
+From b8805233ff9f4e645e40213aee06d58d84bf463e Mon Sep 17 00:00:00 2001
+From: Anish Trivedi <anish@freescale.com>
+Date: Mon, 8 Mar 2010 11:43:47 -0600
+Subject: [PATCH] ENGR00121190 MX23 DCP Merge with MX28 DCP driver
+
+Merge DCP driver
+
+Signed-off-by: Anish Trivedi <anish@freescale.com>
+---
+ arch/arm/configs/imx23evk_defconfig |    7 ++--
+ arch/arm/mach-mx23/device.c         |   39 ++++++++++++++++++++
+ drivers/crypto/Kconfig              |   16 +-------
+ drivers/crypto/Makefile             |    3 +-
+ drivers/crypto/dcp.c                |    4 +-
+ drivers/crypto/stmp3xxx_dcp.h       |   68 -----------------------------------
+ 6 files changed, 48 insertions(+), 89 deletions(-)
+
+diff --git a/arch/arm/configs/imx23evk_defconfig b/arch/arm/configs/imx23evk_defconfig
+index 3ff3fd3..c1676d7 100644
+--- a/arch/arm/configs/imx23evk_defconfig
++++ b/arch/arm/configs/imx23evk_defconfig
+@@ -939,7 +939,7 @@ CONFIG_CRYPTO_HMAC=y
+ #
+ # Digest
+ #
+-# CONFIG_CRYPTO_CRC32C is not set
++CONFIG_CRYPTO_CRC32C=m
+ # CONFIG_CRYPTO_MD4 is not set
+ CONFIG_CRYPTO_MD5=y
+ # CONFIG_CRYPTO_MICHAEL_MIC is not set
+@@ -948,7 +948,7 @@ CONFIG_CRYPTO_MD5=y
+ # CONFIG_CRYPTO_RMD256 is not set
+ # CONFIG_CRYPTO_RMD320 is not set
+ CONFIG_CRYPTO_SHA1=m
+-# CONFIG_CRYPTO_SHA256 is not set
++CONFIG_CRYPTO_SHA256=m
+ # CONFIG_CRYPTO_SHA512 is not set
+ # CONFIG_CRYPTO_TGR192 is not set
+ # CONFIG_CRYPTO_WP512 is not set
+@@ -984,7 +984,8 @@ CONFIG_CRYPTO_LZO=y
+ #
+ # CONFIG_CRYPTO_ANSI_CPRNG is not set
+ CONFIG_CRYPTO_HW=y
+-# CONFIG_BINARY_PRINTF is not set
++CONFIG_CRYPTO_DEV_DCP=y
++CONFIG_BINARY_PRINTF=y
+ 
+ #
+ # Library routines
+diff --git a/arch/arm/mach-mx23/device.c b/arch/arm/mach-mx23/device.c
+index 8a94aa7..9af9601 100644
+--- a/arch/arm/mach-mx23/device.c
++++ b/arch/arm/mach-mx23/device.c
+@@ -358,6 +358,44 @@ static void __init mx23_init_ts(void)
+ 	;
+ }
+ #endif
++
++#if defined(CONFIG_CRYPTO_DEV_DCP)
++
++static struct resource dcp_resources[] = {
++
++	{
++		.flags = IORESOURCE_MEM,
++		.start = DCP_PHYS_ADDR,
++		.end   = DCP_PHYS_ADDR + 0x2000 - 1,
++	}, {
++		.flags = IORESOURCE_IRQ,
++		.start = IRQ_DCP_VMI,
++		.end = IRQ_DCP_VMI,
++	}, {
++		.flags = IORESOURCE_IRQ,
++		.start = IRQ_DCP,
++		.end = IRQ_DCP,
++	},
++};
++
++static void __init mx23_init_dcp(void)
++{
++	struct platform_device *pdev;
++
++	pdev = mxs_get_device("dcp", 0);
++	if (pdev == NULL || IS_ERR(pdev))
++		return;
++	pdev->resource = dcp_resources;
++	pdev->num_resources = ARRAY_SIZE(dcp_resources);
++	mxs_add_device(pdev, 3);
++}
++#else
++static void __init mx23_init_dcp(void)
++{
++	;
++}
++#endif
++
+ int __init mx23_device_init(void)
+ {
+ 	mx23_init_dma();
+@@ -368,6 +406,7 @@ int __init mx23_device_init(void)
+ 	mx23_init_wdt();
+ 	mx23_init_ts();
+ 	mx23_init_rtc();
++	mx23_init_dcp();
+ 
+ 	return 0;
+ }
+diff --git a/drivers/crypto/Kconfig b/drivers/crypto/Kconfig
+index f888701..b5f307a 100644
+--- a/drivers/crypto/Kconfig
++++ b/drivers/crypto/Kconfig
+@@ -209,25 +209,13 @@ config CRYPTO_DEV_PPC4XX
+ 	help
+ 	  This option allows you to have support for AMCC crypto acceleration.
+ 
+-config CRYPTO_DEV_STMP3XXX_DCP
+-	tristate "Support for the STMP3xxx DCP engine"
+-	depends on ARCH_STMP3XXX
+-	select CRYPTO_ALGAPI
+-	select CRYPTO_BLKCIPHER
+-	help
+-	  Say 'Y' here to use the STMP3XXX DCP AES and SHA1
+-	  engine for the CryptoAPI algorithms.
+-
+-	  To compile this driver as a module, choose M here: the module
+-	  will be called geode-aes.
+-
+ config CRYPTO_DEV_DCP
+ 	tristate "Support for the DCP engine"
+-	depends on ARCH_MX28
++	depends on ARCH_MX28 || ARCH_MX23
+ 	select CRYPTO_ALGAPI
+ 	select CRYPTO_BLKCIPHER
+ 	help
+-	  Say 'Y' here to use the MX28 DCP AES, SHA1, and SHA256
++	  Say 'Y' here to use the MX28 DCP AES and SHA
+ 	  engine for the CryptoAPI algorithms.
+ 
+ 	  To compile this driver as a module, choose M here: the module
+diff --git a/drivers/crypto/Makefile b/drivers/crypto/Makefile
+index 0d5028b..161dd2d 100644
+--- a/drivers/crypto/Makefile
++++ b/drivers/crypto/Makefile
+@@ -5,5 +5,4 @@ obj-$(CONFIG_CRYPTO_DEV_HIFN_795X) += hifn_795x.o
+ obj-$(CONFIG_CRYPTO_DEV_TALITOS) += talitos.o
+ obj-$(CONFIG_CRYPTO_DEV_IXP4XX) += ixp4xx_crypto.o
+ obj-$(CONFIG_CRYPTO_DEV_PPC4XX) += amcc/
+-obj-$(CONFIG_CRYPTO_DEV_STMP3XXX_DCP) += stmp3xxx_dcp.o
+-obj-$(CONFIG_CRYPTO_DEV_DCP) += dcp.o
+\ No newline at end of file
++obj-$(CONFIG_CRYPTO_DEV_DCP) += dcp.o
+diff --git a/drivers/crypto/dcp.c b/drivers/crypto/dcp.c
+index 9a43c24..a72d733 100644
+--- a/drivers/crypto/dcp.c
++++ b/drivers/crypto/dcp.c
+@@ -34,7 +34,7 @@
+ #include <linux/delay.h>
+ 
+ #include <asm/cacheflush.h>
+-
++#include <mach/hardware.h>
+ #include "dcp.h"
+ 
+ struct dcp {
+@@ -1282,7 +1282,7 @@ static int dcp_probe(struct platform_device *pdev)
+ 		ret = -ENXIO;
+ 		goto err_kfree;
+ 	}
+-	sdcp->dcp_regs_base = IO_ADDRESS(r->start);
++	sdcp->dcp_regs_base = (u32) IO_ADDRESS(r->start);
+ 
+ 	/* Soft reset and remove the clock gate */
+ 	__raw_writel(BM_DCP_CTRL_SFTRST, sdcp->dcp_regs_base + HW_DCP_CTRL_SET);
+diff --git a/drivers/crypto/stmp3xxx_dcp.h b/drivers/crypto/stmp3xxx_dcp.h
+deleted file mode 100644
+index c08de5d..0000000
+--- a/drivers/crypto/stmp3xxx_dcp.h
++++ /dev/null
+@@ -1,68 +0,0 @@
+-/*
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
+- */
+-
+-/*
+- * The code contained herein is licensed under the GNU General Public
+- * License. You may obtain a copy of the GNU General Public License
+- * Version 2 or later at the following locations:
+- *
+- * http://www.opensource.org/licenses/gpl-license.html
+- * http://www.gnu.org/copyleft/gpl.html
+- */
+-#ifndef _STMP3XXX_DCP_H_
+-#define _STMP3XXX_DCP_H_
+-
+-#include <mach/platform.h>
+-#include <mach/stmp3xxx.h>
+-#include <mach/regs-dcp.h>
+-
+-#define CIPHER_CHAN	1
+-#define CIPHER_MASK	(1 << CIPHER_CHAN)
+-
+-#define HASH_CHAN	0
+-#define HASH_MASK	(1 << HASH_CHAN)
+-
+-#define ALL_MASK	(CIPHER_MASK | HASH_MASK)
+-
+-/* Defines the initialization value for the dcp control register */
+-#define STMP3XXX_DCP_CTRL_INIT \
+-   (BM_DCP_CTRL_GATHER_RESIDUAL_WRITES | \
+-    BM_DCP_CTRL_ENABLE_CONTEXT_CACHING | \
+-    BV_DCP_CTRL_CHANNEL_INTERRUPT_ENABLE__CH0 | \
+-    BV_DCP_CTRL_CHANNEL_INTERRUPT_ENABLE__CH1 | \
+-    BV_DCP_CTRL_CHANNEL_INTERRUPT_ENABLE__CH2 | \
+-    BV_DCP_CTRL_CHANNEL_INTERRUPT_ENABLE__CH3)
+-
+-/* Defines the initialization value for the dcp channel control register */
+-#define STMP3XXX_DCP_CHANNELCTRL_INIT \
+-    BF(ALL_MASK, DCP_CHANNELCTRL_ENABLE_CHANNEL)
+-
+-/* DCP work packet 1 value for encryption */
+-#define STMP3XXX_DCP_PKT1_ENCRYPT \
+-   (BM_DCP_PACKET1_DECR_SEMAPHORE | \
+-    BM_DCP_PACKET1_ENABLE_CIPHER | \
+-    BM_DCP_PACKET1_CIPHER_ENCRYPT | \
+-    BM_DCP_PACKET1_CIPHER_INIT)
+-
+-/* DCP work packet 1 value for decryption */
+-#define DCP_PKT1_DECRYPT \
+-   (BM_DCP_PACKET1_DECR_SEMAPHORE | \
+-    BM_DCP_PACKET1_ENABLE_CIPHER | \
+-    BM_DCP_PACKET1_CIPHER_INIT)
+-
+-/* DCP (decryption) work packet definition */
+-struct stmp3xxx_dcp_hw_packet {
+-	uint32_t pNext;     /* next dcp work packet address */
+-	uint32_t pkt1;      /* dcp work packet 1 (control 0) */
+-	uint32_t pkt2;      /* dcp work packet 2 (control 1) */
+-	uint32_t pSrc;      /* source buffer address */
+-	uint32_t pDst;      /* destination buffer address */
+-	uint32_t size;      /* buffer size in bytes */
+-	uint32_t pPayload;  /* payload buffer address */
+-	uint32_t stat;      /* dcp status (written by dcp) */
+-};
+-
+-#define STMP3XXX_DCP_NUM_CHANNELS 4
+-
+-#endif
+-- 
+1.5.4.4
+

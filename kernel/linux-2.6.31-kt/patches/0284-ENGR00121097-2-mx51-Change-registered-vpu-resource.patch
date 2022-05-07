@@ -1,0 +1,139 @@
+From 5ce95b9afffb682cb4dece298eb61f48f10bcb22 Mon Sep 17 00:00:00 2001
+From: Sammy He <r62914@freescale.com>
+Date: Tue, 2 Mar 2010 16:56:46 +0800
+Subject: [PATCH] ENGR00121097-2 mx51: Change registered vpu resource in device
+
+Change registered vpu resource and move vpu iram allocator from
+device to vpu driver.
+
+Signed-off-by: Sammy He <r62914@freescale.com>
+---
+ arch/arm/mach-mx5/cpu.c          |   21 +++++++++++++++++++++
+ arch/arm/mach-mx5/devices.c      |   17 ++++-------------
+ arch/arm/mach-mx5/mx51_3stack.c  |    7 ++++++-
+ arch/arm/mach-mx5/mx51_babbage.c |    7 ++++++-
+ 4 files changed, 37 insertions(+), 15 deletions(-)
+
+diff --git a/arch/arm/mach-mx5/cpu.c b/arch/arm/mach-mx5/cpu.c
+index 36c58ec..be1c43d 100644
+--- a/arch/arm/mach-mx5/cpu.c
++++ b/arch/arm/mach-mx5/cpu.c
+@@ -71,6 +71,27 @@ static void __init mipi_hsc_disable(void)
+ 	iounmap(reg_hsc_mcd);
+ }
+ 
++void mx51_vpu_reset(void)
++{
++	u32 reg;
++	void __iomem *src_base;
++
++	src_base = ioremap(SRC_BASE_ADDR, PAGE_SIZE);
++
++	/* mask interrupt due to vpu passed reset */
++	reg = __raw_readl(src_base + 0x18);
++	reg |= 0x02;
++	__raw_writel(reg, src_base + 0x18);
++
++	reg = __raw_readl(src_base);
++	reg |= 0x5;    /* warm reset vpu */
++	__raw_writel(reg, src_base);
++	while (__raw_readl(src_base) & 0x04)
++		;
++
++	iounmap(src_base);
++}
++
+ static int __init post_cpu_init(void)
+ {
+ 	void __iomem *base;
+diff --git a/arch/arm/mach-mx5/devices.c b/arch/arm/mach-mx5/devices.c
+index 2c18893..ff78f3c 100644
+--- a/arch/arm/mach-mx5/devices.c
++++ b/arch/arm/mach-mx5/devices.c
+@@ -301,16 +301,13 @@ struct platform_device mxc_fb_devices[] = {
+ 
+ static struct resource vpu_resources[] = {
+ 	{
++		.start = VPU_BASE_ADDR,
++		.end = VPU_BASE_ADDR + SZ_4K - 1,
+ 		.flags = IORESOURCE_MEM,
+ 	},
+ 	{
+-		.start = IO_ADDRESS(SRC_BASE_ADDR),
+-		.end = IO_ADDRESS(SRC_BASE_ADDR),
+-		.flags = IORESOURCE_MEM,
+-	},
+-	{
+-		.start	= MXC_INT_VPU_IDLE,
+-		.end	= MXC_INT_VPU_IDLE,
++		.start	= MXC_INT_VPU,
++		.end = MXC_INT_VPU,
+ 		.flags	= IORESOURCE_IRQ,
+ 	},
+ };
+@@ -1179,12 +1176,6 @@ static __init void mxc_init_scc_iram(void)
+ 
+ int __init mxc_init_devices(void)
+ {
+-	unsigned long addr;
+-
+-	iram_alloc(VPU_IRAM_SIZE, &addr);
+-	vpu_resources[0].start = addr;
+-	vpu_resources[0].end = addr + VPU_IRAM_SIZE - 1;
+-
+ 	mxc_init_scc_iram();
+ 	mxc_init_gpu2d();
+ 	return 0;
+diff --git a/arch/arm/mach-mx5/mx51_3stack.c b/arch/arm/mach-mx5/mx51_3stack.c
+index ed1f213..3de7761 100644
+--- a/arch/arm/mach-mx5/mx51_3stack.c
++++ b/arch/arm/mach-mx5/mx51_3stack.c
+@@ -139,6 +139,11 @@ static struct mxc_ipu_config mxc_ipu_data = {
+ 	.rev = 2,
+ };
+ 
++extern void mx51_vpu_reset(void);
++static struct mxc_vpu_platform_data mxc_vpu_data = {
++	.reset = mx51_vpu_reset,
++};
++
+ extern void mx51_babbage_gpio_spi_chipselect_active(int cspi_mode, int status,
+ 						    int chipselect);
+ extern void mx51_babbage_gpio_spi_chipselect_inactive(int cspi_mode, int status,
+@@ -889,7 +894,7 @@ static void __init mxc_board_init(void)
+ 	mxc_register_device(&mxc_w1_master_device, &mxc_w1_data);
+ 	mxc_register_device(&mxc_ipu_device, &mxc_ipu_data);
+ 	mxc_register_device(&mxc_tve_device, &tve_data);
+-	mxc_register_device(&mxcvpu_device, NULL);
++	mxc_register_device(&mxcvpu_device, &mxc_vpu_data);
+ 	mxc_register_device(&gpu_device, NULL);
+ 	mxc_register_device(&mx51_lpmode_device, NULL);
+ 	mxc_register_device(&busfreq_device, NULL);
+diff --git a/arch/arm/mach-mx5/mx51_babbage.c b/arch/arm/mach-mx5/mx51_babbage.c
+index 43ab956..6c0d46f 100644
+--- a/arch/arm/mach-mx5/mx51_babbage.c
++++ b/arch/arm/mach-mx5/mx51_babbage.c
+@@ -158,6 +158,11 @@ static struct mxc_ipu_config mxc_ipu_data = {
+ 	.rev = 2,
+ };
+ 
++extern void mx51_vpu_reset(void);
++static struct mxc_vpu_platform_data mxc_vpu_data = {
++	.reset = mx51_vpu_reset,
++};
++
+ extern void mx51_babbage_gpio_spi_chipselect_active(int cspi_mode, int status,
+ 						    int chipselect);
+ extern void mx51_babbage_gpio_spi_chipselect_inactive(int cspi_mode, int status,
+@@ -895,7 +900,7 @@ static void __init mxc_board_init(void)
+ 	mxc_register_device(&mxc_w1_master_device, &mxc_w1_data);
+ 	mxc_register_device(&mxc_ipu_device, &mxc_ipu_data);
+ 	mxc_register_device(&mxc_tve_device, &tve_data);
+-	mxc_register_device(&mxcvpu_device, NULL);
++	mxc_register_device(&mxcvpu_device, &mxc_vpu_data);
+ 	mxc_register_device(&gpu_device, NULL);
+ 	mxc_register_device(&mx51_lpmode_device, NULL);
+ 	mxc_register_device(&busfreq_device, NULL);
+-- 
+1.5.4.4
+

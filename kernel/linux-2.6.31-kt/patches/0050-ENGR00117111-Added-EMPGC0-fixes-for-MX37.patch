@@ -1,0 +1,154 @@
+From cce9cf075a93881f220efe1a9611cc60226b9777 Mon Sep 17 00:00:00 2001
+From: Ranjani Vaidyanathan-RA5478 <Ranjani.Vaidyanathan@freescale.com>
+Date: Thu, 8 Oct 2009 07:15:51 -0500
+Subject: [PATCH] ENGR00117111: Added EMPGC0 fixes for MX37.
+
+Set ALP bits to 0.
+Set the SRPG powerup and powerdown values.
+Set the WM8350 to be in normal mode (PWM) rather in Pulse Skipping mode.
+
+Signed-off-by: Ranjani Vaidyanathan-RA5478 <Ranjani.Vaidyanathan@freescale.com>
+---
+ arch/arm/mach-mx37/cpu.c                     |    8 ++++++++
+ arch/arm/mach-mx37/crm_regs.h                |    8 +++++++-
+ arch/arm/mach-mx37/devices.c                 |   20 ++++++++++++++++++++
+ arch/arm/mach-mx37/mx37_3stack.c             |    2 ++
+ arch/arm/mach-mx37/mx37_3stack_pmic_wm8350.c |    7 ++++---
+ 5 files changed, 41 insertions(+), 4 deletions(-)
+
+diff --git a/arch/arm/mach-mx37/cpu.c b/arch/arm/mach-mx37/cpu.c
+index 1ca44ae..e059e47 100644
+--- a/arch/arm/mach-mx37/cpu.c
++++ b/arch/arm/mach-mx37/cpu.c
+@@ -33,6 +33,8 @@ void __init mxc_cpu_init(void)
+ 	}
+ }
+ 
++#define MXC_ARM1176_BASE	IO_ADDRESS(ARM1176_BASE_ADDR)
++
+ /*!
+  * Post CPU init code
+  *
+@@ -40,9 +42,15 @@ void __init mxc_cpu_init(void)
+  */
+ static int __init post_cpu_init(void)
+ {
++	u32 reg;
+ 	void *l2_base;
+ 	volatile unsigned long aips_reg;
+ 
++	/* Set ALP bits to 000. Set ALP_EN bit in Arm Memory Controller reg. */
++	reg = __raw_readl(MXC_ARM1176_BASE + 0x1C);
++	reg = 0x8;
++	__raw_writel(reg, MXC_ARM1176_BASE + 0x1C);
++
+ 	/* Initialize L2 cache */
+ 	l2_base = ioremap(L2CC_BASE_ADDR, SZ_4K);
+ 	if (l2_base) {
+diff --git a/arch/arm/mach-mx37/crm_regs.h b/arch/arm/mach-mx37/crm_regs.h
+index ccc96f0..345746a 100644
+--- a/arch/arm/mach-mx37/crm_regs.h
++++ b/arch/arm/mach-mx37/crm_regs.h
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2007-2008 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2007-2009 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -588,8 +588,14 @@
+ /* SRPG */
+ #define MXC_SRPGC_EMI_SRPGCR	(MXC_SRPGC_EMI_BASE + 0x0)
+ #define MXC_SRPGC_ARM_SRPGCR	(MXC_SRPGC_ARM_BASE + 0x0)
++#define MXC_EMPGC0_ARM_PUPSCR	(MXC_EMPGC0_ARM_BASE + 0x4)
++#define MXC_EMPGC0_ARM_PDNSCR	(MXC_EMPGC0_ARM_BASE + 0x8)
++
++
+ #define MXC_EMPGC0_ARM_EMPGCR	(MXC_EMPGC0_ARM_BASE + 0x0)
+ #define MXC_EMPGC1_ARM_EMPGCR	(MXC_EMPGC1_ARM_BASE + 0x0)
++#define MXC_SRPGC_ARM_PUPSCR	(MXC_SRPGC_ARM_BASE + 0x4)
++#define MXC_SRPGC_ARM_PDNSCR	(MXC_SRPGC_ARM_BASE + 0x8)
+ 
+ #define MXC_PGC_IPU_PGCR	(MXC_PGC_IPU_BASE + 0x0)
+ #define MXC_PGC_IPU_PGSR	(MXC_PGC_IPU_BASE + 0xC)
+diff --git a/arch/arm/mach-mx37/devices.c b/arch/arm/mach-mx37/devices.c
+index 41bff67..596777d 100644
+--- a/arch/arm/mach-mx37/devices.c
++++ b/arch/arm/mach-mx37/devices.c
+@@ -981,6 +981,26 @@ static inline void mxc_init_iim(void)
+ }
+ #endif
+ 
++int __init mxc_init_srpgconfig(void)
++{
++	struct clk *gpcclk = clk_get(NULL, "gpc_dvfs_clk");
++	clk_enable(gpcclk);
++
++	/* Setup the number of clock cycles to wait for SRPG
++	* power up and power down requests.
++	*/
++	__raw_writel(0x03023030, MXC_SRPGC_ARM_PUPSCR);
++	__raw_writel(0x50, MXC_EMPGC0_ARM_PUPSCR);
++
++	__raw_writel(0x30033030, MXC_SRPGC_ARM_PDNSCR);
++	__raw_writel(0x50, MXC_EMPGC0_ARM_PDNSCR);
++
++	clk_disable(gpcclk);
++	clk_put(gpcclk);
++
++	return 0;
++}
++
+ int __init mxc_init_devices(void)
+ {
+ 	mxc_init_wdt();
+diff --git a/arch/arm/mach-mx37/mx37_3stack.c b/arch/arm/mach-mx37/mx37_3stack.c
+index 80b55bc..b62b2b8 100644
+--- a/arch/arm/mach-mx37/mx37_3stack.c
++++ b/arch/arm/mach-mx37/mx37_3stack.c
+@@ -60,6 +60,7 @@
+  * @ingroup MSL_MX37
+  */
+ extern void gpio_lcd_active(void);
++extern void mxc_init_srpgconfig(void);
+ 
+ /* working point(wp): 0 - 532MHz; 1 - 200MHz; */
+ static struct cpu_wp cpu_wp_auto[] = {
+@@ -913,6 +914,7 @@ static void __init mxc_init_gps(void)
+ static void __init mxc_board_init(void)
+ {
+ 	mxc_cpu_common_init();
++	mxc_init_srpgconfig();
+ 	mxc_register_gpios();
+ 	early_console_setup(saved_command_line);
+ 	mxc_init_devices();
+diff --git a/arch/arm/mach-mx37/mx37_3stack_pmic_wm8350.c b/arch/arm/mach-mx37/mx37_3stack_pmic_wm8350.c
+index 62ec76f..0ab86ff 100644
+--- a/arch/arm/mach-mx37/mx37_3stack_pmic_wm8350.c
++++ b/arch/arm/mach-mx37/mx37_3stack_pmic_wm8350.c
+@@ -42,8 +42,7 @@ static struct regulator_init_data dcdc1_data = {
+ 			.max_uV = 1200000,
+ 			.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE |
+ 			REGULATOR_CHANGE_MODE,
+-			.valid_modes_mask = REGULATOR_MODE_NORMAL |
+-			REGULATOR_MODE_FAST,
++			.valid_modes_mask = REGULATOR_MODE_FAST,
+ 			.state_mem = {
+ 				      .uV = 1050000,
+ 				      .mode = REGULATOR_MODE_NORMAL,
+@@ -338,9 +337,11 @@ static __init int wm8350_regulator_init(void)
+ 		if (wm8350_global_regulator[i] == "DCDC4")
+ 			ret =
+ 			    regulator_set_voltage(regulator, 1250000, 1250000);
+-		else if (wm8350_global_regulator[i] == "DCDC1")
++		else if (wm8350_global_regulator[i] == "DCDC1") {
+ 			ret =
+ 			    regulator_set_voltage(regulator, 1050000, 1050000);
++			regulator_set_mode(regulator, REGULATOR_MODE_FAST);
++		}
+ 		i++;
+ 	}
+ 	return ret;
+-- 
+1.5.4.4
+

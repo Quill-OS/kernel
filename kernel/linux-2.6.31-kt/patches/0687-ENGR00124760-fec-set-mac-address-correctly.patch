@@ -1,0 +1,43 @@
+From d08c43b640c3c572208c5054aaed6e303c1769d9 Mon Sep 17 00:00:00 2001
+From: Jason Chen <b02280@freescale.com>
+Date: Wed, 30 Jun 2010 11:25:26 +0800
+Subject: [PATCH] ENGR00124760 fec: set mac address correctly
+
+Fix dynamicly set mac address make network hang issue.
+
+Signed-off-by: Jason Chen <b02280@freescale.com>
+---
+ drivers/net/fec.c |   11 ++++++-----
+ 1 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/net/fec.c b/drivers/net/fec.c
+index 63d84b6..b176bd4 100644
+--- a/drivers/net/fec.c
++++ b/drivers/net/fec.c
+@@ -1131,17 +1131,18 @@ fec_set_mac_address(struct net_device *dev, void *p)
+ {
+ 	struct fec_enet_private *fep = netdev_priv(dev);
+ 	struct sockaddr *addr = p;
++	u32 temp_mac[2];
+ 
+ 	if (!is_valid_ether_addr(addr->sa_data))
+ 		return -EADDRNOTAVAIL;
+ 
+ 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+ 
+-	writel(dev->dev_addr[3] | (dev->dev_addr[2] << 8) |
+-		(dev->dev_addr[1] << 16) | (dev->dev_addr[0] << 24),
+-		fep->hwp + FEC_ADDR_LOW);
+-	writel((dev->dev_addr[5] << 16) | (dev->dev_addr[4] << 24),
+-		fep + FEC_ADDR_HIGH);
++	memcpy(&temp_mac, dev->dev_addr, ETH_ALEN);
++
++	writel(cpu_to_be32(temp_mac[0]), fep->hwp + FEC_ADDR_LOW);
++	writel(cpu_to_be32(temp_mac[1]), fep->hwp + FEC_ADDR_HIGH);
++
+ 	return 0;
+ }
+ 
+-- 
+1.5.4.4
+

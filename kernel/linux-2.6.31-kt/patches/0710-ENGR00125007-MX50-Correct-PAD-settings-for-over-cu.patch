@@ -1,0 +1,39 @@
+From 80c89c3940a7eca69bb1019900a73dee40afc1f0 Mon Sep 17 00:00:00 2001
+From: Dinh Nguyen <Dinh.Nguyen@freescale.com>
+Date: Fri, 9 Jul 2010 11:00:32 -0500
+Subject: [PATCH] ENGR00125007: MX50: Correct PAD settings for over-current detection
+
+The pad settings for the over-current detection pins on MX50 ARM2
+CPU board needs to have a pull-up.
+
+Signed-off-by: Peter Chen <peter.chen@freescale.com>
+Signed-off-by: Dinh Nguyen <Dinh.Nguyen@freescale.com>
+---
+ arch/arm/mach-mx5/mx50_arm2_gpio.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm/mach-mx5/mx50_arm2_gpio.c b/arch/arm/mach-mx5/mx50_arm2_gpio.c
+index 89e0315..1835f51 100644
+--- a/arch/arm/mach-mx5/mx50_arm2_gpio.c
++++ b/arch/arm/mach-mx5/mx50_arm2_gpio.c
+@@ -386,7 +386,7 @@ static struct mxc_iomux_pin_cfg __initdata mxc_iomux_pins[] = {
+ 	 */
+ 	{
+ 	 MX50_PIN_OWIRE, IOMUX_CONFIG_ALT2,
+-	 PAD_CTL_PKE_ENABLE | PAD_CTL_DRV_HIGH,
++	 PAD_CTL_PKE_ENABLE | PAD_CTL_PUE_PULL | PAD_CTL_DRV_HIGH | PAD_CTL_47K_PU,
+ 	},
+ 	/* USB_OTG_PWR */
+ 	{
+@@ -399,7 +399,7 @@ static struct mxc_iomux_pin_cfg __initdata mxc_iomux_pins[] = {
+ 	 */
+ 	{
+ 	 MX50_PIN_PWM1, IOMUX_CONFIG_ALT2,
+-	 PAD_CTL_PKE_ENABLE | PAD_CTL_DRV_HIGH,
++	 PAD_CTL_PKE_ENABLE | PAD_CTL_PUE_PULL | PAD_CTL_DRV_HIGH | PAD_CTL_47K_PU,
+ 	 MUX_IN_USBOH1_IPP_IND_OTG_OC_SELECT_INPUT, INPUT_CTL_PATH1,
+ 	},
+ 	{ /* FEC_MDIO */
+-- 
+1.5.4.4
+

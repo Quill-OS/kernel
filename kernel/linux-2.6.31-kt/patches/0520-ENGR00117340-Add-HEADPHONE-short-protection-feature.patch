@@ -1,0 +1,193 @@
+From 08392333629001c7c94bb38e90ad77a232b1fb2d Mon Sep 17 00:00:00 2001
+From: Frank Li <Frank.Li@freescale.com>
+Date: Mon, 26 Apr 2010 15:19:44 +0800
+Subject: [PATCH] ENGR00117340 Add HEADPHONE short protection feature
+
+Add HEADPHONE short protection,when headphone short,mute the
+HP vol and pwrdn the headphone,and restore them when short gone.
+
+   Signed-off-by: Frank Li <frank.li@freescale.com>
+---
+ sound/soc/codecs/mxs-adc-codec.c |   56 ++++++++++++++++++++++++++++
+ sound/soc/mxs/mxs-adc.c          |   75 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 131 insertions(+), 0 deletions(-)
+
+diff --git a/sound/soc/codecs/mxs-adc-codec.c b/sound/soc/codecs/mxs-adc-codec.c
+index baf0417..31fd021 100644
+--- a/sound/soc/codecs/mxs-adc-codec.c
++++ b/sound/soc/codecs/mxs-adc-codec.c
+@@ -533,6 +533,58 @@ static void mxs_codec_dac_set_vag(void)
+ 	__raw_writel(refctrl_val, REGS_AUDIOOUT_BASE + HW_AUDIOOUT_REFCTRL);
+ }
+ 
++static bool mxs_codec_dac_is_capless()
++{
++	if ((__raw_readl(REGS_AUDIOOUT_BASE + HW_AUDIOOUT_PWRDN)
++		& BM_AUDIOOUT_PWRDN_CAPLESS) == 0)
++		return false;
++	else
++		return true;
++}
++static void mxs_codec_dac_arm_short_cm(bool bShort)
++{
++	__raw_writel(BF(3, AUDIOOUT_ANACTRL_SHORTMODE_CM),
++		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_ANACTRL_CLR);
++	__raw_writel(BM_AUDIOOUT_ANACTRL_SHORT_CM_STS,
++		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_ANACTRL_CLR);
++	if (bShort)
++		__raw_writel(BF(1, AUDIOOUT_ANACTRL_SHORTMODE_CM),
++		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_ANACTRL_SET);
++}
++static void mxs_codec_dac_arm_short_lr(bool bShort)
++{
++	__raw_writel(BF(3, AUDIOOUT_ANACTRL_SHORTMODE_LR),
++		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_ANACTRL_CLR);
++	__raw_writel(BM_AUDIOOUT_ANACTRL_SHORT_LR_STS,
++		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_ANACTRL_CLR);
++	if (bShort)
++		__raw_writel(BF(1, AUDIOOUT_ANACTRL_SHORTMODE_LR),
++		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_ANACTRL_SET);
++}
++static void mxs_codec_dac_set_short_trip_level(u8 u8level)
++{
++	__raw_writel(__raw_readl(REGS_AUDIOOUT_BASE +
++		HW_AUDIOOUT_ANACTRL)
++		& (~BM_AUDIOOUT_ANACTRL_SHORT_LVLADJL)
++		& (~BM_AUDIOOUT_ANACTRL_SHORT_LVLADJR)
++		| BF(u8level, AUDIOOUT_ANACTRL_SHORT_LVLADJL)
++		| BF(u8level, AUDIOOUT_ANACTRL_SHORT_LVLADJR),
++		REGS_AUDIOOUT_BASE + HW_AUDIOOUT_ANACTRL);
++}
++static void mxs_codec_dac_arm_short(bool bLatchCM, bool bLatchLR)
++{
++	if (bLatchCM) {
++		if (mxs_codec_dac_is_capless())
++			mxs_codec_dac_arm_short_cm(true);
++	} else
++		mxs_codec_dac_arm_short_cm(false);
++
++	if (bLatchLR)
++		mxs_codec_dac_arm_short_lr(true);
++	else
++		mxs_codec_dac_arm_short_lr(false);
++
++}
+ static void
+ mxs_codec_dac_power_on(struct mxs_codec_priv *mxs_adc)
+ {
+@@ -554,6 +606,10 @@ mxs_codec_dac_power_on(struct mxs_codec_priv *mxs_adc)
+ 	__raw_writel(BM_AUDIOOUT_PWRDN_DAC,
+ 			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_PWRDN_CLR);
+ 
++	/* Arm headphone LR short protect */
++	mxs_codec_dac_set_short_trip_level(0);
++	mxs_codec_dac_arm_short(false, true);
++
+ 	/* Update DAC volume over zero crossings */
+ 	__raw_writel(BM_AUDIOOUT_DACVOLUME_EN_ZCD,
+ 		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_DACVOLUME_SET);
+diff --git a/sound/soc/mxs/mxs-adc.c b/sound/soc/mxs/mxs-adc.c
+index 15e3fea..302c4e1 100644
+--- a/sound/soc/mxs/mxs-adc.c
++++ b/sound/soc/mxs/mxs-adc.c
+@@ -50,6 +50,69 @@ struct mxs_pcm_dma_params mxs_audio_out = {
+ 	.irq = IRQ_DAC_DMA,
+ };
+ 
++static struct delayed_work work;
++static void mxs_adc_schedule_work(struct delayed_work *work)
++{
++	schedule_delayed_work(work, HZ / 10);
++}
++static void mxs_adc_work(struct work_struct *work)
++{
++	/* disable irq */
++	disable_irq(IRQ_HEADPHONE_SHORT);
++
++	while (true) {
++		__raw_writel(BM_AUDIOOUT_PWRDN_HEADPHONE,
++		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_PWRDN_CLR);
++		msleep(10);
++		if ((__raw_readl(REGS_AUDIOOUT_BASE + HW_AUDIOOUT_ANACTRL)
++			& BM_AUDIOOUT_ANACTRL_SHORT_LR_STS) != 0) {
++			/* rearm the short protection */
++			__raw_writel(BM_AUDIOOUT_ANACTRL_SHORTMODE_LR,
++				REGS_AUDIOOUT_BASE + HW_AUDIOOUT_ANACTRL_CLR);
++			__raw_writel(BM_AUDIOOUT_ANACTRL_SHORT_LR_STS,
++				REGS_AUDIOOUT_BASE + HW_AUDIOOUT_ANACTRL_CLR);
++			__raw_writel(BF_AUDIOOUT_ANACTRL_SHORTMODE_LR(0x1),
++				REGS_AUDIOOUT_BASE + HW_AUDIOOUT_ANACTRL_SET);
++
++			__raw_writel(BM_AUDIOOUT_PWRDN_HEADPHONE,
++				REGS_AUDIOOUT_BASE + HW_AUDIOOUT_PWRDN_SET);
++			printk(KERN_WARNING "WARNING : Headphone LR short!\r\n");
++		} else {
++			printk(KERN_WARNING "INFO : Headphone LR no longer short!\r\n");
++			break;
++		}
++		msleep(1000);
++	}
++
++	/* power up the HEADPHONE and un-mute the HPVOL */
++	__raw_writel(BM_AUDIOOUT_HPVOL_MUTE,
++	      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_HPVOL_CLR);
++	__raw_writel(BM_AUDIOOUT_PWRDN_HEADPHONE,
++		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_PWRDN_CLR);
++
++	/* enable irq for next short detect*/
++	enable_irq(IRQ_HEADPHONE_SHORT);
++}
++
++static irqreturn_t mxs_short_irq(int irq, void *dev_id)
++{
++	__raw_writel(BM_AUDIOOUT_ANACTRL_SHORTMODE_LR,
++		REGS_AUDIOOUT_BASE + HW_AUDIOOUT_ANACTRL_CLR);
++	__raw_writel(BM_AUDIOOUT_ANACTRL_SHORT_LR_STS,
++		REGS_AUDIOOUT_BASE + HW_AUDIOOUT_ANACTRL_CLR);
++	__raw_writel(BF_AUDIOOUT_ANACTRL_SHORTMODE_LR(0x1),
++		REGS_AUDIOOUT_BASE + HW_AUDIOOUT_ANACTRL_SET);
++
++	__raw_writel(BM_AUDIOOUT_HPVOL_MUTE,
++	      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_HPVOL_SET);
++	__raw_writel(BM_AUDIOOUT_PWRDN_HEADPHONE,
++		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_PWRDN_SET);
++	__raw_writel(BM_AUDIOOUT_ANACTRL_HP_CLASSAB,
++		REGS_AUDIOOUT_BASE + HW_AUDIOOUT_ANACTRL_SET);
++
++	mxs_adc_schedule_work(&work);
++	return IRQ_HANDLED;
++}
+ static irqreturn_t mxs_err_irq(int irq, void *dev_id)
+ {
+ 	struct snd_pcm_substream *substream = dev_id;
+@@ -190,8 +253,11 @@ static int mxs_adc_startup(struct snd_pcm_substream *substream,
+ 	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+ 	int playback = substream->stream == SNDRV_PCM_STREAM_PLAYBACK ? 1 : 0;
+ 	int irq;
++	int irq_short;
+ 	int ret;
+ 
++	INIT_DELAYED_WORK(&work, mxs_adc_work);
++
+ 	if (playback) {
+ 		irq = IRQ_DAC_ERROR;
+ 		cpu_dai->dma_data = &mxs_audio_out;
+@@ -208,6 +274,15 @@ static int mxs_adc_startup(struct snd_pcm_substream *substream,
+ 		return ret;
+ 	}
+ 
++	irq_short = IRQ_HEADPHONE_SHORT;
++	ret = request_irq(irq_short, mxs_short_irq,
++		IRQF_DISABLED | IRQF_SHARED, "MXS DAC/ADC HP SHORT", substream);
++	if (ret) {
++		printk(KERN_ERR "%s: Unable to request ADC/DAC HP SHORT irq %d\n",
++		       __func__, IRQ_DAC_ERROR);
++		return ret;
++	}
++
+ 	/* Enable error interrupt */
+ 	if (playback) {
+ 		__raw_writel(BM_AUDIOOUT_CTRL_FIFO_OVERFLOW_IRQ,
+-- 
+1.5.4.4
+

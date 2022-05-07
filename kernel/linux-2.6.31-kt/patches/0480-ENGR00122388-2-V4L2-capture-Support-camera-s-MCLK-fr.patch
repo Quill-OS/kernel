@@ -1,0 +1,114 @@
+From c57c13403aa0f3b64f2295c1f8ebe5adcb96d654 Mon Sep 17 00:00:00 2001
+From: Liu Ying <b17645@freescale.com>
+Date: Fri, 9 Apr 2010 13:48:53 -0400
+Subject: [PATCH] ENGR00122388-2 V4L2 capture:Support camera's MCLK from SSI_EXT1_CLK
+
+This patch supports camera's MCLK be derived from SSI_EXT1_CLK.
+
+Signed-off-by: Liu Ying <b17645@freescale.com
+---
+ drivers/media/video/mxc/capture/sensor_clock.c |   24 +++++++++++++-----
+ drivers/mxc/ipu3/ipu_capture.c                 |   31 ++++++++++++++++++++---
+ 2 files changed, 44 insertions(+), 11 deletions(-)
+
+diff --git a/drivers/media/video/mxc/capture/sensor_clock.c b/drivers/media/video/mxc/capture/sensor_clock.c
+index c15cf27..3d1bf8d 100644
+--- a/drivers/media/video/mxc/capture/sensor_clock.c
++++ b/drivers/media/video/mxc/capture/sensor_clock.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2004-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2004-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -23,6 +23,7 @@
+ #include <linux/types.h>
+ #include <linux/device.h>
+ #include <linux/clk.h>
++#include <mach/hardware.h>
+ 
+ #if defined(CONFIG_MXC_IPU_V1) || defined(CONFIG_VIDEO_MXC_EMMA_CAMERA) \
+ 			       || defined(CONFIG_VIDEO_MXC_CSI_CAMERA_MODULE) \
+@@ -62,13 +63,22 @@ void set_mclk_rate(uint32_t *p_mclk_freq, uint32_t csi)
+ 	uint32_t freq = 0;
+ 	char *mclk;
+ 
+-	if (csi == 0) {
+-		mclk = "csi_mclk1";
+-	} else if (csi == 1) {
+-		mclk = "csi_mclk2";
++	if (cpu_is_mx53()) {
++		if (csi == 0)
++			mclk = "ssi_ext1_clk";
++		else {
++			pr_err("invalid csi num %d\n", csi);
++			return;
++		}
+ 	} else {
+-		pr_debug("invalid csi num %d\n", csi);
+-		return;
++		if (csi == 0) {
++			mclk = "csi_mclk1";
++		} else if (csi == 1) {
++			mclk = "csi_mclk2";
++		} else {
++			pr_err("invalid csi num %d\n", csi);
++			return;
++		}
+ 	}
+ 
+ 	clk = clk_get(NULL, mclk);
+diff --git a/drivers/mxc/ipu3/ipu_capture.c b/drivers/mxc/ipu3/ipu_capture.c
+index 256fb9a..5d084ab 100644
+--- a/drivers/mxc/ipu3/ipu_capture.c
++++ b/drivers/mxc/ipu3/ipu_capture.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -171,12 +171,35 @@ int _ipu_csi_mclk_set(uint32_t pixel_clk, uint32_t csi)
+  */
+ int ipu_csi_enable_mclk(int csi, bool flag, bool wait)
+ {
++	struct clk *clk;
++
+ 	if (flag) {
+-		clk_enable(g_csi_clk[csi]);
++		if (cpu_is_mx53()) {
++			if (csi == 0) {
++				clk = clk_get(NULL, "ssi_ext1_clk");
++				clk_enable(clk);
++				clk_put(clk);
++			} else {
++				pr_err("invalid csi num %d\n", csi);
++				return -EINVAL;
++			}
++		} else
++			clk_enable(g_csi_clk[csi]);
+ 		if (wait == true)
+ 			msleep(10);
+-	} else
+-		clk_disable(g_csi_clk[csi]);
++	} else {
++		if (cpu_is_mx53()) {
++			if (csi == 0) {
++				clk = clk_get(NULL, "ssi_ext1_clk");
++				clk_disable(clk);
++				clk_put(clk);
++			} else {
++				pr_err("invalid csi num %d\n", csi);
++				return -EINVAL;
++			}
++		} else
++			clk_disable(g_csi_clk[csi]);
++	}
+ 
+ 	return 0;
+ }
+-- 
+1.5.4.4
+

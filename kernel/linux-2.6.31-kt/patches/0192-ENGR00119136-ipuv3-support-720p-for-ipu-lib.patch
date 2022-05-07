@@ -1,0 +1,246 @@
+From 520f070590696c4790f2d7feee6ae70fd132acf6 Mon Sep 17 00:00:00 2001
+From: Jason Chen <b02280@freescale.com>
+Date: Thu, 17 Dec 2009 18:57:14 +0800
+Subject: [PATCH] ENGR00119136 ipuv3: support 720p for ipu lib
+
+To support 720p output for ipu lib.
+
+Signed-off-by: Jason Chen <b02280@freescale.com>
+---
+ drivers/mxc/ipu3/ipu_device.c |   40 +++++++++++++++++++++++++++
+ drivers/mxc/ipu3/ipu_ic.c     |   29 +++++++++++++-------
+ include/linux/ipu.h           |   60 ++++++++++++++++++++++++++++------------
+ 3 files changed, 101 insertions(+), 28 deletions(-)
+
+diff --git a/drivers/mxc/ipu3/ipu_device.c b/drivers/mxc/ipu3/ipu_device.c
+index 4c98d4c..4ac6fc7 100644
+--- a/drivers/mxc/ipu3/ipu_device.c
++++ b/drivers/mxc/ipu3/ipu_device.c
+@@ -374,6 +374,46 @@ static int mxc_ipu_ioctl(struct inode *inode, struct file *file,
+ 				ret = 0;
+ 		}
+ 		break;
++	case IPU_CALC_STRIPES_SIZE:
++		{
++			ipu_stripe_parm stripe_parm;
++
++			if (copy_from_user (&stripe_parm, (ipu_stripe_parm *)arg,
++					 sizeof(ipu_stripe_parm)))
++				return -EFAULT;
++			ipu_calc_stripes_sizes(stripe_parm.input_width,
++						stripe_parm.output_width,
++						stripe_parm.maximal_stripe_width,
++						stripe_parm.cirr,
++						stripe_parm.equal_stripes,
++						stripe_parm.input_pixelformat,
++						stripe_parm.output_pixelformat,
++						&stripe_parm.left,
++						&stripe_parm.right);
++			if (copy_to_user((ipu_stripe_parm *) arg, &stripe_parm,
++					sizeof(ipu_stripe_parm)) > 0)
++				return -EFAULT;
++		}
++		break;
++	case IPU_UPDATE_BUF_OFFSET:
++		{
++			ipu_buf_offset_parm offset_parm;
++
++			if (copy_from_user (&offset_parm, (ipu_buf_offset_parm *)arg,
++					 sizeof(ipu_buf_offset_parm)))
++				return -EFAULT;
++			ret = ipu_update_channel_offset(offset_parm.channel,
++							offset_parm.type,
++							offset_parm.pixel_fmt,
++							offset_parm.width,
++							offset_parm.height,
++							offset_parm.stride,
++							offset_parm.u_offset,
++							offset_parm.v_offset,
++							offset_parm.vertical_offset,
++							offset_parm.horizontal_offset);
++		}
++		break;
+ 	default:
+ 		break;
+ 	}
+diff --git a/drivers/mxc/ipu3/ipu_ic.c b/drivers/mxc/ipu3/ipu_ic.c
+index 1a4bda3..564fab0 100644
+--- a/drivers/mxc/ipu3/ipu_ic.c
++++ b/drivers/mxc/ipu3/ipu_ic.c
+@@ -226,10 +226,14 @@ void _ipu_ic_init_prpvf(ipu_channel_params_t *params, bool src_is_csi)
+ 	reg = (downsizeCoeff << 30) | (resizeCoeff << 16);
+ 
+ 	/* Setup horizontal resizing */
+-	_calc_resize_coeffs(params->mem_prp_vf_mem.in_width,
+-			    params->mem_prp_vf_mem.out_width,
+-			    &resizeCoeff, &downsizeCoeff);
+-	reg |= (downsizeCoeff << 14) | resizeCoeff;
++	/* Upadeted for IC split case */
++	if (!(params->mem_prp_vf_mem.out_resize_ratio)) {
++		_calc_resize_coeffs(params->mem_prp_vf_mem.in_width,
++				params->mem_prp_vf_mem.out_width,
++				&resizeCoeff, &downsizeCoeff);
++		reg |= (downsizeCoeff << 14) | resizeCoeff;
++	} else
++		reg |= params->mem_prp_vf_mem.out_resize_ratio;
+ 
+ 	__raw_writel(reg, IC_PRP_VF_RSC);
+ 
+@@ -344,10 +348,14 @@ void _ipu_ic_init_prpenc(ipu_channel_params_t *params, bool src_is_csi)
+ 	reg = (downsizeCoeff << 30) | (resizeCoeff << 16);
+ 
+ 	/* Setup horizontal resizing */
+-	_calc_resize_coeffs(params->mem_prp_enc_mem.in_width,
+-			    params->mem_prp_enc_mem.out_width,
+-			    &resizeCoeff, &downsizeCoeff);
+-	reg |= (downsizeCoeff << 14) | resizeCoeff;
++	/* Upadeted for IC split case */
++	if (!(params->mem_prp_enc_mem.out_resize_ratio)) {
++		_calc_resize_coeffs(params->mem_prp_enc_mem.in_width,
++				params->mem_prp_enc_mem.out_width,
++				&resizeCoeff, &downsizeCoeff);
++		reg |= (downsizeCoeff << 14) | resizeCoeff;
++	} else
++		reg |= params->mem_prp_enc_mem.out_resize_ratio;
+ 
+ 	__raw_writel(reg, IC_PRP_ENC_RSC);
+ 
+@@ -416,14 +424,15 @@ void _ipu_ic_init_pp(ipu_channel_params_t *params)
+ 	reg = (downsizeCoeff << 30) | (resizeCoeff << 16);
+ 
+ 	/* Setup horizontal resizing */
+-   /* Upadeted for IC split case */
++	/* Upadeted for IC split case */
+ 	if (!(params->mem_pp_mem.out_resize_ratio)) {
+ 		_calc_resize_coeffs(params->mem_pp_mem.in_width,
+ 							params->mem_pp_mem.out_width,
+ 							&resizeCoeff, &downsizeCoeff);
+ 		reg |= (downsizeCoeff << 14) | resizeCoeff;
+-	} else
++	} else {
+ 		reg |= params->mem_pp_mem.out_resize_ratio;
++	}
+ 
+ 	__raw_writel(reg, IC_PP_RSC);
+ 
+diff --git a/include/linux/ipu.h b/include/linux/ipu.h
+index af2bb26..c940328 100644
+--- a/include/linux/ipu.h
++++ b/include/linux/ipu.h
+@@ -321,6 +321,7 @@ typedef union {
+ 		uint32_t out_width;
+ 		uint32_t out_height;
+ 		uint32_t out_pixel_fmt;
++		uint32_t out_resize_ratio;
+ 	} mem_prp_enc_mem;
+ 	struct {
+ 		uint32_t in_width;
+@@ -363,6 +364,7 @@ typedef union {
+ 		uint32_t out_width;
+ 		uint32_t out_height;
+ 		uint32_t out_pixel_fmt;
++		uint32_t out_resize_ratio;
+ 		bool graphics_combine_en;
+ 		bool global_alpha_en;
+ 		bool key_color_en;
+@@ -386,6 +388,7 @@ typedef union {
+ 		uint32_t out_width;
+ 		uint32_t out_height;
+ 		uint32_t out_pixel_fmt;
++		uint32_t out_resize_ratio;
+ 		bool graphics_combine_en;
+ 		bool global_alpha_en;
+ 		bool key_color_en;
+@@ -393,7 +396,6 @@ typedef union {
+ 		uint8_t alpha;
+ 		uint32_t key_color;
+ 		bool alpha_chan_en;
+-		uint32_t out_resize_ratio;
+ 	} mem_pp_mem;
+ 	struct {
+ 		uint32_t temp;
+@@ -1013,6 +1015,30 @@ int ipu_open(void);
+ int ipu_register_generic_isr(int irq, void *dev);
+ void ipu_close(void);
+ 
++/* two stripe calculations */
++struct stripe_param{
++	unsigned int input_width; /* width of the input stripe */
++	unsigned int output_width; /* width of the output stripe */
++	unsigned int input_column; /* the first column on the input stripe */
++	unsigned int output_column; /* the first column on the output stripe */
++	unsigned int idr;
++	/* inverse downisizing ratio parameter; expressed as a power of 2 */
++	unsigned int irr;
++	/* inverse resizing ratio parameter; expressed as a multiple of 2^-13 */
++};
++
++typedef struct _ipu_stripe_parm {
++	unsigned int input_width;
++	unsigned int output_width;
++	unsigned int maximal_stripe_width;
++	unsigned long long cirr;
++	unsigned int equal_stripes;
++	u32 input_pixelformat;
++	u32 output_pixelformat;
++	struct stripe_param left;
++	struct stripe_param right;
++} ipu_stripe_parm;
++
+ typedef struct _ipu_channel_parm {
+ 	ipu_channel_t channel;
+ 	ipu_channel_params_t params;
+@@ -1034,6 +1060,19 @@ typedef struct _ipu_channel_buf_parm {
+ 	uint32_t bufNum;
+ } ipu_channel_buf_parm;
+ 
++typedef struct _ipu_buf_offset_parm {
++	ipu_channel_t channel;
++	ipu_buffer_t type;
++	uint32_t pixel_fmt;
++	uint16_t width;
++	uint16_t height;
++	uint16_t stride;
++	uint32_t u_offset;
++	uint32_t v_offset;
++	uint32_t vertical_offset;
++	uint32_t horizontal_offset;
++} ipu_buf_offset_parm;
++
+ typedef struct _ipu_channel_link {
+ 	ipu_channel_t src_ch;
+ 	ipu_channel_t dest_ch;
+@@ -1207,22 +1246,8 @@ typedef struct _ipu_mem_info {
+ #define IPU_ALOC_MEM		      _IOWR('I', 0x24, ipu_mem_info)
+ #define IPU_FREE_MEM		      _IOW('I', 0x25, ipu_mem_info)
+ #define IPU_IS_CHAN_BUSY	      _IOW('I', 0x26, ipu_channel_t)
+-
+-
+-/* two stripe calculations */
+-struct stripe_param{
+-	unsigned int input_width; /* width of the input stripe */
+-	unsigned int output_width; /* width of the output stripe */
+-	unsigned int input_column; /* the first column on the input stripe */
+-	unsigned int output_column; /* the first column on the output stripe */
+-	unsigned int idr;
+-	/* inverse downisizing ratio parameter; expressed as a power of 2 */
+-	unsigned int irr;
+-	/* inverse resizing ratio parameter; expressed as a multiple of 2^-13 */
+-};
+-
+-
+-
++#define IPU_CALC_STRIPES_SIZE	      _IOWR('I', 0x27, ipu_stripe_parm)
++#define IPU_UPDATE_BUF_OFFSET     _IOW('I', 0x28, ipu_buf_offset_parm)
+ 
+ int ipu_calc_stripes_sizes(const unsigned int input_frame_width,
+ 				unsigned int output_frame_width,
+@@ -1233,5 +1258,4 @@ int ipu_calc_stripes_sizes(const unsigned int input_frame_width,
+ 				u32 output_pixelformat,
+ 				struct stripe_param *left,
+ 				struct stripe_param *right);
+-
+ #endif
+-- 
+1.5.4.4
+

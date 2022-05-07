@@ -1,0 +1,39 @@
+From 99b55a88fe46b33814d1ca4971be93008e677888 Mon Sep 17 00:00:00 2001
+From: Lily Zhang <r58066@freescale.com>
+Date: Fri, 30 Apr 2010 17:48:03 +0800
+Subject: [PATCH] ENGR00123072-3 MX31: Add keypad mem resource
+
+Add keypad memory resource in MX31 3-stack platform
+
+Signed-off-by: Lily Zhang <r58066@freescale.com>
+---
+ arch/arm/mach-mx3/mx3_3stack.c |    8 ++++++--
+ 1 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm/mach-mx3/mx3_3stack.c b/arch/arm/mach-mx3/mx3_3stack.c
+index 4a97f68..4164f62 100644
+--- a/arch/arm/mach-mx3/mx3_3stack.c
++++ b/arch/arm/mach-mx3/mx3_3stack.c
+@@ -92,13 +92,17 @@ static struct resource mxc_kpp_resources[] = {
+ 	       .start = MXC_INT_KPP,
+ 	       .end = MXC_INT_KPP,
+ 	       .flags = IORESOURCE_IRQ,
+-	       }
++	       },
++	[1] = {
++		.start = KPP_BASE_ADDR,
++		.end = KPP_BASE_ADDR + SZ_4K - 1,
++		.flags = IORESOURCE_MEM,
++		},
+ };
+ 
+ static struct keypad_data keypad_plat_data = {
+ 	.rowmax = 3,
+ 	.colmax = 4,
+-	.irq = MXC_INT_KPP,
+ 	.learning = 0,
+ 	.delay = 2,
+ 	.matrix = keymapping,
+-- 
+1.5.4.4
+

@@ -1,0 +1,186 @@
+From bf96fdef15852477030a2df26c08c8fbd2989841 Mon Sep 17 00:00:00 2001
+From: Xinyu Chen <xinyu.chen@freescale.com>
+Date: Thu, 29 Apr 2010 12:54:48 +0800
+Subject: [PATCH] ENGR00123017 MX53 Add support for MLB
+
+Add support for MLB by adding MLB MSL codes.
+
+Signed-off-by: Xinyu Chen <xinyu.chen@freescale.com>
+---
+ arch/arm/configs/imx5_defconfig   |    3 ++-
+ arch/arm/mach-mx5/devices.c       |   22 ++++++++++++++++++++++
+ arch/arm/mach-mx5/devices.h       |    2 +-
+ arch/arm/mach-mx5/dummy_gpio.c    |    8 +++++++-
+ arch/arm/mach-mx5/mx53_evk.c      |    6 ++++++
+ arch/arm/mach-mx5/mx53_evk_gpio.c |   18 +++++++++++++++---
+ drivers/mxc/mlb/Kconfig           |    2 +-
+ 7 files changed, 54 insertions(+), 7 deletions(-)
+
+diff --git a/arch/arm/configs/imx5_defconfig b/arch/arm/configs/imx5_defconfig
+index 7f43f93..7d0cb2f 100644
+--- a/arch/arm/configs/imx5_defconfig
++++ b/arch/arm/configs/imx5_defconfig
+@@ -1,7 +1,7 @@
+ #
+ # Automatically generated make config: don't edit
+ # Linux kernel version: 2.6.31
+-# Mon Apr 26 10:27:23 2010
++# Thu Apr 29 12:53:21 2010
+ #
+ CONFIG_ARM=y
+ CONFIG_HAVE_PWM=y
+@@ -1797,6 +1797,7 @@ CONFIG_GPS_IOCTRL=m
+ #
+ # MXC Media Local Bus Driver
+ #
++CONFIG_MXC_MLB=m
+ 
+ #
+ # i.MX ADC support
+diff --git a/arch/arm/mach-mx5/devices.c b/arch/arm/mach-mx5/devices.c
+index db52d55..2c8d566 100644
+--- a/arch/arm/mach-mx5/devices.c
++++ b/arch/arm/mach-mx5/devices.c
+@@ -1072,6 +1072,26 @@ static inline void mxc_init_gpu2d(void)
+ }
+ #endif
+ 
++static struct resource mlb_resources[] = {
++	[0] = {
++	       .start = MLB_BASE_ADDR,
++	       .end = MLB_BASE_ADDR + 0x300,
++	       .flags = IORESOURCE_MEM,
++	       },
++	[1] = {
++	       .start = MXC_INT_MLB,
++	       .end = MXC_INT_MLB,
++	       .flags = IORESOURCE_IRQ,
++	       },
++};
++
++struct platform_device mxc_mlb_device = {
++	.name = "mxc_mlb",
++	.id = 0,
++	.num_resources = ARRAY_SIZE(mlb_resources),
++	.resource = mlb_resources,
++};
++
+ void __init mx5_init_irq(void)
+ {
+ 	unsigned long tzic_addr;
+@@ -1382,6 +1402,8 @@ int __init mxc_init_devices(void)
+ 		mxc_gpu2d_resources[0].end = MX53_GPU2D_BASE_ADDR + SZ_4K - 1;
+ 		ipu_resources[0].start = MX53_IPU_CTRL_BASE_ADDR;
+ 		ipu_resources[0].end = MX53_IPU_CTRL_BASE_ADDR + SZ_128M - 1;
++		mlb_resources[0].start -= MX53_OFFSET;
++		mlb_resources[0].end -= MX53_OFFSET;
+ 	} else if (cpu_is_mx51_rev(CHIP_REV_2_0) < 0) {
+ 		scc_resources[1].start += 0x8000;
+ 		scc_resources[1].end += 0x8000;
+diff --git a/arch/arm/mach-mx5/devices.h b/arch/arm/mach-mx5/devices.h
+index dfaf7df..eeb06e4 100644
+--- a/arch/arm/mach-mx5/devices.h
++++ b/arch/arm/mach-mx5/devices.h
+@@ -61,4 +61,4 @@ extern struct platform_device mxc_usbdr_otg_device;
+ extern struct platform_device mxc_usbdr_host_device;
+ extern struct platform_device mxc_usbh1_device;
+ extern struct platform_device mxc_usbh2_device;
+-
++extern struct platform_device mxc_mlb_device;
+diff --git a/arch/arm/mach-mx5/dummy_gpio.c b/arch/arm/mach-mx5/dummy_gpio.c
+index 8d9537d..6766cdf 100644
+--- a/arch/arm/mach-mx5/dummy_gpio.c
++++ b/arch/arm/mach-mx5/dummy_gpio.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2007-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2007-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -111,3 +111,9 @@ EXPORT_SYMBOL(gpio_spdif_active);
+ 
+ void gpio_spdif_inactive(void) {}
+ EXPORT_SYMBOL(gpio_spdif_inactive);
++
++void gpio_mlb_active(void) {}
++EXPORT_SYMBOL(gpio_mlb_active);
++
++void gpio_mlb_inactive(void) {}
++EXPORT_SYMBOL(gpio_mlb_inactive);
+diff --git a/arch/arm/mach-mx5/mx53_evk.c b/arch/arm/mach-mx5/mx53_evk.c
+index c42ba3d..9e187de 100644
+--- a/arch/arm/mach-mx5/mx53_evk.c
++++ b/arch/arm/mach-mx5/mx53_evk.c
+@@ -511,6 +511,11 @@ static struct platform_device mxc_sgtl5000_device = {
+ 	.name = "imx-3stack-sgtl5000",
+ };
+ 
++static struct mxc_mlb_platform_data mlb_data = {
++	.reg_nvcc = "VCAM",
++	.mlb_clk = "mlb_clk",
++};
++
+ /*!
+  * Board specific fixup function. It is called by \b setup_arch() in
+  * setup.c file very early on during kernel starts. It allows the user to
+@@ -678,6 +683,7 @@ static void __init mxc_board_init(void)
+ 	pm_power_off = mxc_power_off;
+ 	*/
+ 	mxc_register_device(&mxc_sgtl5000_device, &sgtl5000_data);
++	mxc_register_device(&mxc_mlb_device, &mlb_data);
+ 	mx5_usb_dr_init();
+ 	mx5_usbh1_init();
+ }
+diff --git a/arch/arm/mach-mx5/mx53_evk_gpio.c b/arch/arm/mach-mx5/mx53_evk_gpio.c
+index da0b47d..295983f 100644
+--- a/arch/arm/mach-mx5/mx53_evk_gpio.c
++++ b/arch/arm/mach-mx5/mx53_evk_gpio.c
+@@ -187,16 +187,28 @@ static struct mxc_iomux_pin_cfg __initdata mxc_iomux_pins[] = {
+ 	 INPUT_CTL_PATH1,
+ 	},
+ 	{
+-	 MX53_PIN_GPIO_2, IOMUX_CONFIG_GPIO,
++	 MX53_PIN_GPIO_2, IOMUX_CONFIG_ALT7,
++	 (PAD_CTL_PKE_ENABLE | PAD_CTL_PUE_PULL |
++	 PAD_CTL_DRV_HIGH),
++	 MUX_IN_MLB_MLBDAT_IN_SELECT_INPUT,
++	 INPUT_CTL_PATH2,
+ 	 },
+ 	{
+-	 MX53_PIN_GPIO_3, IOMUX_CONFIG_GPIO,
++	 MX53_PIN_GPIO_3, IOMUX_CONFIG_ALT7,
++	 (PAD_CTL_PKE_ENABLE | PAD_CTL_PUE_PULL |
++	 PAD_CTL_DRV_HIGH),
++	 MUX_IN_MLB_MLBCLK_IN_SELECT_INPUT,
++	 INPUT_CTL_PATH2,
+ 	 },
+ 	{
+ 	 MX53_PIN_GPIO_4, IOMUX_CONFIG_GPIO,
+ 	 },
+ 	{
+-	 MX53_PIN_GPIO_6, IOMUX_CONFIG_GPIO,
++	 MX53_PIN_GPIO_6, IOMUX_CONFIG_ALT7,
++	 (PAD_CTL_PKE_ENABLE | PAD_CTL_PUE_PULL |
++	 PAD_CTL_DRV_HIGH),
++	 MUX_IN_MLB_MLBSIG_IN_SELECT_INPUT,
++	 INPUT_CTL_PATH2,
+ 	 },
+ 	{
+ 	 MX53_PIN_GPIO_7, IOMUX_CONFIG_GPIO,
+diff --git a/drivers/mxc/mlb/Kconfig b/drivers/mxc/mlb/Kconfig
+index 294c977..7e3b16c 100644
+--- a/drivers/mxc/mlb/Kconfig
++++ b/drivers/mxc/mlb/Kconfig
+@@ -6,7 +6,7 @@ menu "MXC Media Local Bus Driver"
+ 
+ config MXC_MLB
+ 	tristate "MLB support"
+-	depends on ARCH_MX35
++	depends on ARCH_MX35 || ARCH_MX53
+ 	---help---
+          Say Y to get the MLB support.
+ 
+-- 
+1.5.4.4
+

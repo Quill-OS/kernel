@@ -1,0 +1,272 @@
+From 468fa5e54c8e3010d6b5b6f4d08fad0481934e97 Mon Sep 17 00:00:00 2001
+From: Jason Chen <b02280@freescale.com>
+Date: Tue, 13 Apr 2010 14:59:33 +0800
+Subject: [PATCH] ENGR00122430 imx53: DVI support
+
+Add cmdline like below to enable dvi:
+"video=mxcfb:1024x768M-16@60 dvi"
+
+Signed-off-by: Jason Chen <b02280@freescale.com>
+---
+ arch/arm/mach-mx5/mx53_evk.c      |   15 +++++++
+ arch/arm/mach-mx5/mx53_evk_gpio.c |   76 ++++++++++++++++++++++++-------------
+ 2 files changed, 64 insertions(+), 27 deletions(-)
+
+diff --git a/arch/arm/mach-mx5/mx53_evk.c b/arch/arm/mach-mx5/mx53_evk.c
+index 1064f11..104e5f9 100644
+--- a/arch/arm/mach-mx5/mx53_evk.c
++++ b/arch/arm/mach-mx5/mx53_evk.c
+@@ -203,6 +203,7 @@ static struct mxc_fb_platform_data fb_data[] = {
+ 
+ static int __initdata enable_vga = { 0 };
+ static int __initdata enable_tv = { 0 };
++static int __initdata enable_dvi = { 0 };
+ 
+ static void wvga_reset(void)
+ {
+@@ -226,6 +227,8 @@ static int __init mxc_init_fb(void)
+ 		printk(KERN_INFO "VGA monitor is primary\n");
+ 	} else if (enable_tv == 2)
+ 		printk(KERN_INFO "HDTV is primary\n");
++	else if (enable_dvi)
++		printk(KERN_INFO "DVI is primary\n");
+ 	else
+ 		printk(KERN_INFO "WVGA LCD panel is primary\n");
+ 
+@@ -235,6 +238,11 @@ static int __init mxc_init_fb(void)
+ 		fb_data[1].mode = &(video_modes[0]);
+ 	}
+ 
++	if (enable_dvi) {
++		fb_data[0].mode_str = "1024x768M-16@60";
++		fb_data[0].interface_pix_fmt = IPU_PIX_FMT_RGB24;
++	}
++
+ 	/* Once a customer knows the platform configuration,
+ 	   this should be simplified to what is desired.
+ 	 */
+@@ -291,6 +299,13 @@ static int __init mxc_init_fb(void)
+ }
+ device_initcall(mxc_init_fb);
+ 
++static int __init dvi_setup(char *s)
++{
++	enable_dvi = 1;
++	return 1;
++}
++__setup("dvi", dvi_setup);
++
+ static int __init vga_setup(char *__unused)
+ {
+ 	enable_vga = 1;
+diff --git a/arch/arm/mach-mx5/mx53_evk_gpio.c b/arch/arm/mach-mx5/mx53_evk_gpio.c
+index 7b1efd1..450280e 100644
+--- a/arch/arm/mach-mx5/mx53_evk_gpio.c
++++ b/arch/arm/mach-mx5/mx53_evk_gpio.c
+@@ -255,7 +255,7 @@ static struct mxc_iomux_pin_cfg __initdata mxc_iomux_pins[] = {
+ 	{	/* DI0 display clock */
+ 	 MX53_PIN_DI0_DISP_CLK, IOMUX_CONFIG_ALT0,
+ 	 (PAD_CTL_HYS_NONE | PAD_CTL_PKE_NONE | PAD_CTL_ODE_OPENDRAIN_NONE |
+-	  PAD_CTL_DRV_LOW | PAD_CTL_SRE_FAST),
++	  PAD_CTL_DRV_HIGH | PAD_CTL_SRE_FAST),
+ 	 },
+ 	{	/* DI0 data enable */
+ 	 MX53_PIN_DI0_PIN15, IOMUX_CONFIG_ALT0,
+@@ -265,132 +265,132 @@ static struct mxc_iomux_pin_cfg __initdata mxc_iomux_pins[] = {
+ 	{	/* DI0 HSYNC */
+ 	 MX53_PIN_DI0_PIN2, IOMUX_CONFIG_ALT0,
+ 	 (PAD_CTL_HYS_NONE | PAD_CTL_PKE_NONE | PAD_CTL_ODE_OPENDRAIN_NONE |
+-	  PAD_CTL_DRV_LOW | PAD_CTL_SRE_SLOW),
++	  PAD_CTL_DRV_HIGH | PAD_CTL_SRE_SLOW),
+ 	 },
+ 	{	/* DI0 VSYNC */
+ 	 MX53_PIN_DI0_PIN3, IOMUX_CONFIG_ALT0,
+ 	 (PAD_CTL_HYS_NONE | PAD_CTL_PKE_NONE | PAD_CTL_ODE_OPENDRAIN_NONE |
+-	  PAD_CTL_DRV_LOW | PAD_CTL_SRE_SLOW),
++	  PAD_CTL_DRV_HIGH | PAD_CTL_SRE_SLOW),
+ 	 },
+ 	{
+ 	 MX53_PIN_DISP0_DAT0, IOMUX_CONFIG_ALT0,
+ 	 (PAD_CTL_HYS_NONE | PAD_CTL_PKE_NONE | PAD_CTL_ODE_OPENDRAIN_NONE |
+-	  PAD_CTL_DRV_LOW | PAD_CTL_SRE_SLOW),
++	  PAD_CTL_DRV_HIGH | PAD_CTL_SRE_SLOW),
+ 	 },
+ 	{
+ 	 MX53_PIN_DISP0_DAT1, IOMUX_CONFIG_ALT0,
+ 	 (PAD_CTL_HYS_NONE | PAD_CTL_PKE_NONE | PAD_CTL_ODE_OPENDRAIN_NONE |
+-	  PAD_CTL_DRV_LOW | PAD_CTL_SRE_SLOW),
++	  PAD_CTL_DRV_HIGH | PAD_CTL_SRE_SLOW),
+ 	 },
+ 	{
+ 	 MX53_PIN_DISP0_DAT2, IOMUX_CONFIG_ALT0,
+ 	 (PAD_CTL_HYS_NONE | PAD_CTL_PKE_NONE | PAD_CTL_ODE_OPENDRAIN_NONE |
+-	  PAD_CTL_DRV_LOW | PAD_CTL_SRE_SLOW),
++	  PAD_CTL_DRV_HIGH | PAD_CTL_SRE_SLOW),
+ 	 },
+ 	{
+ 	 MX53_PIN_DISP0_DAT3, IOMUX_CONFIG_ALT0,
+ 	 (PAD_CTL_HYS_NONE | PAD_CTL_PKE_NONE | PAD_CTL_ODE_OPENDRAIN_NONE |
+-	  PAD_CTL_DRV_LOW | PAD_CTL_SRE_SLOW),
++	  PAD_CTL_DRV_HIGH | PAD_CTL_SRE_SLOW),
+ 	 },
+ 	{
+ 	 MX53_PIN_DISP0_DAT4, IOMUX_CONFIG_ALT0,
+ 	 (PAD_CTL_HYS_NONE | PAD_CTL_PKE_NONE | PAD_CTL_ODE_OPENDRAIN_NONE |
+-	  PAD_CTL_DRV_LOW | PAD_CTL_SRE_SLOW),
++	  PAD_CTL_DRV_HIGH | PAD_CTL_SRE_SLOW),
+ 	 },
+ 	{
+ 	 MX53_PIN_DISP0_DAT5, IOMUX_CONFIG_ALT0,
+ 	 (PAD_CTL_HYS_NONE | PAD_CTL_PKE_NONE | PAD_CTL_ODE_OPENDRAIN_NONE |
+-	  PAD_CTL_DRV_LOW | PAD_CTL_SRE_SLOW),
++	  PAD_CTL_DRV_HIGH | PAD_CTL_SRE_SLOW),
+ 	 },
+ 	{
+ 	 MX53_PIN_DISP0_DAT6, IOMUX_CONFIG_ALT0,
+ 	 (PAD_CTL_HYS_NONE | PAD_CTL_PKE_NONE | PAD_CTL_ODE_OPENDRAIN_NONE |
+-	  PAD_CTL_DRV_LOW | PAD_CTL_SRE_SLOW),
++	  PAD_CTL_DRV_HIGH | PAD_CTL_SRE_SLOW),
+ 	 },
+ 	{
+ 	 MX53_PIN_DISP0_DAT7, IOMUX_CONFIG_ALT0,
+ 	 (PAD_CTL_HYS_NONE | PAD_CTL_PKE_NONE | PAD_CTL_ODE_OPENDRAIN_NONE |
+-	  PAD_CTL_DRV_LOW | PAD_CTL_SRE_SLOW),
++	  PAD_CTL_DRV_HIGH | PAD_CTL_SRE_SLOW),
+ 	 },
+ 	{
+ 	 MX53_PIN_DISP0_DAT8, IOMUX_CONFIG_ALT0,
+ 	 (PAD_CTL_HYS_NONE | PAD_CTL_PKE_NONE | PAD_CTL_ODE_OPENDRAIN_NONE |
+-	  PAD_CTL_DRV_LOW | PAD_CTL_SRE_SLOW),
++	  PAD_CTL_DRV_HIGH | PAD_CTL_SRE_SLOW),
+ 	 },
+ 	{
+ 	 MX53_PIN_DISP0_DAT9, IOMUX_CONFIG_ALT0,
+ 	 (PAD_CTL_HYS_NONE | PAD_CTL_PKE_NONE | PAD_CTL_ODE_OPENDRAIN_NONE |
+-	  PAD_CTL_DRV_LOW | PAD_CTL_SRE_SLOW),
++	  PAD_CTL_DRV_HIGH | PAD_CTL_SRE_SLOW),
+ 	 },
+ 	{
+ 	 MX53_PIN_DISP0_DAT10, IOMUX_CONFIG_ALT0,
+ 	 (PAD_CTL_HYS_NONE | PAD_CTL_PKE_NONE | PAD_CTL_ODE_OPENDRAIN_NONE |
+-	  PAD_CTL_DRV_LOW | PAD_CTL_SRE_SLOW),
++	  PAD_CTL_DRV_HIGH | PAD_CTL_SRE_SLOW),
+ 	 },
+ 	{
+ 	 MX53_PIN_DISP0_DAT11, IOMUX_CONFIG_ALT0,
+ 	 (PAD_CTL_HYS_NONE | PAD_CTL_PKE_NONE | PAD_CTL_ODE_OPENDRAIN_NONE |
+-	  PAD_CTL_DRV_LOW | PAD_CTL_SRE_SLOW),
++	  PAD_CTL_DRV_HIGH | PAD_CTL_SRE_SLOW),
+ 	 },
+ 	{
+ 	 MX53_PIN_DISP0_DAT12, IOMUX_CONFIG_ALT0,
+ 	 (PAD_CTL_HYS_NONE | PAD_CTL_PKE_NONE | PAD_CTL_ODE_OPENDRAIN_NONE |
+-	  PAD_CTL_DRV_LOW | PAD_CTL_SRE_SLOW),
++	  PAD_CTL_DRV_HIGH | PAD_CTL_SRE_SLOW),
+ 	 },
+ 	{
+ 	 MX53_PIN_DISP0_DAT13, IOMUX_CONFIG_ALT0,
+ 	 (PAD_CTL_HYS_NONE | PAD_CTL_PKE_NONE | PAD_CTL_ODE_OPENDRAIN_NONE |
+-	  PAD_CTL_DRV_LOW | PAD_CTL_SRE_SLOW),
++	  PAD_CTL_DRV_HIGH | PAD_CTL_SRE_SLOW),
+ 	 },
+ 	{
+ 	 MX53_PIN_DISP0_DAT14, IOMUX_CONFIG_ALT0,
+ 	 (PAD_CTL_HYS_NONE | PAD_CTL_PKE_NONE | PAD_CTL_ODE_OPENDRAIN_NONE |
+-	  PAD_CTL_DRV_LOW | PAD_CTL_SRE_SLOW),
++	  PAD_CTL_DRV_HIGH | PAD_CTL_SRE_SLOW),
+ 	 },
+ 	{
+ 	 MX53_PIN_DISP0_DAT15, IOMUX_CONFIG_ALT0,
+ 	 (PAD_CTL_HYS_NONE | PAD_CTL_PKE_NONE | PAD_CTL_ODE_OPENDRAIN_NONE |
+-	  PAD_CTL_DRV_LOW | PAD_CTL_SRE_SLOW),
++	  PAD_CTL_DRV_HIGH | PAD_CTL_SRE_SLOW),
+ 	 },
+ 	{
+ 	 MX53_PIN_DISP0_DAT16, IOMUX_CONFIG_ALT0,
+ 	 (PAD_CTL_HYS_NONE | PAD_CTL_PKE_NONE | PAD_CTL_ODE_OPENDRAIN_NONE |
+-	  PAD_CTL_DRV_LOW | PAD_CTL_SRE_SLOW),
++	  PAD_CTL_DRV_HIGH | PAD_CTL_SRE_SLOW),
+ 	 },
+ 	{
+ 	 MX53_PIN_DISP0_DAT17, IOMUX_CONFIG_ALT0,
+ 	 (PAD_CTL_HYS_NONE | PAD_CTL_PKE_NONE | PAD_CTL_ODE_OPENDRAIN_NONE |
+-	  PAD_CTL_DRV_LOW | PAD_CTL_SRE_SLOW),
++	  PAD_CTL_DRV_HIGH | PAD_CTL_SRE_SLOW),
+ 	 },
+ 	{
+ 	 MX53_PIN_DISP0_DAT18, IOMUX_CONFIG_ALT0,
+ 	 (PAD_CTL_HYS_NONE | PAD_CTL_PKE_NONE | PAD_CTL_ODE_OPENDRAIN_NONE |
+-	  PAD_CTL_DRV_LOW | PAD_CTL_SRE_SLOW),
++	  PAD_CTL_DRV_HIGH | PAD_CTL_SRE_SLOW),
+ 	 },
+ 	{
+ 	 MX53_PIN_DISP0_DAT19, IOMUX_CONFIG_ALT0,
+ 	 (PAD_CTL_HYS_NONE | PAD_CTL_PKE_NONE | PAD_CTL_ODE_OPENDRAIN_NONE |
+-	  PAD_CTL_DRV_LOW | PAD_CTL_SRE_SLOW),
++	  PAD_CTL_DRV_HIGH | PAD_CTL_SRE_SLOW),
+ 	 },
+ 	{
+ 	 MX53_PIN_DISP0_DAT20, IOMUX_CONFIG_ALT0,
+ 	 (PAD_CTL_HYS_NONE | PAD_CTL_PKE_NONE | PAD_CTL_ODE_OPENDRAIN_NONE |
+-	  PAD_CTL_DRV_LOW | PAD_CTL_SRE_SLOW),
++	  PAD_CTL_DRV_HIGH | PAD_CTL_SRE_SLOW),
+ 	 },
+ 	{
+ 	 MX53_PIN_DISP0_DAT21, IOMUX_CONFIG_ALT0,
+ 	 (PAD_CTL_HYS_NONE | PAD_CTL_PKE_NONE | PAD_CTL_ODE_OPENDRAIN_NONE |
+-	  PAD_CTL_DRV_LOW | PAD_CTL_SRE_SLOW),
++	  PAD_CTL_DRV_HIGH | PAD_CTL_SRE_SLOW),
+ 	 },
+ 	{
+ 	 MX53_PIN_DISP0_DAT22, IOMUX_CONFIG_ALT0,
+ 	 (PAD_CTL_HYS_NONE | PAD_CTL_PKE_NONE | PAD_CTL_ODE_OPENDRAIN_NONE |
+-	  PAD_CTL_DRV_LOW | PAD_CTL_SRE_SLOW),
++	  PAD_CTL_DRV_HIGH | PAD_CTL_SRE_SLOW),
+ 	 },
+ 	{
+ 	 MX53_PIN_DISP0_DAT23, IOMUX_CONFIG_ALT0,
+ 	 (PAD_CTL_HYS_NONE | PAD_CTL_PKE_NONE | PAD_CTL_ODE_OPENDRAIN_NONE |
+-	  PAD_CTL_DRV_LOW | PAD_CTL_SRE_SLOW),
++	  PAD_CTL_DRV_HIGH | PAD_CTL_SRE_SLOW),
+ 	 },
+ 	{ /* audio and CSI clock out */
+ 	 MX53_PIN_GPIO_0, IOMUX_CONFIG_ALT3,
+@@ -571,6 +571,12 @@ static struct mxc_iomux_pin_cfg __initdata mx53_evk_iomux_pins[] = {
+ 	{ /* DI0_PIN1 */
+ 	 MX53_PIN_EIM_D22, IOMUX_CONFIG_ALT3,
+ 	 },
++	{ /* DVI I2C ENABLE */
++	 MX53_PIN_EIM_D28, IOMUX_CONFIG_GPIO,
++	 },
++	{ /* DVI DET */
++	 MX53_PIN_EIM_D31, IOMUX_CONFIG_GPIO,
++	 },
+ 	{ /* SDHC1 SD_CD */
+ 	 MX53_PIN_EIM_DA13, IOMUX_CONFIG_GPIO,
+ 	 },
+@@ -728,6 +734,22 @@ void __init mx53_evk_io_init(void)
+ 		gpio_set_value(IOMUX_TO_GPIO(MX53_PIN_ATA_DA_0), 0);
+ 		msleep(1);
+ 		gpio_set_value(IOMUX_TO_GPIO(MX53_PIN_ATA_DA_0), 1);
++
++		/* DVI Detect */
++		gpio_request(IOMUX_TO_GPIO(MX53_PIN_EIM_D31), "gpio3_31");
++		gpio_direction_input(IOMUX_TO_GPIO(MX53_PIN_EIM_D31));
++		/* DVI Reset - Assert for i2c disabled mode */
++		gpio_request(IOMUX_TO_GPIO(MX53_PIN_EIM_WAIT), "gpio5_0");
++		gpio_set_value(IOMUX_TO_GPIO(MX53_PIN_EIM_WAIT), 0);
++		gpio_direction_output(IOMUX_TO_GPIO(MX53_PIN_EIM_WAIT), 0);
++		/* DVI Power-down */
++		gpio_request(IOMUX_TO_GPIO(MX53_PIN_EIM_D24), "gpio3_24");
++		gpio_direction_output(IOMUX_TO_GPIO(MX53_PIN_EIM_D24), 0);
++		gpio_set_value(IOMUX_TO_GPIO(MX53_PIN_EIM_D24), 1);
++		/* DVI I2C enable */
++		gpio_request(IOMUX_TO_GPIO(MX53_PIN_EIM_D28), "gpio3_28");
++		gpio_direction_output(IOMUX_TO_GPIO(MX53_PIN_EIM_D28), 0);
++		gpio_set_value(IOMUX_TO_GPIO(MX53_PIN_EIM_D28), 0);
+ 	}
+ 
+ 
+-- 
+1.5.4.4
+

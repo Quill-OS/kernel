@@ -1,0 +1,38 @@
+From 27a5a4b2f259dd72fc48ca59eb5bd926311f3c81 Mon Sep 17 00:00:00 2001
+From: Jason <r64343@freescale.com>
+Date: Mon, 25 Jan 2010 13:44:08 +0800
+Subject: [PATCH] ENGR00120405 MX23 BCH:output debug information via pr_debug function
+
+Output debug information via pr_debug function
+
+Signed-off-by:Jason Liu <r64343@freescale.com>
+---
+ drivers/mtd/nand/gpmi/gpmi-bch.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/mtd/nand/gpmi/gpmi-bch.c b/drivers/mtd/nand/gpmi/gpmi-bch.c
+index 6936e55..fc0d866 100644
+--- a/drivers/mtd/nand/gpmi/gpmi-bch.c
++++ b/drivers/mtd/nand/gpmi/gpmi-bch.c
+@@ -5,8 +5,8 @@
+  *
+  * Author: dmitry pervushin <dimka@embeddedalley.com>
+  *
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
+  * Copyright 2008 Embedded Alley Solutions, Inc All Rights Reserved.
++ * Copyright 2008-2010 Freescale Semiconductor, Inc.
+  */
+ 
+ /*
+@@ -281,7 +281,7 @@ static int bch_read(void *context,
+ 		readsize += state->nands[index].writesize;
+ 	}
+ 
+-	printk(KERN_DEBUG"readsize = %ld, bufmask = 0x%X\n", readsize, bufmask);
++	pr_debug("readsize = %ld, bufmask = 0x%X\n", readsize, bufmask);
+ 	bch_reset(context, index);
+ 
+ 	/* wait for ready */
+-- 
+1.5.4.4
+

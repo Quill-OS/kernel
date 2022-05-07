@@ -1,0 +1,68 @@
+From 86a2320756317217e7a80409f47566dea2452004 Mon Sep 17 00:00:00 2001
+From: Robby Cai <R63905@freescale.com>
+Date: Wed, 10 Mar 2010 21:26:30 +0800
+Subject: [PATCH] ENGR00121273-1 [MX23] Porting I2C driver to new MSL
+
+Adjust the i2c adapter driver for MX23 and MX28
+
+Signed-off-by: Robby Cai <R63905@freescale.com>
+---
+ drivers/i2c/busses/Kconfig   |    4 ++--
+ drivers/i2c/busses/i2c-mxs.c |   13 +++++++++++++
+ 2 files changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/i2c/busses/Kconfig b/drivers/i2c/busses/Kconfig
+index f70a72a..c224437 100644
+--- a/drivers/i2c/busses/Kconfig
++++ b/drivers/i2c/busses/Kconfig
+@@ -450,14 +450,14 @@ config I2C_MXS_SELECT0
+ 
+ config I2C_MXS_SELECT0_PIOQUEUE_MODE
+ 	tristate "MXS I2C0 PIOQUEUE MODE Support"
+-	depends on I2C_MXS_SELECT0
++	depends on (I2C_MXS_SELECT0 && !ARCH_MX23)
+ 	help
+ 	  say yes if you are sure transfer length is eqaul to or less than 24 bytes.
+ 	  Otherwise say no to use DMA mode by default.
+ 
+ config I2C_MXS_SELECT1
+ 	bool "Enable I2C1 module"
+-	depends on I2C_MXS
++	depends on (I2C_MXS && !ARCH_MX23)
+ 	help
+ 	  Enable MXS I2C1 Module
+ 
+diff --git a/drivers/i2c/busses/i2c-mxs.c b/drivers/i2c/busses/i2c-mxs.c
+index 705512b..e3235ff 100644
+--- a/drivers/i2c/busses/i2c-mxs.c
++++ b/drivers/i2c/busses/i2c-mxs.c
+@@ -33,6 +33,7 @@
+ #include <mach/device.h>
+ #include <mach/regs-i2c.h>
+ #include <mach/system.h>
++#include <mach/hardware.h>
+ 
+ #include "i2c-mxs.h"
+ 
+@@ -53,6 +54,18 @@ static u8 *i2c_buf_virt;
+ #define	CMD_I2C_READ	(BM_I2C_CTRL0_SEND_NAK_ON_LAST |	\
+ 			BM_I2C_CTRL0_MASTER_MODE)
+ 
++/* Hack for platform which does not support PioQueue Mode */
++#if !defined(HW_I2C_QUEUECMD) || 	\
++    !defined(HW_I2C_QUEUEDATA) ||	\
++    !defined(HW_I2C_QUEUECTRL_CLR) ||	\
++    !defined(HW_I2C_QUEUECTRL_SET)
++#warning "Pio Queue Mode *NOT* Support!"
++#define HW_I2C_QUEUECMD		HW_I2C_VERSION
++#define HW_I2C_QUEUEDATA	HW_I2C_VERSION
++#define HW_I2C_QUEUECTRL_SET	HW_I2C_VERSION
++#define HW_I2C_QUEUECTRL_CLR	HW_I2C_VERSION
++#endif
++
+ static void hw_i2c_dmachan_reset(struct mxs_i2c_dev *dev)
+ {
+ 	mxs_dma_reset(dev->dma_chan);
+-- 
+1.5.4.4
+

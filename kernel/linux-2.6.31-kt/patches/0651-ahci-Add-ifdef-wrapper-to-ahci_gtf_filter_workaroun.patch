@@ -1,0 +1,44 @@
+From 555dc37cf63dd94501a2abe04ebdfb4a52b30c2a Mon Sep 17 00:00:00 2001
+From: Markus Trippelsdorf <markus@trippelsdorf.de>
+Date: Fri, 9 Oct 2009 05:41:47 +0200
+Subject: [PATCH] ahci: Add ifdef wrapper to ahci_gtf_filter_workaround
+
+Commit f80ae7e45a0e03da188494c6e947a5c8b0cdfb4a
+ahci: filter FPDMA non-zero offset enable for Aspire 3810T
+breaks the current git build for configurations that don't define
+CONFIG_ATA_ACPI.
+This adds an ifdef wrapper to ahci_gtf_filter_workaround.
+
+Signed-off-by: Markus Trippelsdorf <markus@trippelsdorf.de>
+Acked-by: Tejun Heo <tj@kernel.org>
+Signed-off-by: Jeff Garzik <jgarzik@redhat.com>
+---
+ drivers/ata/ahci.c |    5 +++++
+ 1 files changed, 5 insertions(+), 0 deletions(-)
+
+diff --git a/drivers/ata/ahci.c b/drivers/ata/ahci.c
+index 1138132..b34330e 100644
+--- a/drivers/ata/ahci.c
++++ b/drivers/ata/ahci.c
+@@ -2877,6 +2877,7 @@ static bool ahci_broken_online(struct pci_dev *pdev)
+ 	return pdev->bus->number == (val >> 8) && pdev->devfn == (val & 0xff);
+ }
+ 
++#ifdef CONFIG_ATA_ACPI
+ static void ahci_gtf_filter_workaround(struct ata_host *host)
+ {
+ 	static const struct dmi_system_id sysids[] = {
+@@ -2920,6 +2921,10 @@ static void ahci_gtf_filter_workaround(struct ata_host *host)
+ 				dev->gtf_filter |= filter;
+ 	}
+ }
++#else
++static inline void ahci_gtf_filter_workaround(struct ata_host *host)
++{}
++#endif
+ 
+ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
+ {
+-- 
+1.5.4.4
+

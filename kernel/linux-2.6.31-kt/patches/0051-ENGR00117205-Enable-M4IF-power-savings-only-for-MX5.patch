@@ -1,0 +1,30 @@
+From 324c0ba9865478f7907587527df97beccc56022c Mon Sep 17 00:00:00 2001
+From: Ranjani Vaidyanathan-RA5478 <Ranjani.Vaidyanathan@freescale.com>
+Date: Mon, 12 Oct 2009 10:59:00 -0500
+Subject: [PATCH] ENGR00117205: Enable M4IF power savings only for MX51 TO3 parts.
+
+Disable M4IF auto clock gating for EMI_FAST on MX51 TO2.
+
+Signed-off-by: Ranjani Vaidyanathan-RA5478 <Ranjani.Vaidyanathan@freescale.com>
+---
+ arch/arm/mach-mx51/sdram_autogating.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm/mach-mx51/sdram_autogating.c b/arch/arm/mach-mx51/sdram_autogating.c
+index c8667b9..1d47e5a 100644
+--- a/arch/arm/mach-mx51/sdram_autogating.c
++++ b/arch/arm/mach-mx51/sdram_autogating.c
+@@ -118,8 +118,8 @@ static int __devinit sdram_autogating_probe(struct platform_device *pdev)
+ 	}
+ 
+ 	sdram_autogating_is_active = 0;
+-
+-	enable_sdram_autogating();
++	if (mxc_cpu_is_rev(CHIP_REV_3_0) >= 1)
++		enable_sdram_autogating();
+ 	return 0;
+ }
+ 
+-- 
+1.5.4.4
+

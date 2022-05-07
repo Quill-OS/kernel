@@ -1,0 +1,38 @@
+From 25e4a8da3d28daf3677a51a6d8fb3bb7709bb5c5 Mon Sep 17 00:00:00 2001
+From: Liu Ying <b17645@freescale.com>
+Date: Mon, 17 May 2010 10:45:45 -0400
+Subject: [PATCH] ENGR00123507 IPUv3:Set suitable IDMAC burst size for UYVY and ABGR32
+
+1)Set the IDMAC channel's burst size to be 32 pixels if the channel is
+in UYVY pixel format.
+2)Set the IDMAC channel's burst size to be 16 pixels if the channel is
+in ABGR32 pixel format.
+
+Signed-off-by: Liu Ying <b17645@freescale.com>
+---
+ drivers/mxc/ipu3/ipu_param_mem.h |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletions(-)
+
+diff --git a/drivers/mxc/ipu3/ipu_param_mem.h b/drivers/mxc/ipu3/ipu_param_mem.h
+index 434f4a4..30e6dc1 100644
+--- a/drivers/mxc/ipu3/ipu_param_mem.h
++++ b/drivers/mxc/ipu3/ipu_param_mem.h
+@@ -217,13 +217,14 @@ static inline void _ipu_ch_param_init(int ch,
+ 	case IPU_PIX_FMT_ABGR32:
+ 		ipu_ch_param_set_field(&params, 0, 107, 3, 0);	/* bits/pixel */
+ 		ipu_ch_param_set_field(&params, 1, 85, 4, 7);	/* pix format */
++		ipu_ch_param_set_field(&params, 1, 78, 7, 15);	/* burst size */
+ 
+ 		_ipu_ch_params_set_packing(&params, 8, 0, 8, 8, 8, 16, 8, 24);
+ 		break;
+ 	case IPU_PIX_FMT_UYVY:
+ 		ipu_ch_param_set_field(&params, 0, 107, 3, 3);	/* bits/pixel */
+ 		ipu_ch_param_set_field(&params, 1, 85, 4, 0xA);	/* pix format */
+-		ipu_ch_param_set_field(&params, 1, 78, 7, 15);	/* burst size */
++		ipu_ch_param_set_field(&params, 1, 78, 7, 31);	/* burst size */
+ 		break;
+ 	case IPU_PIX_FMT_YUYV:
+ 		ipu_ch_param_set_field(&params, 0, 107, 3, 3);	/* bits/pixel */
+-- 
+1.5.4.4
+

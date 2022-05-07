@@ -1,0 +1,693 @@
+From 2b9b9637c4a39237b5fc6eafd9917db464de746e Mon Sep 17 00:00:00 2001
+From: Robert Lee <robert.lee@freescale.com>
+Date: Fri, 7 May 2010 00:02:09 -0500
+Subject: [PATCH] ENGR00123222 MX23/MX28: Add power optimization functionality to cpufreq
+
+MX23/MX28: Add power optimization functionality to cpufreq
+Add working HCLK autoslow interface and functionality
+ to cpufreq and clock driver.
+Add lowering of x_clk for lowest clock speed state.
+MX23: Fix 392MHz voltage value from 1475000 to 1450000.
+  This lower value is all that is needed when using 130MHz hclk.
+MX23: change emiclk from 120000 to 130910 for 360000 cpu entry.
+ 130910 allows more bandwidth and avoids momentary halting
+ of sdram traffic required between emiclk changes.
+MX23/28: fiix problem with previous hclk autoslow
+ implementation causing a corruption of the CLKCTRL
+ _HBUS register.  The regular hclk divider was getting
+ set to 21 or 22 or 23 when the LCD was turned off.
+  This very low speed starves the system.
+
+Signed-off-by: Robert Lee <robert.lee@freescale.com>
+---
+ arch/arm/mach-mx23/bus_freq.c             |   82 ++++++-----------------------
+ arch/arm/mach-mx23/clock.c                |   66 ++++++++++++++++++-----
+ arch/arm/mach-mx28/bus_freq.c             |   72 ++++---------------------
+ arch/arm/mach-mx28/clock.c                |   43 ++++++++++++----
+ arch/arm/plat-mxs/clock.c                 |   40 ++++++++++++++
+ arch/arm/plat-mxs/cpufreq.c               |   46 +++++++++++++---
+ arch/arm/plat-mxs/include/mach/bus_freq.h |   11 ++--
+ arch/arm/plat-mxs/include/mach/clock.h    |    7 ++-
+ 8 files changed, 203 insertions(+), 164 deletions(-)
+
+diff --git a/arch/arm/mach-mx23/bus_freq.c b/arch/arm/mach-mx23/bus_freq.c
+index b4efabd..9133e6b 100644
+--- a/arch/arm/mach-mx23/bus_freq.c
++++ b/arch/arm/mach-mx23/bus_freq.c
+@@ -46,36 +46,32 @@
+ 
+ #define CLKCTRL_BASE_ADDR IO_ADDRESS(CLKCTRL_PHYS_ADDR)
+ #define DIGCTRL_BASE_ADDR IO_ADDRESS(DIGCTL_PHYS_ADDR)
+-#define BP_CLKCTRL_HBUS_ASM_ENABLE 20
+-#define CLKCTRL_PLL_PWD_BIT 17
+-#define CLKCTRL_PLL_BYPASS 0x1ff
+ #define BF(value, field) (((value) << BP_##field) & BM_##field)
+ 
+ struct profile profiles[] = {
+ 	{ 454736, 151580, 130910, 0, 1550000,
+-	1450000, 355000, 3300000, 1750000, 0 },
+-	{ 392727, 130910, 130910, 0, 1475000,
+-	1375000, 225000, 3300000, 1750000, 0 },
+-	{ 360000, 120000, 120000, 0, 1375000,
+-	1275000, 200000, 3300000, 1750000, 0 },
++	1450000, 355000, 3300000, 1750000, 24000, 0 },
++	{ 392727, 130910, 130910, 0, 1450000,
++	1375000, 225000, 3300000, 1750000, 24000, 0x1CF3 },
++	{ 360000, 120000, 130910, 0, 1375000,
++	1275000, 200000, 3300000, 1750000, 24000, 0x1CF3 },
+ 	{ 261818, 130910, 130910, 0, 1275000,
+-	1175000, 173000, 3300000, 1750000, 0 },
++	1175000, 173000, 3300000, 1750000, 24000, 0x1CF3 },
+ #ifdef CONFIG_MXS_RAM_MDDR
+ 	{  64000,  64000,  48000, 3, 1050000,
+-	975000, 150000, 3300000, 1750000, 0 },
++	975000, 150000, 3300000, 1750000, 24000, 0x1CF3 },
+ 	{  24000,  24000,  24000, 3, 1050000,
+-	975000, 150000, 3075000, 1725000, 1 },
++	975000, 150000, 3075000, 1725000, 6000, 0x1C93 },
+ #else
+ 	{  64000,  64000,  96000, 3, 1050000,
+-	975000, 150000, 3300000, 1750000, 0 },
+-	{  0,  0,  0, 0, 0,
+-	0, 0, 0, 0, 0 },
++	975000, 150000, 3300000, 1750000, 24000, 0x1CF3 },
++	{  24000,  24000,  96000, 3, 1050000,
++	975000, 150000, 3300000, 1725000, 6000, 0x1C93 },
+ #endif
+ };
+ 
+ static struct clk *usb_clk;
+ static struct clk *lcdif_clk;
+-u32 clkseq_setting;
+ 
+ int low_freq_used(void)
+ {
+@@ -84,60 +80,14 @@ int low_freq_used(void)
+ 		return 1;
+ 	else
+ 		return 0;
+-	}
+-
+-void hbus_auto_slow_mode_enable(void)
+-{
+-	__raw_writel(BP_CLKCTRL_HBUS_ASM_ENABLE,
+-			CLKCTRL_BASE_ADDR + HW_CLKCTRL_HBUS_SET);
+-}
+-EXPORT_SYMBOL(hbus_auto_slow_mode_enable);
+-
+-void hbus_auto_slow_mode_disable(void)
+-{
+-	__raw_writel(BP_CLKCTRL_HBUS_ASM_ENABLE,
+-			  CLKCTRL_BASE_ADDR + HW_CLKCTRL_HBUS_CLR);
+ }
+-EXPORT_SYMBOL(hbus_auto_slow_mode_disable);
+ 
+-int cpu_clk_set_pll_on(struct clk *clk, unsigned int freq)
++int is_hclk_autoslow_ok(void)
+ {
+-	struct cpufreq_freqs freqs;
+-
+-	freqs.old = clk_get_rate(clk);
+-	freqs.cpu = 0;
+-	freqs.new = freq;
+-
+-	if (freqs.old == 24000 && freqs.new > 24000) {
+-		/* turn pll on */
+-		__raw_writel(CLKCTRL_PLL_PWD_BIT, CLKCTRL_BASE_ADDR +
+-			      HW_CLKCTRL_PLLCTRL0_SET);
+-		udelay(10);
+-	} else if (freqs.old > 24000 && freqs.new == 24000)
+-		clkseq_setting = __raw_readl(CLKCTRL_BASE_ADDR +
+-						 HW_CLKCTRL_CLKSEQ);
+-	return 0;
+-}
+-
+-int cpu_clk_set_pll_off(struct clk *clk, unsigned int freq)
+-{
+-	struct cpufreq_freqs freqs;
+-
+-	freqs.old = clk_get_rate(clk);
+-	freqs.cpu = 0;
+-	freqs.new = freq;
+-
+-	if (freqs.old > 24000 && freqs.new == 24000) {
+-		/* turn pll off */
+-		__raw_writel(CLKCTRL_PLL_PWD_BIT, CLKCTRL_BASE_ADDR +
+-			      HW_CLKCTRL_PLLCTRL0_CLR);
+-		__raw_writel(CLKCTRL_PLL_BYPASS, CLKCTRL_BASE_ADDR +
+-			      HW_CLKCTRL_CLKSEQ);
+-	} else if (freqs.old == 24000 && freqs.new > 24000)
+-		__raw_writel(clkseq_setting, CLKCTRL_BASE_ADDR +
+-				HW_CLKCTRL_CLKSEQ);
+-
+-	return 0;
++	if (clk_get_usecount(usb_clk) == 0)
++		return 1;
++	else
++		return 0;
+ }
+ 
+ int timing_ctrl_rams(int ss)
+diff --git a/arch/arm/mach-mx23/clock.c b/arch/arm/mach-mx23/clock.c
+index 8a1a989..ea23f37 100644
+--- a/arch/arm/mach-mx23/clock.c
++++ b/arch/arm/mach-mx23/clock.c
+@@ -55,7 +55,6 @@ static struct clk ref_xtal_clk;
+ static void print_ref_counts(void);
+ #endif
+ 
+-
+ static unsigned long enet_mii_phy_rate;
+ 
+ static inline int clk_is_busy(struct clk *clk)
+@@ -85,6 +84,36 @@ static inline int clk_busy_wait(struct clk *clk)
+ 		return 0;
+ }
+ 
++static bool mx23_enable_h_autoslow(bool enable)
++{
++	bool currently_enabled;
++
++	if (__raw_readl(CLKCTRL_BASE_ADDR+HW_CLKCTRL_HBUS) &
++		BM_CLKCTRL_HBUS_AUTO_SLOW_MODE)
++		currently_enabled = true;
++	else
++		currently_enabled = false;
++
++	if (enable)
++		__raw_writel(BM_CLKCTRL_HBUS_AUTO_SLOW_MODE,
++			CLKCTRL_BASE_ADDR + HW_CLKCTRL_HBUS_SET);
++	else
++		__raw_writel(BM_CLKCTRL_HBUS_AUTO_SLOW_MODE,
++			CLKCTRL_BASE_ADDR + HW_CLKCTRL_HBUS_CLR);
++	return currently_enabled;
++}
++
++
++static void mx23_set_hbus_autoslow_flags(u16 mask)
++{
++	u32 reg;
++
++	reg = __raw_readl(CLKCTRL_BASE_ADDR + HW_CLKCTRL_HBUS);
++	reg &= 0xFFFF;
++	reg |= mask << 16;
++	__raw_writel(reg, CLKCTRL_BASE_ADDR + HW_CLKCTRL_HBUS);
++}
++
+ static void local_clk_disable(struct clk *clk)
+ {
+ 	if (clk == NULL || IS_ERR(clk) || !clk->ref)
+@@ -500,6 +529,7 @@ static int cpu_set_rate(struct clk *clk, unsigned long rate)
+ 	u32 clkctrl_frac = 1;
+ 	u32 val;
+ 	u32 reg_val, hclk_reg;
++	bool h_autoslow;
+ 
+ 	/* make sure the cpu div_xtal is 1 */
+ 	reg_val = __raw_readl(CLKCTRL_BASE_ADDR+HW_CLKCTRL_CPU);
+@@ -512,6 +542,11 @@ static int cpu_set_rate(struct clk *clk, unsigned long rate)
+ 
+ 	if (rate == clk_get_rate(clk))
+ 		return 0;
++	/* temporaily disable h autoslow to avoid
++	 * hclk getting too slow while temporarily
++	 * changing clocks
++	 */
++	h_autoslow = mx23_enable_h_autoslow(false);
+ 
+ 	if (rate == ref_xtal_get_rate(&ref_xtal_clk)) {
+ 
+@@ -690,6 +725,7 @@ static int cpu_set_rate(struct clk *clk, unsigned long rate)
+ 		}
+ 
+ 	}
++	mx23_enable_h_autoslow(h_autoslow);
+ 	return ret;
+ }
+ 
+@@ -1015,10 +1051,9 @@ static int emi_set_rate(struct clk *clk, unsigned long rate)
+ 	if ((cur_emi_div == sc_data.emi_div) &&
+ 		(cur_emi_frac == sc_data.frac_div))
+ 		goto out;
+-
+-
+ 	{
+ 		unsigned long iram_phy;
++		bool h_autoslow;
+ 		int (*scale)(struct mxs_emi_scaling_data *) =
+ 			iram_alloc(mxs_ram_funcs_sz, &iram_phy);
+ 
+@@ -1027,6 +1062,12 @@ static int emi_set_rate(struct clk *clk, unsigned long rate)
+ 			return -ENOMEM;
+ 		}
+ 
++		/* temporaily disable h autoslow to maximize
++		 * performance/minimize time spent with no
++		 * sdram access
++		 */
++		h_autoslow = mx23_enable_h_autoslow(false);
++
+ 		memcpy(scale, mxs_ram_freq_scale, mxs_ram_funcs_sz);
+ 
+ 		local_irq_disable();
+@@ -1038,6 +1079,12 @@ static int emi_set_rate(struct clk *clk, unsigned long rate)
+ 
+ 		local_fiq_enable();
+ 		local_irq_enable();
++
++		/* temporaily disable h autoslow to avoid
++		 * hclk getting too slow while temporarily
++		 * changing clocks
++		 */
++		mx23_enable_h_autoslow(h_autoslow);
+ 	}
+ 
+ 	/* this code is for keeping track of ref counts.
+@@ -1465,16 +1512,6 @@ static void print_ref_counts(void)
+ }
+ #endif
+ 
+-void clk_set_hbus_autoslow_bits(u16 mask)
+-{
+-	u32 reg;
+-
+-	reg = __raw_readl(CLKCTRL_BASE_ADDR + HW_CLKCTRL_HBUS);
+-	reg &= 0xFFFF;
+-	reg |= mask << 16;
+-	__raw_writel(reg, CLKCTRL_BASE_ADDR + HW_CLKCTRL_HBUS);
+-}
+-
+ static void mx23_clock_scan(void)
+ {
+ 	unsigned long reg;
+@@ -1509,4 +1546,7 @@ void __init mx23_clock_init(void)
+ 
+ 	clk_enable(&cpu_clk);
+ 	clk_enable(&emi_clk);
++
++	clk_en_public_h_asm_ctrl(mx23_enable_h_autoslow,
++		mx23_set_hbus_autoslow_flags);
+ }
+diff --git a/arch/arm/mach-mx28/bus_freq.c b/arch/arm/mach-mx28/bus_freq.c
+index a997eaa..1ea76cb 100644
+--- a/arch/arm/mach-mx28/bus_freq.c
++++ b/arch/arm/mach-mx28/bus_freq.c
+@@ -46,24 +46,21 @@
+ 
+ #define CLKCTRL_BASE_ADDR IO_ADDRESS(CLKCTRL_PHYS_ADDR)
+ #define DIGCTRL_BASE_ADDR IO_ADDRESS(DIGCTL_PHYS_ADDR)
+-#define BP_CLKCTRL_HBUS_ASM_ENABLE 20
+-#define CLKCTRL_PLL_PWD_BIT 17
+-#define CLKCTRL_PLL_BYPASS 0x1ff
+ #define BF(value, field) (((value) << BP_##field) & BM_##field)
+ 
+ struct profile profiles[] = {
+ 	{ 454736, 151580, 196360, 0, 1550000,
+-	1450000, 355000, 3300000, 1750000, 0 },
++	1450000, 355000, 3300000, 1750000, 24000, 0 },
+ 	{ 392727, 130910, 160000, 0, 1475000,
+-	1375000, 225000, 3300000, 1750000, 0 },
++	1375000, 225000, 3300000, 1750000, 24000, 0 },
+ 	{ 360000, 120000, 130910, 0, 1375000,
+-	1275000, 200000, 3300000, 1750000, 0 },
++	1275000, 200000, 3300000, 1750000, 24000, 0 },
+ 	{ 261818, 130910, 130910, 0, 1275000,
+-	1175000, 173000, 3300000, 1750000, 0 },
++	1175000, 173000, 3300000, 1750000, 24000, 0 },
+ 	{  64000,  64000, 130910, 3, 1050000,
+-	975000, 150000, 3300000, 1750000, 0 },
++	975000, 150000, 3300000, 1750000, 24000, 0 },
+ 	{  0,  0,  0, 0, 0,
+-	0, 0, 0, 0, 0 },
++	0, 0, 0, 0, 0, 0 },
+ };
+ 
+ static struct device *busfreq_dev;
+@@ -82,58 +79,13 @@ int low_freq_used(void)
+ 		return 0;
+ }
+ 
+-void hbus_auto_slow_mode_enable(void)
++int is_hclk_autoslow_ok(void)
+ {
+-	__raw_writel(BP_CLKCTRL_HBUS_ASM_ENABLE,
+-			CLKCTRL_BASE_ADDR + HW_CLKCTRL_HBUS_SET);
+-}
+-EXPORT_SYMBOL(hbus_auto_slow_mode_enable);
+-
+-void hbus_auto_slow_mode_disable(void)
+-{
+-	__raw_writel(BP_CLKCTRL_HBUS_ASM_ENABLE,
+-			  CLKCTRL_BASE_ADDR + HW_CLKCTRL_HBUS_CLR);
+-}
+-EXPORT_SYMBOL(hbus_auto_slow_mode_disable);
+-
+-int cpu_clk_set_pll_on(struct clk *clk, unsigned int freq)
+-{
+-	struct cpufreq_freqs freqs;
+-
+-	freqs.old = clk_get_rate(clk);
+-	freqs.cpu = 0;
+-	freqs.new = freq;
+-
+-	if (freqs.old == 24000 && freqs.new > 24000) {
+-		/* turn pll on */
+-		__raw_writel(CLKCTRL_PLL_PWD_BIT, CLKCTRL_BASE_ADDR +
+-			      HW_CLKCTRL_PLL0CTRL0_SET);
+-		udelay(10);
+-	} else if (freqs.old > 24000 && freqs.new == 24000)
+-		clkseq_setting = __raw_readl(CLKCTRL_BASE_ADDR +
+-						 HW_CLKCTRL_CLKSEQ);
+-	return 0;
+-}
+-
+-int cpu_clk_set_pll_off(struct clk *clk, unsigned int freq)
+-{
+-	struct cpufreq_freqs freqs;
+-
+-	freqs.old = clk_get_rate(clk);
+-	freqs.cpu = 0;
+-	freqs.new = freq;
+-
+-	if (freqs.old > 24000 && freqs.new == 24000) {
+-		/* turn pll off */
+-		__raw_writel(CLKCTRL_PLL_PWD_BIT, CLKCTRL_BASE_ADDR +
+-			      HW_CLKCTRL_PLL0CTRL0_CLR);
+-		__raw_writel(CLKCTRL_PLL_BYPASS, CLKCTRL_BASE_ADDR +
+-			      HW_CLKCTRL_CLKSEQ);
+-	} else if (freqs.old == 24000 && freqs.new > 24000)
+-		__raw_writel(clkseq_setting, CLKCTRL_BASE_ADDR +
+-				HW_CLKCTRL_CLKSEQ);
+-
+-	return 0;
++	if ((clk_get_usecount(usb_clk0) == 0)
++	    && (clk_get_usecount(usb_clk1) == 0))
++		return 1;
++	else
++		return 0;
+ }
+ 
+ int timing_ctrl_rams(int ss)
+diff --git a/arch/arm/mach-mx28/clock.c b/arch/arm/mach-mx28/clock.c
+index 4c58f01..3612290 100644
+--- a/arch/arm/mach-mx28/clock.c
++++ b/arch/arm/mach-mx28/clock.c
+@@ -53,6 +53,36 @@ static inline int clk_is_busy(struct clk *clk)
+ 	return __raw_readl(clk->busy_reg) & (1 << clk->busy_bits);
+ }
+ 
++static bool mx28_enable_h_autoslow(bool enable)
++{
++	bool currently_enabled;
++
++	if (__raw_readl(CLKCTRL_BASE_ADDR+HW_CLKCTRL_HBUS) &
++		BM_CLKCTRL_HBUS_ASM_ENABLE)
++		currently_enabled = true;
++	else
++		currently_enabled = false;
++
++	if (enable)
++		__raw_writel(BM_CLKCTRL_HBUS_ASM_ENABLE,
++			CLKCTRL_BASE_ADDR + HW_CLKCTRL_HBUS_SET);
++	else
++		__raw_writel(BM_CLKCTRL_HBUS_ASM_ENABLE,
++			CLKCTRL_BASE_ADDR + HW_CLKCTRL_HBUS_CLR);
++	return currently_enabled;
++}
++
++
++static void mx28_set_hbus_autoslow_flags(u16 mask)
++{
++	u32 reg;
++
++	reg = __raw_readl(CLKCTRL_BASE_ADDR + HW_CLKCTRL_HBUS);
++	reg &= 0xFFFF;
++	reg |= mask << 16;
++	__raw_writel(reg, CLKCTRL_BASE_ADDR + HW_CLKCTRL_HBUS);
++}
++
+ static int mx28_raw_enable(struct clk *clk)
+ {
+ 	unsigned int reg;
+@@ -1652,16 +1682,6 @@ static struct clk_lookup onchip_clocks[] = {
+ 	}
+ };
+ 
+-void clk_set_hbus_autoslow_bits(u16 mask)
+-{
+-	u32 reg;
+-
+-	reg = __raw_readl(CLKCTRL_BASE_ADDR + HW_CLKCTRL_HBUS);
+-	reg &= 0xFFFF;
+-	reg |= mask << 16;
+-	__raw_writel(reg, CLKCTRL_BASE_ADDR + HW_CLKCTRL_HBUS);
+-}
+-
+ static void mx28_clock_scan(void)
+ {
+ 	unsigned long reg;
+@@ -1720,4 +1740,7 @@ void __init mx28_clock_init(void)
+ 
+ 	clk_enable(&cpu_clk);
+ 	clk_enable(&emi_clk);
++
++	clk_en_public_h_asm_ctrl(mx28_enable_h_autoslow,
++		mx28_set_hbus_autoslow_flags);
+ }
+diff --git a/arch/arm/plat-mxs/clock.c b/arch/arm/plat-mxs/clock.c
+index 42c8ef8..1b98b1e 100644
+--- a/arch/arm/plat-mxs/clock.c
++++ b/arch/arm/plat-mxs/clock.c
+@@ -29,6 +29,9 @@
+ #include <mach/clock.h>
+ 
+ extern int cpufreq_trig_needed;
++static bool (*mxs_enable_h_autoslow)(bool enable);
++static void (*mxs_set_h_autoslow_flags)(u16 flags);
++
+ static DEFINE_SPINLOCK(clockfw_lock);
+ 
+ /*
+@@ -283,3 +286,40 @@ void clk_unregister(struct clk_lookup *lookup)
+ 		lookup->clk->get_rate = NULL;
+ }
+ EXPORT_SYMBOL(clk_unregister);
++
++bool clk_enable_h_autoslow(bool enable)
++{
++	unsigned long flags;
++	bool ret = false;
++
++	if (mxs_enable_h_autoslow == NULL)
++		return ret;
++
++	spin_lock_irqsave(&clockfw_lock, flags);
++	ret = mxs_enable_h_autoslow(enable);
++	spin_unlock_irqrestore(&clockfw_lock, flags);
++
++	return ret;
++}
++EXPORT_SYMBOL(clk_enable_h_autoslow);
++
++void clk_set_h_autoslow_flags(u16 mask)
++{
++	unsigned long flags;
++
++	if (mxs_set_h_autoslow_flags == NULL)
++		return;
++
++	spin_lock_irqsave(&clockfw_lock, flags);
++	mxs_set_h_autoslow_flags(mask);
++	spin_unlock_irqrestore(&clockfw_lock, flags);
++}
++EXPORT_SYMBOL(clk_set_h_autoslow_flags);
++
++void clk_en_public_h_asm_ctrl(bool (*enable_func)(bool),
++	void (*set_func)(u16))
++{
++	mxs_enable_h_autoslow = enable_func;
++	mxs_set_h_autoslow_flags = set_func;
++}
++EXPORT_SYMBOL(clk_en_public_h_asm_ctrl);
+diff --git a/arch/arm/plat-mxs/cpufreq.c b/arch/arm/plat-mxs/cpufreq.c
+index ef4c1c9..a188b21 100644
+--- a/arch/arm/plat-mxs/cpufreq.c
++++ b/arch/arm/plat-mxs/cpufreq.c
+@@ -40,6 +40,7 @@
+ static struct regulator *cpu_regulator;
+ static struct clk *cpu_clk;
+ static struct clk *ahb_clk;
++static struct clk *x_clk;
+ static struct clk *emi_clk;
+ static struct regulator *vddd;
+ static struct regulator *vdddbo;
+@@ -143,8 +144,6 @@ static int set_op(struct cpufreq_policy *policy, unsigned int target_freq)
+ 			return 0;
+ 	}
+ 
+-	cpu_clk_set_pll_on(cpu_clk, freqs.new);
+-
+ 	if (cpu_regulator && (freqs.old < freqs.new)) {
+ 		ret = regulator_set_current_limit(cpu_regulator,
+ 			profiles[i].cur, profiles[i].cur);
+@@ -157,10 +156,16 @@ static int set_op(struct cpufreq_policy *policy, unsigned int target_freq)
+ 	if (freqs.old > freqs.new) {
+ 		int ss = profiles[i].ss;
+ 
++		/* change emi while cpu is fastest to minimize
++		 * time spent changing emiclk
++		 */
++		clk_set_rate(emi_clk, (profiles[i].emi) * 1000);
+ 		clk_set_rate(cpu_clk, (profiles[i].cpu) * 1000);
+ 		clk_set_rate(ahb_clk, (profiles[i].ahb) * 1000);
+-		clk_set_rate(emi_clk, (profiles[i].emi) * 1000);
++		/* x_clk order doesn't really matter */
++		clk_set_rate(x_clk, (profiles[i].xbus) * 1000);
+ 		timing_ctrl_rams(ss);
++
+ 		if (vddd && vdddbo && vddio && vdda) {
+ 			ret = regulator_set_voltage(vddd,
+ 						    profiles[i].vddd,
+@@ -216,13 +221,18 @@ static int set_op(struct cpufreq_policy *policy, unsigned int target_freq)
+ 							    profiles[i].vdda,
+ 							    profiles[i].vdda);
+ 		}
++		/* x_clk order doesn't really matter */
++		clk_set_rate(x_clk, (profiles[i].xbus) * 1000);
+ 		timing_ctrl_rams(ss);
+ 		clk_set_rate(cpu_clk, (profiles[i].cpu) * 1000);
+ 		clk_set_rate(ahb_clk, (profiles[i].ahb) * 1000);
+ 		clk_set_rate(emi_clk, (profiles[i].emi) * 1000);
+ 	}
+ 
+-	cpu_clk_set_pll_off(cpu_clk, freqs.new);
++	if (is_hclk_autoslow_ok())
++		clk_set_h_autoslow_flags(profiles[i].h_autoslow_flags);
++	else
++		clk_enable_h_autoslow(false);
+ 
+ 	if (high_freq_needed == 0)
+ 		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+@@ -235,7 +245,6 @@ static int set_op(struct cpufreq_policy *policy, unsigned int target_freq)
+ 	if (high_freq_needed == 1) {
+ 		high_freq_needed = 0;
+ 		cur_freq_table_size = lcd_on_freq_table_size;
+-		hbus_auto_slow_mode_disable();
+ 		set_freq_table(policy, cur_freq_table_size);
+ 		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+ 	}
+@@ -297,11 +306,22 @@ static int mxs_target(struct cpufreq_policy *policy,
+ 		cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+ 		low_freq_bus_ready = low_freq_used();
+ 		if (low_freq_bus_ready) {
++			int i;
+ 			cur_freq_table_size = lcd_off_freq_table_size;
+-			hbus_auto_slow_mode_enable();
++			/* find current table index to get
++			 * hbus autoslow flags and enable hbus autoslow.
++			 */
++			for (i = cur_freq_table_size - 1; i > 0; i--) {
++				if (profiles[i].cpu <= target_freq &&
++					target_freq < profiles[i - 1].cpu) {
++					clk_set_h_autoslow_flags(
++					profiles[i].h_autoslow_flags);
++					break;
++				}
++			}
+ 		} else {
+ 			cur_freq_table_size = lcd_on_freq_table_size;
+-			hbus_auto_slow_mode_disable();
++			clk_enable_h_autoslow(false);
+ 		}
+ 
+ 		set_freq_table(policy, cur_freq_table_size);
+@@ -358,6 +378,12 @@ static int __init mxs_cpu_init(struct cpufreq_policy *policy)
+ 		goto out_ahb;
+ 	}
+ 
++	x_clk = clk_get(NULL, "x");
++	if (IS_ERR(ahb_clk)) {
++		ret = PTR_ERR(x_clk);
++		goto out_x;
++	}
++
+ 	emi_clk = clk_get(NULL, "emi");
+ 	if (IS_ERR(emi_clk)) {
+ 		ret = PTR_ERR(emi_clk);
+@@ -423,13 +449,13 @@ static int __init mxs_cpu_init(struct cpufreq_policy *policy)
+ 
+ 	for (i = 0; i < ARRAY_SIZE(profiles); i++) {
+ 		if ((profiles[i].cpu) == 0) {
+-			lcd_off_freq_table_size = i + 1;
++			lcd_off_freq_table_size = i;
+ 			break;
+ 		}
+ 	}
+ 
+ 	if (i == ARRAY_SIZE(profiles))
+-		lcd_off_freq_table_size = i ;
++		lcd_off_freq_table_size = i;
+ 
+ 	/* Set the current working point. */
+ 	set_freq_table(policy, lcd_on_freq_table_size);
+@@ -451,6 +477,8 @@ out_cur:
+ 
+ 	clk_put(emi_clk);
+ out_emi:
++	clk_put(x_clk);
++out_x:
+ 	clk_put(ahb_clk);
+ out_ahb:
+ 	clk_put(cpu_clk);
+diff --git a/arch/arm/plat-mxs/include/mach/bus_freq.h b/arch/arm/plat-mxs/include/mach/bus_freq.h
+index a0254e8..0c41cd2 100644
+--- a/arch/arm/plat-mxs/include/mach/bus_freq.h
++++ b/arch/arm/plat-mxs/include/mach/bus_freq.h
+@@ -33,13 +33,14 @@ struct profile {
+ 	int cur;
+ 	int vddio;
+ 	int vdda;
+-	int pll_off;
++	u16 xbus;
++	/* map of the upper 16 bits of HW_CLKCTRL_HBUS register */
++	u16 h_autoslow_flags;
+ };
+ 
+-void hbus_auto_slow_mode_enable(void);
+-void hbus_auto_slow_mode_disable(void);
+-extern int cpu_clk_set_pll_on(struct clk *clk, unsigned int freq);
+-extern int cpu_clk_set_pll_off(struct clk *clk, unsigned int freq);
++/* map of the upper 16 bits of HW_CLKCTRL_HBUS register */
++int is_hclk_autoslow_ok(void);
++
+ extern int timing_ctrl_rams(int ss);
+ 
+ #endif
+diff --git a/arch/arm/plat-mxs/include/mach/clock.h b/arch/arm/plat-mxs/include/mach/clock.h
+index 74b9946..b506468 100644
+--- a/arch/arm/plat-mxs/include/mach/clock.h
++++ b/arch/arm/plat-mxs/include/mach/clock.h
+@@ -86,7 +86,10 @@ int clk_get_usecount(struct clk *clk);
+ extern int clk_register(struct clk_lookup *lookup);
+ extern void clk_unregister(struct clk_lookup *lookup);
+ 
+-void clk_set_hbus_autoslow_bits(u16 mask);
++bool clk_enable_h_autoslow(bool enable);
++void clk_set_h_autoslow_flags(u16 mask);
++void clk_en_public_h_asm_ctrl(bool (*enable_func)(bool),
++	void (*set_func)(u16));
+ 
+ struct mxs_emi_scaling_data {
+ 	u32 emi_div;
+@@ -95,6 +98,8 @@ struct mxs_emi_scaling_data {
+ 	u32 new_freq;
+ };
+ 
++
++
+ #ifdef CONFIG_MXS_RAM_FREQ_SCALING
+ extern int mxs_ram_freq_scale(struct mxs_emi_scaling_data *);
+ extern u32 mxs_ram_funcs_sz;
+-- 
+1.5.4.4
+

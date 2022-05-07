@@ -1,0 +1,51 @@
+From 49de29931ade68f33ce01b683c702a24a2ad7b6f Mon Sep 17 00:00:00 2001
+From: Robby Cai <R63905@freescale.com>
+Date: Thu, 25 Mar 2010 16:07:31 +0800
+Subject: [PATCH] ENGR00121974 [MXS] Set the limit for PxP down scaling factor
+
+For MX23, the maximum down scaling factor is 1/2.
+For MX28, it's 1/4.
+
+If the scaling factor is below the factor, PxP may not function as expected.
+
+Signed-off-by: Robby Cai <R63905@freescale.com>
+---
+ drivers/media/video/mxs_pxp.c |    4 ++++
+ drivers/media/video/mxs_pxp.h |    6 ++++++
+ 2 files changed, 10 insertions(+), 0 deletions(-)
+
+diff --git a/drivers/media/video/mxs_pxp.c b/drivers/media/video/mxs_pxp.c
+index 44afef4..83c9c52 100644
+--- a/drivers/media/video/mxs_pxp.c
++++ b/drivers/media/video/mxs_pxp.c
+@@ -311,6 +311,10 @@ static int pxp_set_scaling(struct pxps *pxp)
+ 	pxp->scaling = 1;
+ 	xscale = pxp->srect.width * 0x1000 / pxp->drect.width;
+ 	yscale = pxp->srect.height * 0x1000 / pxp->drect.height;
++	if (xscale > PXP_DOWNSCALE_THRESHOLD)
++		xscale = PXP_DOWNSCALE_THRESHOLD;
++	if (yscale > PXP_DOWNSCALE_THRESHOLD)
++		yscale = PXP_DOWNSCALE_THRESHOLD;
+ 	s0scale = BF_PXP_S0SCALE_YSCALE(yscale) | BF_PXP_S0SCALE_XSCALE(xscale);
+ 	pxp->regs_virt->s0scale = s0scale;
+ 
+diff --git a/drivers/media/video/mxs_pxp.h b/drivers/media/video/mxs_pxp.h
+index d027c35..6538388 100644
+--- a/drivers/media/video/mxs_pxp.h
++++ b/drivers/media/video/mxs_pxp.h
+@@ -39,6 +39,12 @@
+ 
+ #define BF_PXP_OUTSIZE_WIDTH(v)		BF_PXP_RGBSIZE_WIDTH(v)
+ #define BF_PXP_OUTSIZE_HEIGHT(v)	BF_PXP_RGBSIZE_HEIGHT(v)
++
++/* The maximum down scaling factor is 1/2 */
++#define	PXP_DOWNSCALE_THRESHOLD		0x2000
++#else
++/* The maximum down scaling factor is 1/4 */
++#define	PXP_DOWNSCALE_THRESHOLD		0x4000
+ #endif
+ 
+ struct pxp_overlay_registers {
+-- 
+1.5.4.4
+

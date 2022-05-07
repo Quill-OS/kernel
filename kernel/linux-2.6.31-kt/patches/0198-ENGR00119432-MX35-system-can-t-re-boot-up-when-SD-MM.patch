@@ -1,0 +1,70 @@
+From 118180b56814d13cca9da7d3fd7152ef61a6e858 Mon Sep 17 00:00:00 2001
+From: Richard Zhu <r65037@freescale.com>
+Date: Fri, 18 Dec 2009 14:53:50 +0800
+Subject: [PATCH] ENGR00119432 MX35 system can't re-boot up when SD/MMC boot is used.
+
+Do not disable the eSDHC clk on MX35 3DS board,
+since SYSTEM can't boot up after the reset key
+is pressed when the SD/MMC boot mode is used.
+The root cause is that the ROM code don't ensure
+the SD/MMC clk is running when boot system.
+
+Signed-off-by: Richard Zhu <r65037@freescale.com>
+---
+ arch/arm/mach-mx35/clock.c  |    4 +++-
+ drivers/mmc/host/mx_sdhci.c |   21 ++++++++++++++++-----
+ 2 files changed, 19 insertions(+), 6 deletions(-)
+
+diff --git a/arch/arm/mach-mx35/clock.c b/arch/arm/mach-mx35/clock.c
+index 5abc3cc..4ac048a 100644
+--- a/arch/arm/mach-mx35/clock.c
++++ b/arch/arm/mach-mx35/clock.c
+@@ -1891,7 +1891,9 @@ int __init mx35_clocks_init(void)
+ 		clk_register(*clkp);
+ 
+ 	/* Turn off all possible clocks */
+-	__raw_writel(MXC_CCM_CGR0_ECT_MASK | MXC_CCM_CGR0_EMI_MASK,
++	__raw_writel(MXC_CCM_CGR0_ECT_MASK | MXC_CCM_CGR0_EMI_MASK |
++		     MXC_CCM_CGR0_ESDHC1_MASK | MXC_CCM_CGR0_ESDHC2_MASK |
++		     MXC_CCM_CGR0_ESDHC3_MASK,
+ 		     MXC_CCM_CGR0);
+ 	__raw_writel(MXC_CCM_CGR1_GPIO1_MASK | MXC_CCM_CGR1_GPIO2_MASK |
+ 		     MXC_CCM_CGR1_GPIO3_MASK | MXC_CCM_CGR1_GPT_MASK |
+diff --git a/drivers/mmc/host/mx_sdhci.c b/drivers/mmc/host/mx_sdhci.c
+index 062bad2..4e686d8 100644
+--- a/drivers/mmc/host/mx_sdhci.c
++++ b/drivers/mmc/host/mx_sdhci.c
+@@ -1185,14 +1185,25 @@ static void sdhci_tasklet_finish(unsigned long param)
+ 
+ 	/* Stop the clock when the req is done */
+ 	flags = SDHCI_DATA_ACTIVE | SDHCI_DOING_WRITE | SDHCI_DOING_READ;
+-	if (!(readl(host->ioaddr + SDHCI_PRESENT_STATE) & flags)) {
+-		if (host->plat_data->clk_flg) {
+-			clk_disable(host->clk);
+-			host->plat_data->clk_flg = 0;
++	if (machine_is_mx35_3ds()) {
++		/* Do not disable the eSDHC clk on MX35 3DS board,
++		 * since SYSTEM can't boot up after the reset key
++		 * is pressed when the SD/MMC boot mode is used.
++		 * The root cause is that the ROM code don't ensure
++		 * the SD/MMC clk is running when boot system.
++		 * */
++		mmc_request_done(host->mmc, mrq);
++	} else {
++		if (!(readl(host->ioaddr + SDHCI_PRESENT_STATE) & flags)) {
++			if (host->plat_data->clk_flg) {
++				clk_disable(host->clk);
++				host->plat_data->clk_flg = 0;
++			}
+ 		}
++
++		mmc_request_done(host->mmc, mrq);
+ 	}
+ 
+-	mmc_request_done(host->mmc, mrq);
+ }
+ 
+ static void sdhci_timeout_timer(unsigned long data)
+-- 
+1.5.4.4
+

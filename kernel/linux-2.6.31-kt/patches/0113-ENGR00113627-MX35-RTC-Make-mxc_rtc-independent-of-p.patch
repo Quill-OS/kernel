@@ -1,0 +1,150 @@
+From 922299e877873bed102b2b2edc33a8fc83a21400 Mon Sep 17 00:00:00 2001
+From: r63889 <r63889@shlinux1.ap.freescale.net>
+Date: Fri, 6 Nov 2009 14:52:13 +0800
+Subject: [PATCH] ENGR00113627 MX35 RTC: Make mxc_rtc independent of pmic_rtc
+
+Remove get_ext_rtc_time/set_ext_rtc_time in rtc-mxc.c, making mxc_rtc totally
+independent of pmic_rtc.
+
+Signed-off-by: Lionel Xu <r63889@freescale.com>
+---
+ drivers/mxc/pmic/mc13783/pmic_rtc.c |    8 ----
+ drivers/rtc/rtc-mxc.c               |   70 -----------------------------------
+ 2 files changed, 0 insertions(+), 78 deletions(-)
+
+diff --git a/drivers/mxc/pmic/mc13783/pmic_rtc.c b/drivers/mxc/pmic/mc13783/pmic_rtc.c
+index 50f086f..930ee45 100644
+--- a/drivers/mxc/pmic/mc13783/pmic_rtc.c
++++ b/drivers/mxc/pmic/mc13783/pmic_rtc.c
+@@ -43,7 +43,6 @@ static DECLARE_WAIT_QUEUE_HEAD(queue_alarm);
+ static DECLARE_WAIT_QUEUE_HEAD(pmic_rtc_wait);
+ static pmic_event_callback_t alarm_callback;
+ static pmic_event_callback_t rtc_callback;
+-static int pmic_rtc_detected = 0;
+ static bool pmic_rtc_done = 0;
+ static struct class *pmic_rtc_class;
+ 
+@@ -57,7 +56,6 @@ EXPORT_SYMBOL(pmic_rtc_get_time_alarm);
+ EXPORT_SYMBOL(pmic_rtc_wait_alarm);
+ EXPORT_SYMBOL(pmic_rtc_event_sub);
+ EXPORT_SYMBOL(pmic_rtc_event_unsub);
+-EXPORT_SYMBOL(pmic_rtc_loaded);
+ 
+ /*
+  * Real Time Clock Pmic API
+@@ -467,11 +465,6 @@ static struct file_operations pmic_rtc_fops = {
+ 	.release = pmic_rtc_release,
+ };
+ 
+-int pmic_rtc_loaded(void)
+-{
+-	return pmic_rtc_detected;
+-}
+-
+ static int pmic_rtc_remove(struct platform_device *pdev)
+ {
+ 	device_destroy(pmic_rtc_class, MKDEV(pmic_rtc_major, 0));
+@@ -507,7 +500,6 @@ static int pmic_rtc_probe(struct platform_device *pdev)
+ 		goto err_out2;
+ 	}
+ 
+-	pmic_rtc_detected = 1;
+ 	printk(KERN_INFO "PMIC RTC successfully probed\n");
+ 	return ret;
+ 
+diff --git a/drivers/rtc/rtc-mxc.c b/drivers/rtc/rtc-mxc.c
+index b6b168d..00e5158 100644
+--- a/drivers/rtc/rtc-mxc.c
++++ b/drivers/rtc/rtc-mxc.c
+@@ -121,71 +121,11 @@ struct rtc_plat_data {
+  * @ingroup RTC
+  */
+ 
+-#if defined(CONFIG_MXC_PMIC_SC55112_RTC) || defined(CONFIG_MXC_MC13783_RTC) ||\
+-    defined(CONFIG_MXC_MC9SDZ60_RTC)
+-#include <linux/pmic_rtc.h>
+-#else
+-#define pmic_rtc_get_time(args)	MXC_EXTERNAL_RTC_NONE
+-#define pmic_rtc_set_time(args)	MXC_EXTERNAL_RTC_NONE
+-#define pmic_rtc_loaded()		0
+-#endif
+-
+ #define RTC_VERSION		"1.0"
+ #define MXC_EXTERNAL_RTC_OK	0
+ #define MXC_EXTERNAL_RTC_ERR	-1
+ #define MXC_EXTERNAL_RTC_NONE	-2
+ 
+-/*!
+- * This function reads the RTC value from some external source.
+- *
+- * @param  second       pointer to the returned value in second
+- *
+- * @return 0 if successful; non-zero otherwise
+- */
+-int get_ext_rtc_time(u32 * second)
+-{
+-	int ret = 0;
+-	struct timeval tmp;
+-	if (!pmic_rtc_loaded()) {
+-		return MXC_EXTERNAL_RTC_NONE;
+-	}
+-
+-	ret = pmic_rtc_get_time(&tmp);
+-
+-	if (0 == ret)
+-		*second = tmp.tv_sec;
+-	else
+-		ret = MXC_EXTERNAL_RTC_ERR;
+-
+-	return ret;
+-}
+-
+-/*!
+- * This function sets external RTC
+- *
+- * @param  second       value in second to be set to external RTC
+- *
+- * @return 0 if successful; non-zero otherwise
+- */
+-int set_ext_rtc_time(u32 second)
+-{
+-	int ret = 0;
+-	struct timeval tmp;
+-
+-	if (!pmic_rtc_loaded()) {
+-		return MXC_EXTERNAL_RTC_NONE;
+-	}
+-
+-	tmp.tv_sec = second;
+-
+-	ret = pmic_rtc_set_time(&tmp);
+-
+-	if (0 != ret)
+-		ret = MXC_EXTERNAL_RTC_ERR;
+-
+-	return ret;
+-}
+-
+ static u32 rtc_freq = 2;	/* minimun value for PIE */
+ static unsigned long rtc_status;
+ 
+@@ -500,16 +440,6 @@ static int mxc_rtc_set_time(struct device *dev, struct rtc_time *tm)
+ 		set_alarm_or_time(dev, MXC_RTC_TIME, time);
+ 	} while (time != get_alarm_or_time(dev, MXC_RTC_TIME));
+ 
+-	ret = set_ext_rtc_time(time);
+-
+-	if (ret != MXC_EXTERNAL_RTC_OK) {
+-		if (ret == MXC_EXTERNAL_RTC_NONE) {
+-			pr_info("No external RTC\n");
+-			ret = 0;
+-		} else
+-			pr_info("Failed to set external RTC\n");
+-	}
+-
+ 	return ret;
+ }
+ 
+-- 
+1.5.4.4
+

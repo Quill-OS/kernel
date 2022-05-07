@@ -1,0 +1,28 @@
+From 777cf2794d3263aded91b26e1803d30f0d5f92a2 Mon Sep 17 00:00:00 2001
+From: Sammy He <r62914@freescale.com>
+Date: Fri, 29 Jan 2010 13:22:48 +0800
+Subject: [PATCH] ENGR00120560 MX51 Babbage failed to detect headphone
+
+Fix headphone detect issue by changing GPIO pin
+
+Signed-off-by: Sammy He <r62914@freescale.com>
+---
+ arch/arm/mach-mx51/mx51_babbage.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/arch/arm/mach-mx51/mx51_babbage.c b/arch/arm/mach-mx51/mx51_babbage.c
+index 4a9de32..aca8339 100644
+--- a/arch/arm/mach-mx51/mx51_babbage.c
++++ b/arch/arm/mach-mx51/mx51_babbage.c
+@@ -844,7 +844,7 @@ static struct mxc_audio_platform_data sgtl5000_data = {
+ 	.ssi_num = 1,
+ 	.src_port = 2,
+ 	.ext_port = 3,
+-	.hp_irq = IOMUX_TO_IRQ(MX51_PIN_NANDF_CS0),
++	.hp_irq = IOMUX_TO_IRQ(MX51_PIN_NANDF_D14),
+ 	.hp_status = headphone_det_status,
+ 	.amp_enable = mxc_sgtl5000_amp_enable,
+ 	.sysclk = 12288000,
+-- 
+1.5.4.4
+

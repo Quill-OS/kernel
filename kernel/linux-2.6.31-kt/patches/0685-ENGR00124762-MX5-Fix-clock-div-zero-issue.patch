@@ -1,0 +1,74 @@
+From ee107d497850c5f4efaff0cd6c4f958d9d9ba88d Mon Sep 17 00:00:00 2001
+From: Lily Zhang <r58066@freescale.com>
+Date: Wed, 30 Jun 2010 13:05:08 +0800
+Subject: [PATCH] ENGR00124762 MX5: Fix clock div zero issue
+
+Fix clock div zero issue in mx5 clock file
+
+Signed-off-by: Lily Zhang <r58066@freescale.com>
+---
+ arch/arm/mach-mx5/clock.c |   20 +++++++++++++++-----
+ 1 files changed, 15 insertions(+), 5 deletions(-)
+
+diff --git a/arch/arm/mach-mx5/clock.c b/arch/arm/mach-mx5/clock.c
+index 162e903..3df6b9d 100644
+--- a/arch/arm/mach-mx5/clock.c
++++ b/arch/arm/mach-mx5/clock.c
+@@ -753,7 +753,9 @@ static unsigned long _clk_axi_a_round_rate(struct clk *clk,
+ 	/* Make sure rate is not greater than the maximum value for the clock.
+ 	 * Also prevent a div of 0.
+ 	 */
+-	if ((clk->parent->rate / div > max_axi_a_clk) || div == 0)
++	if (div == 0)
++		div++;
++	if (clk->parent->rate / div > max_axi_a_clk)
+ 		div++;
+ 
+ 	if (div > 8)
+@@ -792,7 +794,9 @@ static unsigned long _clk_ddr_hf_round_rate(struct clk *clk,
+ 	/* Make sure rate is not greater than the maximum value for the clock.
+ 	 * Also prevent a div of 0.
+ 	 */
+-	if ((clk->parent->rate / div > MAX_DDR_HF_RATE) || div == 0)
++	if (div == 0)
++		div++;
++	if (clk->parent->rate / div > MAX_DDR_HF_RATE)
+ 		div++;
+ 
+ 	if (div > 8)
+@@ -902,7 +906,9 @@ static unsigned long _clk_axi_b_round_rate(struct clk *clk,
+ 	/* Make sure rate is not greater than the maximum value for the clock.
+ 	 * Also prevent a div of 0.
+ 	 */
+-	if ((clk->parent->rate / div > max_axi_b_clk) || div == 0)
++	if (div == 0)
++		div++;
++	if (clk->parent->rate / div > max_axi_b_clk)
+ 		div++;
+ 
+ 	if (div > 8)
+@@ -978,7 +984,9 @@ static unsigned long _clk_ahb_round_rate(struct clk *clk,
+ 	/* Make sure rate is not greater than the maximum value for the clock.
+ 	 * Also prevent a div of 0.
+ 	 */
+-	if ((clk->parent->rate / div > MAX_AHB_CLK) || div == 0)
++	if (div == 0)
++		div++;
++	if (clk->parent->rate / div > MAX_AHB_CLK)
+ 		div++;
+ 
+ 	if (div > 8)
+@@ -1117,7 +1125,9 @@ static unsigned long _clk_emi_slow_round_rate(struct clk *clk,
+ 	/* Make sure rate is not greater than the maximum value for the clock.
+ 	 * Also prevent a div of 0.
+ 	 */
+-	if ((clk->parent->rate / div > MAX_EMI_SLOW_CLK) || div == 0)
++	if (div == 0)
++		div++;
++	if (clk->parent->rate / div > MAX_EMI_SLOW_CLK)
+ 		div++;
+ 
+ 	if (div > 8)
+-- 
+1.5.4.4
+

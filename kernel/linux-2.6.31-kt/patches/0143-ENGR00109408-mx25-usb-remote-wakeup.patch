@@ -1,0 +1,216 @@
+From ffcfdda92b034595da28e5a6fc740f881b459d1d Mon Sep 17 00:00:00 2001
+From: Albert Chen <R65187@freescale.com>
+Date: Wed, 25 Nov 2009 15:15:50 +0800
+Subject: [PATCH] ENGR00109408  mx25 usb remote wakeup
+
+	Add remote wakeup feature for host mode.
+
+Signed-off-by: Albert Chen <r65187@freescale.com>
+---
+ arch/arm/mach-mx25/usb_dr.c    |   20 ++++++++++++++++++++
+ arch/arm/mach-mx25/usb_h2.c    |   14 +++++++++++++-
+ arch/arm/mach-mx51/usb_dr.c    |    8 ++++++++
+ arch/arm/mach-mx51/usb_h1.c    |    9 +++++++++
+ arch/arm/plat-mxc/usb_common.c |   24 +++---------------------
+ drivers/usb/host/ehci-arc.c    |    4 ++--
+ 6 files changed, 55 insertions(+), 24 deletions(-)
+
+diff --git a/arch/arm/mach-mx25/usb_dr.c b/arch/arm/mach-mx25/usb_dr.c
+index e9c1e7d..b185d5c 100644
+--- a/arch/arm/mach-mx25/usb_dr.c
++++ b/arch/arm/mach-mx25/usb_dr.c
+@@ -19,6 +19,8 @@
+ #include <mach/arc_otg.h>
+ #include "usb.h"
+ 
++static void _wake_up_enable(struct fsl_usb2_platform_data *pdata, bool enable);
++
+ /*
+  * platform data structs
+  * 	- Which one to use is determined by CONFIG options in usb.h
+@@ -33,6 +35,7 @@ static struct fsl_usb2_platform_data __maybe_unused dr_utmi_config = {
+ 	.gpio_usb_active   = gpio_usbotg_utmi_active,
+ 	.gpio_usb_inactive = gpio_usbotg_utmi_inactive,
+ 	.transceiver       = "utmi",
++	.wake_up_enable = _wake_up_enable,
+ };
+ 
+ /*
+@@ -88,6 +91,23 @@ static struct platform_device __maybe_unused dr_otg_device = {
+ 	.num_resources = ARRAY_SIZE(otg_resources),
+ };
+ 
++static void _wake_up_enable(struct fsl_usb2_platform_data *pdata, bool enable)
++{
++	if (get_usb_mode(pdata) == FSL_USB_DR_DEVICE) {
++		if (enable)
++			USBCTRL |= (UCTRL_OWIE | UCTRL_VBUS_WKUP_EN);
++		else {
++			USBCTRL &= ~UCTRL_OWIE;
++			USBCTRL &= ~UCTRL_VBUS_WKUP_EN;
++		}
++	} else {
++		if (enable)
++			USBCTRL |= UCTRL_OWIE;
++		else
++			USBCTRL &= ~UCTRL_OWIE;
++	}
++}
++
+ static int __init usb_dr_init(void)
+ {
+ 	pr_debug("%s: \n", __func__);
+diff --git a/arch/arm/mach-mx25/usb_h2.c b/arch/arm/mach-mx25/usb_h2.c
+index 3ed3369..23f6a61 100644
+--- a/arch/arm/mach-mx25/usb_h2.c
++++ b/arch/arm/mach-mx25/usb_h2.c
+@@ -21,6 +21,14 @@
+ #include <mach/arc_otg.h>
+ #include "usb.h"
+ 
++static void _wake_up_enable(struct fsl_usb2_platform_data *pdata, bool enable)
++{
++	if (enable)
++		USBCTRL |= UCTRL_H2WIE;
++	else
++		USBCTRL &= ~UCTRL_H2WIE;
++}
++
+ static struct fsl_usb2_platform_data usbh2_config = {
+ 	.name              = "Host 2",
+ 	.platform_init     = fsl_usb_host_init,
+@@ -31,6 +39,7 @@ static struct fsl_usb2_platform_data usbh2_config = {
+ 	.gpio_usb_active   = gpio_usbh2_active,
+ 	.gpio_usb_inactive = gpio_usbh2_inactive,
+ 	.transceiver       = "serial",		/* on-chip */
++	.wake_up_enable = _wake_up_enable,
+ };
+ 
+ static struct resource usbh2_resources[] = {
+@@ -79,10 +88,13 @@ EXPORT_SYMBOL(usbh2_put_xcvr_power);
+ 
+ static int __init usbh2_init(void)
+ {
++	struct platform_device *pdev;
+ 	pr_debug("%s: \n", __func__);
+ 
+-	host_pdev_register(usbh2_resources, ARRAY_SIZE(usbh2_resources),
++	pdev = host_pdev_register(usbh2_resources, ARRAY_SIZE(usbh2_resources),
+ 			   &usbh2_config);
++	if (pdev)
++		device_init_wakeup(&(pdev->dev), 1);
+ 	return 0;
+ }
+ module_init(usbh2_init);
+diff --git a/arch/arm/mach-mx51/usb_dr.c b/arch/arm/mach-mx51/usb_dr.c
+index fe2740b..3bbc69b 100644
+--- a/arch/arm/mach-mx51/usb_dr.c
++++ b/arch/arm/mach-mx51/usb_dr.c
+@@ -144,6 +144,14 @@ static void _wake_up_enable(struct fsl_usb2_platform_data *pdata, bool enable)
+ 			USBCTRL_HOST2 &= ~UCTRL_H2OVBWK_EN;
+ 			USB_PHY_CTR_FUNC &= ~USB_UTMI_PHYCTRL_CONF2;
+ 		}
++	} else {
++		if (enable) {
++			USBCTRL |= UCTRL_OWIE;
++			USBCTRL_HOST2 |= (1 << 5);
++		} else {
++			USBCTRL &= ~UCTRL_OWIE;
++			USBCTRL_HOST2 &= ~(1 << 5);
++		}
+ 	}
+ }
+ 
+diff --git a/arch/arm/mach-mx51/usb_h1.c b/arch/arm/mach-mx51/usb_h1.c
+index 869ec45..fe9ac29 100644
+--- a/arch/arm/mach-mx51/usb_h1.c
++++ b/arch/arm/mach-mx51/usb_h1.c
+@@ -77,6 +77,14 @@ static void gpio_usbh1_inactive(void)
+ 	gpio_free(IOMUX_TO_GPIO(MX51_PIN_USBH1_STP));
+ }
+ 
++static void _wake_up_enable(struct fsl_usb2_platform_data *pdata, bool enable)
++{
++	if (enable)
++		USBCTRL |= UCTRL_H1WIE;
++	else
++		USBCTRL &= ~UCTRL_H1WIE;
++}
++
+ static struct fsl_usb2_platform_data usbh1_config = {
+ 	.name = "Host 1",
+ 	.platform_init = fsl_usb_host_init,
+@@ -86,6 +94,7 @@ static struct fsl_usb2_platform_data usbh1_config = {
+ 	.power_budget = 500,	/* 500 mA max power */
+ 	.gpio_usb_active = gpio_usbh1_active,
+ 	.gpio_usb_inactive = gpio_usbh1_inactive,
++	.wake_up_enable = _wake_up_enable,
+ 	.transceiver = "isp1504",
+ };
+ 
+diff --git a/arch/arm/plat-mxc/usb_common.c b/arch/arm/plat-mxc/usb_common.c
+index 4c74597..6edaf43 100644
+--- a/arch/arm/plat-mxc/usb_common.c
++++ b/arch/arm/plat-mxc/usb_common.c
+@@ -403,7 +403,7 @@ static int usb_register_remote_wakeup(struct platform_device *pdev)
+ 	int irq;
+ 
+ 	pr_debug("%s: pdev=0x%p \n", __func__, pdev);
+-	if (!cpu_is_mx51())
++	if (!cpu_is_mx51() && !cpu_is_mx25())
+ 		return -ECANCELED;
+ 
+ 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+@@ -856,25 +856,7 @@ EXPORT_SYMBOL(usb_host_wakeup_irq);
+ void usb_host_set_wakeup(struct device *wkup_dev, bool para)
+ {
+ 	struct fsl_usb2_platform_data *pdata = wkup_dev->platform_data;
+-
+-	/* If this device may wakeup */
+-	if (device_may_wakeup(wkup_dev) && para) {
+-		if (!strcmp("Host 1", pdata->name)) {
+-			USBCTRL |= UCTRL_H1WIE;
+-		} else if (!strcmp("DR", pdata->name)) {
+-			USBCTRL |= UCTRL_OWIE;
+-			/* Enable OTG ID Wakeup */
+-			USBCTRL_HOST2 |= (1 << 5);
+-		}
+-	}
+-
+-	if (!para) {
+-		if (!strcmp("Host 1", pdata->name))
+-			USBCTRL &= ~UCTRL_H1WIE;
+-		else if (!strcmp("DR", pdata->name)) {
+-			USBCTRL &= ~UCTRL_OWIE;
+-			USBCTRL_HOST2 &= ~(1 << 5);
+-		}
+-	}
++	if (pdata->wake_up_enable)
++		pdata->wake_up_enable(pdata, para);
+ }
+ EXPORT_SYMBOL(usb_host_set_wakeup);
+diff --git a/drivers/usb/host/ehci-arc.c b/drivers/usb/host/ehci-arc.c
+index 78d6e91..57aa1a4 100644
+--- a/drivers/usb/host/ehci-arc.c
++++ b/drivers/usb/host/ehci-arc.c
+@@ -429,7 +429,6 @@ static int ehci_fsl_drv_remove(struct platform_device *pdev)
+ }
+ 
+ #ifdef CONFIG_PM
+-extern void usb_host_set_wakeup(struct device *wkup_dev, bool para);
+ /* suspend/resume, section 4.3 */
+ 
+ /* These routines rely on the bus (pci, platform, etc)
+@@ -514,7 +513,8 @@ static int ehci_fsl_drv_suspend(struct platform_device *pdev,
+ 	if (!((ehci->transceiver) &&
+ 			(readl(hcd->regs + 0x1A4) & (1 << 8)))) {
+ 		/* enable remote wake up irq */
+-		usb_host_set_wakeup(&(pdev->dev), true);
++		if (pdata->wake_up_enable)
++			pdata->wake_up_enable(pdata, true);
+ 
+ 	/* We CAN NOT enable wake up by connetion and disconnection
+ 	 * concurrently */
+-- 
+1.5.4.4
+

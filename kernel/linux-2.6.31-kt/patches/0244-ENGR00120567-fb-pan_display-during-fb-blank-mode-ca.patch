@@ -1,0 +1,43 @@
+From 4c13663891fc240703ab16a4ad39e0d8fa7e5f99 Mon Sep 17 00:00:00 2001
+From: Jason Chen <b02280@freescale.com>
+Date: Wed, 3 Feb 2010 14:40:38 +0800
+Subject: [PATCH] ENGR00120567 fb: pan_display during fb blank mode cause system hang
+
+will not do ipu operation during fb blank
+
+Signed-off-by: Jason Chen <b02280@freescale.com>
+---
+ drivers/video/mxc/mxc_ipuv3_fb.c |   17 +++++++++++++++++
+ 1 files changed, 17 insertions(+), 0 deletions(-)
+
+diff --git a/drivers/video/mxc/mxc_ipuv3_fb.c b/drivers/video/mxc/mxc_ipuv3_fb.c
+index 3c8ad7e..f255c18 100644
+--- a/drivers/video/mxc/mxc_ipuv3_fb.c
++++ b/drivers/video/mxc/mxc_ipuv3_fb.c
+@@ -1079,6 +1079,23 @@ mxcfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
+ 	    (info->var.yoffset == var->yoffset))
+ 		return 0;	/* No change, do nothing */
+ 
++	/* no pan display during fb blank */
++	if (mxc_fbi->ipu_ch == MEM_FG_SYNC) {
++		struct mxcfb_info *bg_mxcfbi = NULL;
++		int j;
++		for (j = 0; j < num_registered_fb; j++) {
++			bg_mxcfbi =
++				((struct mxcfb_info *)(registered_fb[j]->par));
++
++			if (bg_mxcfbi->ipu_ch == MEM_BG_SYNC)
++				break;
++		}
++		if (bg_mxcfbi->blank != FB_BLANK_UNBLANK)
++			return -EINVAL;
++	}
++	if (mxc_fbi->blank != FB_BLANK_UNBLANK)
++		return -EINVAL;
++
+ 	y_bottom = var->yoffset;
+ 
+ 	if (!(var->vmode & FB_VMODE_YWRAP))
+-- 
+1.5.4.4
+

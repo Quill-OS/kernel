@@ -1,0 +1,139 @@
+From e87733b7bf097b8be587eaf736a7aec895a02e07 Mon Sep 17 00:00:00 2001
+From: mark gutman <r58412@freescale.com>
+Date: Sun, 22 Nov 2009 16:30:55 +0200
+Subject: [PATCH]     ENGR00116028 CROP for TVE 720P
+
+    Crop support for outgoing picture to TVE in 720P format
+
+    Signed-off-by: Mark.Gutman@freescale.com>
+---
+ drivers/media/video/mxc/output/mxc_v4l2_output.c |    4 +-
+ drivers/mxc/ipu3/ipu_param_mem.h                 |   75 ++++++++++++++--------
+ 2 files changed, 49 insertions(+), 30 deletions(-)
+
+diff --git a/drivers/media/video/mxc/output/mxc_v4l2_output.c b/drivers/media/video/mxc/output/mxc_v4l2_output.c
+index 653b596..346348e 100644
+--- a/drivers/media/video/mxc/output/mxc_v4l2_output.c
++++ b/drivers/media/video/mxc/output/mxc_v4l2_output.c
+@@ -455,7 +455,7 @@ static void mxc_v4l2out_timer_handler(unsigned long arg)
+ 									vout->v2f.fmt.pix.pixelformat,
+ 									vout->v2f.fmt.pix.width,
+ 									vout->v2f.fmt.pix.height,
+-									vout->v2f.fmt.pix.width,
++									vout->bytesperline,
+ 									vout->offset.u_offset,
+ 									vout->offset.v_offset,
+ 									0,
+@@ -531,7 +531,7 @@ static irqreturn_t mxc_v4l2out_pp_in_irq_handler(int irq, void *dev_id)
+ 								vout->v2f.fmt.pix.pixelformat,
+ 								vout->v2f.fmt.pix.width,
+ 								vout->v2f.fmt.pix.height,
+-								vout->v2f.fmt.pix.width,
++								vout->bytesperline,
+ 								vout->offset.u_offset,
+ 								vout->offset.v_offset,
+ 								0,
+diff --git a/drivers/mxc/ipu3/ipu_param_mem.h b/drivers/mxc/ipu3/ipu_param_mem.h
+index dd30cb3..9a56fd8 100644
+--- a/drivers/mxc/ipu3/ipu_param_mem.h
++++ b/drivers/mxc/ipu3/ipu_param_mem.h
+@@ -424,49 +424,68 @@ static inline void _ipu_ch_offset_update(int ch,
+ 		if (uv_stride < stride / 2)
+ 			uv_stride = stride / 2;
+ 
+-		u_fix = u + (uv_stride * vertical_offset / 2) + horizontal_offset / 4;
+-		v_fix = v + (uv_stride * vertical_offset / 2) + horizontal_offset / 4;
+-		u_offset = (u == 0) ? stride * (height - vertical_offset - 1) +
+-								(stride - horizontal_offset) +
+-								(uv_stride * vertical_offset / 2) +
+-								horizontal_offset / 2 : u_fix;
+-		v_offset = (v == 0) ? u_offset + (uv_stride * height / 2) : v_fix;
++		u_offset = stride * (height - vertical_offset - 1) +
++					(stride - horizontal_offset) +
++					(uv_stride * vertical_offset / 2) +
++					horizontal_offset / 2;
++		v_offset = u_offset + (uv_stride * height / 2);
++		u_fix = u ? (u + (uv_stride * vertical_offset) +
++					(horizontal_offset / 2) -
++					(stride * vertical_offset) - (horizontal_offset)) :
++					u_offset;
++		v_fix = v ? (v + (uv_stride * vertical_offset / 2) +
++					(horizontal_offset / 2) -
++					(stride * vertical_offset) - (horizontal_offset)) :
++					v_offset;
+ 
+ 		break;
+ 	case IPU_PIX_FMT_YVU422P:
+ 		if (uv_stride < stride / 2)
+ 			uv_stride = stride / 2;
+ 
+-		u_fix = u + (uv_stride * vertical_offset) + horizontal_offset / 2;
+-		v_fix = v + (uv_stride * vertical_offset) + horizontal_offset / 2;
+-
+-		v_offset = (v == 0) ? stride * (height - vertical_offset - 1) +
+-								(stride - horizontal_offset) +
+-								(uv_stride * vertical_offset) +
+-								horizontal_offset / 2 :	v_fix;
+-		u_offset = (u == 0) ? v_offset + uv_stride * height : u_fix;
++		v_offset = stride * (height - vertical_offset - 1) +
++					(stride - horizontal_offset) +
++					(uv_stride * vertical_offset) +
++					horizontal_offset / 2;
++		u_offset = v_offset + uv_stride * height;
++		u_fix = u ? (u + (uv_stride * vertical_offset) +
++					horizontal_offset / 2 -
++					(stride * vertical_offset) - (horizontal_offset)) :
++					u_offset;
++		v_fix = v ? (v + (uv_stride * vertical_offset) +
++					horizontal_offset / 2 -
++					(stride * vertical_offset) - (horizontal_offset)) :
++					v_offset;
+ 		break;
+ 	case IPU_PIX_FMT_YUV422P:
+ 		if (uv_stride < stride / 2)
+ 			uv_stride = stride / 2;
+ 
+-		u_fix = u + (uv_stride * vertical_offset) + horizontal_offset / 2;
+-		v_fix = v + (uv_stride * vertical_offset) + horizontal_offset / 2;
+-
+-		u_offset = (u == 0) ? stride * (height - vertical_offset - 1) +
+-								(stride - horizontal_offset) +
+-								(uv_stride * vertical_offset) +
+-								horizontal_offset / 2 :	u_fix;
+-		v_offset = (v == 0) ? u_offset + uv_stride * height : v_fix;
++		u_offset = stride * (height - vertical_offset - 1) +
++					(stride - horizontal_offset) +
++					(uv_stride * vertical_offset) +
++					horizontal_offset / 2;
++		v_offset = u_offset + uv_stride * height;
++		u_fix = u ? (u + (uv_stride * vertical_offset) +
++					horizontal_offset / 2 -
++					(stride * vertical_offset) - (horizontal_offset)) :
++					u_offset;
++		v_fix = v ? (v + (uv_stride * vertical_offset) +
++					horizontal_offset / 2 -
++					(stride * vertical_offset) - (horizontal_offset)) :
++					v_offset;
+ 		break;
+ 
+ 	case IPU_PIX_FMT_NV12:
+ 		uv_stride = stride;
+-		u_fix = u + (uv_stride * vertical_offset) + horizontal_offset;
+-		u_offset = (u == 0) ? stride * (height - vertical_offset - 1) +
+-								(stride - horizontal_offset) +
+-								(uv_stride * vertical_offset) +
+-								horizontal_offset :	u_fix;
++		u_offset = stride * (height - vertical_offset - 1) +
++					(stride - horizontal_offset) +
++					(uv_stride * vertical_offset) +
++					horizontal_offset;
++		u_fix = u ? (u + (uv_stride * vertical_offset) +
++					horizontal_offset -
++					(stride * vertical_offset) - (horizontal_offset)) :
++					u_offset;
+ 
+ 		break;
+ 	default:
+-- 
+1.5.4.4
+

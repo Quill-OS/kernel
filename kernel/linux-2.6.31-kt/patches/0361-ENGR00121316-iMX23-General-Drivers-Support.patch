@@ -1,0 +1,197 @@
+From 1b2c247eb8ddf60c9ac0e23cee75d62ddcde4a9b Mon Sep 17 00:00:00 2001
+From: Jeremy.Yao <r65161@freescale.com>
+Date: Fri, 5 Mar 2010 13:38:16 +0800
+Subject: [PATCH] ENGR00121316 iMX23 General Drivers Support
+
+Add support for keypad,lradc,rtc,wdg
+
+Signed-off-by: Jeremy Yao <r65161@freescale.com>
+---
+ arch/arm/configs/imx23evk_defconfig |   14 ++++++++++----
+ arch/arm/mach-mx23/device.c         |   32 +++++++++++++++++---------------
+ arch/arm/plat-mxs/Kconfig           |    2 +-
+ drivers/input/keyboard/mxs-kbd.c    |   16 +++++++++++-----
+ 4 files changed, 39 insertions(+), 25 deletions(-)
+
+diff --git a/arch/arm/configs/imx23evk_defconfig b/arch/arm/configs/imx23evk_defconfig
+index 0b02a6f..c35f680 100644
+--- a/arch/arm/configs/imx23evk_defconfig
++++ b/arch/arm/configs/imx23evk_defconfig
+@@ -194,6 +194,7 @@ CONFIG_MXS_ICOLL=y
+ CONFIG_MXS_EARLY_CONSOLE=y
+ CONFIG_MXS_DMA_ENGINE=y
+ CONFIG_MXS_PWM_CHANNELS=8
++CONFIG_MXS_LRADC=y
+ 
+ #
+ # Freescale Application UART:
+@@ -474,7 +475,7 @@ CONFIG_INPUT_KEYBOARD=y
+ # CONFIG_KEYBOARD_STOWAWAY is not set
+ # CONFIG_KEYBOARD_SUNKBD is not set
+ # CONFIG_KEYBOARD_XTKBD is not set
+-# CONFIG_KEYBOARD_MXS is not set
++CONFIG_KEYBOARD_MXS=y
+ # CONFIG_INPUT_MOUSE is not set
+ # CONFIG_INPUT_JOYSTICK is not set
+ # CONFIG_INPUT_TABLET is not set
+@@ -526,7 +527,7 @@ CONFIG_DEVKMEM=y
+ # Non-8250 serial port support
+ #
+ CONFIG_SERIAL_MXS_DUART=y
+-# CONFIG_SERIAL_MXS_AUART is not set
++CONFIG_SERIAL_MXS_AUART=y
+ CONFIG_SERIAL_MXS_DUART_CONSOLE=y
+ CONFIG_SERIAL_CORE=y
+ CONFIG_SERIAL_CORE_CONSOLE=y
+@@ -567,9 +568,11 @@ CONFIG_GPIOLIB=y
+ # CONFIG_HWMON is not set
+ # CONFIG_THERMAL is not set
+ # CONFIG_THERMAL_HWMON is not set
+-# CONFIG_WATCHDOG is not set
++CONFIG_WATCHDOG=y
+ CONFIG_SSB_POSSIBLE=y
+ 
++CONFIG_MXS_WATCHDOG=y
++
+ #
+ # Sonics Silicon Backplane
+ #
+@@ -657,7 +660,10 @@ CONFIG_USB_ARCH_HAS_EHCI=y
+ # CONFIG_ACCESSIBILITY is not set
+ # CONFIG_NEW_LEDS is not set
+ CONFIG_RTC_LIB=y
+-# CONFIG_RTC_CLASS is not set
++CONFIG_RTC_CLASS=y
++
++CONFIG_RTC_DRV_MXS=y
++
+ # CONFIG_DMADEVICES is not set
+ # CONFIG_AUXDISPLAY is not set
+ CONFIG_REGULATOR=y
+diff --git a/arch/arm/mach-mx23/device.c b/arch/arm/mach-mx23/device.c
+index afe85a0..c782fe9 100644
+--- a/arch/arm/mach-mx23/device.c
++++ b/arch/arm/mach-mx23/device.c
+@@ -226,7 +226,7 @@ static void __init mx23_init_rtc(void)
+ 
+ #ifdef CONFIG_MXS_LRADC
+ struct mxs_lradc_plat_data mx23_lradc_data = {
+-	.vddio_voltage = BV_LRADC_CTRL4_LRADC6SELECT__CHANNEL10,
++	.vddio_voltage = BV_LRADC_CTRL4_LRADC6SELECT__CHANNEL6,
+ 	.battery_voltage = BV_LRADC_CTRL4_LRADC7SELECT__CHANNEL7,
+ };
+ 
+@@ -259,23 +259,20 @@ static void __init mx23_init_lradc(void)
+ 
+ #if defined(CONFIG_KEYBOARD_MXS) || defined(CONFIG_KEYBOARD_MXS_MODULE)
+ static struct mxskbd_keypair keyboard_data[] = {
+-	{ 100, KEY_F4 },
+-	{ 306, KEY_F5 },
+-	{ 626, KEY_F6 },
+-	{ 932, KEY_F7 },
+-	{ 1260, KEY_F8 },
+-	{ 1584, KEY_F9 },
+-	{ 1907, KEY_F10 },
+-	{ 2207, KEY_F11 },
+-	{ 2525, KEY_F12 },
+-	{ 2831, KEY_F13},
+-	{ 3134, KEY_F14 },
++	{ 100, KEY_F1 },
++	{ 306, KEY_RIGHT},
++	{ 626, KEY_F2},
++	{ 932, KEY_LEFT },
++	{ 1584, KEY_UP },
++	{ 2207, KEY_DOWN },
++	{ 1907, KEY_F3 },
++	{ 2831, KEY_SELECT },
+ 	{ -1, 0 },
+ };
+ 
+ static struct mxs_kbd_plat_data mxs_kbd_data = {
+ 	.keypair = keyboard_data,
+-	.channel = LRADC_CH1,
++	.channel = LRADC_CH0,
+ };
+ 
+ static struct resource mx23_kbd_res[] = {
+@@ -286,8 +283,8 @@ static struct resource mx23_kbd_res[] = {
+ 	 },
+ 	{
+ 	 .flags = IORESOURCE_IRQ,
+-	 .start = IRQ_LRADC_CH1,
+-	 .end   = IRQ_LRADC_CH1,
++	 .start = IRQ_LRADC_CH0,
++	 .end   = IRQ_LRADC_CH0,
+ 	 },
+ };
+ 
+@@ -366,6 +363,11 @@ int __init mx23_device_init(void)
+ 	mx23_init_dma();
+ 	mx23_init_duart();
+ 	mx23_init_auart();
++	mx23_init_lradc();
++	mx23_init_kbd();
++	mx23_init_wdt();
++	mx23_init_rtc();
++
+ 	return 0;
+ }
+ 
+diff --git a/arch/arm/plat-mxs/Kconfig b/arch/arm/plat-mxs/Kconfig
+index f67d9f3..f1ce4da 100644
+--- a/arch/arm/plat-mxs/Kconfig
++++ b/arch/arm/plat-mxs/Kconfig
+@@ -62,7 +62,7 @@ config MXS_DMA_ENGINE
+ config MXS_LRADC
+ 	bool "Low Resolution ADC support"
+ 	default y
+-	depends on ARCH_MX28
++	depends on ARCH_MXS
+ 	help
+ 	  Enable LRADC support
+ 
+diff --git a/drivers/input/keyboard/mxs-kbd.c b/drivers/input/keyboard/mxs-kbd.c
+index 99d85e8..7f58935 100644
+--- a/drivers/input/keyboard/mxs-kbd.c
++++ b/drivers/input/keyboard/mxs-kbd.c
+@@ -283,11 +283,14 @@ static int __devinit mxskbd_probe(struct platform_device *pdev)
+ 		goto err_free_dev;
+ 	}
+ 
+-	err = request_irq(d->btn_irq, mxskbd_irq_handler,
++	if (d->btn_irq > 0) {
++		err = request_irq(d->btn_irq, mxskbd_irq_handler,
+ 			  IRQF_DISABLED, pdev->name, pdev);
+-	if (err) {
+-		dev_err(&pdev->dev, "Cannot request keybad detect IRQ\n");
+-		goto err_free_irq;
++		if (err) {
++			dev_err(&pdev->dev,
++				"Cannot request keybad detect IRQ\n");
++			goto err_free_irq;
++		}
+ 	}
+ 
+ 	/* Register the input device */
+@@ -306,7 +309,8 @@ static int __devinit mxskbd_probe(struct platform_device *pdev)
+ 
+ err_free_irq2:
+ 	platform_set_drvdata(pdev, NULL);
+-	free_irq(d->btn_irq, pdev);
++	if (d->btn_irq > 0)
++		free_irq(d->btn_irq, pdev);
+ err_free_irq:
+ 	free_irq(d->irq, pdev);
+ err_free_dev:
+@@ -322,6 +326,8 @@ static int __devexit mxskbd_remove(struct platform_device *pdev)
+ 	hw_lradc_unuse_channel(d->chan);
+ 	input_unregister_device(GET_INPUT_DEV(d));
+ 	free_irq(d->irq, pdev);
++	if (d->btn_irq > 0)
++		free_irq(d->btn_irq, pdev);
+ 	mxskbd_data_free(d);
+ 
+ 	platform_set_drvdata(pdev, NULL);
+-- 
+1.5.4.4
+

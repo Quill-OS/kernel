@@ -1,0 +1,438 @@
+From 5a6f139f70801421c6ee5e2173117c6fecd1e7f5 Mon Sep 17 00:00:00 2001
+From: Dinh Nguyen <Dinh.Nguyen@freescale.com>
+Date: Thu, 18 Mar 2010 14:48:45 -0500
+Subject: [PATCH] ENGR00121651 MX53: Add support for USB
+
+Move USB initialization to be board specific functions and add USB
+support for MX53. Renamed USB phy clocks to usb_phy1_clk and
+usb_phy2_clk to distinguish between different PHY clocks for USB.
+
+Signed-off-by: Dinh Nguyen <Dinh.Nguyen@freescale.com>
+Signed-off-by: Jun Li <r65092@freescale.com>
+---
+ arch/arm/mach-mx5/clock.c                |    4 +-
+ arch/arm/mach-mx5/mx51_3stack.c          |    4 +-
+ arch/arm/mach-mx5/mx51_babbage.c         |    4 +-
+ arch/arm/mach-mx5/mx53_evk.c             |    2 +
+ arch/arm/mach-mx5/usb.h                  |    6 +-
+ arch/arm/mach-mx5/usb_dr.c               |   10 ++--
+ arch/arm/mach-mx5/usb_h1.c               |   71 +++++++++++++++++++++------
+ arch/arm/mach-mx5/usb_h2.c               |    1 +
+ arch/arm/plat-mxc/include/mach/arc_otg.h |    4 +-
+ arch/arm/plat-mxc/usb_common.c           |   80 ++++++++++++++++++++++++++++--
+ 10 files changed, 151 insertions(+), 35 deletions(-)
+
+diff --git a/arch/arm/mach-mx5/clock.c b/arch/arm/mach-mx5/clock.c
+index 184e877..3d81ff4 100644
+--- a/arch/arm/mach-mx5/clock.c
++++ b/arch/arm/mach-mx5/clock.c
+@@ -2747,7 +2747,7 @@ static int _clk_usb_phy_set_parent(struct clk *clk, struct clk *parent)
+ 
+ static struct clk usb_phy_clk[] = {
+ 	{
+-	.name = "usb_phy_clk",
++	.name = "usb_phy1_clk",
+ 	.id = 0,
+ 	.parent = &pll3_sw_clk,
+ 	.secondary = &tmax3_clk,
+@@ -2759,7 +2759,7 @@ static struct clk usb_phy_clk[] = {
+ 	.disable = _clk_disable,
+ 	},
+ 	{
+-	.name = "usb_phy_clk",
++	.name = "usb_phy2_clk",
+ 	.id = 1,
+ 	.parent = &pll3_sw_clk,
+ 	.secondary = &tmax3_clk,
+diff --git a/arch/arm/mach-mx5/mx51_3stack.c b/arch/arm/mach-mx5/mx51_3stack.c
+index 61e1228..c1a2c5f 100644
+--- a/arch/arm/mach-mx5/mx51_3stack.c
++++ b/arch/arm/mach-mx5/mx51_3stack.c
+@@ -946,8 +946,8 @@ static void __init mxc_board_init(void)
+ 	mxc_register_device(&mxc_bt_device, &mxc_bt_data);
+ 	mxc_register_device(&mxc_gps_device, &gps_data);
+ 
+-	mx51_usb_dr_init();
+-	mx51_usbh1_init();
++	mx5_usb_dr_init();
++	mx5_usbh1_init();
+ 
+ 	/* Setup Touchscreen interrupt */
+ 	gpio_request(IOMUX_TO_GPIO(MX51_PIN_GPIO1_5), "gpio1_5");
+diff --git a/arch/arm/mach-mx5/mx51_babbage.c b/arch/arm/mach-mx5/mx51_babbage.c
+index 258e534..3e32e88 100644
+--- a/arch/arm/mach-mx5/mx51_babbage.c
++++ b/arch/arm/mach-mx5/mx51_babbage.c
+@@ -953,8 +953,8 @@ static void __init mxc_board_init(void)
+ 	gpio_direction_output(IOMUX_TO_GPIO(MX51_PIN_EIM_A23), 0);
+ 	mxc_register_device(&mxc_sgtl5000_device, &sgtl5000_data);
+ 
+-	mx51_usb_dr_init();
+-	mx51_usbh1_init();
++	mx5_usb_dr_init();
++	mx5_usbh1_init();
+ }
+ 
+ static void __init mx51_babbage_timer_init(void)
+diff --git a/arch/arm/mach-mx5/mx53_evk.c b/arch/arm/mach-mx5/mx53_evk.c
+index 30f8b3d..9cc390d 100644
+--- a/arch/arm/mach-mx5/mx53_evk.c
++++ b/arch/arm/mach-mx5/mx53_evk.c
+@@ -573,6 +573,8 @@ static void __init mxc_board_init(void)
+ 	*/
+ 
+ 	mxc_register_device(&mxc_sgtl5000_device, &sgtl5000_data);
++	mx5_usb_dr_init();
++	mx5_usbh1_init();
+ }
+ 
+ static void __init mx53_evk_timer_init(void)
+diff --git a/arch/arm/mach-mx5/usb.h b/arch/arm/mach-mx5/usb.h
+index 3361fe5..f451e6f 100644
+--- a/arch/arm/mach-mx5/usb.h
++++ b/arch/arm/mach-mx5/usb.h
+@@ -26,9 +26,9 @@ extern void fsl_usb_host_uninit(struct fsl_usb2_platform_data *pdata);
+ extern int gpio_usbotg_utmi_active(void);
+ extern void gpio_usbotg_utmi_inactive(void);
+ 
+-extern void __init mx51_usb_dr_init(void);
+-extern void __init mx51_usbh1_init(void);
+-extern void __init mx51_usbh2_init(void);
++extern void __init mx5_usb_dr_init(void);
++extern void __init mx5_usbh1_init(void);
++extern void __init mx5_usbh2_init(void);
+ 
+ /*
+  * Used to set pdata->operating_mode before registering the platform_device.
+diff --git a/arch/arm/mach-mx5/usb_dr.c b/arch/arm/mach-mx5/usb_dr.c
+index 981ba83..e72ec58 100644
+--- a/arch/arm/mach-mx5/usb_dr.c
++++ b/arch/arm/mach-mx5/usb_dr.c
+@@ -52,7 +52,7 @@ static int usbotg_init_ext(struct platform_device *pdev)
+ 	clk_enable(usb_clk);
+ 	clk_put(usb_clk);
+ 
+-	usb_clk = clk_get(NULL, "usb_phy_clk");
++	usb_clk = clk_get(&pdev->dev, "usb_phy1_clk");
+ 	clk_enable(usb_clk);
+ 	clk_put(usb_clk);
+ 
+@@ -72,7 +72,7 @@ static void usbotg_uninit_ext(struct fsl_usb2_platform_data *pdata)
+ 	clk_disable(usb_clk);
+ 	clk_put(usb_clk);
+ 
+-	usb_clk = clk_get(NULL, "usb_phy_clk");
++	usb_clk = clk_get(&pdata->pdev->dev, "usb_phy1_clk");
+ 	clk_disable(usb_clk);
+ 	clk_put(usb_clk);
+ 
+@@ -115,7 +115,7 @@ static void usbotg_clock_gate(bool on)
+ 		clk_enable(usb_clk);
+ 		clk_put(usb_clk);
+ 
+-		usb_clk = clk_get(NULL, "usb_phy_clk");
++		usb_clk = clk_get(NULL, "usb_phy1_clk");
+ 		clk_enable(usb_clk);
+ 		clk_put(usb_clk);
+ 
+@@ -128,7 +128,7 @@ static void usbotg_clock_gate(bool on)
+ 		clk_disable(usb_clk);
+ 		clk_put(usb_clk);
+ 
+-		usb_clk = clk_get(NULL, "usb_phy_clk");
++		usb_clk = clk_get(NULL, "usb_phy1_clk");
+ 		clk_disable(usb_clk);
+ 		clk_put(usb_clk);
+ 
+@@ -138,7 +138,7 @@ static void usbotg_clock_gate(bool on)
+ 	}
+ }
+ 
+-void __init mx51_usb_dr_init(void)
++void __init mx5_usb_dr_init(void)
+ {
+ #ifdef CONFIG_USB_OTG
+ 	dr_utmi_config.operating_mode = FSL_USB2_DR_OTG;
+diff --git a/arch/arm/mach-mx5/usb_h1.c b/arch/arm/mach-mx5/usb_h1.c
+index 0e2051d..7f0c463 100644
+--- a/arch/arm/mach-mx5/usb_h1.c
++++ b/arch/arm/mach-mx5/usb_h1.c
+@@ -22,6 +22,7 @@
+ #include <asm/mach/arch.h>
+ #include "usb.h"
+ #include "iomux.h"
++#include "mx51_pins.h"
+ 
+ 
+ /*
+@@ -92,40 +93,80 @@ static void usbotg_clock_gate(bool on)
+ 
+ static int fsl_usb_host_init_ext(struct platform_device *pdev)
+ {
+-	int ret = fsl_usb_host_init(pdev);
++	int ret;
++	struct clk *usb_clk;
++
++	if (cpu_is_mx53()) {
++		usb_clk = clk_get(NULL, "usboh3_clk");
++		clk_enable(usb_clk);
++		clk_put(usb_clk);
++
++		usb_clk = clk_get(&pdev->dev, "usb_phy2_clk");
++		clk_enable(usb_clk);
++		clk_put(usb_clk);
++
++		/*derive clock from oscillator */
++		usb_clk = clk_get(NULL, "usb_utmi_clk");
++		clk_disable(usb_clk);
++		clk_put(usb_clk);
++	}
++
++	ret = fsl_usb_host_init(pdev);
+ 	if (ret)
+ 		return ret;
+ 
+-	/* setback USBH1_STP to be function */
+-	mxc_request_iomux(MX51_PIN_USBH1_STP, IOMUX_CONFIG_ALT0);
+-	mxc_iomux_set_pad(MX51_PIN_USBH1_STP, PAD_CTL_SRE_FAST |
+-			  PAD_CTL_DRV_HIGH | PAD_CTL_ODE_OPENDRAIN_NONE |
+-			  PAD_CTL_PUE_KEEPER | PAD_CTL_PKE_ENABLE |
+-			  PAD_CTL_HYS_ENABLE | PAD_CTL_DDR_INPUT_CMOS |
+-			  PAD_CTL_DRV_VOT_LOW);
+-	gpio_free(IOMUX_TO_GPIO(MX51_PIN_USBH1_STP));
++	if (cpu_is_mx51()) {
++		/* setback USBH1_STP to be function */
++		mxc_request_iomux(MX51_PIN_USBH1_STP, IOMUX_CONFIG_ALT0);
++		mxc_iomux_set_pad(MX51_PIN_USBH1_STP, PAD_CTL_SRE_FAST |
++				  PAD_CTL_DRV_HIGH | PAD_CTL_ODE_OPENDRAIN_NONE |
++				  PAD_CTL_PUE_KEEPER | PAD_CTL_PKE_ENABLE |
++				  PAD_CTL_HYS_ENABLE | PAD_CTL_DDR_INPUT_CMOS |
++				  PAD_CTL_DRV_VOT_LOW);
++		gpio_free(IOMUX_TO_GPIO(MX51_PIN_USBH1_STP));
++	}
+ 
+ 	/* disable remote wakeup irq */
+ 	USBCTRL &= ~UCTRL_H1WIE;
+ 	return 0;
+ }
+ 
++static void fsl_usb_host_uninit_ext(struct fsl_usb2_platform_data *pdata)
++{
++	struct clk *usb_clk;
++
++	if (cpu_is_mx53()) {
++		usb_clk = clk_get(NULL, "usboh3_clk");
++		clk_disable(usb_clk);
++		clk_put(usb_clk);
++
++		usb_clk = clk_get(&pdata->pdev->dev, "usb_phy2_clk");
++		clk_disable(usb_clk);
++		clk_put(usb_clk);
++	}
++	fsl_usb_host_uninit(pdata);
++}
++
+ static struct fsl_usb2_platform_data usbh1_config = {
+ 	.name = "Host 1",
+ 	.platform_init = fsl_usb_host_init_ext,
+-	.platform_uninit = fsl_usb_host_uninit,
++	.platform_uninit = fsl_usb_host_uninit_ext,
+ 	.operating_mode = FSL_USB2_MPH_HOST,
+-	.phy_mode = FSL_USB2_PHY_ULPI,
++	.phy_mode = FSL_USB2_PHY_UTMI_WIDE,
+ 	.power_budget = 500,	/* 500 mA max power */
+-	.gpio_usb_active = gpio_usbh1_active,
+-	.gpio_usb_inactive = gpio_usbh1_inactive,
+ 	.wake_up_enable = _wake_up_enable,
+ 	.usb_clock_for_pm  = usbotg_clock_gate,
+-	.transceiver = "isp1504",
++	.transceiver = "utmi",
+ };
+ 
+-void __init mx51_usbh1_init(void)
++void __init mx5_usbh1_init(void)
+ {
++	if (cpu_is_mx51()) {
++		usbh1_config.phy_mode = FSL_USB2_PHY_ULPI;
++		usbh1_config.transceiver = "isp1504";
++		usbh1_config.gpio_usb_active = gpio_usbh1_active;
++		usbh1_config.gpio_usb_inactive = gpio_usbh1_inactive;
++	}
+ 	mxc_register_device(&mxc_usbh1_device, &usbh1_config);
+ }
+ 
+diff --git a/arch/arm/mach-mx5/usb_h2.c b/arch/arm/mach-mx5/usb_h2.c
+index 6061021..c3279e5 100644
+--- a/arch/arm/mach-mx5/usb_h2.c
++++ b/arch/arm/mach-mx5/usb_h2.c
+@@ -19,6 +19,7 @@
+ #include <mach/arc_otg.h>
+ #include "usb.h"
+ #include "iomux.h"
++#include "mx51_pins.h"
+ 
+ /*
+  * USB Host2 HS port
+diff --git a/arch/arm/plat-mxc/include/mach/arc_otg.h b/arch/arm/plat-mxc/include/mach/arc_otg.h
+index 0e834fe..1b25110 100644
+--- a/arch/arm/plat-mxc/include/mach/arc_otg.h
++++ b/arch/arm/plat-mxc/include/mach/arc_otg.h
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2005-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2005-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -145,6 +145,8 @@
+ #define USB_CTRL_1		USBOTHER_REG(0x10)	/* USB Cotrol Register 1*/
+ #define USBCTRL_HOST2		USBOTHER_REG(0x14)	/* USB Cotrol Register 1*/
+ #define USBCTRL_HOST3		USBOTHER_REG(0x18)	/* USB Cotrol Register 1*/
++#define USBH1_PHY_CTRL0		USBOTHER_REG(0x1c)	/* USB Cotrol Register 1*/
++#define USBH1_PHY_CTRL1		USBOTHER_REG(0x20)	/* USB Cotrol Register 1*/
+ 
+ /*
+  * register bits
+diff --git a/arch/arm/plat-mxc/usb_common.c b/arch/arm/plat-mxc/usb_common.c
+index 8b69ad9..c8b8ba4 100644
+--- a/arch/arm/plat-mxc/usb_common.c
++++ b/arch/arm/plat-mxc/usb_common.c
+@@ -261,6 +261,68 @@ static void usbh1_set_ulpi_xcvr(void)
+ 	/* Turn off the usbpll for ulpi tranceivers */
+ 	clk_disable(usb_clk);
+ }
++
++static void usbh1_set_utmi_xcvr(void)
++{
++	u32 tmp;
++
++	/* Stop then Reset */
++	UH1_USBCMD &= ~UCMD_RUN_STOP;
++	while (UH1_USBCMD & UCMD_RUN_STOP)
++		;
++
++	UH1_USBCMD |= UCMD_RESET;
++	while ((UH1_USBCMD) & (UCMD_RESET))
++		;
++
++	/* MX53 EVK is not using OC */
++	USB_PHY_CTR_FUNC |= USB_UH1_OC_DIS;
++
++	USBCTRL &= ~UCTRL_H1PM;	/* OTG Power Mask */
++	USBCTRL &= ~UCTRL_H1WIE;	/* OTG Wakeup Intr Disable */
++
++	/* Over current disable */
++	USB_PHY_CTR_FUNC |= (0x1 << 5);
++
++	/* set UTMI xcvr */
++	tmp = UH1_PORTSC1 & ~PORTSC_PTS_MASK;
++	tmp |= PORTSC_PTS_UTMI;
++	UH1_PORTSC1 = tmp;
++
++	/* Set the PHY clock to 19.2MHz */
++	USBH1_PHY_CTRL1 &= ~USB_UTMI_PHYCTRL2_PLLDIV_MASK;
++	USBH1_PHY_CTRL1 |= 0x01;
++
++	/* Workaround an IC issue for ehci driver:
++	 * when turn off root hub port power, EHCI set
++	 * PORTSC reserved bits to be 0, but PTW with 0
++	 * means 8 bits tranceiver width, here change
++	 * it back to be 16 bits and do PHY diable and
++	 * then enable.
++	 */
++	UH1_PORTSC1 |= PORTSC_PTW;
++
++	/* need to reset the controller here so that the ID pin
++	 * is correctly detected.
++	 */
++	/* Stop then Reset */
++	UH1_USBCMD &= ~UCMD_RUN_STOP;
++	while (UH1_USBCMD & UCMD_RUN_STOP)
++		;
++
++	UH1_USBCMD |= UCMD_RESET;
++	while ((UH1_USBCMD) & (UCMD_RESET))
++		;
++
++	/* allow controller to reset, and leave time for
++	 * the ULPI transceiver to reset too.
++	 */
++	msleep(100);
++
++	/* Turn off the usbpll for UTMI tranceivers */
++	clk_disable(usb_clk);
++}
++
+ static void usbh2_set_ulpi_xcvr(void)
+ {
+ 	u32 tmp;
+@@ -410,7 +472,7 @@ int fsl_usb_host_init(struct platform_device *pdev)
+ 		return -EINVAL;
+ 
+ 	pr_debug("%s: grab pins\n", __func__);
+-	if (pdata->gpio_usb_active())
++	if (pdata->gpio_usb_active && pdata->gpio_usb_active())
+ 		return -EINVAL;
+ 
+ 	if (clk_enable(usb_clk)) {
+@@ -452,6 +514,8 @@ int fsl_usb_host_init(struct platform_device *pdev)
+ 			usbh1_set_ulpi_xcvr();
+ 		if (!strcmp("Host 2", pdata->name))
+ 			usbh2_set_ulpi_xcvr();
++	} else if (xops->xcvr_type == PORTSC_PTS_UTMI) {
++		usbh1_set_utmi_xcvr();
+ 	}
+ 
+ 	pr_debug("%s: %s success\n", __func__, pdata->name);
+@@ -468,7 +532,8 @@ void fsl_usb_host_uninit(struct fsl_usb2_platform_data *pdata)
+ 
+ 	pdata->regs = NULL;
+ 
+-	pdata->gpio_usb_inactive();
++	if (pdata->gpio_usb_inactive)
++		pdata->gpio_usb_inactive();
+ 	if (pdata->xcvr_type == PORTSC_PTS_SERIAL) {
+ 		/* Workaround an IC issue for ehci driver.
+ 		 * when turn off root hub port power, EHCI set
+@@ -624,6 +689,9 @@ static void otg_set_utmi_xcvr(void)
+ 	UOG_USBCMD |= UCMD_RESET;
+ 	while ((UOG_USBCMD) & (UCMD_RESET)) ;
+ 
++	if (cpu_is_mx53())
++		USB_PHY_CTR_FUNC |= USB_UTMI_PHYCTRL_OC_DIS;
++
+ 	if (cpu_is_mx51()) {
+ 		if (machine_is_mx51_3ds()) {
+ 			/* OTG Polarity of Overcurrent is Low active */
+@@ -648,7 +716,8 @@ static void otg_set_utmi_xcvr(void)
+ 			USBCTRL |= UCTRL_OLOCKD;
+ 	}
+ 
+-	USBCTRL &= ~UCTRL_OPM;	/* OTG Power Mask */
++	if (!cpu_is_mx53())
++		USBCTRL &= ~UCTRL_OPM;	/* OTG Power Mask */
+ 	USBCTRL &= ~UCTRL_OWIE;	/* OTG Wakeup Intr Disable */
+ 
+ 	/* set UTMI xcvr */
+@@ -730,7 +799,7 @@ int usbotg_init(struct platform_device *pdev)
+ 			return -EINVAL;
+ 
+ 		pr_debug("%s: grab pins\n", __func__);
+-		if (pdata->gpio_usb_active())
++		if (pdata->gpio_usb_active && pdata->gpio_usb_active())
+ 			return -EINVAL;
+ 
+ 		if (clk_enable(usb_clk)) {
+@@ -785,7 +854,8 @@ void usbotg_uninit(struct fsl_usb2_platform_data *pdata)
+ 		}
+ 		msleep(1);
+ 		UOG_PORTSC1 = UOG_PORTSC1 | PORTSC_PHCD;
+-		pdata->gpio_usb_inactive();
++		if (pdata->gpio_usb_inactive)
++			pdata->gpio_usb_inactive();
+ 		if (pdata->xcvr_type == PORTSC_PTS_SERIAL)
+ 			clk_disable(usb_clk);
+ 		clk_disable(usb_ahb_clk);
+-- 
+1.5.4.4
+

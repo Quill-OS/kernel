@@ -1,0 +1,479 @@
+From b35a3a001fad7d967fae6ad7ebc9cc7405baa4b4 Mon Sep 17 00:00:00 2001
+From: Zhou Jingyu <b02241@freescale.com>
+Date: Thu, 11 Mar 2010 10:08:32 +0800
+Subject: [PATCH] ENGR00121496: mx23 battery driver restructure
+
+mx23 battery driver restructure
+
+Signed-off-by: Zhou Jingyu <Jingyu.Zhou@freescale.com>
+---
+ arch/arm/configs/imx23evk_defconfig     |   11 +++-
+ arch/arm/mach-mx23/device.c             |   87 +++++++++++++++++++++++++++++++
+ arch/arm/mach-mx23/include/mach/irqs.h  |    6 ++
+ arch/arm/plat-mxs/Makefile              |    3 +-
+ arch/arm/plat-mxs/icoll.c               |   27 ++++++++++
+ arch/arm/plat-mxs/include/mach/ddi_bc.h |    1 +
+ arch/arm/plat-mxs/include/mach/irqs.h   |    5 ++
+ arch/arm/plat-mxs/usb_common.c          |   12 +++-
+ drivers/power/mxs/ddi_power_battery.c   |    7 ++-
+ drivers/power/mxs/linux.c               |   86 ++++++++----------------------
+ 10 files changed, 175 insertions(+), 70 deletions(-)
+
+diff --git a/arch/arm/configs/imx23evk_defconfig b/arch/arm/configs/imx23evk_defconfig
+index 1b66a1b..5c646a4 100644
+--- a/arch/arm/configs/imx23evk_defconfig
++++ b/arch/arm/configs/imx23evk_defconfig
+@@ -1,7 +1,7 @@
+ #
+ # Automatically generated make config: don't edit
+ # Linux kernel version: 2.6.31
+-# Wed Mar 10 21:57:59 2010
++# Mon Mar 15 09:38:37 2010
+ #
+ CONFIG_ARM=y
+ CONFIG_SYS_SUPPORTS_APM_EMULATION=y
+@@ -613,7 +613,14 @@ CONFIG_GPIOLIB=y
+ # SPI GPIO expanders:
+ #
+ # CONFIG_W1 is not set
+-# CONFIG_POWER_SUPPLY is not set
++CONFIG_POWER_SUPPLY=y
++# CONFIG_POWER_SUPPLY_DEBUG is not set
++# CONFIG_PDA_POWER is not set
++# CONFIG_BATTERY_DS2760 is not set
++# CONFIG_BATTERY_DS2782 is not set
++# CONFIG_BATTERY_BQ27x00 is not set
++# CONFIG_BATTERY_MAX17040 is not set
++CONFIG_BATTERY_MXS=y
+ # CONFIG_HWMON is not set
+ # CONFIG_THERMAL is not set
+ # CONFIG_THERMAL_HWMON is not set
+diff --git a/arch/arm/mach-mx23/device.c b/arch/arm/mach-mx23/device.c
+index 31f514b..fc2ddc1 100644
+--- a/arch/arm/mach-mx23/device.c
++++ b/arch/arm/mach-mx23/device.c
+@@ -36,8 +36,10 @@
+ #include <mach/regs-lradc.h>
+ #include <mach/device.h>
+ #include <mach/dma.h>
++#include <mach/irqs.h>
+ #include <mach/lradc.h>
+ #include <mach/lcdif.h>
++#include <mach/ddi_bc.h>
+ 
+ #include "device.h"
+ #include "mx23_pins.h"
+@@ -602,6 +604,89 @@ static void mx23_init_mmc(void)
+ }
+ #endif
+ 
++#if defined(CONFIG_BATTERY_MXS)
++/* battery info data */
++static ddi_bc_Cfg_t battery_data = {
++	.u32StateMachinePeriod		 = 100,		/* ms */
++	.u16CurrentRampSlope		 = 75,		/* mA/s */
++	.u16ConditioningThresholdVoltage = 2900, 	/* mV */
++	.u16ConditioningMaxVoltage	 = 3000,	/* mV */
++	.u16ConditioningCurrent		 = 60,		/* mA */
++	.u32ConditioningTimeout		 = 4*60*60*1000, /* ms (4 hours) */
++	.u16ChargingVoltage		 = 4200,	/* mV */
++	/* FIXME: the current comparator could have h/w bugs in current
++	 * detection through POWER_STS.CHRGSTS bit */
++	.u16ChargingCurrent		 = 600,		/* mA 600 */
++	.u16ChargingThresholdCurrent	 = 60,		/* mA 60 */
++	.u32ChargingTimeout		 = 4*60*60*1000,/* ms (4 hours) */
++	.u32TopOffPeriod		 = 30*60*1000,	/* ms (30 minutes) */
++	.monitorDieTemp			 = 1,		/* Monitor the die */
++	.u8DieTempHigh			 = 75,		/* deg centigrade */
++	.u8DieTempLow			 = 65,		/* deg centigrade */
++	.u16DieTempSafeCurrent		 = 0,		/* mA */
++	.monitorBatteryTemp		 = 0,		/* Monitor the battery*/
++	.u8BatteryTempChannel		 = 1,		/* LRADC 1 */
++	.u16BatteryTempHigh		 = 642,		/* Unknown units */
++	.u16BatteryTempLow		 = 497,		/* Unknown units */
++	.u16BatteryTempSafeCurrent	 = 0,		/* mA */
++};
++
++static struct resource battery_resource[] = {
++	{/* 0 */
++		.flags  = IORESOURCE_IRQ,
++		.start  = IRQ_VDD5V,
++		.end    = IRQ_VDD5V,
++	},
++	{/* 1 */
++		.flags  = IORESOURCE_IRQ,
++		.start  = IRQ_DCDC4P2_BO,
++		.end    = IRQ_DCDC4P2_BO,
++	},
++	{/* 2 */
++		.flags  = IORESOURCE_IRQ,
++		.start  = IRQ_BATT_BRNOUT,
++		.end    = IRQ_BATT_BRNOUT,
++	},
++	{/* 3 */
++		.flags  = IORESOURCE_IRQ,
++		.start  = IRQ_VDDD_BRNOUT,
++		.end    = IRQ_VDDD_BRNOUT,
++	},
++	{/* 4 */
++		.flags  = IORESOURCE_IRQ,
++		.start  = IRQ_VDD18_BRNOUT,
++		.end    = IRQ_VDD18_BRNOUT,
++	},
++	{/* 5 */
++		.flags  = IORESOURCE_IRQ,
++		.start  = IRQ_VDDIO_BRNOUT,
++		.end    = IRQ_VDDIO_BRNOUT,
++	},
++	{/* 6 */
++		.flags  = IORESOURCE_IRQ,
++		.start  = IRQ_VDD5V_DROOP,
++		.end    = IRQ_VDD5V_DROOP,
++	},
++};
++
++static void mx23_init_battery(void)
++{
++	struct platform_device *pdev;
++	pdev = mxs_get_device("mxs-battery", 0);
++	if (pdev) {
++		pdev->resource = battery_resource,
++		pdev->num_resources = ARRAY_SIZE(battery_resource),
++		pdev->dev.platform_data = &battery_data;
++		mxs_add_device(pdev, 3);
++	}
++}
++#else
++static void mx23_init_battery(void)
++{
++}
++#endif
++
++
+ int __init mx23_device_init(void)
+ {
+ 	mx23_init_dma();
+@@ -617,6 +702,8 @@ int __init mx23_device_init(void)
+ 	mx23_init_mmc();
+ 	mx23_init_lcdif();
+ 	mx23_init_pxp();
++	mx23_init_battery();
++
+ 	return 0;
+ }
+ 
+diff --git a/arch/arm/mach-mx23/include/mach/irqs.h b/arch/arm/mach-mx23/include/mach/irqs.h
+index dc4e578..5d5211b 100644
+--- a/arch/arm/mach-mx23/include/mach/irqs.h
++++ b/arch/arm/mach-mx23/include/mach/irqs.h
+@@ -94,3 +94,9 @@
+ 
+ /* Hard disk IRQ is a GPMI attention IRQ */
+ #define IRQ_HARDDISK		IRQ_GPMI_ATTENTION
++
++#ifndef __ASSEMBLY__
++void mxs_set_irq_fiq(unsigned int irq, unsigned int type);
++void mxs_enable_fiq_functionality(int enable);
++#endif
++
+diff --git a/arch/arm/plat-mxs/Makefile b/arch/arm/plat-mxs/Makefile
+index fa25e5e..95b4c05 100644
+--- a/arch/arm/plat-mxs/Makefile
++++ b/arch/arm/plat-mxs/Makefile
+@@ -11,7 +11,8 @@ obj-$(CONFIG_GENERIC_GPIO) += gpio.o
+ obj-$(CONFIG_MXS_ICOLL) += icoll.o
+ 
+ obj-$(CONFIG_MXS_DMA_ENGINE) += dmaengine.o dma-apbh.o dma-apbx.o
+-obj-$(CONFIG_ARCH_MX28) += usb_common.o utmixc.o
++obj-$(CONFIG_ARCH_MX28) += utmixc.o
++obj-$(CONFIG_ARCH_MXS) += usb_common.o
+ 
+ obj-$(CONFIG_MXS_LRADC) += lradc.o
+ # Power Management
+diff --git a/arch/arm/plat-mxs/icoll.c b/arch/arm/plat-mxs/icoll.c
+index ef05e63..bb4e4c1 100644
+--- a/arch/arm/plat-mxs/icoll.c
++++ b/arch/arm/plat-mxs/icoll.c
+@@ -23,6 +23,7 @@
+ 
+ #include <mach/hardware.h>
+ #include <mach/device.h>
++#include <mach/irqs.h>
+ 
+ #include "regs-icoll.h"
+ 
+@@ -106,3 +107,29 @@ void __init avic_init_irq(void __iomem *base, int nr_irqs)
+ 	/* Barrier */
+ 	(void)__raw_readl(g_icoll_base + HW_ICOLL_STAT);
+ }
++
++void mxs_set_irq_fiq(unsigned int irq, unsigned int type)
++{
++	if (type == 0)
++		__raw_writel(BM_ICOLL_INTERRUPTn_ENFIQ,
++			g_icoll_base +
++			HW_ICOLL_INTERRUPTn_CLR(irq));
++	else
++		__raw_writel(BM_ICOLL_INTERRUPTn_ENFIQ,
++			g_icoll_base +
++			HW_ICOLL_INTERRUPTn_SET(irq));
++}
++EXPORT_SYMBOL(mxs_set_irq_fiq);
++
++void mxs_enable_fiq_functionality(int enable)
++{
++	if (enable)
++		__raw_writel(BM_ICOLL_CTRL_FIQ_FINAL_ENABLE,
++			g_icoll_base + HW_ICOLL_CTRL_SET);
++	else
++		__raw_writel(BM_ICOLL_CTRL_FIQ_FINAL_ENABLE,
++			g_icoll_base + HW_ICOLL_CTRL_CLR);
++
++}
++EXPORT_SYMBOL(mxs_enable_fiq_functionality);
++
+diff --git a/arch/arm/plat-mxs/include/mach/ddi_bc.h b/arch/arm/plat-mxs/include/mach/ddi_bc.h
+index ceeed0c..21ca921 100644
+--- a/arch/arm/plat-mxs/include/mach/ddi_bc.h
++++ b/arch/arm/plat-mxs/include/mach/ddi_bc.h
+@@ -708,6 +708,7 @@ ddi_bc_Status_t ddi_bc_ForceChargingToStart(void);
+ void fsl_enable_usb_plugindetect(void);
+ 
+ int fsl_is_usb_plugged(void);
++
+ /* End of file */
+ 
+ #endif				/* _DDI_BC_H */
+diff --git a/arch/arm/plat-mxs/include/mach/irqs.h b/arch/arm/plat-mxs/include/mach/irqs.h
+index f2de0d2..62165e1 100644
+--- a/arch/arm/plat-mxs/include/mach/irqs.h
++++ b/arch/arm/plat-mxs/include/mach/irqs.h
+@@ -35,5 +35,10 @@ struct irq_ic_info {
+ #define __irq_ic_info_attr __attribute__((__section__(".irq_ic_info.array")))
+ 
+ extern struct irq_ic_info *current_irq_ic_info;
++
++void mxs_set_irq_fiq(unsigned int irq, unsigned int type);
++void mxs_enable_fiq_functionality(int enable);
++
+ #endif
++
+ #endif /* __ASM_ARCH_SYSTEM_H__ */
+diff --git a/arch/arm/plat-mxs/usb_common.c b/arch/arm/plat-mxs/usb_common.c
+index 0bc12d4..b6f5568 100644
+--- a/arch/arm/plat-mxs/usb_common.c
++++ b/arch/arm/plat-mxs/usb_common.c
+@@ -44,9 +44,11 @@
+ #include <linux/usb/otg.h>
+ #include <linux/usb/fsl_xcvr.h>
+ #include <mach/arc_otg.h>
++#include <mach/hardware.h>
+ #include <linux/io.h>
+ #include "regs-usbphy.h"
+ 
++#ifdef CONFIG_ARCH_MX28
+ #define MXC_NUMBER_USB_TRANSCEIVER 6
+ struct fsl_xcvr_ops *g_xc_ops[MXC_NUMBER_USB_TRANSCEIVER] = { NULL };
+ 
+@@ -376,15 +378,19 @@ int usb_host_wakeup_irq(struct device *wkup_dev)
+ 	return 0;
+ }
+ EXPORT_SYMBOL(usb_host_wakeup_irq);
+-
++#endif
+ void usb_host_set_wakeup(struct device *wkup_dev, bool para)
+ {
+ }
+ EXPORT_SYMBOL(usb_host_set_wakeup);
+ 
++#ifdef CONFIG_ARCH_MX28
++#define USBPHY_PHYS_ADDR USBPHY0_PHYS_ADDR
++#endif
++
+ int fsl_is_usb_plugged(void)
+ {
+-	return __raw_readl(REGS_USBPHY_BASE + HW_USBPHY_STATUS) & \
++	return __raw_readl(IO_ADDRESS(USBPHY_PHYS_ADDR) + HW_USBPHY_STATUS) & \
+ 		BM_USBPHY_STATUS_DEVPLUGIN_STATUS;
+ }
+ EXPORT_SYMBOL(fsl_is_usb_plugged);
+@@ -392,7 +398,7 @@ EXPORT_SYMBOL(fsl_is_usb_plugged);
+ void fsl_enable_usb_plugindetect(void)
+ {
+ 	__raw_writel(BM_USBPHY_CTRL_ENDEVPLUGINDETECT,
+-			REGS_USBPHY_BASE + HW_USBPHY_CTRL_SET);
++			IO_ADDRESS(USBPHY_PHYS_ADDR) + HW_USBPHY_CTRL_SET);
+ }
+ EXPORT_SYMBOL(fsl_enable_usb_plugindetect);
+ 
+diff --git a/drivers/power/mxs/ddi_power_battery.c b/drivers/power/mxs/ddi_power_battery.c
+index 2da4f4e..d19b663 100644
+--- a/drivers/power/mxs/ddi_power_battery.c
++++ b/drivers/power/mxs/ddi_power_battery.c
+@@ -91,6 +91,10 @@
+ /* to be re-enabled once FIQ functionality is added */
+ #define DISABLE_VDDIO_BO_PROTECTION
+ 
++#ifdef CONFIG_ARCH_MX28
++#define BM_POWER_STS_VBUSVALID BM_POWER_STS_VBUSVALID0
++#endif
++
+ /* Globals & Variables */
+ 
+ 
+@@ -1374,13 +1378,14 @@ uint16_t ddi_power_ExpressibleCurrent(uint16_t u16Current)
+ /*  */
+ /* brief */
+ 
++
+ bool ddi_power_Get5vPresentFlag(void)
+ {
+ 	switch (DetectionMethod) {
+ 	case DDI_POWER_5V_VBUSVALID:
+ 		/* Check VBUSVALID for 5V present */
+ 		return ((__raw_readl(REGS_POWER_BASE + HW_POWER_STS) &
+-			BM_POWER_STS_VBUSVALID0) != 0);
++			BM_POWER_STS_VBUSVALID) != 0);
+ 	case DDI_POWER_5V_VDD5V_GT_VDDIO:
+ 		/* Check VDD5V_GT_VDDIO for 5V present */
+ 		return ((__raw_readl(REGS_POWER_BASE + HW_POWER_STS) &
+diff --git a/drivers/power/mxs/linux.c b/drivers/power/mxs/linux.c
+index 5025e8a..f878f8e 100644
+--- a/drivers/power/mxs/linux.c
++++ b/drivers/power/mxs/linux.c
+@@ -24,9 +24,8 @@
+ #include <linux/regulator/driver.h>
+ #include <mach/regulator.h>
+ #include <mach/regs-power.h>
+-#include <mach/mx28.h>
++#include <mach/hardware.h>
+ #include <mach/irqs.h>
+-#include <mach/regs-icoll.h>
+ #include <linux/delay.h>
+ #include <linux/proc_fs.h>
+ #include <linux/interrupt.h>
+@@ -97,10 +96,12 @@ struct mxs_info {
+ #define OS_SHUTDOWN_BATTERY_VOLTAGE_THRESHOLD_MV 3350
+ #endif
+ 
+-#ifdef CONFIG_ARCH_STMP3XXX
+-#define  POWER_FIQ
++#ifdef CONFIG_ARCH_MX23
++#define IRQ_DCDC4P2_BRNOUT IRQ_DCDC4P2_BO
+ #endif
+ 
++/* #define  POWER_FIQ */
++
+ /* #define DEBUG_IRQS */
+ 
+ /* There is no direct way to detect wall power presence, so assume the AC
+@@ -126,7 +127,7 @@ void init_protection(struct mxs_info *info)
+ 	battery_voltage = ddi_power_GetBattery();
+ 
+ 	/* InitializeFiqSystem(); */
+-#ifdef POWER_FIQ
++#ifdef CONFIG_ARCH_MX23
+ 	ddi_power_InitOutputBrownouts();
+ #endif
+ 
+@@ -1082,80 +1083,39 @@ static int __init mxs_bat_init(void)
+ 		lock_vector_tlb(REGS_POWER_BASE);
+ 
+ 		/* disable interrupts to be configured as FIQs */
+-		__raw_writel(BM_ICOLL_INTERRUPTn_ENABLE,
+-			REGS_ICOLL_BASE +
+-			HW_ICOLL_INTERRUPTn_CLR(IRQ_DCDC4P2_BRNOUT));
+-
+-		__raw_writel(BM_ICOLL_INTERRUPTn_ENABLE,
+-			REGS_ICOLL_BASE +
+-			HW_ICOLL_INTERRUPTn_CLR(IRQ_BATT_BRNOUT));
+-
+-		__raw_writel(BM_ICOLL_INTERRUPTn_ENABLE,
+-			REGS_ICOLL_BASE +
+-			HW_ICOLL_INTERRUPTn_CLR(IRQ_VDDD_BRNOUT));
+-
++		disable_irq(IRQ_DCDC4P2_BRNOUT);
++		disable_irq(IRQ_BATT_BRNOUT);
++		disable_irq(IRQ_VDDD_BRNOUT);
+ #ifndef CONFIG_ARCH_MX28
+-		__raw_writel(BM_ICOLL_INTERRUPTn_ENABLE,
+-			REGS_ICOLL_BASE +
+-			HW_ICOLL_INTERRUPTn_CLR(IRQ_VDD18_BRNOUT));
++		disable_irq(IRQ_VDD18_BRNOUT);
+ #endif
++		disable_irq(IRQ_VDD5V_DROOP);
+ 
+-		__raw_writel(BM_ICOLL_INTERRUPTn_ENABLE,
+-			REGS_ICOLL_BASE +
+-			HW_ICOLL_INTERRUPTn_CLR(IRQ_VDD5V_DROOP));
+ 
+ 		/* Enable these interrupts as FIQs */
+-		__raw_writel(BM_ICOLL_INTERRUPTn_ENFIQ,
+-			REGS_ICOLL_BASE +
+-			HW_ICOLL_INTERRUPTn_SET(IRQ_DCDC4P2_BRNOUT));
+-
+-		__raw_writel(BM_ICOLL_INTERRUPTn_ENFIQ,
+-			REGS_ICOLL_BASE +
+-			HW_ICOLL_INTERRUPTn_SET(IRQ_BATT_BRNOUT));
+-
+-		__raw_writel(BM_ICOLL_INTERRUPTn_ENFIQ,
+-			REGS_ICOLL_BASE +
+-			HW_ICOLL_INTERRUPTn_SET(IRQ_VDDD_BRNOUT));
+-
++		mxs_set_irq_fiq(IRQ_DCDC4P2_BRNOUT, 1);
++		mxs_set_irq_fiq(IRQ_BATT_BRNOUT, 1);
++		mxs_set_irq_fiq(IRQ_VDDD_BRNOUT, 1);
+ #ifndef CONFIG_ARCH_MX28
+-		__raw_writel(BM_ICOLL_INTERRUPTn_ENFIQ,
+-			REGS_ICOLL_BASE +
+-			HW_ICOLL_INTERRUPTn_SET(IRQ_VDD18_BRNOUT));
++		mxs_set_irq_fiq(IRQ_VDD18_BRNOUT, 1);
+ #endif
++		mxs_set_irq_fiq(IRQ_VDD5V_DROOP, 1);
+ 
+-		__raw_writel(BM_ICOLL_INTERRUPTn_ENFIQ,
+-			REGS_ICOLL_BASE +
+-			HW_ICOLL_INTERRUPTn_SET(IRQ_VDD5V_DROOP));
+ 
+ 		/* enable FIQ functionality */
+-		__raw_writel(BM_ICOLL_CTRL_FIQ_FINAL_ENABLE,
+-				REGS_ICOLL_BASE + HW_ICOLL_CTRL_SET);
+-
+-		/* enable these interrupts */
+-		__raw_writel(BM_ICOLL_INTERRUPTn_ENABLE,
+-				REGS_ICOLL_BASE +
+-				HW_ICOLL_INTERRUPTn_SET(IRQ_DCDC4P2_BRNOUT));
+-
+-		__raw_writel(BM_ICOLL_INTERRUPTn_ENABLE,
+-				REGS_ICOLL_BASE +
+-				HW_ICOLL_INTERRUPTn_SET(IRQ_BATT_BRNOUT));
+-
+-		__raw_writel(BM_ICOLL_INTERRUPTn_ENABLE,
+-				REGS_ICOLL_BASE +
+-				HW_ICOLL_INTERRUPTn_SET(IRQ_VDDD_BRNOUT));
++		mxs_enable_fiq_functionality(1);
+ 
++		enable_irq(IRQ_DCDC4P2_BRNOUT);
++		enable_irq(IRQ_BATT_BRNOUT);
++		enable_irq(IRQ_VDDD_BRNOUT);
+ #ifndef CONFIG_ARCH_MX28
+-		__raw_writel(BM_ICOLL_INTERRUPTn_ENABLE,
+-				REGS_ICOLL_BASE +
+-				HW_ICOLL_INTERRUPTn_SET(IRQ_VDD18_BRNOUT));
++		enable_irq(IRQ_VDD18_BRNOUT);
+ #endif
+-
+-		__raw_writel(BM_ICOLL_INTERRUPTn_ENABLE,
+-				REGS_ICOLL_BASE +
+-				HW_ICOLL_INTERRUPTn_SET(IRQ_VDD5V_DROOP));
++		enable_irq(IRQ_VDD5V_DROOP);
+ 
+ 	}
+ #endif
++
+ 	return platform_driver_register(&mxs_batdrv);
+ }
+ 
+-- 
+1.5.4.4
+

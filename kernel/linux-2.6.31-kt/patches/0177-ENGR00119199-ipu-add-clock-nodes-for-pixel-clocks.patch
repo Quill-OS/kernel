@@ -1,0 +1,357 @@
+From 6590f6993c2295f0423dfb01b84804238b956ea1 Mon Sep 17 00:00:00 2001
+From: Ranjani Vaidyanathan-RA5478 <Ranjani.Vaidyanathan@freescale.com>
+Date: Thu, 10 Dec 2009 13:51:46 -0600
+Subject: [PATCH] ENGR00119199: ipu: add clock nodes for pixel clocks
+
+Added clock nodes for pixel clocks so that their rates and
+parents can be easily tracked.
+
+Signed-off-by: Rob Herring <r.herring@freescale.com>
+---
+ arch/arm/mach-mx51/clock.c    |    4 +-
+ drivers/mxc/ipu3/ipu_common.c |  119 +++++++++++++++++++++++++++++++++++++++--
+ drivers/mxc/ipu3/ipu_disp.c   |   70 ++++++------------------
+ drivers/mxc/ipu3/ipu_prv.h    |    1 +
+ 4 files changed, 136 insertions(+), 58 deletions(-)
+
+diff --git a/arch/arm/mach-mx51/clock.c b/arch/arm/mach-mx51/clock.c
+index 67f3fbf..3600b64 100644
+--- a/arch/arm/mach-mx51/clock.c
++++ b/arch/arm/mach-mx51/clock.c
+@@ -1338,7 +1338,7 @@ static struct clk ipu_clk[] = {
+ 	.enable = _clk_ipu_enable,
+ 	.disable = _clk_ipu_disable,
+ 	.set_parent = _clk_ipu_set_parent,
+-	 .flags = CPU_FREQ_TRIG_UPDATE | AHB_MED_SET_POINT,
++	 .flags = CPU_FREQ_TRIG_UPDATE | AHB_MED_SET_POINT | RATE_PROPAGATES,
+ 	},
+ 	{
+ 	 .name = "ipu_sec_clk",
+@@ -1433,6 +1433,7 @@ static struct clk ipu_di_clk[] = {
+ 	.set_rate = _clk_ipu_di_set_rate,
+ 	.enable = _clk_enable,
+ 	.disable = _clk_disable,
++	.flags = RATE_PROPAGATES,
+ 	},
+ 	{
+ 	.name = "ipu_di1_clk",
+@@ -1446,6 +1447,7 @@ static struct clk ipu_di_clk[] = {
+ 	.set_rate = _clk_ipu_di_set_rate,
+ 	.enable = _clk_enable,
+ 	.disable = _clk_disable,
++	.flags = RATE_PROPAGATES,
+ 	},
+ };
+ 
+diff --git a/drivers/mxc/ipu3/ipu_common.c b/drivers/mxc/ipu3/ipu_common.c
+index f2a4700..c0bf870 100644
+--- a/drivers/mxc/ipu3/ipu_common.c
++++ b/drivers/mxc/ipu3/ipu_common.c
+@@ -28,6 +28,8 @@
+ #include <linux/io.h>
+ #include <linux/ipu.h>
+ #include <linux/clk.h>
++#include <mach/clock.h>
++#include <mach/mxc_dvfs.h>
+ 
+ #include "ipu_prv.h"
+ #include "ipu_regs.h"
+@@ -44,6 +46,7 @@ struct ipu_irq_node {
+ struct clk *g_ipu_clk;
+ bool g_ipu_clk_enabled;
+ struct clk *g_di_clk[2];
++struct clk *g_pixel_clk[2];
+ struct clk *g_csi_clk[2];
+ unsigned char g_dc_di_assignment[10];
+ ipu_channel_t g_ipu_csi_channel[2];
+@@ -137,6 +140,111 @@ static inline int _ipu_is_smfc_chan(uint32_t dma_chan)
+ #define idma_mask(ch)		(idma_is_valid(ch) ? (1UL << (ch & 0x1F)) : 0)
+ #define idma_is_set(reg, dma)	(__raw_readl(reg(dma)) & idma_mask(dma))
+ 
++static void _ipu_pixel_clk_recalc(struct clk *clk)
++{
++	u32 div = __raw_readl(DI_BS_CLKGEN0(clk->id));
++	if (div == 0)
++		clk->rate = 0;
++	else
++		clk->rate = (clk->parent->rate * 16) / div;
++}
++
++static unsigned long _ipu_pixel_clk_round_rate(struct clk *clk, unsigned long rate)
++{
++	u32 div;
++	int ipu_freq_scaling_enabled = dvfs_per_pixel_clk_limit(rate);
++
++	/*
++	 * Calculate divider
++	 * Fractional part is 4 bits,
++	 * so simply multiply by 2^4 to get fractional part.
++	 */
++	div = (clk->parent->rate * 16) / rate;
++	if (div < 0x10)            /* Min DI disp clock divider is 1 */
++		div = 0x10;
++	/* Need an even integer divder for DVFS-PER to work */
++	if (ipu_freq_scaling_enabled) {
++		if (div & 0x10)
++			div += 0x10;
++		/* Fractional part is rounded off to 0. */
++		div &= 0xFF0;
++	} else
++		/* Only MSB fractional bit is supported. */
++		div &= 0xFF8;
++
++	return (clk->parent->rate * 16) / div;
++}
++
++static int _ipu_pixel_clk_set_rate(struct clk *clk, unsigned long rate)
++{
++	u32 div = (clk->parent->rate * 16) / rate;
++
++	__raw_writel(div, DI_BS_CLKGEN0(clk->id));
++
++	/* Setup pixel clock timing */
++	/* FIXME: needs to be more flexible */
++	/* Down time is half of period */
++	__raw_writel((div / 16) << 16, DI_BS_CLKGEN1(clk->id));
++
++	clk->rate = (clk->parent->rate * 16) / div;
++	return 0;
++}
++
++static int _ipu_pixel_clk_enable(struct clk *clk)
++{
++	u32 disp_gen = __raw_readl(IPU_DISP_GEN);
++	disp_gen |= clk->id ? DI1_COUNTER_RELEASE : DI0_COUNTER_RELEASE;
++	__raw_writel(disp_gen, IPU_DISP_GEN);
++
++	return 0;
++}
++
++static void _ipu_pixel_clk_disable(struct clk *clk)
++{
++	u32 disp_gen = __raw_readl(IPU_DISP_GEN);
++	disp_gen &= clk->id ? ~DI1_COUNTER_RELEASE : ~DI0_COUNTER_RELEASE;
++	__raw_writel(disp_gen, IPU_DISP_GEN);
++}
++
++static int _ipu_pixel_clk_set_parent(struct clk *clk, struct clk *parent)
++{
++	u32 di_gen = __raw_readl(DI_GENERAL(clk->id));
++
++	if (parent == g_ipu_clk)
++		di_gen &= ~DI_GEN_DI_CLK_EXT;
++	else if (!IS_ERR(g_di_clk[clk->id]) && parent == g_di_clk[clk->id])
++		di_gen |= DI_GEN_DI_CLK_EXT;
++	else
++		return -EINVAL;
++
++	__raw_writel(di_gen, DI_GENERAL(clk->id));
++	_ipu_pixel_clk_recalc(clk);
++	return 0;
++}
++
++static struct clk pixel_clk[] = {
++	{
++	.name = "pixel_clk",
++	.id = 0,
++	.recalc = _ipu_pixel_clk_recalc,
++	.set_rate = _ipu_pixel_clk_set_rate,
++	.round_rate = _ipu_pixel_clk_round_rate,
++	.set_parent = _ipu_pixel_clk_set_parent,
++	.enable = _ipu_pixel_clk_enable,
++	.disable = _ipu_pixel_clk_disable,
++	},
++	{
++	.name = "pixel_clk",
++	.id = 1,
++	.recalc = _ipu_pixel_clk_recalc,
++	.set_rate = _ipu_pixel_clk_set_rate,
++	.round_rate = _ipu_pixel_clk_round_rate,
++	.set_parent = _ipu_pixel_clk_set_parent,
++	.enable = _ipu_pixel_clk_enable,
++	.disable = _ipu_pixel_clk_disable,
++	},
++};
++
+ /*!
+  * This function resets IPU
+  */
+@@ -233,6 +341,11 @@ static int ipu_probe(struct platform_device *pdev)
+ 	dev_dbg(g_ipu_dev, "IPU DC Template Mem = %p\n", ipu_dc_tmpl_reg);
+ 	dev_dbg(g_ipu_dev, "IPU Display Region 1 Mem = %p\n", ipu_disp_base[1]);
+ 
++	g_pixel_clk[0] = &pixel_clk[0];
++	clk_register(g_pixel_clk[0]);
++	g_pixel_clk[1] = &pixel_clk[1];
++	clk_register(g_pixel_clk[1]);
++
+ 	/* Enable IPU and CSI clocks */
+ 	/* Get IPU clock freq */
+ 	g_ipu_clk = clk_get(&pdev->dev, "ipu_clk");
+@@ -240,6 +353,8 @@ static int ipu_probe(struct platform_device *pdev)
+ 
+ 	ipu_reset();
+ 
++	clk_set_parent(g_pixel_clk[0], g_ipu_clk);
++	clk_set_parent(g_pixel_clk[1], g_ipu_clk);
+ 	clk_enable(g_ipu_clk);
+ 
+ 	g_di_clk[0] = plat_data->di_clk[0];
+@@ -639,11 +754,9 @@ int32_t ipu_init_channel(ipu_channel_t channel, ipu_channel_params_t *params)
+ 		ipu_conf |= IPU_CONF_DMFC_EN;
+ 	if (ipu_di_use_count[0] == 1) {
+ 		ipu_conf |= IPU_CONF_DI0_EN;
+-		clk_enable(g_di_clk[0]);
+ 	}
+ 	if (ipu_di_use_count[1] == 1) {
+ 		ipu_conf |= IPU_CONF_DI1_EN;
+-		clk_enable(g_di_clk[1]);
+ 	}
+ 	if (ipu_smfc_use_count == 1)
+ 		ipu_conf |= IPU_CONF_SMFC_EN;
+@@ -837,11 +950,9 @@ void ipu_uninit_channel(ipu_channel_t channel)
+ 		ipu_conf &= ~IPU_CONF_DMFC_EN;
+ 	if (ipu_di_use_count[0] == 0) {
+ 		ipu_conf &= ~IPU_CONF_DI0_EN;
+-		clk_disable(g_di_clk[0]);
+ 	}
+ 	if (ipu_di_use_count[1] == 0) {
+ 		ipu_conf &= ~IPU_CONF_DI1_EN;
+-		clk_disable(g_di_clk[1]);
+ 	}
+ 	if (ipu_smfc_use_count == 0)
+ 		ipu_conf &= ~IPU_CONF_SMFC_EN;
+diff --git a/drivers/mxc/ipu3/ipu_disp.c b/drivers/mxc/ipu3/ipu_disp.c
+index bebeb44..14e014e 100644
+--- a/drivers/mxc/ipu3/ipu_disp.c
++++ b/drivers/mxc/ipu3/ipu_disp.c
+@@ -549,12 +549,7 @@ void _ipu_dp_dc_enable(ipu_channel_t channel)
+ 	reg |= 4 << DC_WR_CH_CONF_PROG_TYPE_OFFSET;
+ 	__raw_writel(reg, DC_WR_CH_CONF(dc_chan));
+ 
+-	reg = __raw_readl(IPU_DISP_GEN);
+-	if (di)
+-		reg |= DI1_COUNTER_RELEASE;
+-	else
+-		reg |= DI0_COUNTER_RELEASE;
+-	__raw_writel(reg, IPU_DISP_GEN);
++	clk_enable(g_pixel_clk[di]);
+ }
+ 
+ static bool dc_swap;
+@@ -701,6 +696,9 @@ void _ipu_dp_dc_disable(ipu_channel_t channel, bool swap)
+ 		__raw_writel(reg, IPU_DISP_GEN);
+ 
+ 		spin_unlock_irqrestore(&ipu_lock, lock_flags);
++		/* Clock is already off because it must be done quickly, but
++		   we need to fix the ref count */
++		clk_disable(g_pixel_clk[g_dc_di_assignment[dc_chan]]);
+ 
+ 		if (__raw_readl(IPUIRQ_2_STATREG(IPU_IRQ_VSYNC_PRE_0
+ 			+ g_dc_di_assignment[dc_chan])) &
+@@ -843,11 +841,10 @@ int32_t ipu_init_sync_panel(int disp, uint32_t pixel_clk,
+ 	uint32_t field0_offset = 0;
+ 	uint32_t field1_offset;
+ 	uint32_t reg;
+-	uint32_t disp_gen, di_gen, vsync_cnt;
+-	uint32_t div;
++	uint32_t di_gen, vsync_cnt;
++	uint32_t div, rounded_pixel_clk;
+ 	uint32_t h_total, v_total;
+ 	int map;
+-	struct clk *di_clk;
+ 	int ipu_freq_scaling_enabled;
+ 
+ 	dev_dbg(g_ipu_dev, "panel size = %d x %d\n", width, height);
+@@ -862,55 +859,24 @@ int32_t ipu_init_sync_panel(int disp, uint32_t pixel_clk,
+ 	dev_dbg(g_ipu_dev, "pixel clk = %d\n", pixel_clk);
+ 
+ 	if (sig.ext_clk)
+-		di_clk = g_di_clk[disp];
++		clk_set_parent(g_pixel_clk[disp], g_di_clk[disp]);
+ 	else
+-		di_clk = g_ipu_clk;
+-
+-	ipu_freq_scaling_enabled = dvfs_per_pixel_clk_limit(pixel_clk);
++		clk_set_parent(g_pixel_clk[disp], g_ipu_clk);
+ 
+ 	stop_dvfs_per();
+ 
+-	/*
+-	 * Calculate divider
+-	 * Fractional part is 4 bits,
+-	 * so simply multiply by 2^4 to get fractional part.
+-	 */
+-	div = (clk_get_rate(di_clk) * 16) / pixel_clk;
+-	if (div < 0x10)            /* Min DI disp clock divider is 1 */
+-		div = 0x10;
+-	/* Need an even integer divder for DVFS-PER to work */
+-	if (ipu_freq_scaling_enabled) {
+-		if (div & 0x10)
+-			div += 0x10;
+-		/* Fractional part is rounded off to 0. */
+-		div &= 0xFF0;
+-	} else
+-		/* Only MSB fractional bit is supported. */
+-		div &= 0xFF8;
++	rounded_pixel_clk = clk_round_rate(g_pixel_clk[disp], pixel_clk);
++	clk_set_rate(g_pixel_clk[disp], rounded_pixel_clk);
+ 
+-	reg = __raw_readl(DI_GENERAL(disp));
+-	if (sig.ext_clk)
+-		__raw_writel(reg | DI_GEN_DI_CLK_EXT, DI_GENERAL(disp));
+-	else
+-		__raw_writel(reg & ~DI_GEN_DI_CLK_EXT, DI_GENERAL(disp));
++	ipu_freq_scaling_enabled = dvfs_per_pixel_clk_limit(rounded_pixel_clk);
+ 
+-	spin_lock_irqsave(&ipu_lock, lock_flags);
++	/* Get integer portion of divider */
++	div = clk_get_rate(clk_get_parent(g_pixel_clk[disp])) / rounded_pixel_clk;
+ 
+-	disp_gen = __raw_readl(IPU_DISP_GEN);
+-	disp_gen &= disp ? ~DI1_COUNTER_RELEASE : ~DI0_COUNTER_RELEASE;
+-	__raw_writel(disp_gen, IPU_DISP_GEN);
+-
+-	__raw_writel(div, DI_BS_CLKGEN0(disp));
+-
+-	/* Setup pixel clock timing */
+-	/* FIXME: needs to be more flexible */
+-	/* Down time is half of period */
+-	__raw_writel((div / 16) << 16, DI_BS_CLKGEN1(disp));
+-
+-	_ipu_di_data_wave_config(disp, SYNC_WAVE, div / 16 - 1, div / 16 - 1);
+-	_ipu_di_data_pin_config(disp, SYNC_WAVE, DI_PIN15, 3, 0, div / 16 * 2);
++	spin_lock_irqsave(&ipu_lock, lock_flags);
+ 
+-	div = div / 16;		/* Now divider is integer portion */
++	_ipu_di_data_wave_config(disp, SYNC_WAVE, div - 1, div - 1);
++	_ipu_di_data_pin_config(disp, SYNC_WAVE, DI_PIN15, 3, 0, div * 2);
+ 
+ 	map = _ipu_pixfmt_to_map(pixel_fmt);
+ 	if (map < 0) {
+@@ -919,9 +885,7 @@ int32_t ipu_init_sync_panel(int disp, uint32_t pixel_clk,
+ 		return -EINVAL;
+ 	}
+ 
+-	di_gen = 0;
+-	if (sig.ext_clk)
+-		di_gen |= DI_GEN_DI_CLK_EXT;
++	di_gen = __raw_readl(DI_GENERAL(disp));
+ 
+ 	if (sig.interlaced) {
+ 		if (cpu_is_mx51_rev(CHIP_REV_2_0)) {
+diff --git a/drivers/mxc/ipu3/ipu_prv.h b/drivers/mxc/ipu3/ipu_prv.h
+index c988406..6ed997f 100644
+--- a/drivers/mxc/ipu3/ipu_prv.h
++++ b/drivers/mxc/ipu3/ipu_prv.h
+@@ -25,6 +25,7 @@ extern spinlock_t ipu_lock;
+ extern bool g_ipu_clk_enabled;
+ extern struct clk *g_ipu_clk;
+ extern struct clk *g_di_clk[2];
++extern struct clk *g_pixel_clk[2];
+ extern struct clk *g_csi_clk[2];
+ extern unsigned char g_dc_di_assignment[];
+ extern int g_ipu_hw_rev;
+-- 
+1.5.4.4
+

@@ -1,0 +1,63 @@
+From aae61f5a219288241d0ee8ba54e8305a6769cb3c Mon Sep 17 00:00:00 2001
+From: Lily Zhang <r58066@freescale.com>
+Date: Thu, 1 Jul 2010 14:55:38 +0800
+Subject: [PATCH] ENGR00124795 SPI NOR: uniform include header file
+
+The default partitions are missing in MX53 SPI NOR MTD.
+It's because spi nor driver and mx53 msl include different
+header files. It causes struct definitions are different.
+For i.MX SPI nor driver, need to use asm/mach/flash.h by
+aligning with NAND driver.
+
+Signed-off-by: Lily Zhang <r58066@freescale.com>
+---
+ arch/arm/mach-mx5/mx51_babbage.c    |    2 +-
+ drivers/mtd/devices/mxc_dataflash.c |    4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/arch/arm/mach-mx5/mx51_babbage.c b/arch/arm/mach-mx5/mx51_babbage.c
+index 88afcc2..5d75172 100644
+--- a/arch/arm/mach-mx5/mx51_babbage.c
++++ b/arch/arm/mach-mx5/mx51_babbage.c
+@@ -25,7 +25,6 @@
+ #include <linux/mtd/mtd.h>
+ #include <linux/mtd/map.h>
+ #include <linux/mtd/partitions.h>
+-#include <linux/spi/flash.h>
+ #include <linux/regulator/consumer.h>
+ #include <linux/pmic_external.h>
+ #include <linux/pmic_status.h>
+@@ -39,6 +38,7 @@
+ #include <asm/mach/arch.h>
+ #include <asm/mach/time.h>
+ #include <asm/mach/keypad.h>
++#include <asm/mach/flash.h>
+ #include <mach/gpio.h>
+ #include <mach/mmc.h>
+ #include <mach/mxc_dvfs.h>
+diff --git a/drivers/mtd/devices/mxc_dataflash.c b/drivers/mtd/devices/mxc_dataflash.c
+index ab75d74..0ed701d 100644
+--- a/drivers/mtd/devices/mxc_dataflash.c
++++ b/drivers/mtd/devices/mxc_dataflash.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2009-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  * (c) 2005 MontaVista Software, Inc.
+  *
+  * This code is based on mtd_dataflash.c by adding FSL spi access.
+@@ -22,10 +22,10 @@
+ #include <linux/err.h>
+ 
+ #include <linux/spi/spi.h>
+-#include <linux/spi/flash.h>
+ 
+ #include <linux/mtd/mtd.h>
+ #include <linux/mtd/partitions.h>
++#include <asm/mach/flash.h>
+ 
+ /*
+  * DataFlash is a kind of SPI flash.  Most AT45 chips have two buffers in
+-- 
+1.5.4.4
+

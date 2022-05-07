@@ -1,0 +1,37 @@
+From dc188d771acf5df43aaecc5335b3c8f5834d663a Mon Sep 17 00:00:00 2001
+From: Wallace Wang <r59996@freescale.com>
+Date: Thu, 26 Nov 2009 15:51:22 +0800
+Subject: [PATCH] ENGR00114902 MX35: Enable SD clock before reboot
+
+MX35 ROM code will not configre SD clock, while linux
+kernel will disable SD clock when there is no data
+transfer, so need to enable SD clock before reboot for
+SD boot mode
+
+Signed-off-by: Wallace Wang <r59996@freescale.com>
+---
+ arch/arm/mach-mx35/system.c |    8 ++++++++
+ 1 files changed, 8 insertions(+), 0 deletions(-)
+
+diff --git a/arch/arm/mach-mx35/system.c b/arch/arm/mach-mx35/system.c
+index 71a4e8c..19ee470 100644
+--- a/arch/arm/mach-mx35/system.c
++++ b/arch/arm/mach-mx35/system.c
+@@ -121,6 +121,14 @@ void arch_idle(void)
+  */
+ void arch_reset(char mode)
+ {
++	unsigned long reg;
++
++	reg = __raw_readl(MXC_CCM_CGR0);
++	reg |=
++	    (MXC_CCM_CGR0_ESDHC1_MASK | MXC_CCM_CGR0_ESDHC2_MASK |
++	     MXC_CCM_CGR0_ESDHC3_MASK);
++	__raw_writel(reg, MXC_CCM_CGR0);
++
+ 	/* Assert SRS signal */
+ 	mxc_wd_reset();
+ }
+-- 
+1.5.4.4
+

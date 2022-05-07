@@ -1,0 +1,706 @@
+From a2f03c528f0c00e884a20847936c0f2b38486efc Mon Sep 17 00:00:00 2001
+From: Lionel Xu <Lionel.Xu@freescale.com>
+Date: Thu, 18 Mar 2010 21:50:06 +0800
+Subject: [PATCH] ENGR00117751 MX28 ALSA: Support audio record through saif
+
+Support audio record through saif, support playback/record simultaneously
+
+Signed-off-by: Lionel Xu <r63889@freescale.com>
+(cherry picked from commit 18627873f6332e03ebd03691f51937559bbdf03d)
+---
+ arch/arm/mach-mx28/device.c             |   65 +++++++++----
+ arch/arm/mach-mx28/mx28evk.c            |    1 -
+ arch/arm/mach-mx28/mx28evk_pins.c       |   10 ++
+ arch/arm/plat-mxs/include/mach/device.h |    4 +-
+ sound/soc/codecs/sgtl5000.c             |   34 +++----
+ sound/soc/mxs/Kconfig                   |   13 ---
+ sound/soc/mxs/mxs-dai.c                 |  160 +++++++++++++------------------
+ sound/soc/mxs/mxs-dai.h                 |   18 ++--
+ sound/soc/mxs/mxs-devb.c                |   47 ++++++----
+ 9 files changed, 177 insertions(+), 175 deletions(-)
+
+diff --git a/arch/arm/mach-mx28/device.c b/arch/arm/mach-mx28/device.c
+index 5b90b6e..9f553ac 100644
+--- a/arch/arm/mach-mx28/device.c
++++ b/arch/arm/mach-mx28/device.c
+@@ -1105,14 +1105,14 @@ static void __init mx28_init_dcp(void)
+ #endif
+ 
+ #if defined(CONFIG_SND_MXS_SOC_DAI) || defined(CONFIG_SND_MXS_SOC_DAI_MODULE)
+-static int audio_clk_init(void)
++static int audio_clk_init(struct clk *clk)
+ {
+-	struct clk *saif_clk;
+ 	struct clk *pll_clk;
++	struct clk *saif_mclk0;
++	struct clk *saif_mclk1;
+ 	int ret = -EINVAL;
+-	saif_clk = clk_get(NULL, "saif.0");
+-	if (IS_ERR(saif_clk)) {
+-		pr_err("%s:failed to get saif_clk\n", __func__);
++	if (IS_ERR(clk)) {
++		pr_err("%s:failed to get clk\n", __func__);
+ 		goto err_clk_init;
+ 	}
+ 	pll_clk = clk_get(NULL, "pll.0");
+@@ -1120,18 +1120,32 @@ static int audio_clk_init(void)
+ 		pr_err("%s:failed to get pll_clk\n", __func__);
+ 		goto err_clk_init;
+ 	}
+-	ret = clk_set_parent(saif_clk, pll_clk);
++	saif_mclk0 = clk_get(NULL, "saif_mclk.0");
++	if (IS_ERR(saif_mclk0)) {
++		pr_err("%s:failed to get saif_mclk\n", __func__);
++		goto err_clk_init;
++	}
++	saif_mclk1 = clk_get(NULL, "saif_mclk.1");
++	if (IS_ERR(saif_mclk1)) {
++		pr_err("%s:failed to get saif_mclk\n", __func__);
++		goto err_clk_init;
++	}
++	ret = clk_set_parent(clk, pll_clk);
+ 	if (ret) {
+ 		pr_err("%s:failed to set parent clk\n", __func__);
+ 		goto err_clk_init;
+ 	}
+ 	ret = 0;
+-	/*set a default freq 12M to sgtl5000*/
+-	clk_set_rate(saif_clk, 12000000);
+-	clk_enable(saif_clk);
+-	/*set the saif clk mux*/
+-	__raw_writel(BF_DIGCTL_CTRL_SAIF_CLKMUX_SEL(0x0), \
++	/*set a default freq of 12M to sgtl5000*/
++	clk_set_rate(clk, 12000000);
++	clk_enable(clk);
++	/*set the saif clk mux, saif0/saif1 both use saif0 clk*/
++	__raw_writel(BF_DIGCTL_CTRL_SAIF_CLKMUX_SEL(0x2), \
+ 			IO_ADDRESS(DIGCTL_PHYS_ADDR) + HW_DIGCTL_CTRL);
++
++	/*enable saif0/saif1 clk output*/
++	clk_enable(saif_mclk0);
++	clk_enable(saif_mclk1);
+ err_clk_init:
+ 	return ret;
+ }
+@@ -1139,6 +1153,8 @@ err_clk_init:
+ static int audio_clk_finit(void)
+ {
+ 	struct clk *saif_clk;
++	struct clk *saif_mclk0;
++	struct clk *saif_mclk1;
+ 	int ret = 0;
+ 	saif_clk = clk_get(NULL, "saif.0");
+ 	if (IS_ERR(saif_clk)) {
+@@ -1147,20 +1163,25 @@ static int audio_clk_finit(void)
+ 		goto err_clk_finit;
+ 	}
+ 	clk_disable(saif_clk);
++
++	saif_mclk0 = clk_get(NULL, "saif_mclk.0");
++	if (IS_ERR(saif_mclk0)) {
++		pr_err("%s:failed to get saif_mclk\n", __func__);
++		goto err_clk_finit;
++	}
++	clk_disable(saif_mclk0);
++
++	saif_mclk1 = clk_get(NULL, "saif_mclk.1");
++	if (IS_ERR(saif_mclk1)) {
++		pr_err("%s:failed to get saif_mclk\n", __func__);
++		goto err_clk_finit;
++	}
++	clk_disable(saif_mclk1);
+ err_clk_finit:
+ 	return ret;
+ }
+ 
+-static struct mxs_audio_platform_data audio_plat_data = {
+-#if defined(CONFIG_SND_MXS_SOC_SAIF0_SELECT)
+-	.saif0_select = 1,
+-#endif
+-#if defined(CONFIG_SND_MXS_SOC_SAIF1_SELECT)
+-	.saif1_select = 1,
+-#endif
+-	.init = audio_clk_init,
+-	.finit = audio_clk_finit,
+-};
++static struct mxs_audio_platform_data audio_plat_data;
+ #endif
+ 
+ #if defined(CONFIG_SND_SOC_SGTL5000) || defined(CONFIG_SND_SOC_SGTL5000_MODULE)
+@@ -1170,6 +1191,8 @@ void __init mx28_init_audio(void)
+ 	if (pdev == NULL || IS_ERR(pdev))
+ 		return;
+ 	mxs_add_device(pdev, 3);
++	audio_plat_data.saif_mclock = clk_get(NULL, "saif.0");
++	audio_clk_init(audio_plat_data.saif_mclock);
+ 	pdev->dev.platform_data = &audio_plat_data;
+ }
+ #else
+diff --git a/arch/arm/mach-mx28/mx28evk.c b/arch/arm/mach-mx28/mx28evk.c
+index 9aa3f3d..650d16a 100644
+--- a/arch/arm/mach-mx28/mx28evk.c
++++ b/arch/arm/mach-mx28/mx28evk.c
+@@ -41,7 +41,6 @@ static struct i2c_board_info __initdata mxs_i2c_device[] = {
+ 
+ static void i2c_device_init(void)
+ {
+-	mxs_i2c_device[0].platform_data = (void *)clk_get(NULL, "saif_mclk.0");
+ 	i2c_register_board_info(0, mxs_i2c_device, ARRAY_SIZE(mxs_i2c_device));
+ }
+ 
+diff --git a/arch/arm/mach-mx28/mx28evk_pins.c b/arch/arm/mach-mx28/mx28evk_pins.c
+index 8f8591d..3fbb6c5 100644
+--- a/arch/arm/mach-mx28/mx28evk_pins.c
++++ b/arch/arm/mach-mx28/mx28evk_pins.c
+@@ -691,6 +691,16 @@ static struct pin_desc mx28evk_fixed_pins[] = {
+ 	 .drive 	= 1,
+ 	 .pull 		= 1,
+ 	 },
++	{
++	 .name	= "SAIF1_SDATA0",
++	 .id	= PINID_SAIF1_SDATA0,
++	 .fun	= PIN_FUN1,
++	 .strength	= PAD_12MA,
++	 .voltage	= PAD_3_3V,
++	 .pullup	= 1,
++	 .drive 	= 1,
++	 .pull 		= 1,
++	 },
+ #endif
+ #if defined(CONFIG_SND_SOC_MXS_SPDIF) || \
+        defined(CONFIG_SND_SOC_MXS_SPDIF_MODULE)
+diff --git a/arch/arm/plat-mxs/include/mach/device.h b/arch/arm/plat-mxs/include/mach/device.h
+index b1908cc..d0844f5 100644
+--- a/arch/arm/plat-mxs/include/mach/device.h
++++ b/arch/arm/plat-mxs/include/mach/device.h
+@@ -145,11 +145,9 @@ struct flexcan_platform_data {
+ };
+ 
+ struct mxs_audio_platform_data {
+-	int saif0_select;
+-	int saif1_select;
+ 	int intr_id_hp;
+ 	int ext_ram;
+-	struct clk *saif_clock;
++	struct clk *saif_mclock;
+ 
+ 	int hp_irq;
+ 	int (*hp_status) (void);
+diff --git a/sound/soc/codecs/sgtl5000.c b/sound/soc/codecs/sgtl5000.c
+index f9f9a1a..9910887 100644
+--- a/sound/soc/codecs/sgtl5000.c
++++ b/sound/soc/codecs/sgtl5000.c
+@@ -611,6 +611,7 @@ static int sgtl5000_pcm_hw_params(struct snd_pcm_substream *substream,
+ 	int i2s_ctl;
+ 	int div2 = 0;
+ 	int reg;
++	u32 fs;
+ 
+ 	pr_debug("%s channels=%d\n", __func__, channels);
+ 
+@@ -645,25 +646,25 @@ static int sgtl5000_pcm_hw_params(struct snd_pcm_substream *substream,
+ 		       sgtl5000->lrclk);
+ 		return -EFAULT;
+ 	}
+-
+-#if 0	/* SGTL5000 rev1 has a IC bug to prevent switching to MCLK from PLL. */
+-	if (fs * 256 == sgtl5000->sysclk)
+-		clk_ctl |= SGTL5000_MCLK_FREQ_256FS << SGTL5000_MCLK_FREQ_SHIFT;
+-	else if (fs * 384 == sgtl5000->sysclk && fs != 96000)
+-		clk_ctl |= SGTL5000_MCLK_FREQ_384FS << SGTL5000_MCLK_FREQ_SHIFT;
+-	else if (fs * 512 == sgtl5000->sysclk && fs != 96000)
+-		clk_ctl |= SGTL5000_MCLK_FREQ_512FS << SGTL5000_MCLK_FREQ_SHIFT;
+-	else
+-#endif
+-	{
+-		/*
+-		if (!sgtl5000->master) {
++	fs = sgtl5000->lrclk;
++	/* SGTL5000 rev1 has a IC bug to prevent switching to MCLK from PLL. */
++	if (!sgtl5000->master) {
++		if (fs * 256 == sgtl5000->sysclk)
++			clk_ctl |= SGTL5000_MCLK_FREQ_256FS << \
++				SGTL5000_MCLK_FREQ_SHIFT;
++		else if (fs * 384 == sgtl5000->sysclk && fs != 96000)
++			clk_ctl |= SGTL5000_MCLK_FREQ_384FS << \
++				SGTL5000_MCLK_FREQ_SHIFT;
++		else if (fs * 512 == sgtl5000->sysclk && fs != 96000)
++			clk_ctl |= SGTL5000_MCLK_FREQ_512FS << \
++				SGTL5000_MCLK_FREQ_SHIFT;
++		else {
+ 			pr_err("%s: PLL not supported in slave mode\n",
+ 			       __func__);
+ 			return -EINVAL;
+-		}*/
++		}
++	} else
+ 		clk_ctl |= SGTL5000_MCLK_FREQ_PLL << SGTL5000_MCLK_FREQ_SHIFT;
+-	}
+ 
+ 	if ((clk_ctl & SGTL5000_MCLK_FREQ_MASK) == SGTL5000_MCLK_FREQ_PLL) {
+ 		u64 out, t;
+@@ -1124,9 +1125,6 @@ static __devinit int sgtl5000_i2c_probe(struct i2c_client *client,
+ 	int ret = 0;
+ 	u32 val;
+ 
+-	if (client->dev.platform_data)
+-		clk_enable((struct clk *)client->dev.platform_data);
+-
+ 	if (sgtl5000_codec) {
+ 		dev_err(&client->dev,
+ 			"Multiple SGTL5000 devices not supported\n");
+diff --git a/sound/soc/mxs/Kconfig b/sound/soc/mxs/Kconfig
+index d4dc2b7..10bed6d 100644
+--- a/sound/soc/mxs/Kconfig
++++ b/sound/soc/mxs/Kconfig
+@@ -33,19 +33,6 @@ config SND_MXS_SOC_DAI
+ 	help
+ 	   Enable MXS Digital Audio Interface SAIF
+ 
+-config SND_MXS_SOC_SAIF0_SELECT
+-	bool "Enable SAIF0 module"
+-	default y
+-	depends on SND_MXS_SOC_DAI
+-	help
+-	  Enable MXS SAIF0 Module
+-
+-config SND_MXS_SOC_SAIF1_SELECT
+-	bool "Enable SAIF1 module"
+-	depends on SND_MXS_SOC_DAI
+-	help
+-	  Enable MXS SAIF1 Module
+-
+ config SND_MXS_SOC_ADC
+ 	tristate "MXS ADC/DAC Audio Interface"
+ 	default y
+diff --git a/sound/soc/mxs/mxs-dai.c b/sound/soc/mxs/mxs-dai.c
+index de759b5..6250eb1 100644
+--- a/sound/soc/mxs/mxs-dai.c
++++ b/sound/soc/mxs/mxs-dai.c
+@@ -185,6 +185,8 @@
+ #define MXS_DAI_SAIF0 0
+ #define MXS_DAI_SAIF1 1
+ 
++static struct mxs_saif mxs_saif_en;
++
+ static int saif_active[2] = { 0, 0 };
+ 
+ struct mxs_pcm_dma_params mxs_saif_0 = {
+@@ -206,19 +208,16 @@ struct mxs_pcm_dma_params mxs_saif_1 = {
+ static int mxs_saif_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
+ 				  int clk_id, unsigned int freq, int dir)
+ {
+-	u32 scr;
+ 	struct clk *saif_clk;
+-
+-	if (cpu_dai->id == MXS_DAI_SAIF0) {
+-		scr = __raw_readl(SAIF0_CTRL);
+-		saif_clk = clk_get(NULL, "saif.0");
+-	} else {
+-		scr = __raw_readl(SAIF1_CTRL);
+-		saif_clk = clk_get(NULL, "saif.1");
+-	}
++	struct mxs_saif *saif_select = (struct mxs_saif *)cpu_dai->private_data;
+ 
+ 	switch (clk_id) {
+ 	case IMX_SSP_SYS_CLK:
++		saif_clk = saif_select->saif_mclk;
++		if (IS_ERR(saif_clk)) {
++			pr_err("%s:failed to get sys_clk\n", __func__);
++			return -EINVAL;
++		}
+ 		clk_set_rate(saif_clk, freq);
+ 		clk_enable(saif_clk);
+ 		break;
+@@ -247,8 +246,8 @@ static int mxs_saif_set_dai_clkdiv(struct snd_soc_dai *cpu_dai,
+ static int mxs_saif_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
+ {
+ 	u32 scr, stat;
+-
+-	if (cpu_dai->id == MXS_DAI_SAIF0) {
++	struct mxs_saif *saif_select = (struct mxs_saif *)cpu_dai->private_data;
++	if (saif_select->saif_en == SAIF0) {
+ 		scr = __raw_readl(SAIF0_CTRL);
+ 		stat = __raw_readl(SAIF0_STAT);
+ 	} else {
+@@ -307,9 +306,7 @@ static int mxs_saif_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
+ 		scr |= BM_SAIF_CTRL_SLAVE_MODE;
+ 		break;
+ 	}
+-
+-
+-	if (cpu_dai->id == MXS_DAI_SAIF0)
++	if (saif_select->saif_en == SAIF0)
+ 		__raw_writel(scr, SAIF0_CTRL);
+ 	else
+ 		__raw_writel(scr, SAIF1_CTRL);
+@@ -321,23 +318,26 @@ static int mxs_saif_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
+ static int mxs_saif_startup(struct snd_pcm_substream *substream,
+ 			   struct snd_soc_dai *cpu_dai)
+ {
+-	/* we cant really change any saif values after saif is enabled
+-	 * need to fix in software for max flexibility - lrg */
+-	if (cpu_dai->playback.active || cpu_dai->capture.active)
++	/* we cant really change any saif values after saif is enabled*/
++	struct mxs_saif *saif_select = (struct mxs_saif *)cpu_dai->private_data;
++
++	if (((saif_select->stream_mapping == PLAYBACK_SAIF0_CAPTURE_SAIF1) && \
++		(substream->stream == SNDRV_PCM_STREAM_PLAYBACK)) || \
++		((saif_select->stream_mapping == PLAYBACK_SAIF1_CAPTURE_SAIF0) \
++		&& (substream->stream == SNDRV_PCM_STREAM_CAPTURE)))
++		cpu_dai->dma_data = &mxs_saif_0;
++	else
++		cpu_dai->dma_data = &mxs_saif_1;
++
++	if (cpu_dai->playback.active && cpu_dai->capture.active)
+ 		return 0;
+ 
+-	/* reset the SAIF port - Sect 45.4.4 */
+-	if (cpu_dai->id == MXS_DAI_SAIF0)
++	if (saif_select->saif_en == SAIF0)
+ 		if (saif_active[SAIF0_PORT]++)
+ 			return 0;
+-	if (cpu_dai->id == MXS_DAI_SAIF1)
++	if (saif_select->saif_en == SAIF1)
+ 		if (saif_active[SAIF1_PORT]++)
+ 			return 0;
+-
+-	if (cpu_dai->id == MXS_DAI_SAIF0)
+-		cpu_dai->dma_data = &mxs_saif_0;
+-	else
+-		cpu_dai->dma_data = &mxs_saif_1;
+ 	SAIF_DUMP();
+ 	return 0;
+ }
+@@ -350,18 +350,15 @@ static int mxs_saif_hw_params(struct snd_pcm_substream *substream,
+ 			     struct snd_pcm_hw_params *params,
+ 			     struct snd_soc_dai *cpu_dai)
+ {
+-	int id;
+ 	u32 scr, stat;
+-	id = cpu_dai->id;
+-
+-	if (cpu_dai->id == MXS_DAI_SAIF0) {
++	struct mxs_saif *saif_select = (struct mxs_saif *)cpu_dai->private_data;
++	if (saif_select->saif_en == SAIF0) {
+ 		scr = __raw_readl(SAIF0_CTRL);
+ 		stat = __raw_readl(SAIF0_STAT);
+ 	} else {
+ 		scr = __raw_readl(SAIF1_CTRL);
+ 		stat = __raw_readl(SAIF1_STAT);
+ 	}
+-
+ 	/* cant change any parameters when SAIF is running */
+ 	/* DAI data (word) size */
+ 	scr &= ~BM_SAIF_CTRL_WORD_LENGTH;
+@@ -379,7 +376,6 @@ static int mxs_saif_hw_params(struct snd_pcm_substream *substream,
+ 		scr |= BM_SAIF_CTRL_BITCLK_48XFS_ENABLE;
+ 		break;
+ 	}
+-
+ 	/* Tx/Rx config */
+ 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+ 		/* enable TX mode */
+@@ -389,48 +385,52 @@ static int mxs_saif_hw_params(struct snd_pcm_substream *substream,
+ 		scr |= BM_SAIF_CTRL_READ_MODE;
+ 	}
+ 
+-	if (cpu_dai->id == MXS_DAI_SAIF0)
++	if (saif_select->saif_en == SAIF0)
+ 		__raw_writel(scr, SAIF0_CTRL);
+ 	else
+ 		__raw_writel(scr, SAIF1_CTRL);
+-
+ 	return 0;
+ }
+ 
+ static int mxs_saif_prepare(struct snd_pcm_substream *substream,
+ 			   struct snd_soc_dai *cpu_dai)
+ {
+-	if (cpu_dai->id == MXS_DAI_SAIF0)
++	struct mxs_saif *saif_select = (struct mxs_saif *)cpu_dai->private_data;
++	if (saif_select->saif_en == SAIF0)
+ 		__raw_writel(BM_SAIF_CTRL_CLKGATE, SAIF0_CTRL_CLR);
+ 	else
+ 		__raw_writel(BM_SAIF_CTRL_CLKGATE, SAIF1_CTRL_CLR);
+-
+-	/* enable the saif port, note that no other port config
+-	 * should happen after SSIEN is set */
+ 	SAIF_DUMP();
+ 	return 0;
+ }
+ 
+ static int mxs_saif_trigger(struct snd_pcm_substream *substream, int cmd,
+-			   struct snd_soc_dai *cpu_dai)
++				struct snd_soc_dai *cpu_dai)
+ {
+-	u32 scr;
+-	if (cpu_dai->id == MXS_DAI_SAIF0)
+-		scr = __raw_readl(SAIF0_CTRL);
+-	else
+-		scr = __raw_readl(SAIF1_CTRL);
+-
++	void __iomem *reg;
++	struct mxs_saif *saif_select = (struct mxs_saif *)cpu_dai->private_data;
+ 	switch (cmd) {
+ 	case SNDRV_PCM_TRIGGER_START:
+ 	case SNDRV_PCM_TRIGGER_RESUME:
+ 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+-		/*write a data to saif data register to trigger the transfer*/
+-		__raw_writel(0x0, SAIF0_DATA);
++
++		if (saif_select->saif_en == SAIF0)
++			reg = (void __iomem *)SAIF0_DATA;
++		else
++			reg = (void __iomem *)SAIF1_DATA;
++
++		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
++			/*write a data to saif data register to trigger
++				the transfer*/
++			__raw_writel(0, reg);
++		else
++			/*read a data from saif data register to trigger
++				the receive*/
++			__raw_readl(reg);
+ 		break;
+ 	case SNDRV_PCM_TRIGGER_SUSPEND:
+ 	case SNDRV_PCM_TRIGGER_STOP:
+ 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+-		scr &= ~BM_SAIF_CTRL_RUN;
+ 		break;
+ 	default:
+ 		return -EINVAL;
+@@ -442,18 +442,16 @@ static int mxs_saif_trigger(struct snd_pcm_substream *substream, int cmd,
+ static void mxs_saif_shutdown(struct snd_pcm_substream *substream,
+ 			     struct snd_soc_dai *cpu_dai)
+ {
+-	int id;
+-
+-	id = cpu_dai->id;
+-
++	struct mxs_saif *saif_select = (struct mxs_saif *)cpu_dai->private_data;
+ 	/* shutdown SAIF if neither Tx or Rx is active */
+ 	if (cpu_dai->playback.active || cpu_dai->capture.active)
+ 		return;
+ 
+-	if (id == MXS_DAI_SAIF0) {
++	if (saif_select->saif_en == SAIF0) {
+ 		if (--saif_active[SAIF0_PORT] > 1)
+ 			return;
+-	} else {
++	}
++	if (saif_select->saif_en == SAIF1) {
+ 		if (--saif_active[SAIF1_PORT])
+ 			return;
+ 	}
+@@ -510,32 +508,25 @@ static irqreturn_t saif1_irq(int irq, void *dev_id)
+ 
+ static int mxs_saif_probe(struct platform_device *pdev, struct snd_soc_dai *dai)
+ {
+-	printk("in mxs_saif_probe\n");
+-	if (!strcmp(dai->name, "mxs-saif-0"))
+-		if (request_irq(IRQ_SAIF0, saif0_irq, 0, "saif0", dai)) {
+-			printk(KERN_ERR "%s: failure requesting irq %s\n",
+-			       __func__, "saif0");
+-			return -EBUSY;
+-		}
+-
+-	if (!strcmp(dai->name, "mxs-saif-1"))
+-		if (request_irq(IRQ_SAIF1, saif1_irq, 0, "saif1", dai)) {
+-			printk(KERN_ERR "%s: failure requesting irq %s\n",
+-			       __func__, "saif1");
+-			return -EBUSY;
+-		}
++	if (request_irq(IRQ_SAIF0, saif0_irq, 0, "saif0", dai)) {
++		printk(KERN_ERR "%s: failure requesting irq %s\n",
++		       __func__, "saif0");
++		return -EBUSY;
++	}
+ 
++	if (request_irq(IRQ_SAIF1, saif1_irq, 0, "saif1", dai)) {
++		printk(KERN_ERR "%s: failure requesting irq %s\n",
++		       __func__, "saif1");
++		return -EBUSY;
++	}
+ 	return 0;
+ }
+ 
+ static void mxs_saif_remove(struct platform_device *pdev,
+ 			   struct snd_soc_dai *dai)
+ {
+-	if (!strcmp(dai->name, "mxs-saif-0"))
+-		free_irq(IRQ_SAIF0, dai);
+-
+-	if (!strcmp(dai->name, "mxs-saif-1"))
+-		free_irq(IRQ_SAIF1, dai);
++	free_irq(IRQ_SAIF0, dai);
++	free_irq(IRQ_SAIF1, dai);
+ }
+ 
+ #define MXS_SAIF_RATES \
+@@ -563,29 +554,7 @@ static struct snd_soc_dai_ops mxs_saif_dai_ops = {
+ 
+ struct snd_soc_dai mxs_saif_dai[] = {
+ 	{
+-	.name = "mxs-saif-0",
+-	.id = MXS_DAI_SAIF0,
+-	.probe = mxs_saif_probe,
+-	.remove = mxs_saif_remove,
+-	.suspend = mxs_saif_suspend,
+-	.resume = mxs_saif_resume,
+-	.playback = {
+-		.channels_min = 2,
+-		.channels_max = 2,
+-		.rates = MXS_SAIF_RATES,
+-		.formats = MXS_SAIF_FORMATS,
+-	},
+-	.capture = {
+-		.channels_min = 2,
+-		.channels_max = 2,
+-		.rates = MXS_SAIF_RATES,
+-		.formats = MXS_SAIF_FORMATS,
+-	},
+-	.ops = &mxs_saif_dai_ops,
+-	},
+-	{
+-	.name = "mxs-saif-1",
+-	.id = MXS_DAI_SAIF1,
++	.name = "mxs-saif",
+ 	.probe = mxs_saif_probe,
+ 	.remove = mxs_saif_remove,
+ 	.suspend = mxs_saif_suspend,
+@@ -603,6 +572,7 @@ struct snd_soc_dai mxs_saif_dai[] = {
+ 		.formats = MXS_SAIF_FORMATS,
+ 	},
+ 	.ops = &mxs_saif_dai_ops,
++	.private_data = &mxs_saif_en,
+ 	}
+ };
+ EXPORT_SYMBOL_GPL(mxs_saif_dai);
+diff --git a/sound/soc/mxs/mxs-dai.h b/sound/soc/mxs/mxs-dai.h
+index 93b4038..d9538b1 100644
+--- a/sound/soc/mxs/mxs-dai.h
++++ b/sound/soc/mxs/mxs-dai.h
+@@ -24,13 +24,17 @@
+ /* SSI clock sources */
+ #define IMX_SSP_SYS_CLK			0
+ 
+-
+-/* SSI Div 2 */
+-#define IMX_SSI_DIV_2_OFF		(~SSI_STCCR_DIV2)
+-#define IMX_SSI_DIV_2_ON		SSI_STCCR_DIV2
+-
+-#define IMX_DAI_AC97_1 0
+-#define IMX_DAI_AC97_2 1
++#define SAIF0 0
++#define SAIF1 1
++
++/*private info*/
++struct mxs_saif {
++	u8 saif_en;
++#define PLAYBACK_SAIF0_CAPTURE_SAIF1 0
++#define PLAYBACK_SAIF1_CAPTURE_SAIF0 1
++	u16 stream_mapping;
++	struct clk *saif_mclk;
++};
+ 
+ extern struct snd_soc_dai mxs_saif_dai[];
+ 
+diff --git a/sound/soc/mxs/mxs-devb.c b/sound/soc/mxs/mxs-devb.c
+index e92f99b..a56955d 100644
+--- a/sound/soc/mxs/mxs-devb.c
++++ b/sound/soc/mxs/mxs-devb.c
+@@ -42,9 +42,6 @@
+ #include "mxs-pcm.h"
+ #include "../codecs/sgtl5000.h"
+ 
+-/* SAIF BCLK and LRC master */
+-#define SGTL5000_SAIF_MASTER	0
+-
+ struct mxs_evk_priv {
+ 	int sysclk;
+ 	int hw;
+@@ -74,19 +71,18 @@ static int mxs_evk_audio_hw_params(struct snd_pcm_substream *substream,
+ 
+ 	snd_soc_dai_set_sysclk(codec_dai, SGTL5000_SYSCLK, priv->sysclk, 0);
+ 	snd_soc_dai_set_sysclk(codec_dai, SGTL5000_LRCLK, rate, 0);
+-
+-#if SGTL5000_SAIF_MASTER
+-	dai_format = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+-	    SND_SOC_DAIFMT_CBM_CFM;
+-#else
++	/* set codec to slave mode */
+ 	dai_format = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+ 	    SND_SOC_DAIFMT_CBS_CFS;
+-#endif
+ 
+ 	/* set codec DAI configuration */
+ 	ret = snd_soc_dai_set_fmt(codec_dai, dai_format);
+ 	if (ret < 0)
+ 		return ret;
++	/* set cpu_dai to master mode for playback, slave mode for record */
++	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
++		dai_format = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
++			SND_SOC_DAIFMT_CBM_CFM;
+ 
+ 	/* set cpu DAI configuration */
+ 	ret = snd_soc_dai_set_fmt(cpu_dai, dai_format);
+@@ -102,13 +98,32 @@ static int mxs_evk_audio_hw_params(struct snd_pcm_substream *substream,
+ 
+ static int mxs_evk_startup(struct snd_pcm_substream *substream)
+ {
++	struct snd_soc_pcm_runtime *rtd = substream->private_data;
++	struct snd_soc_dai_link *machine = rtd->dai;
++	struct snd_soc_dai *cpu_dai = machine->cpu_dai;
++	struct mxs_saif *saif_select = (struct mxs_saif *)cpu_dai->private_data;
++
++	if (((saif_select->stream_mapping == PLAYBACK_SAIF0_CAPTURE_SAIF1) && \
++		(substream->stream == SNDRV_PCM_STREAM_PLAYBACK)) || \
++		((saif_select->stream_mapping == PLAYBACK_SAIF1_CAPTURE_SAIF0) \
++		&& (substream->stream == SNDRV_PCM_STREAM_CAPTURE)))
++		saif_select->saif_en = 0;
++	else
++		saif_select->saif_en = 1;
+ 	return 0;
+ }
+ 
+ static void mxs_evk_shutdown(struct snd_pcm_substream *substream)
+ {
+ 	struct mxs_evk_priv *priv = &card_priv;
+-	priv->hw = 0;
++	struct snd_soc_pcm_runtime *rtd = substream->private_data;
++	struct snd_soc_dai_link *machine = rtd->dai;
++	struct snd_soc_dai *cpu_dai = machine->cpu_dai;
++
++	if (cpu_dai->playback.active || cpu_dai->capture.active)
++		priv->hw = 1;
++	else
++		priv->hw = 0;
+ }
+ 
+ /*
+@@ -209,16 +224,14 @@ static struct snd_soc_device mxs_evk_snd_devdata = {
+ static int __devinit mxs_evk_sgtl5000_probe(struct platform_device *pdev)
+ {
+ 	struct mxs_audio_platform_data *plat = pdev->dev.platform_data;
+-
++	struct mxs_saif *saif_select;
+ 	int ret = -EINVAL;
+-	/*init the clk*/
+ 	if (plat->init && plat->init())
+ 		goto err_plat_init;
+-
+-	if (plat->saif0_select == 1)
+-		mxs_evk_dai.cpu_dai = &mxs_saif_dai[0];
+-	else
+-		mxs_evk_dai.cpu_dai = &mxs_saif_dai[1];
++	mxs_evk_dai.cpu_dai = &mxs_saif_dai[0];
++	saif_select = (struct mxs_saif *)mxs_evk_dai.cpu_dai->private_data;
++	saif_select->stream_mapping = PLAYBACK_SAIF0_CAPTURE_SAIF1;
++	saif_select->saif_mclk = plat->saif_mclock;
+ 	return 0;
+ err_plat_init:
+ 	if (plat->finit)
+-- 
+1.5.4.4
+

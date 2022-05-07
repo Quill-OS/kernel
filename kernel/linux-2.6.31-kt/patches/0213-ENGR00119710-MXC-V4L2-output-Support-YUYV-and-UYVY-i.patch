@@ -1,0 +1,43 @@
+From 72434b33af14bb4933359def7c9c149ead309de0 Mon Sep 17 00:00:00 2001
+From: Liu Ying <b17645@freescale.com>
+Date: Fri, 8 Jan 2010 16:02:40 -0500
+Subject: [PATCH] ENGR00119710 MXC V4L2 output:Support YUYV and UYVY input pixel format
+
+Support YUYV and UYVY input pixel format for mxc V4L2 output.
+
+Signed-off-by: Liu Ying <b17645@freescale.com>
+---
+ drivers/media/video/mxc/output/mxc_v4l2_output.c |    5 ++++-
+ 1 files changed, 4 insertions(+), 1 deletions(-)
+
+diff --git a/drivers/media/video/mxc/output/mxc_v4l2_output.c b/drivers/media/video/mxc/output/mxc_v4l2_output.c
+index 5643aa3..9e1ea12 100644
+--- a/drivers/media/video/mxc/output/mxc_v4l2_output.c
++++ b/drivers/media/video/mxc/output/mxc_v4l2_output.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2005-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2005-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -224,6 +224,7 @@ static bool format_is_yuv(u32 pixelformat)
+ 	switch (pixelformat) {
+ 	case V4L2_PIX_FMT_YUV420:
+ 	case V4L2_PIX_FMT_UYVY:
++	case V4L2_PIX_FMT_YUYV:
+ 	case V4L2_PIX_FMT_YUV422P:
+ 	case V4L2_PIX_FMT_YVU420:
+ 	case V4L2_PIX_FMT_NV12:
+@@ -1652,6 +1653,8 @@ static inline int valid_mode(u32 palette)
+ 		(palette == V4L2_PIX_FMT_BGR32) ||
+ 		(palette == V4L2_PIX_FMT_RGB32) ||
+ 		(palette == V4L2_PIX_FMT_NV12) ||
++		(palette == V4L2_PIX_FMT_UYVY) ||
++		(palette == V4L2_PIX_FMT_YUYV) ||
+ 		(palette == V4L2_PIX_FMT_YUV422P) ||
+ 		(palette == V4L2_PIX_FMT_YUV420));
+ }
+-- 
+1.5.4.4
+

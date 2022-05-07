@@ -1,0 +1,28 @@
+From 16013422023b3478efecc9dc23cbbabc1a9bcecc Mon Sep 17 00:00:00 2001
+From: Zhou Jingyu <b02241@shlinux1.ap.freescale.net>
+Date: Tue, 24 Nov 2009 16:04:17 +0800
+Subject: [PATCH] ENGR00118525 imx233 fix pswitch irq issue
+
+use shared mode for pswitch and 5v dectection
+
+Signed-off-by: Zhou Jingyu <Jingyu.Zhou@freescale.com>
+---
+ drivers/power/stmp37xx/linux.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/drivers/power/stmp37xx/linux.c b/drivers/power/stmp37xx/linux.c
+index 178255e..00403c5 100644
+--- a/drivers/power/stmp37xx/linux.c
++++ b/drivers/power/stmp37xx/linux.c
+@@ -464,7 +464,7 @@ static int stmp3xxx_bat_probe(struct platform_device *pdev)
+ 		goto free_info;
+ 
+ 	ret = request_irq(info->vdd5v_irq->start,
+-			stmp3xxx_vdd5v_irq, IRQF_DISABLED,
++			stmp3xxx_vdd5v_irq, IRQF_DISABLED | IRQF_SHARED,
+ 			pdev->name, info);
+ 	if (ret) {
+ 		dev_err(info->dev, "failed to request irq\n");
+-- 
+1.5.4.4
+

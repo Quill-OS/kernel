@@ -1,0 +1,30 @@
+From e58ea0051c30b9762d3ad3cc6b45925053704eec Mon Sep 17 00:00:00 2001
+From: Zhou Jingyu <b02241@shlinux1.ap.freescale.net>
+Date: Mon, 7 Dec 2009 13:43:18 +0800
+Subject: [PATCH] ENGR00118946 imx23: enable wake up from USB 5V
+
+enable wake up from USB 5V
+
+Signed-off-by: Zhou Jingyu <Jingyu.Zhou@freescale.com>
+---
+ drivers/power/stmp37xx/linux.c |    4 +---
+ 1 files changed, 1 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/power/stmp37xx/linux.c b/drivers/power/stmp37xx/linux.c
+index 2f76018..e4e62f9 100644
+--- a/drivers/power/stmp37xx/linux.c
++++ b/drivers/power/stmp37xx/linux.c
+@@ -959,9 +959,7 @@ static int stmp3xxx_bat_suspend(struct platform_device *pdev, pm_message_t msg)
+ 
+ 	mutex_lock(&info->sm_lock);
+ 
+-	/* disable 5v irq */
+-	__raw_writel(BM_POWER_CTRL_ENIRQ_VDD5V_GT_VDDIO,
+-		REGS_POWER_BASE + HW_POWER_CTRL_CLR);
++	/* enable USB 5v wake up so don't disable irq here*/
+ 
+ 	ddi_bc_SetDisable();
+ 	/* cancel state machine timer */
+-- 
+1.5.4.4
+

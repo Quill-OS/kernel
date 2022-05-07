@@ -1,0 +1,290 @@
+From d9ec8c985136cb1989037a1843c9457048b82fd5 Mon Sep 17 00:00:00 2001
+From: William Lai <b04597@freescale.com>
+Date: Thu, 1 Jul 2010 09:36:48 +0800
+Subject: [PATCH] ENGR00124740-4 MX25/35 ALSA: Changes due to ESAI as platform device
+
+Make ESAI as a platform device, and pass the audio data to use
+the external memory by default.
+
+Signed-off-by: William Lai <b04597@freescale.com>
+---
+ arch/arm/mach-mx25/devices.c          |   49 ++++++++++++++++++++++++++++++++-
+ arch/arm/mach-mx25/mx25_3stack_gpio.c |    8 +++---
+ arch/arm/mach-mx35/devices.c          |   48 ++++++++++++++++++++++++++++++++
+ sound/soc/imx/imx-3stack-ak4647.c     |    3 --
+ sound/soc/imx/imx-3stack-ak5702.c     |    4 +--
+ sound/soc/imx/imx-3stack-wm8580.c     |   10 +-----
+ 6 files changed, 103 insertions(+), 19 deletions(-)
+
+diff --git a/arch/arm/mach-mx25/devices.c b/arch/arm/mach-mx25/devices.c
+index 093e8e1..73ed01a 100644
+--- a/arch/arm/mach-mx25/devices.c
++++ b/arch/arm/mach-mx25/devices.c
+@@ -555,11 +555,58 @@ static inline void mxc_init_flexcan(void)
+ }
+ #endif
+ 
++#if defined(CONFIG_SND_MXC_SOC_ESAI) || defined(CONFIG_SND_MXC_SOC_ESAI_MODULE)
++
++static struct mxc_esai_platform_data esai_data = {
++	.activate_esai_ports = gpio_activate_esai_ports,
++	.deactivate_esai_ports = gpio_deactivate_esai_ports,
++};
++
++static struct resource esai_resources[] = {
++	{
++		.start = ESAI_BASE_ADDR,
++		.end = ESAI_BASE_ADDR + 0x100,
++		.flags = IORESOURCE_MEM,
++	},
++	{
++		.start = MXC_INT_ESAI,
++		.end = MXC_INT_ESAI,
++		.flags = IORESOURCE_IRQ,
++	},
++};
++
++struct platform_device mxc_esai_device = {
++	.name = "mxc_esai",
++	.id = 0,
++	.num_resources = ARRAY_SIZE(esai_resources),
++	.resource = esai_resources,
++	.dev = {
++		.release = mxc_nop_release,
++		.platform_data = &esai_data,
++	},
++};
++
++static void mxc_init_esai(void)
++{
++	platform_device_register(&mxc_esai_device);
++}
++#else
++static void mxc_init_esai(void)
++{
++
++}
++#endif
++
++static struct mxc_audio_platform_data mxc_surround_audio_data = {
++	.ext_ram = 1,
++};
++
+ static struct platform_device mxc_alsa_surround_device = {
+ 	.name = "imx-3stack-wm8580",
+ 	.id = 0,
+ 	.dev = {
+ 		.release = mxc_nop_release,
++		.platform_data = &mxc_surround_audio_data,
+ 		},
+ };
+ 
+@@ -670,7 +717,7 @@ static int __init mxc_init_devices(void)
+ 	mxc_init_flexcan();
+ 	mxc_init_iim();
+ 	mxc_init_ssi();
+-
++	mxc_init_esai();
+ 	return 0;
+ }
+ 
+diff --git a/arch/arm/mach-mx25/mx25_3stack_gpio.c b/arch/arm/mach-mx25/mx25_3stack_gpio.c
+index 5f7dd4f..23d9505 100644
+--- a/arch/arm/mach-mx25/mx25_3stack_gpio.c
++++ b/arch/arm/mach-mx25/mx25_3stack_gpio.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -1333,10 +1333,10 @@ void gpio_activate_audio_ports(void)
+ EXPORT_SYMBOL(gpio_activate_audio_ports);
+ 
+ /*!
+- * This function inactivates DAM port 4 for
++ * This function deactivates DAM port 4 for
+  * audio I/O
+  */
+-void gpio_inactive_audio_ports(void)
++void gpio_deactive_audio_ports(void)
+ {
+ 	gpio_request(IOMUX_TO_GPIO(MX25_PIN_EB0), NULL); /*SSI4_STXD*/
+ 	gpio_request(IOMUX_TO_GPIO(MX25_PIN_EB1), NULL); /*SSI4_SRXD*/
+@@ -1352,7 +1352,7 @@ void gpio_inactive_audio_ports(void)
+ 	mxc_free_iomux(MX25_PIN_A10, MUX_CONFIG_GPIO);
+ 	mxc_free_iomux(MX25_PIN_D13, MUX_CONFIG_GPIO);
+ }
+-EXPORT_SYMBOL(gpio_inactive_audio_ports);
++EXPORT_SYMBOL(gpio_deactive_audio_ports);
+ 
+ int headphone_det_status(void)
+ {
+diff --git a/arch/arm/mach-mx35/devices.c b/arch/arm/mach-mx35/devices.c
+index 7687d0e..9d030e1 100644
+--- a/arch/arm/mach-mx35/devices.c
++++ b/arch/arm/mach-mx35/devices.c
+@@ -585,11 +585,58 @@ static inline void mxc_init_spdif(void)
+ 	platform_device_register(&mxc_alsa_spdif_device);
+ }
+ 
++#if defined(CONFIG_SND_MXC_SOC_ESAI) || defined(CONFIG_SND_MXC_SOC_ESAI_MODULE)
++
++static struct mxc_esai_platform_data esai_data = {
++	.activate_esai_ports = gpio_activate_esai_ports,
++	.deactivate_esai_ports = gpio_deactivate_esai_ports,
++};
++
++static struct resource esai_resources[] = {
++	{
++		.start = ESAI_BASE_ADDR,
++		.end = ESAI_BASE_ADDR + 0x100,
++		.flags = IORESOURCE_MEM,
++	},
++	{
++		.start = MXC_INT_ESAI,
++		.end = MXC_INT_ESAI,
++		.flags = IORESOURCE_IRQ,
++	},
++};
++
++struct platform_device mxc_esai_device = {
++	.name = "mxc_esai",
++	.id = 0,
++	.num_resources = ARRAY_SIZE(esai_resources),
++	.resource = esai_resources,
++	.dev = {
++		.release = mxc_nop_release,
++		.platform_data = &esai_data,
++		},
++};
++
++static void mxc_init_esai(void)
++{
++	platform_device_register(&mxc_esai_device);
++}
++#else
++static void mxc_init_esai(void)
++{
++
++}
++#endif
++
++static struct mxc_audio_platform_data mxc_surround_audio_data = {
++	.ext_ram = 1,
++};
++
+ static struct platform_device mxc_alsa_surround_device = {
+ 	.name = "imx-3stack-wm8580",
+ 	.id = 0,
+ 	.dev = {
+ 		.release = mxc_nop_release,
++		.platform_data = &mxc_surround_audio_data,
+ 		},
+ };
+ 
+@@ -873,6 +920,7 @@ int __init mxc_init_devices(void)
+ 	mxc_init_iim();
+ 	mxc_init_gpu();
+ 	mxc_init_ssi();
++	mxc_init_esai();
+ 
+ 	return 0;
+ }
+diff --git a/sound/soc/imx/imx-3stack-ak4647.c b/sound/soc/imx/imx-3stack-ak4647.c
+index 6d6a98f..56c7a49 100644
+--- a/sound/soc/imx/imx-3stack-ak4647.c
++++ b/sound/soc/imx/imx-3stack-ak4647.c
+@@ -363,8 +363,6 @@ static int __init imx_3stack_ak4647_probe(struct platform_device *pdev)
+ 
+ 	imx_3stack_dai.cpu_dai = ak4647_cpu_dai;
+ 
+-	/* Configure audio port 3 */
+-	gpio_activate_audio_ports();
+ 	imx_3stack_init_dam(dev_data->src_port, dev_data->ext_port);
+ 
+ 	ret = request_irq(dev_data->intr_id_hp, imx_headphone_detect_handler, 0,
+@@ -388,7 +386,6 @@ err:
+ static int __devexit imx_3stack_ak4647_remove(struct platform_device *pdev)
+ {
+ 	struct mxc_audio_platform_data *dev_data = pdev->dev.platform_data;
+-	gpio_inactivate_audio_ports();
+ 	free_irq(dev_data->intr_id_hp, NULL);
+ 	driver_remove_file(pdev->dev.driver, &driver_attr_headphone);
+ 	return 0;
+diff --git a/sound/soc/imx/imx-3stack-ak5702.c b/sound/soc/imx/imx-3stack-ak5702.c
+index 7603c0f..7343994 100644
+--- a/sound/soc/imx/imx-3stack-ak5702.c
++++ b/sound/soc/imx/imx-3stack-ak5702.c
+@@ -1,7 +1,7 @@
+ /*
+  * imx-3stack-ak5702.c  --  SoC audio for imx_3stack
+  *
+- * Copyright 2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2009-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -171,13 +171,11 @@ static int __devinit imx_3stack_ak5702_probe(struct platform_device *pdev)
+ 	setup->i2c_address = 0x13;
+ 	imx_3stack_snd_devdata.codec_data = setup;
+ 
+-	gpio_activate_esai_ports();
+ 	return 0;
+ }
+ 
+ static int imx_3stack_ak5702_remove(struct platform_device *pdev)
+ {
+-	gpio_deactivate_esai_ports();
+ 	return 0;
+ }
+ 
+diff --git a/sound/soc/imx/imx-3stack-wm8580.c b/sound/soc/imx/imx-3stack-wm8580.c
+index 631571d..f3f9f85 100644
+--- a/sound/soc/imx/imx-3stack-wm8580.c
++++ b/sound/soc/imx/imx-3stack-wm8580.c
+@@ -1,7 +1,7 @@
+ /*
+  * imx-3stack-wm8580.c  --  SoC 5.1 audio for imx_3stack
+  *
+- * Copyright 2008-2009 Freescale  Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2008-2010 Freescale  Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -69,9 +69,6 @@ struct imx_3stack_pcm_state {
+ 	int lr_clk_active;
+ };
+ 
+-extern void gpio_activate_esai_ports(void);
+-extern void gpio_deactivate_esai_ports(void);
+-
+ static struct imx_3stack_pcm_state clk_state;
+ 
+ static int imx_3stack_startup(struct snd_pcm_substream *substream)
+@@ -374,20 +371,17 @@ static int __devinit imx_3stack_wm8580_probe(struct platform_device *pdev)
+ 	struct wm8580_setup_data *setup;
+ 
+ 	imx_3stack_dai.cpu_dai = &imx_esai_dai[2];
++	imx_3stack_dai.cpu_dai->dev = &pdev->dev;
+ 
+ 	setup = kzalloc(sizeof(struct wm8580_setup_data), GFP_KERNEL);
+ 	setup->spi = 1;
+ 	imx_3stack_snd_devdata.codec_data = setup;
+ 
+-	/* Configure audio port 3 */
+-	gpio_activate_esai_ports();
+-
+ 	return 0;
+ }
+ 
+ static int __devexit imx_3stack_wm8580_remove(struct platform_device *pdev)
+ {
+-	gpio_deactivate_esai_ports();
+ 	return 0;
+ }
+ 
+-- 
+1.5.4.4
+

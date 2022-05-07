@@ -1,0 +1,55 @@
+From dba265b948025a97e49d9ead662cdf294e3ba314 Mon Sep 17 00:00:00 2001
+From: Liu Ying <b17645@freescale.com>
+Date: Wed, 30 Sep 2009 09:45:18 -0400
+Subject: [PATCH] ENGR00116661 V4L2 output: Support input cropping when no resizing is needed
+
+Use IC channel to do input cropping even when other conditions make the
+V4L2 output driver to bypass IC channel.
+
+Signed-off-by: Liu Ying <b17645@freescale.com>
+---
+ drivers/media/video/mxc/output/mxc_v4l2_output.c |   17 +++++++++++++----
+ 1 files changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/media/video/mxc/output/mxc_v4l2_output.c b/drivers/media/video/mxc/output/mxc_v4l2_output.c
+index 4fa4a64..5942059 100644
+--- a/drivers/media/video/mxc/output/mxc_v4l2_output.c
++++ b/drivers/media/video/mxc/output/mxc_v4l2_output.c
+@@ -1059,14 +1059,13 @@ static int mxc_v4l2out_streamon(vout_data * vout)
+ 
+ 		dev_dbg(dev, "Using SDC channel\n");
+ 
+-		/* Bypass IC if resizing and rotation not needed
+-		   Always do CSC in DP
+-		   Meanwhile, apply IC bypass to SDC only
++		/*
++		 * Bypass IC if resizing and rotation are not needed
++		 * Meanwhile, apply IC bypass to SDC only
+ 		 */
+ 		if (out_width == vout->v2f.fmt.pix.width &&
+ 			out_height == vout->v2f.fmt.pix.height &&
+ 			ipu_can_rotate_in_place(vout->rotate)) {
+-			pr_debug("Bypassing IC\n");
+ 			vout->ic_bypass = 1;
+ 			ipu_disable_irq(IPU_IRQ_PP_IN_EOF);
+ 		} else {
+@@ -1080,6 +1079,16 @@ static int mxc_v4l2out_streamon(vout_data * vout)
+ 			vout->ic_bypass = 0;
+ #endif
+ 
++		/* We are using IC to do input cropping */
++		if (vout->queue_buf_paddr[vout->ipu_buf[0]] !=
++		    vout->v4l2_bufs[vout->ipu_buf[0]].m.offset ||
++		    vout->queue_buf_paddr[vout->ipu_buf[1]] !=
++		    vout->v4l2_bufs[vout->ipu_buf[1]].m.offset)
++			vout->ic_bypass = 0;
++
++		if (vout->ic_bypass)
++			pr_debug("Bypassing IC\n");
++
+ 		fbvar = fbi->var;
+ 
+ 		if (fbi->fbops->fb_ioctl) {
+-- 
+1.5.4.4
+

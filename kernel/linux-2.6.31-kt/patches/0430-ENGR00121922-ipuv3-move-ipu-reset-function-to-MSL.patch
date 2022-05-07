@@ -1,0 +1,182 @@
+From 2213900dfd2effbef71d1ae768e5304accb5aaf4 Mon Sep 17 00:00:00 2001
+From: Jason Chen <b02280@freescale.com>
+Date: Wed, 24 Mar 2010 16:07:56 +0800
+Subject: [PATCH] ENGR00121922 ipuv3: move ipu reset function to MSL
+
+move ipu reset function to MSL.
+
+Signed-off-by: Jason Chen <b02280@freescale.com>
+---
+ arch/arm/mach-mx37/devices.c         |   15 +++++++++++++++
+ arch/arm/mach-mx5/cpu.c              |   14 ++++++++++++++
+ arch/arm/mach-mx5/mx51_3stack.c      |    2 ++
+ arch/arm/mach-mx5/mx51_babbage.c     |    2 ++
+ arch/arm/mach-mx5/mx53_evk.c         |    2 ++
+ arch/arm/plat-mxc/include/mach/mxc.h |    1 +
+ drivers/mxc/ipu3/ipu_common.c        |   18 ++----------------
+ drivers/mxc/ipu3/ipu_regs.h          |    3 ---
+ 8 files changed, 38 insertions(+), 19 deletions(-)
+
+diff --git a/arch/arm/mach-mx37/devices.c b/arch/arm/mach-mx37/devices.c
+index 6c8ee6f..dfb954a 100644
+--- a/arch/arm/mach-mx37/devices.c
++++ b/arch/arm/mach-mx37/devices.c
+@@ -194,8 +194,23 @@ static inline void mxc_init_wdt(void)
+ #endif
+ 
+ #if defined(CONFIG_MXC_IPU_V3) || defined(CONFIG_MXC_IPU_V3_MODULE)
++/*!
++ * This function resets IPU
++ */
++void mx37_ipu_reset(void)
++{
++	u32 *reg;
++	u32 value;
++	reg = ioremap(SRC_BASE_ADDR, PAGE_SIZE);
++	value = __raw_readl(reg);
++	value = value | 0x8;
++	__raw_writel(value, reg);
++	iounmap(reg);
++}
++
+ static struct mxc_ipu_config mxc_ipu_data = {
+ 	.rev = 1,
++	.reset = mx37_ipu_reset,
+ };
+ 
+ static struct resource ipu_resources[] = {
+diff --git a/arch/arm/mach-mx5/cpu.c b/arch/arm/mach-mx5/cpu.c
+index b45f2e9..692d258 100644
+--- a/arch/arm/mach-mx5/cpu.c
++++ b/arch/arm/mach-mx5/cpu.c
+@@ -63,6 +63,20 @@ static void __init mipi_hsc_disable(void)
+ 	iounmap(reg_hsc_mcd);
+ }
+ 
++/*!
++ * This function resets IPU
++ */
++void mx5_ipu_reset(void)
++{
++	u32 *reg;
++	u32 value;
++	reg = ioremap(MX53_BASE_ADDR(SRC_BASE_ADDR), PAGE_SIZE);
++	value = __raw_readl(reg);
++	value = value | 0x8;
++	__raw_writel(value, reg);
++	iounmap(reg);
++}
++
+ void mx5_vpu_reset(void)
+ {
+ 	u32 reg;
+diff --git a/arch/arm/mach-mx5/mx51_3stack.c b/arch/arm/mach-mx5/mx51_3stack.c
+index c1a2c5f..8b78ebe 100644
+--- a/arch/arm/mach-mx5/mx51_3stack.c
++++ b/arch/arm/mach-mx5/mx51_3stack.c
+@@ -136,8 +136,10 @@ static struct platform_pwm_backlight_data mxc_pwm_backlight_data = {
+ 	.pwm_period_ns = 78770,
+ };
+ 
++extern void mx5_ipu_reset(void);
+ static struct mxc_ipu_config mxc_ipu_data = {
+ 	.rev = 2,
++	.reset = mx5_ipu_reset,
+ };
+ 
+ extern void mx5_vpu_reset(void);
+diff --git a/arch/arm/mach-mx5/mx51_babbage.c b/arch/arm/mach-mx5/mx51_babbage.c
+index 9922f55..f44489a 100644
+--- a/arch/arm/mach-mx5/mx51_babbage.c
++++ b/arch/arm/mach-mx5/mx51_babbage.c
+@@ -155,8 +155,10 @@ static struct platform_pwm_backlight_data mxc_pwm_backlight_data = {
+ 	.pwm_period_ns = 78770,
+ };
+ 
++extern void mx5_ipu_reset(void);
+ static struct mxc_ipu_config mxc_ipu_data = {
+ 	.rev = 2,
++	.reset = mx5_ipu_reset,
+ };
+ 
+ extern void mx5_vpu_reset(void);
+diff --git a/arch/arm/mach-mx5/mx53_evk.c b/arch/arm/mach-mx5/mx53_evk.c
+index db1d6ea..c30b887 100644
+--- a/arch/arm/mach-mx5/mx53_evk.c
++++ b/arch/arm/mach-mx5/mx53_evk.c
+@@ -150,8 +150,10 @@ static struct platform_pwm_backlight_data mxc_pwm_backlight_data = {
+ 	.pwm_period_ns = 78770,
+ };
+ 
++extern void mx5_ipu_reset(void);
+ static struct mxc_ipu_config mxc_ipu_data = {
+ 	.rev = 3,
++	.reset = mx5_ipu_reset,
+ };
+ 
+ extern void mx5_vpu_reset(void);
+diff --git a/arch/arm/plat-mxc/include/mach/mxc.h b/arch/arm/plat-mxc/include/mach/mxc.h
+index 8ea728f..d973002 100644
+--- a/arch/arm/plat-mxc/include/mach/mxc.h
++++ b/arch/arm/plat-mxc/include/mach/mxc.h
+@@ -220,6 +220,7 @@ struct mxc_spi_master {
+ 
+ struct mxc_ipu_config {
+ 	int rev;
++	void (*reset) (void);
+ 	struct clk *di_clk[2];
+ };
+ 
+diff --git a/drivers/mxc/ipu3/ipu_common.c b/drivers/mxc/ipu3/ipu_common.c
+index 4b79b6a..8216b10 100644
+--- a/drivers/mxc/ipu3/ipu_common.c
++++ b/drivers/mxc/ipu3/ipu_common.c
+@@ -250,21 +250,6 @@ static struct clk pixel_clk[] = {
+ };
+ 
+ /*!
+- * This function resets IPU
+- */
+-void ipu_reset(void)
+-{
+-	u32 *reg;
+-	u32 value;
+-	reg = ioremap(SRC_BASE_ADDR, PAGE_SIZE);
+-	value = __raw_readl(reg);
+-	value = value | SW_IPU_RST;
+-	__raw_writel(value, reg);
+-	iounmap(reg);
+-}
+-EXPORT_SYMBOL(ipu_reset);
+-
+-/*!
+  * This function is called by the driver framework to initialize the IPU
+  * hardware.
+  *
+@@ -359,7 +344,8 @@ static int ipu_probe(struct platform_device *pdev)
+ 	g_ipu_clk = clk_get(&pdev->dev, "ipu_clk");
+ 	dev_dbg(g_ipu_dev, "ipu_clk = %lu\n", clk_get_rate(g_ipu_clk));
+ 
+-	ipu_reset();
++	if (plat_data->reset)
++		plat_data->reset();
+ 
+ 	clk_set_parent(g_pixel_clk[0], g_ipu_clk);
+ 	clk_set_parent(g_pixel_clk[1], g_ipu_clk);
+diff --git a/drivers/mxc/ipu3/ipu_regs.h b/drivers/mxc/ipu3/ipu_regs.h
+index d650e8a..2438df6 100644
+--- a/drivers/mxc/ipu3/ipu_regs.h
++++ b/drivers/mxc/ipu3/ipu_regs.h
+@@ -299,9 +299,6 @@ extern u32 *ipu_vdi_reg;
+ #define DP_CSC_0(flow)		(ipu_dp_reg + 0x0054/4 + flow/4)
+ #define DP_CSC_1(flow)		(ipu_dp_reg + 0x0058/4 + flow/4)
+ 
+-/* Software reset for ipu */
+-#define SW_IPU_RST			8
+-
+ enum {
+ 	IPU_CONF_CSI0_EN = 0x00000001,
+ 	IPU_CONF_CSI1_EN = 0x00000002,
+-- 
+1.5.4.4
+

@@ -1,0 +1,28 @@
+From 6c559e0811e10a23d9ff290d29855f4505669d41 Mon Sep 17 00:00:00 2001
+From: Richard Zhao <richard.zhao@freescale.com>
+Date: Mon, 26 Apr 2010 18:32:43 +0800
+Subject: [PATCH] ENGR00122879 ath6kl: set default ifname to wlan%d
+
+It's easy for ChromiumOS to use.
+
+Signed-off-by: Richard Zhao <richard.zhao@freescale.com>
+---
+ drivers/net/wireless/ath6kl/os/linux/ar6000_drv.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/drivers/net/wireless/ath6kl/os/linux/ar6000_drv.c b/drivers/net/wireless/ath6kl/os/linux/ar6000_drv.c
+index 68b2ebf..33e1306 100644
+--- a/drivers/net/wireless/ath6kl/os/linux/ar6000_drv.c
++++ b/drivers/net/wireless/ath6kl/os/linux/ar6000_drv.c
+@@ -111,7 +111,7 @@ unsigned int processDot11Hdr = 0;
+ int bmienable = BMIENABLE_DEFAULT;
+ 
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
+-char ifname[IFNAMSIZ] = {0,};
++char ifname[IFNAMSIZ] = "wlan%d";
+ #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0) */
+ 
+ int wlaninitmode = WLAN_INIT_MODE_DEFAULT;
+-- 
+1.5.4.4
+

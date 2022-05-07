@@ -1,0 +1,92 @@
+From 5e72545d5127794201afb04643ade853cdfb3367 Mon Sep 17 00:00:00 2001
+From: Jason <r64343@freescale.com>
+Date: Tue, 26 Jan 2010 22:44:14 +0800
+Subject: [PATCH] ENGR00117744-3 i.MX28 EVK ENET(Single) support
+
+Change i.MX28 evk defconfig
+
+Signed-off-by:Jason Liu <r64343@freescale.com>
+---
+ arch/arm/configs/imx28evk_defconfig |   66 ++++++++++++++++++++++++++++++++++-
+ 1 files changed, 65 insertions(+), 1 deletions(-)
+
+diff --git a/arch/arm/configs/imx28evk_defconfig b/arch/arm/configs/imx28evk_defconfig
+index fa73048..2f89e93 100644
+--- a/arch/arm/configs/imx28evk_defconfig
++++ b/arch/arm/configs/imx28evk_defconfig
+@@ -482,7 +482,71 @@ CONFIG_SCSI_LOWLEVEL=y
+ # CONFIG_SCSI_OSD_INITIATOR is not set
+ # CONFIG_ATA is not set
+ # CONFIG_MD is not set
+-# CONFIG_NETDEVICES is not set
++CONFIG_NETDEVICES=y
++# CONFIG_DUMMY is not set
++# CONFIG_BONDING is not set
++# CONFIG_MACVLAN is not set
++# CONFIG_EQUALIZER is not set
++# CONFIG_TUN is not set
++# CONFIG_VETH is not set
++CONFIG_PHYLIB=y
++
++#
++# MII PHY device drivers
++#
++# CONFIG_MARVELL_PHY is not set
++# CONFIG_DAVICOM_PHY is not set
++# CONFIG_QSEMI_PHY is not set
++# CONFIG_LXT_PHY is not set
++# CONFIG_CICADA_PHY is not set
++# CONFIG_VITESSE_PHY is not set
++# CONFIG_SMSC_PHY is not set
++# CONFIG_BROADCOM_PHY is not set
++# CONFIG_ICPLUS_PHY is not set
++# CONFIG_REALTEK_PHY is not set
++# CONFIG_NATIONAL_PHY is not set
++# CONFIG_STE10XP is not set
++# CONFIG_LSI_ET1011C_PHY is not set
++# CONFIG_FIXED_PHY is not set
++# CONFIG_MDIO_BITBANG is not set
++CONFIG_NET_ETHERNET=y
++CONFIG_MII=y
++# CONFIG_AX88796 is not set
++# CONFIG_SMC91X is not set
++# CONFIG_DM9000 is not set
++# CONFIG_ETHOC is not set
++# CONFIG_SMC911X is not set
++# CONFIG_SMSC911X is not set
++# CONFIG_DNET is not set
++# CONFIG_IBM_NEW_EMAC_ZMII is not set
++# CONFIG_IBM_NEW_EMAC_RGMII is not set
++# CONFIG_IBM_NEW_EMAC_TAH is not set
++# CONFIG_IBM_NEW_EMAC_EMAC4 is not set
++# CONFIG_IBM_NEW_EMAC_NO_FLOW_CTRL is not set
++# CONFIG_IBM_NEW_EMAC_MAL_CLR_ICINTSTAT is not set
++# CONFIG_IBM_NEW_EMAC_MAL_COMMON_ERR is not set
++# CONFIG_B44 is not set
++# CONFIG_KS8842 is not set
++CONFIG_FEC=y
++# CONFIG_FEC2 is not set
++# CONFIG_NETDEV_1000 is not set
++# CONFIG_NETDEV_10000 is not set
++
++#
++# Wireless LAN
++#
++# CONFIG_WLAN_PRE80211 is not set
++# CONFIG_WLAN_80211 is not set
++
++#
++# Enable WiMAX (Networking options) to see the WiMAX drivers
++#
++# CONFIG_WAN is not set
++# CONFIG_PPP is not set
++# CONFIG_SLIP is not set
++# CONFIG_NETCONSOLE is not set
++# CONFIG_NETPOLL is not set
++# CONFIG_NET_POLL_CONTROLLER is not set
+ # CONFIG_ISDN is not set
+ 
+ #
+-- 
+1.5.4.4
+

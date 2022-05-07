@@ -1,0 +1,44 @@
+From 501aa9205f0b1d04af2247001f945892cbc6d8cb Mon Sep 17 00:00:00 2001
+From: Frank Li <Frank.Li@freescale.com>
+Date: Mon, 22 Mar 2010 15:58:47 +0800
+Subject: [PATCH] ENGR00121823 MX28 add usb gadget serial as module
+
+Add usb gadget serial
+
+Signed-off-by: Frank Li <Frank.Li@freescale.com>
+---
+ arch/arm/configs/imx28evk_defconfig |    4 +++-
+ 1 files changed, 3 insertions(+), 1 deletions(-)
+
+diff --git a/arch/arm/configs/imx28evk_defconfig b/arch/arm/configs/imx28evk_defconfig
+index 800c956..6f339b3 100644
+--- a/arch/arm/configs/imx28evk_defconfig
++++ b/arch/arm/configs/imx28evk_defconfig
+@@ -1,6 +1,7 @@
+ #
+ # Automatically generated make config: don't edit
+ # Linux kernel version: 2.6.31
++# Mon Mar 22 14:47:08 2010
+ #
+ CONFIG_ARM=y
+ CONFIG_SYS_SUPPORTS_APM_EMULATION=y
+@@ -930,6 +931,7 @@ CONFIG_POWER_SUPPLY=y
+ # CONFIG_BATTERY_BQ27x00 is not set
+ # CONFIG_BATTERY_MAX17040 is not set
+ CONFIG_BATTERY_MXS=y
++# CONFIG_MXS_VBUS_CURRENT_DRAW is not set
+ # CONFIG_HWMON is not set
+ # CONFIG_THERMAL is not set
+ # CONFIG_THERMAL_HWMON is not set
+@@ -1374,7 +1376,7 @@ CONFIG_USB_ETH_RNDIS=y
+ CONFIG_USB_FILE_STORAGE=m
+ # CONFIG_FSL_UTP is not set
+ # CONFIG_USB_FILE_STORAGE_TEST is not set
+-# CONFIG_USB_G_SERIAL is not set
++CONFIG_USB_G_SERIAL=m
+ # CONFIG_USB_MIDI_GADGET is not set
+ # CONFIG_USB_G_PRINTER is not set
+ # CONFIG_USB_CDC_COMPOSITE is not set
+-- 
+1.5.4.4
+

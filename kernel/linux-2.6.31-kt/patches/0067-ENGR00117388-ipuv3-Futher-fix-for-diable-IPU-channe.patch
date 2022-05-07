@@ -1,0 +1,52 @@
+From c45d82644df8e4c2a6bcae3ed0308d7b85ddbc35 Mon Sep 17 00:00:00 2001
+From: Jason Chen <b02280@freescale.com>
+Date: Mon, 19 Oct 2009 14:15:16 +0800
+Subject: [PATCH] ENGR00117388 ipuv3: Futher fix for diable IPU channel
+
+IPU channel disable should wait all channels finish busy state, should
+wait for input dma interrupt first then output dma interrupt as the
+correct sequence for all channels. This patch fix the DQ_BUF fail issue
+in VPU unit test.
+
+Signed-off-by: Jason Chen <b02280@freescale.com>
+---
+ drivers/mxc/ipu3/ipu_common.c |   15 +++++++++++++--
+ 1 files changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/mxc/ipu3/ipu_common.c b/drivers/mxc/ipu3/ipu_common.c
+index 95387b0..6cb5345 100644
+--- a/drivers/mxc/ipu3/ipu_common.c
++++ b/drivers/mxc/ipu3/ipu_common.c
+@@ -1662,16 +1662,27 @@ int32_t ipu_disable_channel(ipu_channel_t channel, bool wait_for_stop)
+ 	    (channel == MEM_DC_SYNC)) {
+ 		_ipu_dp_dc_disable(channel, false);
+ 	} else if (wait_for_stop) {
+-		if (idma_is_set(IDMAC_CHA_BUSY, in_dma) ||
++		while (idma_is_set(IDMAC_CHA_BUSY, in_dma) ||
+ 		       idma_is_set(IDMAC_CHA_BUSY, out_dma) ||
+ 			(g_sec_chan_en[IPU_CHAN_ID(channel)] &&
+ 			idma_is_set(IDMAC_CHA_BUSY, sec_dma)) ||
+ 			(g_thrd_chan_en[IPU_CHAN_ID(channel)] &&
+ 			idma_is_set(IDMAC_CHA_BUSY, thrd_dma)) ||
+ 		       (_ipu_channel_status(channel) == TASK_STAT_ACTIVE)) {
+-			uint32_t ret, irq = in_dma;
++			uint32_t ret, irq = out_dma;
+ 			DECLARE_COMPLETION_ONSTACK(disable_comp);
+ 
++			if (idma_is_set(IDMAC_CHA_BUSY, out_dma))
++				irq = out_dma;
++			if (g_sec_chan_en[IPU_CHAN_ID(channel)] &&
++				idma_is_set(IDMAC_CHA_BUSY, sec_dma))
++				irq = sec_dma;
++			if (g_thrd_chan_en[IPU_CHAN_ID(channel)] &&
++				idma_is_set(IDMAC_CHA_BUSY, thrd_dma))
++				irq = thrd_dma;
++			if (idma_is_set(IDMAC_CHA_BUSY, in_dma))
++				irq = in_dma;
++
+ 			ret = ipu_request_irq(irq, disable_chan_irq_handler, 0, NULL, &disable_comp);
+ 			if (ret < 0) {
+ 				dev_err(g_ipu_dev, "irq %d in use\n", irq);
+-- 
+1.5.4.4
+

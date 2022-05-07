@@ -65,13 +65,15 @@ elif [ "$1" == "n306" ]; then
 	echo "---- Building Kobo Nia (N306) kernel ----"
 elif [ "$1" == "n249" ]; then
 	echo "---- Building Kobo Clara HD (N249) kernel ----"
+elif [ "$1" == "kt" ]; then
+	echo "---- Building Kindle Touch (KT) kernel ----"
 elif [ "$1" == "emu" ]; then
 	echo "---- Building Emulator (EMU) kernel ----"
 elif [ "$1" == "bpi" ]; then
 	echo "---- Building Banana Pi M2 Zero (BPI) kernel ----"
 else
 	echo "You must specify a target to build for."
-	echo "Available targets are: n705, n905c, n905b, n613, n236, n437, n306, n249, n873, emu, bpi"
+	echo "Available targets are: n705, n905c, n905b, n613, n236, n437, n306, n249, kt, n873, emu, bpi"
 	exit 1
 fi
 
@@ -163,6 +165,10 @@ elif [ "$1" == "n249" ]; then
 	cd "${GITDIR}/kernel/linux-5.16-n249"
 	make ARCH=arm CROSS_COMPILE=$TARGET- mrproper
 	cp "${GITDIR}/kernel/config/config-n249" "${GITDIR}/kernel/linux-5.16-n249/.config"
+elif [ "$1" == "kt" ]; then
+	cd "${GITDIR}/kernel/linux-2.6.31-kt"
+	make ARCH=arm CROSS_COMPILE=$TARGET- mrproper
+	cp "${GITDIR}/kernel/config/config-kt" "${GITDIR}/kernel/linux-2.6.31-kt/.config"
 fi
 
 mkdir -p $GITDIR/kernel/out/$1
@@ -292,6 +298,20 @@ if [ "$2" == "std" ]; then
 		sudo cp $GITDIR/initrd/common/setup-wifi $GITDIR/initrd/n249/sbin/setup-wifi
 		mkdir -p $GITDIR/kernel/out/n249
 		build_id_gen $GITDIR/initrd/n249/opt/
+	elif [ "$1" == "kt" ]; then
+		sudo mkdir -p "${GITDIR}/initrd/kt/etc/init.d"
+		sudo mkdir -p "${GITDIR}/initrd/kt/opt/bin"
+		sudo cp $GITDIR/initrd/common/rcS-std $GITDIR/initrd/kt/etc/init.d/rcS
+		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/kt/etc/init.d/startx
+		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/kt/etc/init.d/inkbox-splash
+		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/kt/etc/init.d/developer-key
+		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/kt/etc/init.d/overlay-mount
+		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/kt/etc/init.d/initrd-fifo
+		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/kt/opt/bin/uidgen
+		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/kt/bin/checksum-verify
+		sudo cp $GITDIR/initrd/common/setup-wifi $GITDIR/initrd/kt/sbin/setup-wifi
+		mkdir -p $GITDIR/kernel/out/kt
+		build_id_gen $GITDIR/initrd/kt/opt/
 	elif [ "$1" == "emu" ]; then
 		sudo mkdir -p $GITDIR/initrd/emu/etc/init.d
 		sudo mkdir -p $GITDIR/initrd/emu/opt/bin
@@ -347,6 +367,9 @@ if [ "$2" == "std" ]; then
 	elif [ "$1" == "n249" ]; then
 		cd "${GITDIR}/kernel/linux-5.16-n249"
 		make ARCH=arm CROSS_COMPILE=$TARGET- zImage dtbs -j$THREADS
+	elif [ "$1" == "kt" ]; then
+		cd "${GITDIR}/kernel/linux-2.6.31-kt"
+		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
 	else
 		cd $GITDIR/kernel/linux-2.6.35.3
 		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
@@ -354,7 +377,7 @@ if [ "$2" == "std" ]; then
 
 	if [ "$?" == 0 ]; then
 		echo "---- STANDARD kernel compiled. ----"
-		if [ "$1" == "n705" ] || [ "$1" == "n905c" ] || [ "$1" == "n613" ] || [ "$1" == "n905b" ] || [ "$1" == "n236" ] || [ "$1" == "n437" ]; then
+		if [ "$1" == "n705" ] || [ "$1" == "n905c" ] || [ "$1" == "n613" ] || [ "$1" == "n905b" ] || [ "$1" == "n236" ] || [ "$1" == "n437" ] || [ "$1" == "kt" ]; then
 			cp "arch/arm/boot/uImage" "$GITDIR/kernel/out/$1/uImage-std"
 			echo "---- Output was saved in $GITDIR/kernel/out/$1/uImage-std ----"
 		elif [ "$1" == "n873" ] || [ "$1" == "n306" ] || [ "$1" == "n249" ] || [ "$1" == "emu" ] || [ "$1" == "bpi" ]; then
@@ -494,6 +517,20 @@ elif [ "$2" == "root" ]; then
 		sudo cp $GITDIR/initrd/common/setup-wifi $GITDIR/initrd/n249/sbin/setup-wifi
 		mkdir -p $GITDIR/kernel/out/n249
 		build_id_gen $GITDIR/initrd/n249/opt/
+	elif [ "$1" == "kt" ]; then
+		sudo mkdir -p "${GITDIR}/initrd/kt/etc/init.d"
+		sudo mkdir -p "${GITDIR}/initrd/kt/opt/bin"
+		sudo cp $GITDIR/initrd/common/rcS-root $GITDIR/initrd/kt/etc/init.d/rcS
+		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/kt/etc/init.d/startx
+		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/kt/etc/init.d/inkbox-splash
+		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/kt/etc/init.d/developer-key
+		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/kt/etc/init.d/overlay-mount
+		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/kt/etc/init.d/initrd-fifo
+		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/kt/opt/bin/uidgen
+		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/kt/bin/checksum-verify
+		sudo cp $GITDIR/initrd/common/setup-wifi $GITDIR/initrd/kt/sbin/setup-wifi
+		mkdir -p $GITDIR/kernel/out/kt
+		build_id_gen $GITDIR/initrd/kt/opt/
 	elif [ "$1" == "emu" ]; then
 		sudo mkdir -p $GITDIR/initrd/emu/etc/init.d
 		sudo mkdir -p $GITDIR/initrd/emu/opt/bin
@@ -548,7 +585,10 @@ elif [ "$2" == "root" ]; then
 		make ARCH=arm CROSS_COMPILE=$TARGET- zImage -j$THREADS
 	elif [ "$1" == "n249" ]; then
 		cd "${GITDIR}/kernel/linux-5.16-n249"
-		make ARCH=arm CROSS_COMPILE=$TARGET- zImage -j$THREADS
+		make ARCH=arm CROSS_COMPILE=$TARGET- zImage dtbs -j$THREADS
+	elif [ "$1" == "kt" ]; then
+		cd "${GITDIR}/kernel/linux-2.6.31-kt"
+		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
 	else
 		cd $GITDIR/kernel/linux-2.6.35.3
 		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
@@ -556,7 +596,7 @@ elif [ "$2" == "root" ]; then
 
 	if [ "$?" == 0 ]; then
 		echo "---- ROOT kernel compiled. ----"
-		if [ "$1" == "n705" ] || [ "$1" == "n905c" ] || [ "$1" == "n613" ] || [ "$1" == "n905b" ] || [ "$1" == "n236" ] || [ "$1" == "n437" ]; then
+		if [ "$1" == "n705" ] || [ "$1" == "n905c" ] || [ "$1" == "n613" ] || [ "$1" == "n905b" ] || [ "$1" == "n236" ] || [ "$1" == "n437" ] || [ "$1" == "kt" ]; then
 			cp "arch/arm/boot/uImage" "$GITDIR/kernel/out/$1/uImage-root"
 			echo "---- Output was saved in $GITDIR/kernel/out/$1/uImage-root ----"
 		elif [ "$1" == "n873" ] || [ "$1" == "n306" ] || [ "$1" == "n249" ] || [ "$1" == "emu" ] || [ "$1" == "bpi" ]; then
@@ -581,6 +621,8 @@ elif [ "$2" == "diags" ]; then
 		mkdir -p $GITDIR/kernel/out/n613
 	elif [ "$1" == "n905b" ]; then
 		mkdir -p $GITDIR/kernel/out/n905b
+	elif [ "$1" == "kt" ]; then
+		mkdir -p $GITDIR/kernel/out/kt
 	elif [ "$1" == "n873" ]; then
 		mkdir -p $GITDIR/kernel/out/n873
 	elif [ "$1" == "emu" ]; then
@@ -598,6 +640,9 @@ elif [ "$2" == "diags" ]; then
 	elif [ "$1" == "n905b" ]; then
 		cd $GITDIR/kernel/linux-2.6.35.3-n905b
 		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
+	elif [ "$1" == "kt" ]; then
+		cd $GITDIR/kernel/linux-2.6.31-kt
+		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
 	elif [ "$1" == "emu" ]; then
 		cd $GITDIR/kernel/linux-5.15.10
 		make ARCH=arm CROSS_COMPILE=$TARGET- zImage dtbs -j$THREADS
@@ -611,7 +656,7 @@ elif [ "$2" == "diags" ]; then
 
 	if [ "$?" == 0 ]; then
 		echo "---- DIAGNOSTICS kernel compiled. ----"
-		if [ "$1" == "n705" ] || [ "$1" == "n905c" ] || [ "$1" == "n613" ] || [ "$1" == "n905b" ]; then
+		if [ "$1" == "n705" ] || [ "$1" == "n905c" ] || [ "$1" == "n613" ] || [ "$1" == "n905b" ] || [ "$1" == "kt" ]; then
 			cp "arch/arm/boot/uImage" "$GITDIR/kernel/out/$1/uImage-diags"
 			echo "---- Output was saved in $GITDIR/kernel/out/$1/uImage-diags ----"
 		elif [ "$1" == "n873" ] || [ "$1" == "emu" ] || [ "$1" == "bpi" ]; then

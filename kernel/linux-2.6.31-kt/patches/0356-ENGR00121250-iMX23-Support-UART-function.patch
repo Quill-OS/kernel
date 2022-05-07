@@ -1,0 +1,523 @@
+From 16703a96cf3ee0c74200ca7d9c4422b166c691ed Mon Sep 17 00:00:00 2001
+From: Jeremy.Yao <r65161@freescale.com>
+Date: Wed, 3 Mar 2010 17:35:05 +0800
+Subject: [PATCH] ENGR00121250  iMX23 Support UART function
+
+Add Support for AUART function
+
+Signed-off-by: Jeremy Yao <r65161@freescale.com>
+---
+ arch/arm/configs/imx23evk_defconfig     |    2 +-
+ arch/arm/mach-mx23/device.c             |    2 +
+ arch/arm/mach-mx23/include/mach/dma.h   |    8 +-
+ arch/arm/mach-mx23/mx23evk.c            |    4 +-
+ arch/arm/mach-mx23/mx23evk_pins.c       |   18 ++--
+ arch/arm/mach-mx23/serial.c             |  175 +++----------------------------
+ arch/arm/mach-mx28/serial.c             |    5 +
+ arch/arm/plat-mxs/include/mach/device.h |    1 +
+ drivers/serial/mxs-auart.c              |   30 ++++--
+ 9 files changed, 60 insertions(+), 185 deletions(-)
+
+diff --git a/arch/arm/configs/imx23evk_defconfig b/arch/arm/configs/imx23evk_defconfig
+index 76f2a2a..9092582 100644
+--- a/arch/arm/configs/imx23evk_defconfig
++++ b/arch/arm/configs/imx23evk_defconfig
+@@ -201,7 +201,7 @@ CONFIG_MXS_AUART_DMA_SUPPORT=y
+ CONFIG_MXS_AUART_PORTS=5
+ # CONFIG_MXS_AUART0_DEVICE_ENABLE is not set
+ # CONFIG_MXS_AUART0_DMA_ENABLE is not set
+-# CONFIG_MXS_AUART1_DEVICE_ENABLE is not set
++CONFIG_MXS_AUART1_DEVICE_ENABLE=y
+ # CONFIG_MXS_AUART1_DMA_ENABLE is not set
+ # CONFIG_MXS_AUART2_DEVICE_ENABLE is not set
+ # CONFIG_MXS_AUART2_DMA_ENABLE is not set
+diff --git a/arch/arm/mach-mx23/device.c b/arch/arm/mach-mx23/device.c
+index 5a4675a..afe85a0 100644
+--- a/arch/arm/mach-mx23/device.c
++++ b/arch/arm/mach-mx23/device.c
+@@ -363,7 +363,9 @@ static void __init mx23_init_ts(void)
+ #endif
+ int __init mx23_device_init(void)
+ {
++	mx23_init_dma();
+ 	mx23_init_duart();
++	mx23_init_auart();
+ 	return 0;
+ }
+ 
+diff --git a/arch/arm/mach-mx23/include/mach/dma.h b/arch/arm/mach-mx23/include/mach/dma.h
+index ad8076c..e80353a 100644
+--- a/arch/arm/mach-mx23/include/mach/dma.h
++++ b/arch/arm/mach-mx23/include/mach/dma.h
+@@ -44,14 +44,14 @@ enum {
+ 	MXS_DMA_CHANNEL_AHB_APBX_03,
+ 	MXS_DMA_CHANNEL_AHB_APBX_SAIF0,
+ 	MXS_DMA_CHANNEL_AHB_APBX_SAIF1,
+-	MXS_DMA_CHANNEL_AHB_APBX_I2C0,
+-	MXS_DMA_CHANNEL_AHB_APBX_I2C1,
+-	MXS_DMA_CHANNEL_AHB_APBX_UART0_RX,
+-	MXS_DMA_CHANNEL_AHB_APBX_UART0_TX,
+ 	MXS_DMA_CHANNEL_AHB_APBX_UART1_RX,
+ 	MXS_DMA_CHANNEL_AHB_APBX_UART1_TX,
+ 	MXS_DMA_CHANNEL_AHB_APBX_UART2_RX,
+ 	MXS_DMA_CHANNEL_AHB_APBX_UART2_TX,
++	MXS_DMA_CHANNEL_AHB_APBX_I2C0,
++	MXS_DMA_CHANNEL_AHB_APBX_I2C1,
++	MXS_DMA_CHANNEL_AHB_APBX_UART0_RX,
++	MXS_DMA_CHANNEL_AHB_APBX_UART0_TX,
+ 	MXS_DMA_CHANNEL_AHB_APBX_UART3_RX,
+ 	MXS_DMA_CHANNEL_AHB_APBX_UART3_TX,
+ 	MAX_DMA_CHANNELS,
+diff --git a/arch/arm/mach-mx23/mx23evk.c b/arch/arm/mach-mx23/mx23evk.c
+index 8f4f588..02c315b 100644
+--- a/arch/arm/mach-mx23/mx23evk.c
++++ b/arch/arm/mach-mx23/mx23evk.c
+@@ -47,10 +47,10 @@ static void __init mx23evk_device_init(void)
+ static void __init mx23evk_init_machine(void)
+ {
+ #if 0
+-	mx23_pinctrl_init();
+ 	mx23_gpio_init();
+-	mx23evk_pins_init();
+ #endif
++	mx23_pinctrl_init();
++	mx23evk_pins_init();
+ 	mx23_device_init();
+ 	mx23evk_device_init();
+ }
+diff --git a/arch/arm/mach-mx23/mx23evk_pins.c b/arch/arm/mach-mx23/mx23evk_pins.c
+index 8300f4a..983d0d6 100644
+--- a/arch/arm/mach-mx23/mx23evk_pins.c
++++ b/arch/arm/mach-mx23/mx23evk_pins.c
+@@ -37,25 +37,25 @@ static struct pin_desc mx23evk_fixed_pins[] = {
+ 	 .id = PINID_PWM1,
+ 	 .fun = PIN_FUN3,
+ 	 },
+-#ifdef CONFIG_MXS_AUART0_DEVICE_ENABLE
++#ifdef CONFIG_MXS_AUART1_DEVICE_ENABLE
+ 	{
+-	 .name  = "AUART0.RX",
+-	 .id    = PINID_AUART0_RX,
++	 .name  = "AUART1.RX",
++	 .id    = PINID_AUART1_RX,
+ 	 .fun   = PIN_FUN1,
+ 	 },
+ 	{
+-	 .name  = "AUART0.TX",
+-	 .id    = PINID_AUART0_TX,
++	 .name  = "AUART1.TX",
++	 .id    = PINID_AUART1_TX,
+ 	 .fun   = PIN_FUN1,
+ 	 },
+ 	{
+-	 .name  = "AUART0.CTS",
+-	 .id    = PINID_AUART0_CTS,
++	 .name  = "AUART1.CTS",
++	 .id    = PINID_AUART1_CTS,
+ 	 .fun   = PIN_FUN1,
+ 	 },
+ 	{
+-	 .name  = "AUART0.RTS",
+-	 .id    = PINID_AUART0_RTS,
++	 .name  = "AUART1.RTS",
++	 .id    = PINID_AUART1_RTS,
+ 	 .fun   = PIN_FUN1,
+ 	 },
+ #endif
+diff --git a/arch/arm/mach-mx23/serial.c b/arch/arm/mach-mx23/serial.c
+index 5f60d48..85a08cd 100644
+--- a/arch/arm/mach-mx23/serial.c
++++ b/arch/arm/mach-mx23/serial.c
+@@ -34,49 +34,6 @@
+ #if defined(CONFIG_SERIAL_MXS_AUART) || \
+ 	defined(CONFIG_SERIAL_MXS_AUART_MODULE)
+ 
+-#ifdef CONFIG_MXS_AUART0_DEVICE_ENABLE
+-static struct resource auart0_resource[] = {
+-	{
+-	 .flags = IORESOURCE_MEM,
+-	 .start = AUART0_PHYS_ADDR,
+-	 .end	= AUART0_PHYS_ADDR + 0xFFF,
+-	 },
+-	{
+-	 .flags = IORESOURCE_DMA,
+-	 .start = MXS_DMA_CHANNEL_AHB_APBX_UART0_RX,
+-	 .end = MXS_DMA_CHANNEL_AHB_APBX_UART0_RX,
+-	 },
+-	{
+-	 .flags = IORESOURCE_DMA,
+-	 .start = MXS_DMA_CHANNEL_AHB_APBX_UART0_TX,
+-	 .end = MXS_DMA_CHANNEL_AHB_APBX_UART0_TX,
+-	 },
+-	{
+-	 .flags = IORESOURCE_IRQ,
+-	 .start = IRQ_AUART0,
+-	 .end	= IRQ_AUART0,
+-	 },
+-	{
+-	 .flags = IORESOURCE_IRQ,
+-	 .start = IRQ_AUART0_RX_DMA,
+-	 .end	= IRQ_AUART0_RX_DMA,
+-	 },
+-	{
+-	 .flags = IORESOURCE_IRQ,
+-	 .start = IRQ_AUART0_TX_DMA,
+-	 .end	= IRQ_AUART0_TX_DMA,
+-	 },
+-};
+-
+-static struct mxs_auart_plat_data mxs_auart0_platdata = {
+-	.fifo_size = 16,
+-#ifdef CONFIG_MXS_AUART0_DMA_ENABLE
+-	.dma_mode = 1,
+-#endif
+-	.timeout = HZ,
+-};
+-#endif
+-
+ #ifdef CONFIG_MXS_AUART1_DEVICE_ENABLE
+ static struct resource auart1_resource[] = {
+ 	{
+@@ -96,18 +53,18 @@ static struct resource auart1_resource[] = {
+ 	 },
+ 	{
+ 	 .flags = IORESOURCE_IRQ,
+-	 .start = IRQ_AUART1,
+-	 .end	= IRQ_AUART1,
++	 .start = IRQ_UARTAPP_INTERNAL,
++	 .end	= IRQ_UARTAPP_INTERNAL,
+ 	 },
+ 	{
+ 	 .flags = IORESOURCE_IRQ,
+-	 .start = IRQ_AUART1_RX_DMA,
+-	 .end	= IRQ_AUART1_RX_DMA,
++	 .start = IRQ_UARTAPP_RX_DMA,
++	 .end	= IRQ_UARTAPP_RX_DMA,
+ 	 },
+ 	{
+ 	 .flags = IORESOURCE_IRQ,
+-	 .start = IRQ_AUART1_TX_DMA,
+-	 .end	= IRQ_AUART1_TX_DMA,
++	 .start = IRQ_UARTAPP_TX_DMA,
++	 .end	= IRQ_UARTAPP_TX_DMA,
+ 	 },
+ };
+ 
+@@ -116,6 +73,7 @@ static struct mxs_auart_plat_data mxs_auart1_platdata = {
+ #ifdef CONFIG_MXS_AUART1_DMA_ENABLE
+ 	.dma_mode = 1,
+ #endif
++	.dma_rx_buffer_size = 8,
+ 	.timeout = HZ,
+ };
+ #endif
+@@ -139,18 +97,18 @@ static struct resource auart2_resource[] = {
+ 	 },
+ 	{
+ 	 .flags = IORESOURCE_IRQ,
+-	 .start = IRQ_AUART2,
+-	 .end	= IRQ_AUART2,
++	 .start = IRQ_UARTAPP2_INTERNAL,
++	 .end	= IRQ_UARTAPP2_INTERNAL,
+ 	 },
+ 	{
+ 	 .flags = IORESOURCE_IRQ,
+-	 .start = IRQ_AUART2_RX_DMA,
+-	 .end	= IRQ_AUART2_RX_DMA,
++	 .start = IRQ_UARTAPP2_RX_DMA,
++	 .end	= IRQ_UARTAPP2_RX_DMA,
+ 	 },
+ 	{
+ 	 .flags = IORESOURCE_IRQ,
+-	 .start = IRQ_AUART2_TX_DMA,
+-	 .end	= IRQ_AUART2_TX_DMA,
++	 .start = IRQ_UARTAPP2_TX_DMA,
++	 .end	= IRQ_UARTAPP2_TX_DMA,
+ 	 },
+ };
+ 
+@@ -159,92 +117,12 @@ static struct mxs_auart_plat_data mxs_auart2_platdata = {
+ #ifdef CONFIG_MXS_AUART2_DMA_ENABLE
+ 	.dma_mode = 1,
+ #endif
++	.dma_rx_buffer_size = 8,
+ 	.timeout = HZ,
+ };
+ #endif
+ 
+-#ifdef CONFIG_MXS_AUART3_DEVICE_ENABLE
+-static struct resource auart3_resource[] = {
+-	{
+-	 .flags = IORESOURCE_MEM,
+-	 .start = AUART3_PHYS_ADDR,
+-	 .end	= AUART3_PHYS_ADDR + 0xFFF,
+-	 },
+-	{
+-	 .flags = IORESOURCE_DMA,
+-	 .start = MXS_DMA_CHANNEL_AHB_APBX_UART3_RX,
+-	 .end = MXS_DMA_CHANNEL_AHB_APBX_UART3_RX,
+-	 },
+-	{
+-	 .flags = IORESOURCE_DMA,
+-	 .start = MXS_DMA_CHANNEL_AHB_APBX_UART3_TX,
+-	 .end = MXS_DMA_CHANNEL_AHB_APBX_UART3_TX,
+-	 },
+-	{
+-	 .flags = IORESOURCE_IRQ,
+-	 .start = IRQ_AUART3,
+-	 .end	= IRQ_AUART3,
+-	 },
+-	{
+-	 .flags = IORESOURCE_IRQ,
+-	 .start = IRQ_AUART3_RX_DMA,
+-	 .end	= IRQ_AUART3_RX_DMA,
+-	 },
+-	{
+-	 .flags = IORESOURCE_IRQ,
+-	 .start = IRQ_AUART3_TX_DMA,
+-	 .end	= IRQ_AUART3_TX_DMA,
+-	 },
+-};
+-
+-static struct mxs_auart_plat_data mxs_auart3_platdata = {
+-	.fifo_size = 16,
+-#ifdef CONFIG_MXS_AUART3_DMA_ENABLE
+-	.dma_mode = 1,
+-#endif
+-	.timeout = HZ,
+-};
+-#endif
+-
+-#ifdef CONFIG_MXS_AUART4_DEVICE_ENABLE
+-static struct resource auart4_resource[] = {
+-	{
+-	 .flags = IORESOURCE_MEM,
+-	 .start = AUART4_PHYS_ADDR,
+-	 .end	= AUART4_PHYS_ADDR + 0xFFF,
+-	 },
+-	{
+-	 .flags = IORESOURCE_DMA,
+-	 .start = MXS_DMA_CHANNEL_AHB_APBX_UART4_TX,
+-	 .end = MXS_DMA_CHANNEL_AHB_APBX_UART4_TX,
+-	 },
+-	{
+-	 .flags = IORESOURCE_IRQ,
+-	 .start = IRQ_AUART4,
+-	 .end	= IRQ_AUART4,
+-	 },
+-	{
+-	 .flags = IORESOURCE_IRQ,
+-	 .start = IRQ_AUART4_RX_DMA,
+-	 .end	= IRQ_AUART4_RX_DMA,
+-	 },
+-	{
+-	 .flags = IORESOURCE_IRQ,
+-	 .start = IRQ_AUART4_TX_DMA,
+-	 .end	= IRQ_AUART4_TX_DMA,
+-	 },
+-};
+-
+-static struct mxs_auart_plat_data mxs_auart4_platdata = {
+-	.fifo_size = 16,
+-#ifdef CONFIG_MXS_AUART4_DMA_ENABLE
+-	.dma_mode = 1,
+-#endif
+-	.timeout = HZ,
+-};
+-#endif
+-
+-void __init mx28_init_auart(void)
++void __init mx23_init_auart(void)
+ {
+ 	int i;
+ 	struct mxs_dev_lookup *plookup;
+@@ -256,13 +134,6 @@ void __init mx28_init_auart(void)
+ 	for (i = 0; i < plookup->size; i++) {
+ 		pdev = plookup->pdev + i;
+ 		switch (pdev->id) {
+-#ifdef CONFIG_MXS_AUART0_DEVICE_ENABLE
+-		case 0:
+-			pdev->resource = auart0_resource;
+-			pdev->num_resources = ARRAY_SIZE(auart0_resource);
+-			pdev->dev.platform_data = &mxs_auart0_platdata;
+-			break;
+-#endif
+ #ifdef CONFIG_MXS_AUART1_DEVICE_ENABLE
+ 		case 1:
+ 			pdev->resource = auart1_resource;
+@@ -277,20 +148,6 @@ void __init mx28_init_auart(void)
+ 			pdev->dev.platform_data = &mxs_auart2_platdata;
+ 			break;
+ #endif
+-#ifdef CONFIG_MXS_AUART3_DEVICE_ENABLE
+-		case 3:
+-			pdev->resource = auart3_resource;
+-			pdev->num_resources = ARRAY_SIZE(auart3_resource);
+-			pdev->dev.platform_data = &mxs_auart3_platdata;
+-			break;
+-#endif
+-#ifdef CONFIG_MXS_AUART4_DEVICE_ENABLE
+-		case 4:
+-			pdev->resource = auart4_resource;
+-			pdev->num_resources = ARRAY_SIZE(auart4_resource);
+-			pdev->dev.platform_data = &mxs_auart4_platdata;
+-			break;
+-#endif
+ 		default:
+ 			break;
+ 		}
+@@ -298,7 +155,7 @@ void __init mx28_init_auart(void)
+ 	}
+ }
+ #else
+-void __init mx28_init_auart(void)
++void __init mx23_init_auart(void)
+ {
+ }
+ #endif
+diff --git a/arch/arm/mach-mx28/serial.c b/arch/arm/mach-mx28/serial.c
+index 5f60d48..a7297d1 100644
+--- a/arch/arm/mach-mx28/serial.c
++++ b/arch/arm/mach-mx28/serial.c
+@@ -73,6 +73,7 @@ static struct mxs_auart_plat_data mxs_auart0_platdata = {
+ #ifdef CONFIG_MXS_AUART0_DMA_ENABLE
+ 	.dma_mode = 1,
+ #endif
++	.dma_rx_buffer_size = PAGE_SIZE,
+ 	.timeout = HZ,
+ };
+ #endif
+@@ -116,6 +117,7 @@ static struct mxs_auart_plat_data mxs_auart1_platdata = {
+ #ifdef CONFIG_MXS_AUART1_DMA_ENABLE
+ 	.dma_mode = 1,
+ #endif
++	.dma_rx_buffer_size = PAGE_SIZE,
+ 	.timeout = HZ,
+ };
+ #endif
+@@ -159,6 +161,7 @@ static struct mxs_auart_plat_data mxs_auart2_platdata = {
+ #ifdef CONFIG_MXS_AUART2_DMA_ENABLE
+ 	.dma_mode = 1,
+ #endif
++	.dma_rx_buffer_size = PAGE_SIZE,
+ 	.timeout = HZ,
+ };
+ #endif
+@@ -202,6 +205,7 @@ static struct mxs_auart_plat_data mxs_auart3_platdata = {
+ #ifdef CONFIG_MXS_AUART3_DMA_ENABLE
+ 	.dma_mode = 1,
+ #endif
++	.dma_rx_buffer_size = PAGE_SIZE,
+ 	.timeout = HZ,
+ };
+ #endif
+@@ -240,6 +244,7 @@ static struct mxs_auart_plat_data mxs_auart4_platdata = {
+ #ifdef CONFIG_MXS_AUART4_DMA_ENABLE
+ 	.dma_mode = 1,
+ #endif
++	.dma_rx_buffer_size = PAGE_SIZE,
+ 	.timeout = HZ,
+ };
+ #endif
+diff --git a/arch/arm/plat-mxs/include/mach/device.h b/arch/arm/plat-mxs/include/mach/device.h
+index c5728e1..fa4c312 100644
+--- a/arch/arm/plat-mxs/include/mach/device.h
++++ b/arch/arm/plat-mxs/include/mach/device.h
+@@ -95,6 +95,7 @@ struct mxs_auart_plat_data {
+ 	unsigned int fifo_size:6;
+ 	unsigned int dma_mode:1;
+ 	unsigned int timeout;
++	unsigned int dma_rx_buffer_size;
+ 	const char *clk;
+ };
+ 
+diff --git a/drivers/serial/mxs-auart.c b/drivers/serial/mxs-auart.c
+index 1470ac1..0eea46d 100644
+--- a/drivers/serial/mxs-auart.c
++++ b/drivers/serial/mxs-auart.c
+@@ -61,6 +61,7 @@ struct mxs_auart_port {
+ 	struct device *dev;
+ 	unsigned int dma_rx_chan;
+ 	unsigned int dma_tx_chan;
++	unsigned int dma_rx_buffer_size;
+ 	struct list_head rx_done;
+ 	struct list_head free;
+ 	struct mxs_dma_desc *tx;
+@@ -232,19 +233,27 @@ static int mxs_auart_dma_init(struct mxs_auart_port *s)
+ 	s->tx = NULL;
+ 
+ 
+-	for (i = 0; i < 3; i++) {
++	for (i = 0; i < 5; i++) {
+ 		pdesc = mxs_dma_alloc_desc();
+ 		if (pdesc == NULL || IS_ERR(pdesc))
+ 			goto fail_alloc_desc;
+-		pdesc->buffer = dma_alloc_coherent(s->dev, PAGE_SIZE,
++
++		if (s->tx == NULL) {
++			pdesc->buffer = dma_alloc_coherent(s->dev, PAGE_SIZE,
+ 						   &pdesc->cmd.address,
+ 						   GFP_DMA);
+-		if (pdesc->buffer == NULL)
+-			goto fail_alloc_desc;
+-		if (s->tx == NULL)
++			if (pdesc->buffer == NULL)
++				goto fail_alloc_desc;
+ 			s->tx = pdesc;
+-		else
++		} else {
++			pdesc->buffer = dma_alloc_coherent(s->dev,
++						s->dma_rx_buffer_size,
++						&pdesc->cmd.address,
++						GFP_DMA);
++			if (pdesc->buffer == NULL)
++				goto fail_alloc_desc;
+ 			list_add_tail(&pdesc->node, &s->free);
++		}
+ 	}
+ 	/*
+ 	   Tell DMA to select UART.
+@@ -274,7 +283,7 @@ fail_alloc_desc:
+ 		pdesc = list_entry(p, struct mxs_dma_desc, node);
+ 		if (pdesc->buffer)
+ 			dma_free_coherent(s->dev,
+-					  PAGE_SIZE,
++					  s->dma_rx_buffer_size,
+ 					  pdesc->buffer,
+ 					  pdesc->cmd.address);
+ 		pdesc->buffer = NULL;
+@@ -321,7 +330,7 @@ static void mxs_auart_dma_exit(struct mxs_auart_port *s)
+ 		pdesc = list_entry(p, struct mxs_dma_desc, node);
+ 		if (pdesc->buffer)
+ 			dma_free_coherent(s->dev,
+-					  PAGE_SIZE,
++					  s->dma_rx_buffer_size,
+ 					  pdesc->buffer,
+ 					  pdesc->cmd.address);
+ 		pdesc->buffer = NULL;
+@@ -338,12 +347,12 @@ static void mxs_auart_submit_rx(struct mxs_auart_port *s)
+ 
+ 	pio_value = BM_UARTAPP_CTRL0_RXTO_ENABLE |
+ 		     BF_UARTAPP_CTRL0_RXTIMEOUT(0x80) |
+-		     BF_UARTAPP_CTRL0_XFER_COUNT(PAGE_SIZE);
++		     BF_UARTAPP_CTRL0_XFER_COUNT(s->dma_rx_buffer_size);
+ 
+ 	list_for_each_safe(p, n, &s->free) {
+ 		list_del(p);
+ 		pdesc = list_entry(p, struct mxs_dma_desc, node);
+-		pdesc->cmd.cmd.bits.bytes = PAGE_SIZE;
++		pdesc->cmd.cmd.bits.bytes = s->dma_rx_buffer_size;
+ 		pdesc->cmd.cmd.bits.terminate_flush = 1;
+ 		pdesc->cmd.cmd.bits.pio_words = 1;
+ 		pdesc->cmd.cmd.bits.wait4end = 1;
+@@ -811,6 +820,7 @@ static int __devinit mxs_auart_probe(struct platform_device *pdev)
+ 
+ 	s->flags = plat->dma_mode ? MXS_AUART_PORT_DMA_MODE : 0;
+ 	s->ctrl = 0;
++	s->dma_rx_buffer_size = plat->dma_rx_buffer_size;
+ 
+ 	for (i = 0; i < ARRAY_SIZE(s->irq); i++) {
+ 		s->irq[i] = platform_get_irq(pdev, i);
+-- 
+1.5.4.4
+

@@ -1,0 +1,45 @@
+From ce04d82d1e5e64100499583df4a70f78f76b52c5 Mon Sep 17 00:00:00 2001
+From: Sammy He <r62914@freescale.com>
+Date: Tue, 11 May 2010 22:11:39 +0800
+Subject: [PATCH]  ENGR00123325-2 mx5x: Change default DMA zone to 96M
+
+Change default DMA zone to 96M on mx5x
+
+Signed-off-by: Sammy He <r62914@freescale.com>
+---
+ arch/arm/configs/imx5_defconfig |    5 +++--
+ 1 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm/configs/imx5_defconfig b/arch/arm/configs/imx5_defconfig
+index 316e131..9bebcd6 100644
+--- a/arch/arm/configs/imx5_defconfig
++++ b/arch/arm/configs/imx5_defconfig
+@@ -1,7 +1,7 @@
+ #
+ # Automatically generated make config: don't edit
+ # Linux kernel version: 2.6.31
+-# Wed May  5 18:22:14 2010
++# Tue May 11 00:49:24 2010
+ #
+ CONFIG_ARM=y
+ CONFIG_HAVE_PWM=y
+@@ -178,7 +178,7 @@ CONFIG_ARCH_MXC=y
+ # CONFIG_ARCH_DAVINCI is not set
+ # CONFIG_ARCH_OMAP is not set
+ CONFIG_IRAM_ALLOC=y
+-CONFIG_DMA_ZONE_SIZE=64
++CONFIG_DMA_ZONE_SIZE=96
+ CONFIG_UTMI_MXC=y
+ 
+ #
+@@ -709,6 +709,7 @@ CONFIG_SMSC911X=y
+ # CONFIG_KS8842 is not set
+ # CONFIG_KS8851 is not set
+ CONFIG_FEC=y
++# CONFIG_FEC_1588 is not set
+ # CONFIG_FEC2 is not set
+ # CONFIG_NETDEV_1000 is not set
+ # CONFIG_NETDEV_10000 is not set
+-- 
+1.5.4.4
+

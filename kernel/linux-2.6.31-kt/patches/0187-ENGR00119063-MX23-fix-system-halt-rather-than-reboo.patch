@@ -1,0 +1,28 @@
+From 0f15e316c6785018088008d037053e907aa3aaef Mon Sep 17 00:00:00 2001
+From: Robby Cai <R63905@freescale.com>
+Date: Tue, 15 Dec 2009 16:32:09 +0800
+Subject: [PATCH] ENGR00119063 MX23: fix system halt rather than reboot when watchdog timeout
+
+fixed by setting AUTO_RESTART bit in HW_RTC_PERSISTENT0 register.
+
+Signed-off-by: Robby Cai <R63905@freescale.com>
+---
+ drivers/rtc/rtc-stmp3xxx.c |    2 ++
+ 1 files changed, 2 insertions(+), 0 deletions(-)
+
+diff --git a/drivers/rtc/rtc-stmp3xxx.c b/drivers/rtc/rtc-stmp3xxx.c
+index 3f9869d..f3d06b2 100644
+--- a/drivers/rtc/rtc-stmp3xxx.c
++++ b/drivers/rtc/rtc-stmp3xxx.c
+@@ -223,6 +223,8 @@ static int stmp3xxx_rtc_probe(struct platform_device *pdev)
+ 			BM_RTC_PERSISTENT0_ALARM_WAKE_EN |
+ 			BM_RTC_PERSISTENT0_ALARM_WAKE,
+ 		     REGS_RTC_BASE + HW_RTC_PERSISTENT0_CLR);
++	__raw_writel(BM_RTC_PERSISTENT0_AUTO_RESTART,
++		     REGS_RTC_BASE + HW_RTC_PERSISTENT0_SET);
+ 
+ 	printk(KERN_INFO "STMP3xxx RTC driver v1.0 hardware v%u.%u.%u\n",
+ 	       (hwversion >> 24),
+-- 
+1.5.4.4
+

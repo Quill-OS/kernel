@@ -1,0 +1,60 @@
+From edf8a41ed411e68011a6e88241cd9c3c0c9d5cb8 Mon Sep 17 00:00:00 2001
+From: Dinh Nguyen <r00091@freescale.com>
+Date: Tue, 23 Feb 2010 09:14:27 -0600
+Subject: [PATCH] ENGR00121061 Fix compile errors for USB IRAM kconfig options
+
+Need to define USB_IRAM_SIZE for all current platforms that
+uses Gadget.
+
+Signed-off-by: Dinh Nguyen <Dinh.Nguyen@freescale.com>
+---
+ arch/arm/plat-mxc/include/mach/mx27.h |    9 ++++++++-
+ arch/arm/plat-mxc/include/mach/mx35.h |    7 +++++++
+ 2 files changed, 15 insertions(+), 1 deletions(-)
+
+diff --git a/arch/arm/plat-mxc/include/mach/mx27.h b/arch/arm/plat-mxc/include/mach/mx27.h
+index 6e93f2c..6c2dd83 100644
+--- a/arch/arm/plat-mxc/include/mach/mx27.h
++++ b/arch/arm/plat-mxc/include/mach/mx27.h
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2004-2007 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2004-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  * Copyright 2008 Juergen Beisert, kernel@pengutronix.de
+  *
+  * This contains i.MX27-specific hardware definitions. For those
+@@ -28,6 +28,13 @@
+ #error "Do not include directly."
+ #endif
+ 
++#if defined(CONFIG_USB_STATIC_IRAM) \
++    || defined(CONFIG_USB_STATIC_IRAM_PPH)
++#define USB_IRAM_SIZE	SZ_8K
++#else
++#define USB_IRAM_SIZE 0
++#endif
++
+ /* IRAM */
+ #define IRAM_BASE_ADDR          0xFFFF4C00	/* internal ram */
+ 
+diff --git a/arch/arm/plat-mxc/include/mach/mx35.h b/arch/arm/plat-mxc/include/mach/mx35.h
+index b13a0ec..ff64042 100644
+--- a/arch/arm/plat-mxc/include/mach/mx35.h
++++ b/arch/arm/plat-mxc/include/mach/mx35.h
+@@ -16,6 +16,13 @@
+ #define SND_RAM_SIZE 0
+ #endif
+ 
++#if defined(CONFIG_USB_STATIC_IRAM) \
++    || defined(CONFIG_USB_STATIC_IRAM_PPH)
++#define USB_IRAM_SIZE	SZ_8K
++#else
++#define USB_IRAM_SIZE 0
++#endif
++
+ #define MXC_FEC_BASE_ADDR	0x50038000
+ #define MX35_NFC_BASE_ADDR	0xBB000000
+ #define NFC_BASE_ADDR		MX35_NFC_BASE_ADDR
+-- 
+1.5.4.4
+

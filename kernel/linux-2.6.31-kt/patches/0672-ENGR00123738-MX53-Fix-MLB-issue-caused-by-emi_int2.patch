@@ -1,0 +1,90 @@
+From e32b328e7cf136f540db93208d4a551d79693346 Mon Sep 17 00:00:00 2001
+From: Lily Zhang <r58066@freescale.com>
+Date: Mon, 21 Jun 2010 11:21:23 +0800
+Subject: [PATCH] ENGR00123738 MX53: Fix MLB issue caused by emi_int2 clock
+
+1. MLB can only work with "jtag=on" option enable or after system
+resume now. It's cuased by emi_int2 clock gate bit setting.
+MX53 enables the internal memory power saving mode which requires
+emi_intr CCGR bits must be set as 0x11 if using IRAM. To fix current
+issue, add additional mlb clock which is associated with emi_int2.
+2. Update MLB PIN setting.
+
+Signed-off-by: Lily Zhang <r58066@freescale.com>
+---
+ arch/arm/mach-mx5/clock.c         |   12 ++++++++++--
+ arch/arm/mach-mx5/mx53_evk_gpio.c |    9 ++++++---
+ 2 files changed, 16 insertions(+), 5 deletions(-)
+
+diff --git a/arch/arm/mach-mx5/clock.c b/arch/arm/mach-mx5/clock.c
+index 00b7c04..162e903 100644
+--- a/arch/arm/mach-mx5/clock.c
++++ b/arch/arm/mach-mx5/clock.c
+@@ -3310,13 +3310,21 @@ static struct clk ieee_1588_clk = {
+ 	.disable = _clk_disable,
+ };
+ 
+-static struct clk mlb_clk = {
++static struct clk mlb_clk[] = {
++	{
+ 	.name = "mlb_clk",
+ 	.parent = &ipg_clk,
+ 	.enable = _clk_enable,
+ 	.enable_reg = MXC_CCM_CCGR7,
+ 	.enable_shift = MXC_CCM_CCGR7_CG2_OFFSET,
+ 	.disable = _clk_disable,
++	.secondary = &mlb_clk[1],
++	},
++	{
++	.name = "mlb_mem_clk",
++	.parent = &emi_fast_clk,
++	.secondary = &emi_intr_clk[1],
++	},
+ };
+ 
+ static struct clk can1_clk[] = {
+@@ -4725,7 +4733,7 @@ int __init mx53_clocks_init(unsigned long ckil, unsigned long osc, unsigned long
+ 	clk_register(&ocram_clk);
+ 	clk_register(&sata_clk);
+ 	clk_register(&ieee_1588_clk);
+-	clk_register(&mlb_clk);
++	clk_register(&mlb_clk[0]);
+ 	clk_register(&can1_clk[0]);
+ 	clk_register(&can2_clk[0]);
+ 	clk_register(&ldb_di_clk[0]);
+diff --git a/arch/arm/mach-mx5/mx53_evk_gpio.c b/arch/arm/mach-mx5/mx53_evk_gpio.c
+index 9ed0dba..168bf12 100644
+--- a/arch/arm/mach-mx5/mx53_evk_gpio.c
++++ b/arch/arm/mach-mx5/mx53_evk_gpio.c
+@@ -180,14 +180,16 @@ static struct mxc_iomux_pin_cfg __initdata mxc_iomux_pins[] = {
+ 	{
+ 	 MX53_PIN_GPIO_2, IOMUX_CONFIG_ALT7,
+ 	 (PAD_CTL_PKE_ENABLE | PAD_CTL_PUE_PULL |
+-	 PAD_CTL_DRV_HIGH),
++	 PAD_CTL_DRV_HIGH | PAD_CTL_HYS_ENABLE |
++	 PAD_CTL_360K_PD),
+ 	 MUX_IN_MLB_MLBDAT_IN_SELECT_INPUT,
+ 	 INPUT_CTL_PATH2,
+ 	 },
+ 	{
+ 	 MX53_PIN_GPIO_3, IOMUX_CONFIG_ALT7,
+ 	 (PAD_CTL_PKE_ENABLE | PAD_CTL_PUE_PULL |
+-	 PAD_CTL_DRV_HIGH),
++	 PAD_CTL_DRV_HIGH | PAD_CTL_HYS_ENABLE |
++	 PAD_CTL_360K_PD),
+ 	 MUX_IN_MLB_MLBCLK_IN_SELECT_INPUT,
+ 	 INPUT_CTL_PATH2,
+ 	 },
+@@ -197,7 +199,8 @@ static struct mxc_iomux_pin_cfg __initdata mxc_iomux_pins[] = {
+ 	{
+ 	 MX53_PIN_GPIO_6, IOMUX_CONFIG_ALT7,
+ 	 (PAD_CTL_PKE_ENABLE | PAD_CTL_PUE_PULL |
+-	 PAD_CTL_DRV_HIGH),
++	 PAD_CTL_DRV_HIGH | PAD_CTL_HYS_ENABLE |
++	 PAD_CTL_360K_PD),
+ 	 MUX_IN_MLB_MLBSIG_IN_SELECT_INPUT,
+ 	 INPUT_CTL_PATH2,
+ 	 },
+-- 
+1.5.4.4
+

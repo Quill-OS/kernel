@@ -1,0 +1,37 @@
+From 225dcaeab2ee2a5fa46bfb17f93f42a046f11c58 Mon Sep 17 00:00:00 2001
+From: Miao Yu <r65093@freescale.com>
+Date: Tue, 8 Dec 2009 15:27:26 +0800
+Subject: [PATCH] ENGR00119069 V4L2 capture: Do not change current crop setting for tvin.
+
+There is one CSI crop improvement (engr117261) in v4l2 capture.
+But the improvement is not suitable for tvin module since the
+ACT_FRM_SIZE wouldn't be the same with the SENSOR_SIZE.
+
+Signed-off-by: Miao Yu <r65093@freescale.com>
+---
+ drivers/media/video/mxc/capture/mxc_v4l2_capture.c |    8 +++++---
+ 1 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/media/video/mxc/capture/mxc_v4l2_capture.c b/drivers/media/video/mxc/capture/mxc_v4l2_capture.c
+index edbd2ca..9d69219 100644
+--- a/drivers/media/video/mxc/capture/mxc_v4l2_capture.c
++++ b/drivers/media/video/mxc/capture/mxc_v4l2_capture.c
+@@ -1135,10 +1135,12 @@ static int mxc_v4l2_s_param(cam_data *cam, struct v4l2_streamparm *parm)
+ 
+ 	/*
+ 	 * Set the default current cropped resolution to be the same with
+-	 * the cropping boundary.
++	 * the cropping boundary(except for tvin module).
+ 	 */
+-	cam->crop_current.width = cam->crop_bounds.width;
+-	cam->crop_current.height = cam->crop_bounds.height;
++	if (cam->device_type != 1) {
++		cam->crop_current.width = cam->crop_bounds.width;
++		cam->crop_current.height = cam->crop_bounds.height;
++	}
+ 
+ 	/* This essentially loses the data at the left and bottom of the image
+ 	 * giving a digital zoom image, if crop_current is less than the full
+-- 
+1.5.4.4
+

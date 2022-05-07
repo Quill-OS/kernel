@@ -1,0 +1,412 @@
+From 97927041bf359dcf7472d4cd715c9c287b08d92c Mon Sep 17 00:00:00 2001
+From: Liu Ying <b17645@freescale.com>
+Date: Wed, 12 May 2010 19:04:42 -0400
+Subject: [PATCH] ENGR00122216-1 MX53 MSL:Change for LDB support
+
+This patch includes IOMUX, clock change for LDB
+and adds LDB platform device.
+
+Signed-off-by: Liu Ying <b17645@freescale.com>
+---
+ arch/arm/mach-mx5/clock.c            |  154 +++++++++++++++++++++++++++++++--
+ arch/arm/mach-mx5/crm_regs.h         |   10 +-
+ arch/arm/mach-mx5/devices.c          |   19 ++++
+ arch/arm/mach-mx5/devices.h          |    1 +
+ arch/arm/mach-mx5/mx53_evk.c         |   24 +++++
+ arch/arm/mach-mx5/mx53_evk_gpio.c    |   30 +++++++
+ arch/arm/plat-mxc/include/mach/mxc.h |    5 +
+ 7 files changed, 228 insertions(+), 15 deletions(-)
+
+diff --git a/arch/arm/mach-mx5/clock.c b/arch/arm/mach-mx5/clock.c
+index 6ef6d5e..2bd7548 100644
+--- a/arch/arm/mach-mx5/clock.c
++++ b/arch/arm/mach-mx5/clock.c
+@@ -42,6 +42,7 @@ static struct clk emi_slow_clk;
+ static struct clk emi_intr_clk[];
+ static struct clk ddr_clk;
+ static struct clk ipu_clk[];
++static struct clk ldb_di_clk[];
+ static struct clk axi_a_clk;
+ static struct clk axi_b_clk;
+ static struct clk ddr_hf_clk;
+@@ -1445,6 +1446,8 @@ static int _clk_ipu_di_set_parent(struct clk *clk, struct clk *parent)
+ 		reg |= 3 << MXC_CCM_CSCMR2_DI_CLK_SEL_OFFSET(clk->id);
+ 	} else if ((parent == &tve_clk) && (clk->id == 1))
+ 		reg |= 3 << MXC_CCM_CSCMR2_DI_CLK_SEL_OFFSET(clk->id);
++	else if ((parent == &ldb_di_clk[clk->id]) && cpu_is_mx53())
++		reg |= 5 << MXC_CCM_CSCMR2_DI_CLK_SEL_OFFSET(clk->id);
+ 	else		/* Assume any other clock is external clock pin */
+ 		reg |= 4 << MXC_CCM_CSCMR2_DI_CLK_SEL_OFFSET(clk->id);
+ 	__raw_writel(reg, MXC_CCM_CSCMR2);
+@@ -1498,7 +1501,10 @@ static int _clk_ipu_di_set_rate(struct clk *clk, unsigned long rate)
+ 		__raw_writel(reg, MXC_CCM_CDCDR);
+ 	} else if ((clk->parent == &tve_clk) && (clk->id == 1))
+ 		clk->rate = rate; /*the rate decided by tve hw actually*/
+-	else
++	else if ((clk->parent == &ldb_di_clk[clk->id]) && cpu_is_mx53()) {
++		clk->rate = clk->parent->rate;
++		return 0;
++	} else
+ 		return -EINVAL;
+ 
+ 	clk->rate = rate;
+@@ -1511,12 +1517,16 @@ static unsigned long _clk_ipu_di_round_rate(struct clk *clk,
+ {
+ 	u32 div;
+ 
+-	div = clk->parent->rate / rate;
+-	if (div > 8)
+-		div = 8;
+-	else if (div == 0)
+-		div++;
+-	return clk->parent->rate / div;
++	if ((clk->parent == &ldb_di_clk[clk->id]) && cpu_is_mx53())
++		return clk->parent->rate;
++	else {
++		div = clk->parent->rate / rate;
++		if (div > 8)
++			div = 8;
++		else if (div == 0)
++			div++;
++		return clk->parent->rate / div;
++	}
+ }
+ 
+ static struct clk ipu_di_clk[] = {
+@@ -1550,6 +1560,128 @@ static struct clk ipu_di_clk[] = {
+ 	},
+ };
+ 
++static int _clk_ldb_di_set_parent(struct clk *clk, struct clk *parent)
++{
++	u32 reg;
++
++	reg = __raw_readl(MXC_CCM_CSCMR2);
++
++	if ((parent == &pll3_sw_clk)) {
++		if (clk->id == 0)
++			reg &= ~(MXC_CCM_CSCMR2_LDB_DI0_CLK_SEL);
++		else
++			reg &= ~(MXC_CCM_CSCMR2_LDB_DI1_CLK_SEL);
++	} else if ((parent == &pll4_sw_clk)) {
++		if (clk->id == 0)
++			reg |= MXC_CCM_CSCMR2_LDB_DI0_CLK_SEL;
++		else
++			reg |= MXC_CCM_CSCMR2_LDB_DI1_CLK_SEL;
++	} else {
++		BUG();
++	}
++
++	__raw_writel(reg, MXC_CCM_CSCMR2);
++	return 0;
++}
++
++static void _clk_ldb_di_recalc(struct clk *clk)
++{
++	u32 div;
++
++	if (clk->id == 0)
++		div = __raw_readl(MXC_CCM_CSCMR2) &
++			MXC_CCM_CSCMR2_LDB_DI0_IPU_DIV;
++	else
++		div = __raw_readl(MXC_CCM_CSCMR2) &
++			MXC_CCM_CSCMR2_LDB_DI1_IPU_DIV;
++
++	if (div)
++		clk->rate = clk->parent->rate / 7;
++	else
++		clk->rate = 2 * clk->parent->rate / 7;
++}
++
++static unsigned long _clk_ldb_di_round_rate(struct clk *clk,
++						unsigned long rate)
++{
++	if (rate * 7 <= clk->parent->rate)
++		return clk->parent->rate / 7;
++	else
++		return 2 * clk->parent->rate / 7;
++}
++
++static int _clk_ldb_di_set_rate(struct clk *clk, unsigned long rate)
++{
++	u32 reg, div = 0;
++
++	if (rate * 7 <=  clk->parent->rate) {
++		div = 7;
++		rate = clk->parent->rate / 7;
++	} else
++		rate = 2 * clk->parent->rate / 7;
++
++	reg = __raw_readl(MXC_CCM_CSCMR2);
++	if (div == 7)
++		reg |= (clk->id ? MXC_CCM_CSCMR2_LDB_DI1_IPU_DIV :
++			MXC_CCM_CSCMR2_LDB_DI0_IPU_DIV);
++	else
++		reg &= ~(clk->id ? MXC_CCM_CSCMR2_LDB_DI1_IPU_DIV :
++			MXC_CCM_CSCMR2_LDB_DI0_IPU_DIV);
++	__raw_writel(reg, MXC_CCM_CSCMR2);
++
++	clk->rate = rate;
++	return 0;
++}
++
++static int _clk_ldb_di_enable(struct clk *clk)
++{
++	_clk_enable(clk);
++	ipu_di_clk[clk->id].set_parent(&ipu_di_clk[clk->id], clk);
++	ipu_di_clk[clk->id].parent = clk;
++	ipu_di_clk[clk->id].rate = clk->rate;
++	ipu_di_clk[clk->id].enable(&ipu_di_clk[clk->id]);
++	ipu_di_clk[clk->id].usecount++;
++	return 0;
++}
++
++static void _clk_ldb_di_disable(struct clk *clk)
++{
++	_clk_disable(clk);
++	ipu_di_clk[clk->id].disable(&ipu_di_clk[clk->id]);
++	ipu_di_clk[clk->id].usecount--;
++}
++
++static struct clk ldb_di_clk[] = {
++	{
++	.name = "ldb_di0_clk",
++	.id = 0,
++	.parent = &pll4_sw_clk,
++	.enable_reg = MXC_CCM_CCGR6,
++	.enable_shift = MXC_CCM_CCGR6_CG14_OFFSET,
++	.recalc = _clk_ldb_di_recalc,
++	.set_parent = _clk_ldb_di_set_parent,
++	.round_rate = _clk_ldb_di_round_rate,
++	.set_rate = _clk_ldb_di_set_rate,
++	.enable = _clk_ldb_di_enable,
++	.disable = _clk_ldb_di_disable,
++	.flags = RATE_PROPAGATES,
++	},
++	{
++	.name = "ldb_di1_clk",
++	.id = 1,
++	.parent = &pll4_sw_clk,
++	.enable_reg = MXC_CCM_CCGR6,
++	.enable_shift = MXC_CCM_CCGR6_CG15_OFFSET,
++	.recalc = _clk_ldb_di_recalc,
++	.set_parent = _clk_ldb_di_set_parent,
++	.round_rate = _clk_ldb_di_round_rate,
++	.set_rate = _clk_ldb_di_set_rate,
++	.enable = _clk_ldb_di_enable,
++	.disable = _clk_ldb_di_disable,
++	.flags = RATE_PROPAGATES,
++	},
++};
++
+ static int _clk_csi0_set_parent(struct clk *clk, struct clk *parent)
+ {
+ 	u32 reg, mux;
+@@ -4115,9 +4247,6 @@ static void clk_tree_init(void)
+ 		pll4_sw_clk.parent = &osc_clk;
+ 	}
+ 
+-	if (cpu_is_mx53())
+-		tve_clk.parent = &pll4_sw_clk;
+-
+ 	/* set emi_slow_clk parent */
+ 	emi_slow_clk.parent = &main_bus_clk;
+ 	reg = __raw_readl(MXC_CCM_CBCDR);
+@@ -4561,6 +4690,11 @@ int __init mx53_clocks_init(unsigned long ckil, unsigned long osc, unsigned long
+ 	clk_register(&mlb_clk);
+ 	clk_register(&can1_clk[0]);
+ 	clk_register(&can2_clk[0]);
++	clk_register(&ldb_di_clk[0]);
++	clk_register(&ldb_di_clk[1]);
++
++	ldb_di_clk[0].parent = ldb_di_clk[1].parent =
++	tve_clk.parent = &pll4_sw_clk;
+ 
+ 	/* set DDR clock parent */
+ 	reg = __raw_readl(MXC_CCM_CBCMR) &
+diff --git a/arch/arm/mach-mx5/crm_regs.h b/arch/arm/mach-mx5/crm_regs.h
+index e53f55d..d8a78d9 100644
+--- a/arch/arm/mach-mx5/crm_regs.h
++++ b/arch/arm/mach-mx5/crm_regs.h
+@@ -279,11 +279,11 @@ extern void __iomem *pll4_base;
+ #define MXC_CCM_CSCMR2_SLIMBUS_COM			(0x1 << 9)
+ #define MXC_CCM_CSCMR2_SLIMBUS_CLK_SEL_OFFSET	(6)
+ #define MXC_CCM_CSCMR2_SLIMBUS_CLK_SEL_MASK		(0x7 << 6)
+-/* MX51 */
+-#define MXC_CCM_CSCMR2_LBD_DI1_IPU_DIV			(0x1 << 11)
+-#define MXC_CCM_CSCMR2_LBD_DI0_IPU_DIV			(0x1 << 10)
+-#define MXC_CCM_CSCMR2_LBD_DI1_CLK_SEL			(0x1 << 9)
+-#define MXC_CCM_CSCMR2_LBD_DI0_CLK_SEL			(0x1 << 8)
++/* MX53 */
++#define MXC_CCM_CSCMR2_LDB_DI1_IPU_DIV			(0x1 << 11)
++#define MXC_CCM_CSCMR2_LDB_DI0_IPU_DIV			(0x1 << 10)
++#define MXC_CCM_CSCMR2_LDB_DI1_CLK_SEL			(0x1 << 9)
++#define MXC_CCM_CSCMR2_LDB_DI0_CLK_SEL			(0x1 << 8)
+ #define MXC_CCM_CSCMR2_CAN_CLK_SEL_OFFSET		(6)
+ #define MXC_CCM_CSCMR2_CAN_CLK_SEL_MASK		(0x3 << 6)
+ #define MXC_CCM_CSCMR2_SPDIF1_COM			(1 << 5)
+diff --git a/arch/arm/mach-mx5/devices.c b/arch/arm/mach-mx5/devices.c
+index a644ed1..647a103 100644
+--- a/arch/arm/mach-mx5/devices.c
++++ b/arch/arm/mach-mx5/devices.c
+@@ -17,6 +17,8 @@
+ #include <linux/dma-mapping.h>
+ #include <linux/platform_device.h>
+ #include <linux/clk.h>
++#include <linux/ipu.h>
++#include <linux/fb.h>
+ #include <linux/delay.h>
+ #include <linux/uio_driver.h>
+ #include <linux/mxc_scc2_driver.h>
+@@ -320,6 +322,21 @@ struct platform_device mxc_fb_devices[] = {
+ 	},
+ };
+ 
++static struct resource ldb_resources[] = {
++	{
++		.start = IOMUXC_BASE_ADDR,
++		.end = IOMUXC_BASE_ADDR + SZ_4K - 1,
++		.flags = IORESOURCE_MEM,
++	},
++};
++
++struct platform_device mxc_ldb_device = {
++	.name = "mxc_ldb",
++	.id = -1,
++	.num_resources = ARRAY_SIZE(ldb_resources),
++	.resource = ldb_resources,
++};
++
+ static struct resource vpu_resources[] = {
+ 	{
+ 		.start = VPU_BASE_ADDR,
+@@ -1432,6 +1449,8 @@ int __init mxc_init_devices(void)
+ 					MX53_NFC_BASE_ADDR_AXI + SZ_8K - 1;
+ 		mxc_nandv2_mtd_device.resource[1].start -= MX53_OFFSET;
+ 		mxc_nandv2_mtd_device.resource[1].end -= MX53_OFFSET;
++		ldb_resources[0].start -=  MX53_OFFSET;
++		ldb_resources[0].end -=  MX53_OFFSET;
+ 	} else if (cpu_is_mx51_rev(CHIP_REV_2_0) < 0) {
+ 		scc_resources[1].start += 0x8000;
+ 		scc_resources[1].end += 0x8000;
+diff --git a/arch/arm/mach-mx5/devices.h b/arch/arm/mach-mx5/devices.h
+index cd5b846..9c8299b 100644
+--- a/arch/arm/mach-mx5/devices.h
++++ b/arch/arm/mach-mx5/devices.h
+@@ -31,6 +31,7 @@ extern struct platform_device mxc_flexcan0_device;
+ extern struct platform_device mxc_flexcan1_device;
+ extern struct platform_device mxc_ipu_device;
+ extern struct platform_device mxc_fb_devices[];
++extern struct platform_device mxc_ldb_device;
+ extern struct platform_device mxcvpu_device;
+ extern struct platform_device mxcscc_device;
+ extern struct platform_device mxcspi1_device;
+diff --git a/arch/arm/mach-mx5/mx53_evk.c b/arch/arm/mach-mx5/mx53_evk.c
+index 821031b..618fe88 100644
+--- a/arch/arm/mach-mx5/mx53_evk.c
++++ b/arch/arm/mach-mx5/mx53_evk.c
+@@ -160,6 +160,24 @@ static struct fb_videomode video_modes[] = {
+ 	FB_SYNC_EXT,
+ 	FB_VMODE_NONINTERLACED,
+ 	0,},
++	{
++	 /* 1080p LVDS panel */
++	 "LDB-1080p", 60, 1920, 1080, 7692,
++	 100, 40,
++	 30, 3,
++	 10, 2,
++	 FB_SYNC_EXT,
++	 FB_VMODE_NONINTERLACED,
++	 0,},
++	{
++	 /* XGA LVDS panel */
++	 "LDB-XGA", 60, 1024, 768, 15385,
++	 220, 40,
++	 21, 7,
++	 60, 10,
++	 FB_SYNC_EXT,
++	 FB_VMODE_NONINTERLACED,
++	 0,},
+ };
+ 
+ struct cpu_wp *mx53_evk_get_cpu_wp(int *wp)
+@@ -260,6 +278,11 @@ static struct tve_platform_data tve_data = {
+ 	.dac_reg = "VVIDEO",
+ };
+ 
++static struct ldb_platform_data ldb_data = {
++	.lvds_bg_reg = "VAUDIO",
++	.ext_ref = 1,
++};
++
+ static struct resource mxcfb_resources[] = {
+ 	[0] = {
+ 	       .flags = IORESOURCE_MEM,
+@@ -687,6 +710,7 @@ static void __init mxc_board_init(void)
+ 	mxc_register_device(&mxc_rtc_device, &srtc_data);
+ 	mxc_register_device(&mxc_w1_master_device, &mxc_w1_data);
+ 	mxc_register_device(&mxc_ipu_device, &mxc_ipu_data);
++	mxc_register_device(&mxc_ldb_device, &ldb_data);
+ 	mxc_register_device(&mxc_tve_device, &tve_data);
+ 	mxc_register_device(&mxcvpu_device, &mxc_vpu_data);
+ 	mxc_register_device(&gpu_device, NULL);
+diff --git a/arch/arm/mach-mx5/mx53_evk_gpio.c b/arch/arm/mach-mx5/mx53_evk_gpio.c
+index 9f6e8b4..15e8a60 100644
+--- a/arch/arm/mach-mx5/mx53_evk_gpio.c
++++ b/arch/arm/mach-mx5/mx53_evk_gpio.c
+@@ -421,6 +421,36 @@ static struct mxc_iomux_pin_cfg __initdata mxc_iomux_pins[] = {
+ 	 (PAD_CTL_HYS_NONE | PAD_CTL_PKE_NONE | PAD_CTL_ODE_OPENDRAIN_NONE |
+ 	  PAD_CTL_DRV_HIGH | PAD_CTL_SRE_SLOW),
+ 	 },
++	{
++	 MX53_PIN_LVDS0_TX3_P, IOMUX_CONFIG_ALT1,
++	 },
++	{
++	 MX53_PIN_LVDS0_CLK_P, IOMUX_CONFIG_ALT1,
++	 },
++	{
++	 MX53_PIN_LVDS0_TX2_P, IOMUX_CONFIG_ALT1,
++	 },
++	{
++	 MX53_PIN_LVDS0_TX1_P, IOMUX_CONFIG_ALT1,
++	 },
++	{
++	 MX53_PIN_LVDS0_TX0_P, IOMUX_CONFIG_ALT1,
++	 },
++	{
++	 MX53_PIN_LVDS1_TX3_P, IOMUX_CONFIG_ALT1,
++	 },
++	{
++	 MX53_PIN_LVDS1_CLK_P, IOMUX_CONFIG_ALT1,
++	 },
++	{
++	 MX53_PIN_LVDS1_TX2_P, IOMUX_CONFIG_ALT1,
++	 },
++	{
++	 MX53_PIN_LVDS1_TX1_P, IOMUX_CONFIG_ALT1,
++	 },
++	{
++	 MX53_PIN_LVDS1_TX0_P, IOMUX_CONFIG_ALT1,
++	 },
+ 	{ /* audio and CSI clock out */
+ 	 MX53_PIN_GPIO_0, IOMUX_CONFIG_ALT3,
+ 	 },
+diff --git a/arch/arm/plat-mxc/include/mach/mxc.h b/arch/arm/plat-mxc/include/mach/mxc.h
+index dbfca19..27f4a32 100644
+--- a/arch/arm/plat-mxc/include/mach/mxc.h
++++ b/arch/arm/plat-mxc/include/mach/mxc.h
+@@ -460,6 +460,11 @@ struct tve_platform_data {
+ 	char *dig_reg;
+ };
+ 
++struct ldb_platform_data {
++	char *lvds_bg_reg;
++	u32 ext_ref;
++};
++
+ struct mxc_vpu_platform_data {
+ 	void (*reset) (void);
+ };
+-- 
+1.5.4.4
+

@@ -1,0 +1,973 @@
+From 88df6529ccac5c16d4e956d513b9ab6c94fc49a7 Mon Sep 17 00:00:00 2001
+From: Jason Chen <b02280@freescale.com>
+Date: Wed, 12 May 2010 15:36:40 +0800
+Subject: [PATCH] ENGR00122780 ipufb: rework display device setting method
+
+Rework the display command line options to not require new option for
+every new display. Add mxcdi0fb/mxcdi1fb option <fmt> and to tell system
+what kind of display device is going to use.
+
+Use "di1_primary" to make DI1 the primary display (i.e. fb0).
+
+The display selection is done using video= parameter.
+
+        For example on imx51:
+
+                  di             di_fmt      video_mode
+        DVI:      0              RGB24      mxcdi0fb:800x600M-16@60 etc
+        DVI-HDMI: 0              RGB24      mxcdi0fb:720P60
+        LVDS:     0              LVDS666    mxcdi0fb:XGA
+        WVGA lcd: 1              RGB565     mxcdi1fb:800x480M-16@55
+        TVE:      1              YUV444     mxcdi1fb:TV-NTSC
+                                            mxcdi1fb:TV-PAL
+                                            mxcdi1fb:720P60
+        For example on imx53:
+
+                  di             di_fmt      video_mode
+        DVI:      0              RGB24      mxcdi0fb:800x600M-16@60 etc
+        DVI-HDMI: 0              RGB24      mxcdi0fb:720P60
+        WVGA lcd: 0              RGB565     mxcdi0fb:800x480M-16@55
+        TVE:      1              YUV444     mxcdi1fb:TV-NTSC
+                                            mxcdi1fb:TV-PAL
+                                            mxcdi1fb:720P60
+
+If you want to set NTSC tv as primary display, and make second display
+DI0 as DVI 1024x768 resolution, just add
+
+"di1_primary video=mxcdi0fb:RGB24,1024x768M-16@60 video=mxcdi1fb:YUV444,TV-NTSC"
+
+to cmdline.
+
+Signed-off-by: Rob Herring <r.herring@freescale.com>
+Signed-off-by: Jason Chen <b02280@freescale.com>
+---
+ arch/arm/mach-mx37/mx37_3stack.c     |    1 +
+ arch/arm/mach-mx5/Makefile           |    4 +-
+ arch/arm/mach-mx5/clock.c            |    2 +
+ arch/arm/mach-mx5/early_setup.c      |   29 ++++
+ arch/arm/mach-mx5/mx51_babbage.c     |  251 +++++++++++-----------------------
+ arch/arm/mach-mx5/mx53_evk.c         |  154 +++++++--------------
+ arch/arm/plat-mxc/include/mach/mxc.h |    1 +
+ drivers/mxc/ipu3/ipu_disp.c          |   16 +--
+ drivers/video/mxc/mxc_ipuv3_fb.c     |  106 +++++++++-----
+ drivers/video/mxc/tve.c              |   49 +++++--
+ 10 files changed, 280 insertions(+), 333 deletions(-)
+
+diff --git a/arch/arm/mach-mx37/mx37_3stack.c b/arch/arm/mach-mx37/mx37_3stack.c
+index cfdb0f2..ef92b96 100644
+--- a/arch/arm/mach-mx37/mx37_3stack.c
++++ b/arch/arm/mach-mx37/mx37_3stack.c
+@@ -448,6 +448,7 @@ static void mxc_init_fb(void)
+ 		printk(KERN_INFO "TV is primary display\n");
+ 		fb_data.interface_pix_fmt = IPU_PIX_FMT_YUV444;
+ 		fb_data.mode = &tv_mode;
++		fb_data.num_modes = 1;
+ 		mxc_fb_device[1].dev.platform_data = &fb_data;
+ 		(void)platform_device_register(&mxc_fb_device[1]);
+ 		(void)platform_device_register(&mxc_fb_device[0]);
+diff --git a/arch/arm/mach-mx5/Makefile b/arch/arm/mach-mx5/Makefile
+index cbf2137..446823e 100644
+--- a/arch/arm/mach-mx5/Makefile
++++ b/arch/arm/mach-mx5/Makefile
+@@ -9,6 +9,6 @@ obj-y   := system.o iomux.o cpu.o mm.o clock.o devices.o serial.o dma.o lpmodes.
+ sdram_autogating.o bus_freq.o usb_dr.o usb_h1.o usb_h2.o dummy_gpio.o wfi.o suspend.o
+ 
+ obj-$(CONFIG_MACH_MX51_3DS) += mx51_3stack.o mx51_3stack_gpio.o mx51_3stack_pmic_mc13892.o
+-obj-$(CONFIG_MACH_MX51_BABBAGE) += mx51_babbage.o mx51_babbage_gpio.o mx51_babbage_pmic_mc13892.o
+-obj-$(CONFIG_MACH_MX53_EVK) += mx53_evk.o mx53_evk_gpio.o mx53_evk_pmic_mc13892.o
++obj-$(CONFIG_MACH_MX51_BABBAGE) += mx51_babbage.o mx51_babbage_gpio.o mx51_babbage_pmic_mc13892.o early_setup.o
++obj-$(CONFIG_MACH_MX53_EVK) += mx53_evk.o mx53_evk_gpio.o mx53_evk_pmic_mc13892.o early_setup.o
+ 
+diff --git a/arch/arm/mach-mx5/clock.c b/arch/arm/mach-mx5/clock.c
+index 7c3fc64..6ef6d5e 100644
+--- a/arch/arm/mach-mx5/clock.c
++++ b/arch/arm/mach-mx5/clock.c
+@@ -4581,6 +4581,8 @@ int __init mx53_clocks_init(unsigned long ckil, unsigned long osc, unsigned long
+ 	clk_set_parent(&esdhc2_clk[0], &esdhc1_clk[0]);
+ 	clk_set_parent(&esdhc3_clk[0], &pll2_sw_clk);
+ 
++	clk_set_parent(&ipu_di_clk[0], &pll4_sw_clk);
++
+ #if 0
+ 	/*Setup the LPM bypass bits */
+ 	reg = __raw_readl(MXC_CCM_CLPCR);
+diff --git a/arch/arm/mach-mx5/early_setup.c b/arch/arm/mach-mx5/early_setup.c
+new file mode 100644
+index 0000000..dd731d7
+--- /dev/null
++++ b/arch/arm/mach-mx5/early_setup.c
+@@ -0,0 +1,29 @@
++/*
++ * Copyright (C) 2010 Freescale Semiconductor, Inc. All Rights Reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++
++ * You should have received a copy of the GNU General Public License along
++ * with this program; if not, write to the Free Software Foundation, Inc.,
++ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
++ */
++
++#include <linux/init.h>
++#include <linux/string.h>
++
++int __initdata primary_di = { 0 };
++static int __init di_setup(char *__unused)
++{
++	primary_di = 1;
++	return 1;
++}
++__setup("di1_primary", di_setup);
++
+diff --git a/arch/arm/mach-mx5/mx51_babbage.c b/arch/arm/mach-mx5/mx51_babbage.c
+index 0f32381..c6fc167 100644
+--- a/arch/arm/mach-mx5/mx51_babbage.c
++++ b/arch/arm/mach-mx5/mx51_babbage.c
+@@ -96,6 +96,24 @@ static struct cpu_wp cpu_wp_auto[] = {
+ 
+ static struct fb_videomode video_modes[] = {
+ 	{
++	 /* NTSC TV output */
++	 "TV-NTSC", 60, 720, 480, 74074,
++	 122, 15,
++	 18, 26,
++	 1, 1,
++	 FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT | FB_SYNC_EXT,
++	 FB_VMODE_INTERLACED,
++	 0,},
++	{
++	 /* PAL TV output */
++	 "TV-PAL", 50, 720, 576, 74074,
++	 132, 11,
++	 22, 26,
++	 1, 1,
++	 FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT | FB_SYNC_EXT,
++	 FB_VMODE_INTERLACED | FB_VMODE_ODD_FLD_FIRST,
++	 0,},
++	{
+ 	 /* 720p60 TV output */
+ 	 "720P60", 60, 1280, 720, 13468,
+ 	 260, 109,
+@@ -114,6 +132,12 @@ static struct fb_videomode video_modes[] = {
+ 	 0,
+ 	 FB_VMODE_NONINTERLACED,
+ 	 0,},
++	{
++	 /* 800x480 @ 55 Hz , pixel clk @ 25MHz */
++	 "CLAA-WVGA", 55, 800, 480, 40000, 40, 40, 5, 5, 20, 10,
++	 FB_SYNC_CLK_LAT_FALL,
++	 FB_VMODE_NONINTERLACED,
++	 0,},
+ };
+ 
+ struct cpu_wp *mx51_babbage_get_cpu_wp(int *wp)
+@@ -258,30 +282,75 @@ static struct mxc_fb_platform_data fb_data[] = {
+ 	{
+ 	 .interface_pix_fmt = IPU_PIX_FMT_RGB24,
+ 	 .mode_str = "1024x768M-16@60",
++	 .mode = video_modes,
++	 .num_modes = ARRAY_SIZE(video_modes),
+ 	 },
+ 	{
+ 	 .interface_pix_fmt = IPU_PIX_FMT_RGB565,
+-	 .mode_str = "1024x768M-16@60",
++	 .mode_str = "CLAA-WVGA",
++	 .mode = video_modes,
++	 .num_modes = ARRAY_SIZE(video_modes),
+ 	 },
+ };
+ 
+-static int __initdata enable_vga = { 0 };
+-static int __initdata enable_wvga = { 0 };
+-static int __initdata enable_tv = { 0 };
+-static int __initdata enable_mitsubishi_xga = { 0 };
+-
+-static void wvga_reset(void)
++extern int primary_di;
++static int __init mxc_init_fb(void)
+ {
++	if (!machine_is_mx51_babbage())
++		return 0;
++
++	/* DI0-LVDS */
++	gpio_set_value(IOMUX_TO_GPIO(MX51_PIN_DI1_D0_CS), 0);
++	msleep(1);
++	gpio_set_value(IOMUX_TO_GPIO(MX51_PIN_DI1_D0_CS), 1);
++	gpio_set_value(IOMUX_TO_GPIO(MX51_PIN_CSI2_D12), 1);
++	gpio_set_value(IOMUX_TO_GPIO(MX51_PIN_CSI2_D13), 1);
++
++	/* DVI Detect */
++	gpio_request(IOMUX_TO_GPIO(MX51_PIN_NANDF_D12), "nandf_d12");
++	gpio_direction_input(IOMUX_TO_GPIO(MX51_PIN_NANDF_D12));
++	/* DVI Reset - Assert for i2c disabled mode */
++	gpio_request(IOMUX_TO_GPIO(MX51_PIN_DISPB2_SER_DIN), "dispb2_ser_din");
++	gpio_set_value(IOMUX_TO_GPIO(MX51_PIN_DISPB2_SER_DIN), 0);
++	gpio_direction_output(IOMUX_TO_GPIO(MX51_PIN_DISPB2_SER_DIN), 0);
++	/* DVI Power-down */
++	gpio_request(IOMUX_TO_GPIO(MX51_PIN_DISPB2_SER_DIO), "dispb2_ser_di0");
++	gpio_set_value(IOMUX_TO_GPIO(MX51_PIN_DISPB2_SER_DIO), 1);
++	gpio_direction_output(IOMUX_TO_GPIO(MX51_PIN_DISPB2_SER_DIO), 0);
++
++	/* WVGA Reset */
+ 	gpio_set_value(IOMUX_TO_GPIO(MX51_PIN_DI1_D1_CS), 1);
+-}
+ 
+-static struct mxc_lcd_platform_data lcd_wvga_data = {
+-	.reset = wvga_reset,
+-};
++	if (primary_di) {
++		printk(KERN_INFO "DI1 is primary\n");
+ 
+-static struct platform_device lcd_wvga_device = {
+-	.name = "lcd_claa",
+-};
++		/* DI1 -> DP-BG channel: */
++		mxc_fb_devices[1].num_resources = ARRAY_SIZE(mxcfb_resources);
++		mxc_fb_devices[1].resource = mxcfb_resources;
++		mxc_register_device(&mxc_fb_devices[1], &fb_data[1]);
++
++		/* DI0 -> DC channel: */
++		mxc_register_device(&mxc_fb_devices[0], &fb_data[0]);
++	} else {
++		printk(KERN_INFO "DI0 is primary\n");
++
++		/* DI0 -> DP-BG channel: */
++		mxc_fb_devices[0].num_resources = ARRAY_SIZE(mxcfb_resources);
++		mxc_fb_devices[0].resource = mxcfb_resources;
++		mxc_register_device(&mxc_fb_devices[0], &fb_data[0]);
++
++		/* DI1 -> DC channel: */
++		mxc_register_device(&mxc_fb_devices[1], &fb_data[1]);
++	}
++
++	/*
++	 * DI0/1 DP-FG channel:
++	 */
++	mxc_register_device(&mxc_fb_devices[2], NULL);
++
++	return 0;
++}
++device_initcall(mxc_init_fb);
+ 
+ static int handle_edid(int *pixclk)
+ {
+@@ -370,160 +439,6 @@ static int handle_edid(int *pixclk)
+ 	return 0;
+ }
+ 
+-static int __init mxc_init_fb(void)
+-{
+-	int pixclk = 0;
+-
+-	if (!machine_is_mx51_babbage())
+-		return 0;
+-
+-	if (cpu_is_mx51_rev(CHIP_REV_1_1) == 1) {
+-		enable_vga = 1;
+-		fb_data[0].mode_str = NULL;
+-		fb_data[1].mode_str = NULL;
+-	}
+-
+-	/* DI1: Dumb LCD */
+-	if (enable_wvga) {
+-		fb_data[1].interface_pix_fmt = IPU_PIX_FMT_RGB565;
+-		fb_data[1].mode_str = "800x480M-16@55";
+-	}
+-
+-	/* DI0: lVDS */
+-	if (enable_mitsubishi_xga) {
+-		fb_data[0].interface_pix_fmt = IPU_PIX_FMT_LVDS666;
+-		fb_data[0].mode = &(video_modes[1]);
+-
+-		gpio_set_value(IOMUX_TO_GPIO(MX51_PIN_DI1_D0_CS), 0);
+-		msleep(1);
+-		gpio_set_value(IOMUX_TO_GPIO(MX51_PIN_DI1_D0_CS), 1);
+-
+-		gpio_set_value(IOMUX_TO_GPIO(MX51_PIN_CSI2_D12), 1);
+-		gpio_set_value(IOMUX_TO_GPIO(MX51_PIN_CSI2_D13), 1);
+-	}
+-
+-	/* DVI Detect */
+-	gpio_request(IOMUX_TO_GPIO(MX51_PIN_NANDF_D12), "nandf_d12");
+-	gpio_direction_input(IOMUX_TO_GPIO(MX51_PIN_NANDF_D12));
+-	/* DVI Reset - Assert for i2c disabled mode */
+-	gpio_request(IOMUX_TO_GPIO(MX51_PIN_DISPB2_SER_DIN), "dispb2_ser_din");
+-	gpio_set_value(IOMUX_TO_GPIO(MX51_PIN_DISPB2_SER_DIN), 0);
+-	gpio_direction_output(IOMUX_TO_GPIO(MX51_PIN_DISPB2_SER_DIN), 0);
+-	/* DVI Power-down */
+-	gpio_request(IOMUX_TO_GPIO(MX51_PIN_DISPB2_SER_DIO), "dispb2_ser_di0");
+-	gpio_set_value(IOMUX_TO_GPIO(MX51_PIN_DISPB2_SER_DIO), 1);
+-	gpio_direction_output(IOMUX_TO_GPIO(MX51_PIN_DISPB2_SER_DIO), 0);
+-
+-	mxc_register_device(&lcd_wvga_device, &lcd_wvga_data);
+-
+-	if (cpu_is_mx51_rev(CHIP_REV_1_1) == 2)
+-		handle_edid(&pixclk);
+-
+-	if (enable_vga) {
+-		printk(KERN_INFO "VGA monitor is primary\n");
+-	} else if (enable_wvga) {
+-		printk(KERN_INFO "WVGA LCD panel is primary\n");
+-	} else if (enable_tv == 2)
+-		printk(KERN_INFO "HDTV is primary\n");
+-	else
+-		printk(KERN_INFO "DVI monitor is primary\n");
+-
+-	if (enable_tv) {
+-		printk(KERN_INFO "HDTV is specified as %d\n", enable_tv);
+-		fb_data[1].interface_pix_fmt = IPU_PIX_FMT_YUV444;
+-		fb_data[1].mode = &(video_modes[0]);
+-	}
+-
+-	/* Once a customer knows the platform configuration,
+-	   this should be simplified to what is desired.
+-	 */
+-	if (enable_vga || enable_wvga || enable_tv == 2) {
+-		/*
+-		 * DI1 -> DP-BG channel:
+-		 *
+-		 *    dev    di-out-fmt    default-videmode
+-		 *
+-		 * 1. VGA       RGB 	   1024x768M-16@60
+-		 * 2. WVGA      RGB 	   800x480M-16@55
+-		 * 3. TVE       YUV	   video_modes[0]
+-		 */
+-		mxc_fb_devices[1].num_resources = ARRAY_SIZE(mxcfb_resources);
+-		mxc_fb_devices[1].resource = mxcfb_resources;
+-		mxc_register_device(&mxc_fb_devices[1], &fb_data[1]);
+-		if (fb_data[0].mode_str || fb_data[0].mode)
+-			/*
+-			 * DI0 -> DC channel:
+-			 *
+-			 *    dev    di-out-fmt    default-videmode
+-			 *
+-			 * 1. LVDS      RGB 	   video_modes[1]
+-			 * 2. DVI       RGB 	   1024x768M-16@60
+-			 */
+-			mxc_register_device(&mxc_fb_devices[0], &fb_data[0]);
+-	} else {
+-		/*
+-		 * DI0 -> DP-BG channel:
+-		 *
+-		 *    dev    di-out-fmt    default-videmode
+-		 *
+-		 * 1. LVDS      RGB 	   video_modes[1]
+-		 * 2. DVI       RGB 	   1024x768M-16@60
+-		 */
+-		mxc_fb_devices[0].num_resources = ARRAY_SIZE(mxcfb_resources);
+-		mxc_fb_devices[0].resource = mxcfb_resources;
+-		mxc_register_device(&mxc_fb_devices[0], &fb_data[0]);
+-		if (fb_data[1].mode_str || fb_data[1].mode)
+-			/*
+-			 * DI1 -> DC channel:
+-			 *
+-			 *    dev    di-out-fmt    default-videmode
+-			 *
+-			 * 1. VGA       RGB 	   1024x768M-16@60
+-			 * 2. WVGA      RGB 	   800x480M-16@55
+-			 * 3. TVE       YUV	   video_modes[0]
+-			 */
+-			mxc_register_device(&mxc_fb_devices[1], &fb_data[1]);
+-	}
+-
+-	/*
+-	 * DI0/1 DP-FG channel:
+-	 */
+-	mxc_register_device(&mxc_fb_devices[2], NULL);
+-
+-	return 0;
+-}
+-device_initcall(mxc_init_fb);
+-
+-static int __init vga_setup(char *__unused)
+-{
+-	enable_vga = 1;
+-	return 1;
+-}
+-__setup("vga", vga_setup);
+-
+-static int __init wvga_setup(char *__unused)
+-{
+-	enable_wvga = 1;
+-	return 1;
+-}
+-__setup("wvga", wvga_setup);
+-
+-static int __init mitsubishi_xga_setup(char *__unused)
+-{
+-	enable_mitsubishi_xga = 1;
+-	return 1;
+-}
+-__setup("mitsubishi_xga", mitsubishi_xga_setup);
+-
+-static int __init tv_setup(char *s)
+-{
+-	enable_tv = 1;
+-	if (strcmp(s, "2") == 0 || strcmp(s, "=2") == 0)
+-		enable_tv = 2;
+-	return 1;
+-}
+-__setup("hdtv", tv_setup);
+-
+ static void dvi_reset(void)
+ {
+ 	gpio_direction_output(IOMUX_TO_GPIO(MX51_PIN_DISPB2_SER_DIN), 0);
+diff --git a/arch/arm/mach-mx5/mx53_evk.c b/arch/arm/mach-mx5/mx53_evk.c
+index 40244dc..821031b 100644
+--- a/arch/arm/mach-mx5/mx53_evk.c
++++ b/arch/arm/mach-mx5/mx53_evk.c
+@@ -108,6 +108,24 @@ static struct cpu_wp cpu_wp_auto[] = {
+ 
+ static struct fb_videomode video_modes[] = {
+ 	{
++	 /* NTSC TV output */
++	 "TV-NTSC", 60, 720, 480, 74074,
++	 122, 15,
++	 18, 26,
++	 1, 1,
++	 FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT | FB_SYNC_EXT,
++	 FB_VMODE_INTERLACED,
++	 0,},
++	{
++	 /* PAL TV output */
++	 "TV-PAL", 50, 720, 576, 74074,
++	 132, 11,
++	 22, 26,
++	 1, 1,
++	 FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT | FB_SYNC_EXT,
++	 FB_VMODE_INTERLACED | FB_VMODE_ODD_FLD_FIRST,
++	 0,},
++	{
+ 	 /* 720p60 TV output */
+ 	 "720P60", 60, 1280, 720, 13468,
+ 	 260, 109,
+@@ -126,6 +144,22 @@ static struct fb_videomode video_modes[] = {
+ 	 0,
+ 	 FB_VMODE_NONINTERLACED,
+ 	 0,},
++	{
++	 /* 800x480 @ 55 Hz , pixel clk @ 25MHz */
++	 "CLAA-WVGA", 55, 800, 480, 40000, 40, 40, 5, 5, 20, 10,
++	 FB_SYNC_CLK_LAT_FALL,
++	 FB_VMODE_NONINTERLACED,
++	 0,},
++	{
++	/* 1600x1200 @ 60 Hz 162M pixel clk*/
++	"UXGA", 60, 1600, 1200, 6172,
++	304, 64,
++	1, 46,
++	192, 3,
++	FB_SYNC_HOR_HIGH_ACT|FB_SYNC_VERT_HIGH_ACT |
++	FB_SYNC_EXT,
++	FB_VMODE_NONINTERLACED,
++	0,},
+ };
+ 
+ struct cpu_wp *mx53_evk_get_cpu_wp(int *wp)
+@@ -235,101 +269,43 @@ static struct resource mxcfb_resources[] = {
+ static struct mxc_fb_platform_data fb_data[] = {
+ 	{
+ 	 .interface_pix_fmt = IPU_PIX_FMT_RGB565,
+-	 .mode_str = "800x480M-16@55",
++	 .mode_str = "CLAA-WVGA",
++	 .mode = video_modes,
++	 .num_modes = ARRAY_SIZE(video_modes),
+ 	 },
+ 	{
+-	 .interface_pix_fmt = IPU_PIX_FMT_RGB24,
++	 .interface_pix_fmt = IPU_PIX_FMT_BGR24,
+ 	 .mode_str = "1024x768M-16@60",
++	 .mode = video_modes,
++	 .num_modes = ARRAY_SIZE(video_modes),
+ 	 },
+ };
+ 
+-static int __initdata enable_vga = { 0 };
+-static int __initdata enable_tv = { 0 };
+-static int __initdata enable_dvi = { 0 };
+-
+-static void wvga_reset(void)
+-{
+-}
+-
+-static struct mxc_lcd_platform_data lcd_wvga_data = {
+-	.reset = wvga_reset,
+-};
+-
+-static struct platform_device lcd_wvga_device = {
+-	.name = "lcd_claa",
+-};
+-
++extern int primary_di;
+ static int __init mxc_init_fb(void)
+ {
+ 	if (!machine_is_mx53_evk())
+ 		return 0;
+ 
+-	/* by default, fb0 is wvga, fb1 is vga or tv */
+-	if (enable_vga) {
+-		printk(KERN_INFO "VGA monitor is primary\n");
+-	} else if (enable_tv == 2)
+-		printk(KERN_INFO "HDTV is primary\n");
+-	else if (enable_dvi)
+-		printk(KERN_INFO "DVI is primary\n");
+-	else
+-		printk(KERN_INFO "WVGA LCD panel is primary\n");
+-
+-	if (enable_tv) {
+-		printk(KERN_INFO "HDTV is specified as %d\n", enable_tv);
+-		fb_data[1].interface_pix_fmt = IPU_PIX_FMT_YUV444;
+-		fb_data[1].mode = &(video_modes[0]);
+-	}
+-
+-	if (enable_dvi) {
+-		fb_data[0].mode_str = "1024x768M-16@60";
+-		fb_data[0].interface_pix_fmt = IPU_PIX_FMT_RGB24;
+-	}
+-
+-	/* Once a customer knows the platform configuration,
+-	   this should be simplified to what is desired.
+-	 */
+-	if (enable_vga || enable_tv == 2) {
+-		/*
+-		 * DI1 -> DP-BG channel:
+-		 *
+-		 *    dev    di-out-fmt    default-videmode
+-		 *
+-		 * 1. VGA       RGB 	   1024x768M-16@60
+-		 * 2. TVE       YUV	   video_modes[0]
+-		 */
++	if (primary_di) {
++		printk(KERN_INFO "DI1 is primary\n");
++		/* DI1 -> DP-BG channel: */
+ 		mxc_fb_devices[1].num_resources = ARRAY_SIZE(mxcfb_resources);
+ 		mxc_fb_devices[1].resource = mxcfb_resources;
+ 		mxc_register_device(&mxc_fb_devices[1], &fb_data[1]);
+-		if (fb_data[0].mode_str || fb_data[0].mode)
+-			/*
+-			 * DI0 -> DC channel:
+-			 *
+-			 *    dev    di-out-fmt    default-videmode
+-			 *
+-			 * 1. WVGA      RGB 	   800x480M-16@55
+-			 */
+-			mxc_register_device(&mxc_fb_devices[0], &fb_data[0]);
++
++		/* DI0 -> DC channel: */
++		mxc_register_device(&mxc_fb_devices[0], &fb_data[0]);
+ 	} else {
+-		/*
+-		 * DI0 -> DP-BG channel:
+-		 *
+-		 *    dev    di-out-fmt    default-videmode
+-		 *
+-		 * 1. WVGA      RGB 	   800x480M-16@55
+-		 */
++		printk(KERN_INFO "DI0 is primary\n");
++
++		/* DI0 -> DP-BG channel: */
+ 		mxc_fb_devices[0].num_resources = ARRAY_SIZE(mxcfb_resources);
+ 		mxc_fb_devices[0].resource = mxcfb_resources;
+ 		mxc_register_device(&mxc_fb_devices[0], &fb_data[0]);
+-		if (fb_data[1].mode_str || fb_data[1].mode)
+-			/*
+-			 * DI1 -> DC channel:
+-			 *
+-			 *    dev    di-out-fmt    default-videmode
+-			 *
+-			 * 1. VGA       RGB 	   1024x768M-16@60
+-			 * 2. TVE       YUV	   video_modes[0]
+-			 */
+-			mxc_register_device(&mxc_fb_devices[1], &fb_data[1]);
++
++		/* DI1 -> DC channel: */
++		mxc_register_device(&mxc_fb_devices[1], &fb_data[1]);
+ 	}
+ 
+ 	/*
+@@ -341,29 +317,6 @@ static int __init mxc_init_fb(void)
+ }
+ device_initcall(mxc_init_fb);
+ 
+-static int __init dvi_setup(char *s)
+-{
+-	enable_dvi = 1;
+-	return 1;
+-}
+-__setup("dvi", dvi_setup);
+-
+-static int __init vga_setup(char *__unused)
+-{
+-	enable_vga = 1;
+-	return 1;
+-}
+-__setup("vga", vga_setup);
+-
+-static int __init tv_setup(char *s)
+-{
+-	enable_tv = 1;
+-	if (strcmp(s, "2") == 0 || strcmp(s, "=2") == 0)
+-		enable_tv = 2;
+-	return 1;
+-}
+-__setup("hdtv", tv_setup);
+-
+ static struct mxc_camera_platform_data camera_data = {
+ 	.analog_regulator = "VSD",
+ 	.mclk = 24000000,
+@@ -734,7 +687,6 @@ static void __init mxc_board_init(void)
+ 	mxc_register_device(&mxc_rtc_device, &srtc_data);
+ 	mxc_register_device(&mxc_w1_master_device, &mxc_w1_data);
+ 	mxc_register_device(&mxc_ipu_device, &mxc_ipu_data);
+-	mxc_register_device(&lcd_wvga_device, &lcd_wvga_data);
+ 	mxc_register_device(&mxc_tve_device, &tve_data);
+ 	mxc_register_device(&mxcvpu_device, &mxc_vpu_data);
+ 	mxc_register_device(&gpu_device, NULL);
+diff --git a/arch/arm/plat-mxc/include/mach/mxc.h b/arch/arm/plat-mxc/include/mach/mxc.h
+index d973002..dbfca19 100644
+--- a/arch/arm/plat-mxc/include/mach/mxc.h
++++ b/arch/arm/plat-mxc/include/mach/mxc.h
+@@ -292,6 +292,7 @@ struct mxc_lightsensor_platform_data {
+ 
+ struct mxc_fb_platform_data {
+ 	struct fb_videomode *mode;
++	int num_modes;
+ 	char *mode_str;
+ 	u32 interface_pix_fmt;
+ };
+diff --git a/drivers/mxc/ipu3/ipu_disp.c b/drivers/mxc/ipu3/ipu_disp.c
+index c3a09d8..aae6756 100644
+--- a/drivers/mxc/ipu3/ipu_disp.c
++++ b/drivers/mxc/ipu3/ipu_disp.c
+@@ -969,17 +969,11 @@ int32_t ipu_init_sync_panel(int disp, uint32_t pixel_clk,
+ 				(clk_get_usecount(g_pixel_clk[1]) == 0)) {
+ 			di_parent = clk_get_parent(g_di_clk[disp]);
+ 			if (strcmp(di_parent->name, "tve_clk") != 0) {
+-				rounded_pixel_clk =
+-					clk_round_rate(g_pixel_clk[disp], pixel_clk);
+-				div  = clk_get_rate(di_parent) / rounded_pixel_clk;
+-				if (div % 2)
+-					div++;
+-
+-				if (clk_get_rate(di_parent) != div * rounded_pixel_clk)
+-					clk_set_rate(di_parent, div * rounded_pixel_clk);
+-				msleep(10);
+-				clk_set_rate(g_di_clk[disp], 2 * rounded_pixel_clk);
+-				msleep(10);
++				rounded_pixel_clk = pixel_clk * 2;
++				while (rounded_pixel_clk < 150000000)
++					rounded_pixel_clk += pixel_clk * 2;
++				clk_set_rate(di_parent, rounded_pixel_clk);
++				clk_set_rate(g_di_clk[disp], pixel_clk);
+ 			}
+ 		}
+ 		clk_set_parent(g_pixel_clk[disp], g_di_clk[disp]);
+diff --git a/drivers/video/mxc/mxc_ipuv3_fb.c b/drivers/video/mxc/mxc_ipuv3_fb.c
+index 76c6d52..b8348c3 100644
+--- a/drivers/video/mxc/mxc_ipuv3_fb.c
++++ b/drivers/video/mxc/mxc_ipuv3_fb.c
+@@ -56,11 +56,14 @@
+  * Structure containing the MXC specific framebuffer information.
+  */
+ struct mxcfb_info {
++	char *fb_mode_str;
++	int default_bpp;
+ 	int cur_blank;
+ 	int next_blank;
+ 	ipu_channel_t ipu_ch;
+ 	int ipu_di;
+ 	u32 ipu_di_pix_fmt;
++	bool ipu_ext_clk;
+ 	bool overlay;
+ 	bool alpha_chan_en;
+ 	dma_addr_t alpha_phy_addr0;
+@@ -93,12 +96,9 @@ enum {
+ 	BOTH_OFF
+ };
+ 
+-static char *fb_mode;
+-static unsigned long default_bpp = 16;
+ static bool g_dp_in_use;
+ LIST_HEAD(fb_alloc_list);
+ static struct fb_info *mxcfb_info[3];
+-static int ext_clk_used;
+ 
+ static uint32_t bpp_to_pixfmt(struct fb_info *fbi)
+ {
+@@ -125,6 +125,7 @@ static irqreturn_t mxcfb_irq_handler(int irq, void *dev_id);
+ static int mxcfb_blank(int blank, struct fb_info *info);
+ static int mxcfb_map_video_memory(struct fb_info *fbi);
+ static int mxcfb_unmap_video_memory(struct fb_info *fbi);
++static int mxcfb_option_setup(struct fb_info *info, char *options);
+ 
+ /*
+  * Set fixed framebuffer parameters based on variable settings.
+@@ -347,7 +348,7 @@ static int mxcfb_set_par(struct fb_info *fbi)
+ 		}
+ 		if (fbi->var.vmode & FB_VMODE_ODD_FLD_FIRST) /* PAL */
+ 			sig_cfg.odd_field_first = true;
+-		if ((fbi->var.sync & FB_SYNC_EXT) || ext_clk_used)
++		if ((fbi->var.sync & FB_SYNC_EXT) || mxc_fbi->ipu_ext_clk)
+ 			sig_cfg.ext_clk = true;
+ 		if (fbi->var.sync & FB_SYNC_HOR_HIGH_ACT)
+ 			sig_cfg.Hsync_pol = true;
+@@ -555,7 +556,7 @@ static int mxcfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
+ 
+ 	if ((var->bits_per_pixel != 32) && (var->bits_per_pixel != 24) &&
+ 	    (var->bits_per_pixel != 16) && (var->bits_per_pixel != 8))
+-		var->bits_per_pixel = default_bpp;
++		var->bits_per_pixel = 16;
+ 
+ 	switch (var->bits_per_pixel) {
+ 	case 8:
+@@ -1487,6 +1488,8 @@ static int mxcfb_probe(struct platform_device *pdev)
+ 	struct mxcfb_info *mxcfbi;
+ 	struct mxc_fb_platform_data *plat_data = pdev->dev.platform_data;
+ 	struct resource *res;
++	char *options;
++	char name[] = "mxcdi0fb";
+ 	int ret = 0;
+ 
+ 	/*
+@@ -1499,6 +1502,13 @@ static int mxcfb_probe(struct platform_device *pdev)
+ 	}
+ 	mxcfbi = (struct mxcfb_info *)fbi->par;
+ 
++	name[5] += pdev->id;
++	if (fb_get_options(name, &options))
++		return -ENODEV;
++
++	if (options)
++		mxcfb_option_setup(fbi, options);
++
+ 	if (!g_dp_in_use) {
+ 		mxcfbi->ipu_ch_irq = IPU_IRQ_BG_SYNC_EOF;
+ 		mxcfbi->ipu_ch = MEM_BG_SYNC;
+@@ -1579,18 +1589,25 @@ static int mxcfb_probe(struct platform_device *pdev)
+ 	fbi->var.xres = 240;
+ 	fbi->var.yres = 320;
+ 
+-	if (!fb_mode && plat_data && plat_data->mode_str)
+-		fb_find_mode(&fbi->var, fbi, plat_data->mode_str, NULL, 0, NULL,
+-			     default_bpp);
++	if (!mxcfbi->default_bpp)
++		mxcfbi->default_bpp = 16;
+ 
+-	if (fb_mode)
+-		fb_find_mode(&fbi->var, fbi, fb_mode, NULL, 0, NULL,
+-			     default_bpp);
+-
+-	if (plat_data) {
++	if (plat_data && !mxcfbi->ipu_di_pix_fmt)
+ 		mxcfbi->ipu_di_pix_fmt = plat_data->interface_pix_fmt;
+-		if (!fb_mode && plat_data->mode)
+-			fb_videomode_to_var(&fbi->var, plat_data->mode);
++
++	if (plat_data && plat_data->mode && plat_data->num_modes)
++		fb_videomode_to_modelist(plat_data->mode, plat_data->num_modes,
++				&fbi->modelist);
++
++	if (!mxcfbi->fb_mode_str && plat_data && plat_data->mode_str)
++		mxcfbi->fb_mode_str = plat_data->mode_str;
++
++	if (mxcfbi->fb_mode_str) {
++		ret = fb_find_mode(&fbi->var, fbi, mxcfbi->fb_mode_str, NULL, 0, NULL,
++				mxcfbi->default_bpp);
++		if ((!ret || (ret > 2)) && plat_data && plat_data->mode && plat_data->num_modes)
++			fb_find_mode(&fbi->var, fbi, mxcfbi->fb_mode_str, plat_data->mode,
++					plat_data->num_modes, NULL, mxcfbi->default_bpp);
+ 	}
+ 
+ 	mxcfb_check_var(&fbi->var, fbi);
+@@ -1662,28 +1679,55 @@ static struct platform_driver mxcfb_driver = {
+ /*
+  * Parse user specified options (`video=trident:')
+  * example:
+- * 	video=trident:800x600,bpp=16,noaccel
++ * 	video=mxcdi0fb:RGB24, 1024x768M-16@60,bpp=16,noaccel
+  */
+-int mxcfb_setup(char *options)
++static int mxcfb_option_setup(struct fb_info *info, char *options)
+ {
++	struct mxcfb_info *mxcfbi = info->par;
+ 	char *opt;
++
+ 	if (!options || !*options)
+ 		return 0;
++
+ 	while ((opt = strsep(&options, ",")) != NULL) {
+ 		if (!*opt)
+ 			continue;
++
++		if (!strncmp(opt, "RGB24", 5)) {
++			mxcfbi->ipu_di_pix_fmt = IPU_PIX_FMT_RGB24;
++			continue;
++		}
++		if (!strncmp(opt, "BGR24", 5)) {
++			mxcfbi->ipu_di_pix_fmt = IPU_PIX_FMT_BGR24;
++			continue;
++		}
++		if (!strncmp(opt, "RGB565", 6)) {
++			mxcfbi->ipu_di_pix_fmt = IPU_PIX_FMT_RGB565;
++			continue;
++		}
++		if (!strncmp(opt, "RGB666", 6)) {
++			mxcfbi->ipu_di_pix_fmt = IPU_PIX_FMT_RGB666;
++			continue;
++		}
++		if (!strncmp(opt, "YUV444", 6)) {
++			mxcfbi->ipu_di_pix_fmt = IPU_PIX_FMT_YUV444;
++			continue;
++		}
++		if (!strncmp(opt, "LVDS666", 7)) {
++			mxcfbi->ipu_di_pix_fmt = IPU_PIX_FMT_LVDS666;
++			continue;
++		}
+ 		if (!strncmp(opt, "ext_clk", 7)) {
+-			ext_clk_used = true;
++			mxcfbi->ipu_ext_clk = true;
+ 			continue;
+-		} else
+-			ext_clk_used = false;
+-
++		}
+ 		if (!strncmp(opt, "bpp=", 4))
+-			default_bpp = simple_strtoul(opt + 4, NULL, 0);
++			mxcfbi->default_bpp =
++				simple_strtoul(opt + 4, NULL, 0);
+ 		else
+-			fb_mode = opt;
+-
++			mxcfbi->fb_mode_str = opt;
+ 	}
++
+ 	return 0;
+ }
+ 
+@@ -1696,19 +1740,7 @@ int mxcfb_setup(char *options)
+  */
+ int __init mxcfb_init(void)
+ {
+-	int ret = 0;
+-#ifndef MODULE
+-	char *option = NULL;
+-#endif
+-
+-#ifndef MODULE
+-	if (fb_get_options("mxcfb", &option))
+-		return -ENODEV;
+-	mxcfb_setup(option);
+-#endif
+-
+-	ret = platform_driver_register(&mxcfb_driver);
+-	return ret;
++	return platform_driver_register(&mxcfb_driver);
+ }
+ 
+ void mxcfb_exit(void)
+diff --git a/drivers/video/mxc/tve.c b/drivers/video/mxc/tve.c
+index 2d2929c..52a6a20 100644
+--- a/drivers/video/mxc/tve.c
++++ b/drivers/video/mxc/tve.c
+@@ -221,8 +221,9 @@ static int _is_tvout_mode_hd_compatible(void)
+ static int tve_setup(int mode)
+ {
+ 	u32 reg;
+-	struct clk *pll3_clk;
+-	unsigned long pll3_clock_rate = 216000000, di1_clock_rate = 27000000;
++	struct clk *tve_parent_clk;
++	unsigned long parent_clock_rate = 216000000, di1_clock_rate = 27000000;
++	unsigned long tve_clock_rate = 216000000;
+ 	struct clk *ipu_di1_clk;
+ 	unsigned long lock_flags;
+ 
+@@ -236,25 +237,30 @@ static int tve_setup(int mode)
+ 	switch (mode) {
+ 	case TVOUT_FMT_PAL:
+ 	case TVOUT_FMT_NTSC:
+-		pll3_clock_rate = 216000000;
++		parent_clock_rate = 216000000;
+ 		di1_clock_rate = 27000000;
+ 		break;
+ 	case TVOUT_FMT_720P60:
+-		pll3_clock_rate = 297000000;
++		parent_clock_rate = 297000000;
++		if (cpu_is_mx53())
++			tve_clock_rate = 297000000;
+ 		di1_clock_rate = 74250000;
+ 		break;
+ 	}
+ 	if (enabled)
+ 		clk_disable(tve.clk);
+ 
+-	pll3_clk = clk_get(NULL, "pll3");
++	tve_parent_clk = clk_get_parent(tve.clk);
+ 	ipu_di1_clk = clk_get(NULL, "ipu_di1_clk");
+ 
+-	clk_disable(pll3_clk);
+-	clk_set_rate(pll3_clk, pll3_clock_rate);
+-	clk_set_rate(ipu_di1_clk, di1_clock_rate);
++	clk_disable(tve_parent_clk);
++	clk_set_rate(tve_parent_clk, parent_clock_rate);
++
++	if (cpu_is_mx53())
++		clk_set_rate(tve.clk, tve_clock_rate);
+ 
+ 	clk_enable(tve.clk);
++	clk_set_rate(ipu_di1_clk, di1_clock_rate);
+ 
+ 	/* select output video format */
+ 	if (mode == TVOUT_FMT_PAL) {
+@@ -748,21 +754,36 @@ static int tve_probe(struct platform_device *pdev)
+ 
+ 	clk_disable(tve.clk);
+ 
++	ret = fb_register_client(&nb);
++	if (ret < 0)
++		goto err2;
++
+ 	/* is primary display? */
+ 	if (primary) {
+-		struct fb_event event;
++		struct fb_var_screeninfo var;
++		const struct fb_videomode *mode;
++
++		memset(&var, 0, sizeof(var));
++		mode = fb_match_mode(&tve_fbi->var, &tve_fbi->modelist);
++		if (mode) {
++			pr_debug("TVE: fb mode found\n");
++			fb_videomode_to_var(&var, mode);
++		} else {
++			pr_warning("TVE: can not find video mode\n");
++			goto err2;
++		}
++		acquire_console_sem();
++		tve_fbi->flags |= FBINFO_MISC_USEREVENT;
++		fb_set_var(tve_fbi, &var);
++		tve_fbi->flags &= ~FBINFO_MISC_USEREVENT;
++		release_console_sem();
+ 
+-		event.info = tve_fbi;
+-		tve_fb_event(NULL, FB_EVENT_MODE_CHANGE, &event);
+ 		acquire_console_sem();
+ 		fb_blank(tve_fbi, FB_BLANK_UNBLANK);
+ 		release_console_sem();
+ 		fb_show_logo(tve_fbi, 0);
+ 	}
+ 
+-	ret = fb_register_client(&nb);
+-	if (ret < 0)
+-		goto err2;
+ 
+ 	return 0;
+ err2:
+-- 
+1.5.4.4
+

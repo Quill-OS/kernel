@@ -1,0 +1,52 @@
+From 178fda494b6f5819a3bae2e4dbe95cdec769a518 Mon Sep 17 00:00:00 2001
+From: Liu Ying <b17645@freescale.com>
+Date: Tue, 12 Jan 2010 13:00:02 -0500
+Subject: [PATCH] ENGR00119975 IPUv3:Inform user when IDMAC UV-offset overflows
+
+UBO and VBO are 22-bit in CPMEM. When processing a high resolution
+frame in YUV format, the value of UV-offset may overflow, but the
+driver keeps silent.
+
+Signed-off-by: Liu Ying <b17645@freescale.com>
+---
+ drivers/mxc/ipu3/ipu_param_mem.h |   17 +++++++++++++++++
+ 1 files changed, 17 insertions(+), 0 deletions(-)
+
+diff --git a/drivers/mxc/ipu3/ipu_param_mem.h b/drivers/mxc/ipu3/ipu_param_mem.h
+index 28358fd..74bb9d9 100644
+--- a/drivers/mxc/ipu3/ipu_param_mem.h
++++ b/drivers/mxc/ipu3/ipu_param_mem.h
+@@ -284,6 +284,14 @@ static inline void _ipu_ch_param_init(int ch,
+ 		v_offset = v;
+ 	}
+ 
++	/* UBO and VBO are 22-bit */
++	if (u_offset/8 > 0x3fffff)
++		dev_err(g_ipu_dev,
++			"The value of U offset exceeds IPU limitation\n");
++	if (v_offset/8 > 0x3fffff)
++		dev_err(g_ipu_dev,
++			"The value of V offset exceeds IPU limitation\n");
++
+ 	ipu_ch_param_set_field(&params, 0, 46, 22, u_offset / 8);
+ 	ipu_ch_param_set_field(&params, 0, 68, 22, v_offset / 8);
+ 
+@@ -500,6 +508,15 @@ static inline void _ipu_ch_offset_update(int ch,
+ 
+ 	if (v_fix > v_offset)
+ 		v_offset = v_fix;
++
++	/* UBO and VBO are 22-bit */
++	if (u_offset/8 > 0x3fffff)
++		dev_err(g_ipu_dev,
++			"The value of U offset exceeds IPU limitation\n");
++	if (v_offset/8 > 0x3fffff)
++		dev_err(g_ipu_dev,
++			"The value of V offset exceeds IPU limitation\n");
++
+ 	ipu_ch_param_mod_field(ipu_ch_param_addr(ch), 0, 46, 22, u_offset / 8);
+ 	ipu_ch_param_mod_field(ipu_ch_param_addr(ch), 0, 68, 22, v_offset / 8);
+ 
+-- 
+1.5.4.4
+

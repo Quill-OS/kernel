@@ -1,0 +1,77 @@
+From ebc765a5c1f869ab963bc4e044cab457fc47e3b9 Mon Sep 17 00:00:00 2001
+From: Rob Herring <r.herring@freescale.com>
+Date: Wed, 7 Apr 2010 13:26:04 -0500
+Subject: [PATCH] ENGR00122142-2 imx: fix platforms using fec RMII mode
+
+Add FEC phy interface mode platform data for platforms using RMII.
+
+Signed-off-by: Rob Herring <r.herring@freescale.com>
+---
+ arch/arm/mach-mx25/mx25_3stack.c |    8 ++++++++
+ arch/arm/mach-mx5/mx53_evk.c     |    7 ++++++-
+ 2 files changed, 14 insertions(+), 1 deletions(-)
+
+diff --git a/arch/arm/mach-mx25/mx25_3stack.c b/arch/arm/mach-mx25/mx25_3stack.c
+index 30b4cbd..6ccf1fa 100644
+--- a/arch/arm/mach-mx25/mx25_3stack.c
++++ b/arch/arm/mach-mx25/mx25_3stack.c
+@@ -22,6 +22,7 @@
+ #include <linux/i2c.h>
+ #include <linux/platform_device.h>
+ #include <linux/smsc911x.h>
++#include <linux/fec.h>
+ #if defined(CONFIG_MTD) || defined(CONFIG_MTD_MODULE)
+ #include <linux/mtd/mtd.h>
+ #include <linux/mtd/map.h>
+@@ -462,9 +463,16 @@ static struct resource mxc_fec_resources[] = {
+ 	},
+ };
+ 
++static struct fec_platform_data fec_data = {
++	.phy = PHY_INTERFACE_MODE_RMII,
++};
++
+ struct platform_device mxc_fec_device = {
+ 	.name = "fec",
+ 	.id = 0,
++	.dev = {
++		.platform_data = &fec_data,
++	},
+ 	.num_resources = ARRAY_SIZE(mxc_fec_resources),
+ 	.resource = mxc_fec_resources,
+ };
+diff --git a/arch/arm/mach-mx5/mx53_evk.c b/arch/arm/mach-mx5/mx53_evk.c
+index 98fcfdf..4cc03aa 100644
+--- a/arch/arm/mach-mx5/mx53_evk.c
++++ b/arch/arm/mach-mx5/mx53_evk.c
+@@ -43,6 +43,7 @@
+ #include <linux/ipu.h>
+ #include <linux/mxcfb.h>
+ #include <linux/pwm_backlight.h>
++#include <linux/fec.h>
+ #include <mach/common.h>
+ #include <mach/hardware.h>
+ #include <asm/irq.h>
+@@ -198,6 +199,10 @@ static struct mxc_vpu_platform_data mxc_vpu_data = {
+ 	.reset = mx5_vpu_reset,
+ };
+ 
++static struct fec_platform_data fec_data = {
++	.phy = PHY_INTERFACE_MODE_RMII,
++};
++
+ extern void mx53_evk_gpio_spi_chipselect_active(int cspi_mode, int status,
+ 						    int chipselect);
+ extern void mx53_evk_gpio_spi_chipselect_inactive(int cspi_mode, int status,
+@@ -696,7 +701,7 @@ static void __init mxc_board_init(void)
+ 	/*
+ 	mxc_register_device(&mxc_alsa_spdif_device, &mxc_spdif_data);
+ 	*/
+-	mxc_register_device(&mxc_fec_device, NULL);
++	mxc_register_device(&mxc_fec_device, &fec_data);
+ 	spi_register_board_info(mxc_dataflash_device,
+ 				ARRAY_SIZE(mxc_dataflash_device));
+ 	i2c_register_board_info(0, mxc_i2c0_board_info,
+-- 
+1.5.4.4
+

@@ -1,0 +1,37 @@
+From 10a9b1a7a7c3b1e7faf5591828e735237c145628 Mon Sep 17 00:00:00 2001
+From: Nancy Chen <Nancy.Chen@freescale.com>
+Date: Fri, 30 Apr 2010 15:54:01 -0500
+Subject: [PATCH] ENGR00123086 MX23: CPU frequency can not be changed to 64 MHz
+
+MX23: CPU frequency can not be changed to 64 MHz.
+
+Signed-off-by: Nancy Chen <Nancy.Chen@freescale.com>
+---
+ arch/arm/plat-mxs/clock.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm/plat-mxs/clock.c b/arch/arm/plat-mxs/clock.c
+index 9fecdbd..601830d 100644
+--- a/arch/arm/plat-mxs/clock.c
++++ b/arch/arm/plat-mxs/clock.c
+@@ -109,7 +109,7 @@ int clk_enable(struct clk *clk)
+ 		return -EINVAL;
+ 
+ 	spin_lock_irqsave(&clockfw_lock, flags);
+-	pre_usage = clk->ref;
++	pre_usage = (clk->ref & CLK_EN_MASK);
+ 	ret = __clk_enable(clk);
+ 	spin_unlock_irqrestore(&clockfw_lock, flags);
+ 	if ((clk->flags & CPU_FREQ_TRIG_UPDATE)
+@@ -133,7 +133,7 @@ void clk_disable(struct clk *clk)
+ 	__clk_disable(clk);
+ 	spin_unlock_irqrestore(&clockfw_lock, flags);
+ 	if ((clk->flags & CPU_FREQ_TRIG_UPDATE)
+-			&& (clk->ref == 0)) {
++			&& ((clk->ref & CLK_EN_MASK) == 0)) {
+ 		cpufreq_trig_needed = 1;
+ 		cpufreq_update_policy(0);
+ 	}
+-- 
+1.5.4.4
+

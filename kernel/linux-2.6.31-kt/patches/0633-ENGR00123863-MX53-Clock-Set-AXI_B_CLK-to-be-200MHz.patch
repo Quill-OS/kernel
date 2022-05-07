@@ -1,0 +1,30 @@
+From 2e0a5b93fbcc7659283e221cb5bf8216627979d1 Mon Sep 17 00:00:00 2001
+From: Liu Ying <b17645@freescale.com>
+Date: Wed, 26 May 2010 18:00:45 -0400
+Subject: [PATCH] ENGR00123863 MX53 Clock:Set AXI_B_CLK to be 200MHz
+
+Set AXI_B_CLK to be 200MHz in case it is set to other clock rate in bootloader.
+This can make sure IPU has sufficient clock rate.
+
+Signed-off-by: Liu Ying <b17645@freescale.com>
+---
+ arch/arm/mach-mx5/clock.c |    3 +++
+ 1 files changed, 3 insertions(+), 0 deletions(-)
+
+diff --git a/arch/arm/mach-mx5/clock.c b/arch/arm/mach-mx5/clock.c
+index 2bd7548..47f05d0 100644
+--- a/arch/arm/mach-mx5/clock.c
++++ b/arch/arm/mach-mx5/clock.c
+@@ -4747,6 +4747,9 @@ int __init mx53_clocks_init(unsigned long ckil, unsigned long osc, unsigned long
+ 
+ 	clk_enable(&main_bus_clk);
+ 
++	/* Set AXI_B_CLK to be 200MHz */
++	clk_set_rate(&axi_b_clk, 200000000);
++
+ 	/* Initialise the parents to be axi_b, parents are set to
+ 	 * axi_a when the clocks are enabled.
+ 	 */
+-- 
+1.5.4.4
+

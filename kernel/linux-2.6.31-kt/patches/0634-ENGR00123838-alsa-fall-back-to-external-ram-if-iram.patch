@@ -1,0 +1,68 @@
+From 9d7d4eaf949824598a84e678b43479d0c4893076 Mon Sep 17 00:00:00 2001
+From: Alan Tull <r80115@freescale.com>
+Date: Tue, 25 May 2010 16:44:26 -0500
+Subject: [PATCH] ENGR00123838 alsa: fall back to external ram if iram fails
+
+If iram_alloc fails, should warn and fall back to external ram.
+
+Signed-off-by: Alan Tull <r80115@freescale.com>
+---
+ arch/arm/plat-mxc/iram.c |    5 +++++
+ arch/arm/plat-mxs/iram.c |    5 +++++
+ sound/soc/imx/imx-pcm.c  |    8 ++++++++
+ 3 files changed, 18 insertions(+), 0 deletions(-)
+
+diff --git a/arch/arm/plat-mxc/iram.c b/arch/arm/plat-mxc/iram.c
+index 3d2a391..c63b0a2 100644
+--- a/arch/arm/plat-mxc/iram.c
++++ b/arch/arm/plat-mxc/iram.c
+@@ -36,6 +36,11 @@ void *iram_alloc(unsigned int size, unsigned long *dma_addr)
+ 
+ 	*dma_addr = gen_pool_alloc(iram_pool, size);
+ 	pr_debug("iram alloc - %dB@0x%p\n", size, (void *)*dma_addr);
++
++	WARN_ON(!*dma_addr);
++	if (!*dma_addr)
++		return NULL;
++
+ 	return iram_phys_to_virt(*dma_addr);
+ }
+ EXPORT_SYMBOL(iram_alloc);
+diff --git a/arch/arm/plat-mxs/iram.c b/arch/arm/plat-mxs/iram.c
+index 3d2a391..c63b0a2 100644
+--- a/arch/arm/plat-mxs/iram.c
++++ b/arch/arm/plat-mxs/iram.c
+@@ -36,6 +36,11 @@ void *iram_alloc(unsigned int size, unsigned long *dma_addr)
+ 
+ 	*dma_addr = gen_pool_alloc(iram_pool, size);
+ 	pr_debug("iram alloc - %dB@0x%p\n", size, (void *)*dma_addr);
++
++	WARN_ON(!*dma_addr);
++	if (!*dma_addr)
++		return NULL;
++
+ 	return iram_phys_to_virt(*dma_addr);
+ }
+ EXPORT_SYMBOL(iram_alloc);
+diff --git a/sound/soc/imx/imx-pcm.c b/sound/soc/imx/imx-pcm.c
+index 2487d92..3e8a90d 100644
+--- a/sound/soc/imx/imx-pcm.c
++++ b/sound/soc/imx/imx-pcm.c
+@@ -579,6 +579,14 @@ static int imx_pcm_preallocate_dma_buffer(struct snd_pcm *pcm, int stream)
+ 	else {
+ 		buf->area = iram_alloc(size, &buf_paddr);
+ 		buf->addr = buf_paddr;
++
++		if (!buf->area) {
++			pr_warning("imx-pcm: Falling back to external ram.\n");
++			UseIram = 0;
++			buf->area =
++			    dma_alloc_writecombine(pcm->card->dev, size,
++						   &buf->addr, GFP_KERNEL);
++		}
+ 	}
+ 
+ 	if (!buf->area)
+-- 
+1.5.4.4
+

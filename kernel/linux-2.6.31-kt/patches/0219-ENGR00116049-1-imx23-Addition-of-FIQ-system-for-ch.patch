@@ -1,0 +1,575 @@
+From ed32066f456d97ebdd0d4a93266fa9f2ec93735b Mon Sep 17 00:00:00 2001
+From: Robert Lee <robert.lee@freescale.com>
+Date: Mon, 18 Jan 2010 10:05:02 +0800
+Subject: [PATCH] ENGR00116049-1 [imx23] Addition of FIQ system for chip errata/bo's
+
+[imx23] Addition of FIQ system for chip errata and bo's
+
+Signed-off-by: Robert Lee <robert.lee@freescale.com>
+---
+ arch/arm/mach-stmp378x/Kconfig  |    6 ++
+ arch/arm/mach-stmp378x/pm.c     |   18 ++--
+ arch/arm/plat-stmp3xxx/Kconfig  |    2 +
+ arch/arm/plat-stmp3xxx/clock.c  |    4 +-
+ drivers/power/stmp37xx/Makefile |    4 +-
+ drivers/power/stmp37xx/fiq.S    |  108 ++++++++++++++++++++++++++
+ drivers/power/stmp37xx/linux.c  |  159 ++++++++++++++++++++++++++++++++-------
+ 7 files changed, 261 insertions(+), 40 deletions(-)
+
+diff --git a/arch/arm/mach-stmp378x/Kconfig b/arch/arm/mach-stmp378x/Kconfig
+index 27bb523..0978908 100644
+--- a/arch/arm/mach-stmp378x/Kconfig
++++ b/arch/arm/mach-stmp378x/Kconfig
+@@ -57,6 +57,12 @@ config DMA_ZONE_SIZE
+ 	  This is the size in MB for the DMA zone. The DMA zone is used for
+ 	  dedicated memory for large contiguous video buffers
+ 
++config VECTORS_PHY_ADDR
++	int "vectors address"
++	default 0
++	help
++	  This config set vectors table is located which physical address
++
+ # set if we need the UTMI transceiver code
+ config UTMI_MXC
+ 	bool
+diff --git a/arch/arm/mach-stmp378x/pm.c b/arch/arm/mach-stmp378x/pm.c
+index 32f87ee..15010d9 100644
+--- a/arch/arm/mach-stmp378x/pm.c
++++ b/arch/arm/mach-stmp378x/pm.c
+@@ -3,7 +3,7 @@
+  *
+  * Author: Vitaly Wool <vital@embeddedalley.com>
+  *
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  * Copyright 2008 Embedded Alley Solutions, Inc All Rights Reserved.
+  */
+ 
+@@ -235,7 +235,7 @@ static inline void do_standby(void)
+ 	 */
+ 
+ 	/* save portion of SRAM to be used by suspend function. */
+-	memcpy(saved_sram, (void *)STMP3XXX_OCRAM_BASE,
++	memcpy(saved_sram, (void *)(STMP3XXX_OCRAM_BASE + 0x1000),
+ 			stmp_standby_alloc_sz);
+ 
+ 	/* make sure SRAM copy gets physically written into SDRAM.
+@@ -244,7 +244,7 @@ static inline void do_standby(void)
+ 	flush_cache_all();
+ 
+ 	/* copy suspend function into SRAM */
+-	memcpy((void *)STMP3XXX_OCRAM_BASE, stmp378x_standby,
++	memcpy((void *)(STMP3XXX_OCRAM_BASE + 0x1000), stmp378x_standby,
+ 			MAX_POWEROFF_CODE_SIZE);
+ 
+ 	/* now switch the CPU to ref_xtal */
+@@ -302,7 +302,7 @@ static inline void do_standby(void)
+ 		REGS_CLKCTRL_BASE + HW_CLKCTRL_XTAL);
+ 
+ 	/* do suspend */
+-	stmp37xx_cpu_standby_ptr = (void *)STMP3XXX_OCRAM_BASE;
++	stmp37xx_cpu_standby_ptr = (void *)(STMP3XXX_OCRAM_BASE + 0x1000);
+ 	stmp37xx_cpu_standby_ptr();
+ 
+ 	__raw_writel(reg_clkctrl_clkseq, REGS_CLKCTRL_BASE + HW_CLKCTRL_CLKSEQ);
+@@ -329,7 +329,7 @@ static inline void do_standby(void)
+ 	clk_put(cpu_clk);
+ 
+ 	/* restoring portion of SRAM that was used by suspend function */
+-	memcpy((void *)STMP3XXX_OCRAM_BASE, saved_sram,
++	memcpy((void *)(STMP3XXX_OCRAM_BASE + 0x1000), saved_sram,
+ 			stmp_standby_alloc_sz);
+ }
+ 
+@@ -400,7 +400,7 @@ static noinline void do_mem(void)
+ 	hbus_rate = clk_get_rate(hbus_clk);
+ 
+ 	/* save portion of SRAM to be used by suspend function. */
+-	memcpy(saved_sram, (void *)STMP3XXX_OCRAM_BASE, stmp_s2ram_alloc_sz);
++	memcpy(saved_sram, (void *)(STMP3XXX_OCRAM_BASE + 0x1000), stmp_s2ram_alloc_sz);
+ 
+ 	/* set the PERSISTENT_SLEEP_BIT for bootloader */
+ 	__raw_writel(1 << 10,
+@@ -413,17 +413,17 @@ static noinline void do_mem(void)
+ 	flush_cache_all();
+ 
+ 	/*copy suspend function into SRAM */
+-	memcpy((void *)STMP3XXX_OCRAM_BASE, stmp37xx_cpu_suspend,
++	memcpy((void *)(STMP3XXX_OCRAM_BASE + 0x1000), stmp37xx_cpu_suspend,
+ 			stmp_s2ram_alloc_sz);
+ 
+ 	/* do suspend */
+-	stmp37xx_cpu_suspend_ptr = (void *)STMP3XXX_OCRAM_BASE;
++	stmp37xx_cpu_suspend_ptr = (void *)(STMP3XXX_OCRAM_BASE + 0x1000);
+ 	stmp37xx_cpu_suspend_ptr(0);
+ 
+ 	saved_sleep_state = 1;	/* waking from non-standby state */
+ 
+ 	/* restoring portion of SRAM that was used by suspend function */
+-	memcpy((void *)STMP3XXX_OCRAM_BASE, saved_sram, stmp_s2ram_alloc_sz);
++	memcpy((void *)(STMP3XXX_OCRAM_BASE + 0x1000), saved_sram, stmp_s2ram_alloc_sz);
+ 
+ 	/* clocks */
+ 	for (i = 0; i < ARRAY_SIZE(clk_regs); i++)
+diff --git a/arch/arm/plat-stmp3xxx/Kconfig b/arch/arm/plat-stmp3xxx/Kconfig
+index e211f26..e6253be 100644
+--- a/arch/arm/plat-stmp3xxx/Kconfig
++++ b/arch/arm/plat-stmp3xxx/Kconfig
+@@ -8,12 +8,14 @@ choice
+ config ARCH_STMP37XX
+ 	bool "Freescale SMTP37xx"
+ 	select CPU_ARM926T
++	select FIQ
+ 	---help---
+ 	 STMP37xx refers to 3700 through 3769 chips
+ 
+ config ARCH_STMP378X
+ 	bool "Freescale STMP378x"
+ 	select CPU_ARM926T
++	select FIQ
+ 	---help---
+ 	 STMP378x refers to 3780 through 3789 chips
+ 
+diff --git a/arch/arm/plat-stmp3xxx/clock.c b/arch/arm/plat-stmp3xxx/clock.c
+index 62823d0..6007461 100644
+--- a/arch/arm/plat-stmp3xxx/clock.c
++++ b/arch/arm/plat-stmp3xxx/clock.c
+@@ -3,7 +3,7 @@
+  *
+  * Author: Vitaly Wool <vital@embeddedalley.com>
+  *
+- * Copyright 2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  * Copyright 2008 Embedded Alley Solutions, Inc All Rights Reserved.
+  */
+ 
+@@ -442,7 +442,7 @@ static int emi_set_rate(struct clk *clk, u32 rate)
+ 		int i;
+ 		struct stmp3xxx_emi_scaling_data sc_data;
+ 		int (*scale)(struct stmp3xxx_emi_scaling_data *) =
+-			(void *)STMP3XXX_OCRAM_BASE;
++			(void *)(STMP3XXX_OCRAM_BASE + 0x1000);
+ 		void *saved_ocram;
+ 		u32 clkctrl_emi;
+ 		u32 clkctrl_frac;
+diff --git a/drivers/power/stmp37xx/Makefile b/drivers/power/stmp37xx/Makefile
+index 25b340e..65f670e 100644
+--- a/drivers/power/stmp37xx/Makefile
++++ b/drivers/power/stmp37xx/Makefile
+@@ -5,4 +5,6 @@
+ obj-$(CONFIG_BATTERY_STMP3XXX) += stmp3xxx-battery.o
+ 
+ stmp3xxx-battery-objs := ddi_bc_api.o ddi_bc_hw.o ddi_bc_init.o \
+-		         ddi_bc_ramp.o ddi_bc_sm.o ddi_power_battery.o linux.o
++		         ddi_bc_ramp.o ddi_bc_sm.o ddi_power_battery.o linux.o \
++			 fiq.o
++
+diff --git a/drivers/power/stmp37xx/fiq.S b/drivers/power/stmp37xx/fiq.S
+new file mode 100644
+index 0000000..09c185d
+--- /dev/null
++++ b/drivers/power/stmp37xx/fiq.S
+@@ -0,0 +1,108 @@
++#include <linux/linkage.h>
++#include <asm/assembler.h>
++#include <mach/platform.h>
++#include <mach/hardware.h>
++#include <asm/pgtable-hwdef.h>
++#include <mach/regs-power.h>
++#include <mach/regs-clkctrl.h>
++#include <mach/regs-timrot.h>
++
++	.align 5
++	.globl power_fiq_start
++	.globl power_fiq_end
++	.globl power_fiq_count
++	.globl lock_vector_tlb
++
++power_fiq_start:
++
++	ldr 	r8,power_reg
++	ldr	r9,[r8,#HW_POWER_CTRL ]
++	ldr	r10,power_off
++
++	@ when VDDIO_BO_IRQ,
++	@ disabled, handled in IRQ for now
++	@tst 	r9, #BM_POWER_CTRL_VDDIO_BO_IRQ
++
++
++	@ when BATT_BO_IRQ,  VDDD_BO_IRQ, VDDA_BO_IRQ, power off chip
++	ldr     r11,power_bo
++	tst	r9, r11
++	strne 	r10,[r8,#HW_POWER_RESET]
++
++	@VDD5V_DROOP_IRQ
++	tst     r9, #BM_POWER_CTRL_VDD5V_DROOP_IRQ
++	beq	    check_dcdc4p2
++
++	@ handle errata
++	ldr	r10, [r8, #HW_POWER_DCDC4P2]
++	orr	r10,r10,#(BM_POWER_DCDC4P2_TRG)
++	orr 	r10,r10,#(BF_POWER_DCDC4P2_CMPTRIP(31))
++	str	r10,[r8, #(HW_POWER_DCDC4P2)]
++
++	@ if battery is below brownout level, shutdown asap
++	ldr	r10,  [r8, #HW_POWER_STS]
++	tst	r10, #BM_POWER_STS_BATT_BO
++	ldr	r10, power_off
++	strne	r10, [r8, #HW_POWER_RESET]
++
++	@ disable viddio irq
++	mov	r11, #BM_POWER_CTRL_ENIRQ_VDDIO_BO
++	str 	r11, [r8, #HW_POWER_CTRL_CLR]
++
++	@ enable battery BO irq
++	mov	r11, #BM_POWER_CTRL_BATT_BO_IRQ
++	str	r11, [r8, #HW_POWER_CTRL_CLR]
++	mov	r11, #BM_POWER_CTRL_ENIRQBATT_BO
++	str	r11, [r8, #HW_POWER_CTRL_SET]
++
++	@ disable dcdc4p2 interrupt
++	mov	r11, #BM_POWER_CTRL_ENIRQ_DCDC4P2_BO
++	str	r11, [r8, #HW_POWER_CTRL_CLR]
++
++	@ disable vdd5v_droop interrupt
++	mov	r11, #BM_POWER_CTRL_ENIRQ_VDD5V_DROOP
++	str	r11, [r8, #HW_POWER_CTRL_CLR]
++
++check_dcdc4p2:
++		@ when DCDC4P2_BO_IRQ,
++	tst 	r9, #BM_POWER_CTRL_DCDC4P2_BO_IRQ
++
++	mov	r11, #BM_POWER_CTRL_BATT_BO_IRQ
++	strne	r11, [r8, #HW_POWER_CTRL_CLR]
++
++	mov	r11, #BM_POWER_CTRL_ENIRQBATT_BO
++	strne   r11, [r8, #HW_POWER_CTRL_SET]
++
++	mov	r11, #BM_POWER_CTRL_ENIRQ_DCDC4P2_BO
++	strne	r11, [r8, #HW_POWER_CTRL_CLR]
++
++
++
++	@return from fiq
++	subs    pc,lr, #4
++
++power_reg:
++	.long REGS_POWER_BASE
++power_off:
++	.long 0x3e770001
++power_bo:
++	.long BM_POWER_CTRL_BATT_BO_IRQ | \
++	      BM_POWER_CTRL_VDDA_BO_IRQ | BM_POWER_CTRL_VDDD_BO_IRQ
++power_fiq_count:
++	.long 0
++power_fiq_end:
++
++lock_vector_tlb:
++
++	mov r1, r0 @ set r1 to the value of the address to be locked down
++	mcr p15,0,r1,c8,c7,1    @ invalidate TLB single entry to ensure that
++				@ LockAddr is not already in the TLB
++	mrc p15,0,r0,c10,c0,0   @ read the lockdown register
++	orr r0,r0,#1            @ set the preserve bit
++	mcr p15,0,r0,c10,c0,0   @ write to the lockdown register
++	ldr r1,[r1]             @ TLB will miss, and entry will be loaded
++	mrc p15,0,r0,c10,c0,0   @ read the lockdown register (victim will have
++				@ incremented)
++	bic r0,r0,#1            @ clear preserve bit
++	mcr p15,0,r0,c10,c0,0   @ write to the lockdown registerADR r1,LockAddr
++	mov pc,lr		@
+diff --git a/drivers/power/stmp37xx/linux.c b/drivers/power/stmp37xx/linux.c
+index e4e62f9..8f97037 100644
+--- a/drivers/power/stmp37xx/linux.c
++++ b/drivers/power/stmp37xx/linux.c
+@@ -4,7 +4,7 @@
+  * Author: Steve Longerbeam <stevel@embeddedalley.com>
+  *
+  * Copyright (C) 2008 EmbeddedAlley Solutions Inc.
+- * Copyright 2008-2009 Freescale Semiconductor, Inc.
++ * Copyright 2008-2010 Freescale Semiconductor, Inc.
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License version 2, as
+@@ -25,9 +25,12 @@
+ #include <mach/regs-power.h>
+ #include <mach/regs-usbphy.h>
+ #include <mach/platform.h>
++#include <mach/irqs.h>
++#include <mach/regs-icoll.h>
+ #include <linux/delay.h>
+-
++#include <linux/proc_fs.h>
+ #include <linux/interrupt.h>
++#include <asm/fiq.h>
+ 
+ enum application_5v_status{
+ 	_5v_connected_verified,
+@@ -61,6 +64,9 @@ struct stmp3xxx_info {
+ 	uint32_t sm_new_5v_disconnection_jiffies;
+ 	enum application_5v_status sm_5v_connection_status;
+ 
++
++
++
+ #define USB_ONLINE      0x01
+ #define USB_REG_SET     0x02
+ #define USB_SM_RESTART  0x04
+@@ -91,6 +97,8 @@ struct stmp3xxx_info {
+ #define OS_SHUTDOWN_BATTERY_VOLTAGE_THRESHOLD_MV 3350
+ #endif
+ 
++#define  POWER_FIQ
++
+ /* #define DEBUG_IRQS */
+ 
+ /* There is no direct way to detect wall power presence, so assume the AC
+@@ -602,6 +610,7 @@ out:
+ 	return ret;
+ }
+ 
++#ifndef POWER_FIQ
+ 
+ static irqreturn_t stmp3xxx_irq_dcdc4p2_bo(int irq, void *cookie)
+ {
+@@ -647,25 +656,29 @@ static irqreturn_t stmp3xxx_irq_vdda_brnout(int irq, void *cookie)
+ #endif
+ 	return IRQ_HANDLED;
+ }
+-static irqreturn_t stmp3xxx_irq_vddio_brnout(int irq, void *cookie)
++
++static irqreturn_t stmp3xxx_irq_vdd5v_droop(int irq, void *cookie)
+ {
+ #ifdef DEBUG_IRQS
+ 	struct stmp3xxx_info *info = (struct stmp3xxx_info *)cookie;
+-	dev_info(info->dev, "vddio brownout interrupt occurred\n");
+-	ddi_power_disable_power_interrupts();
+-#else
+-	ddi_power_handle_vddio_brnout();
++	dev_info(info->dev, "vdd5v droop interrupt occurred\n");
+ #endif
++	ddi_power_handle_vdd5v_droop();
++
+ 	return IRQ_HANDLED;
+ }
+-static irqreturn_t stmp3xxx_irq_vdd5v_droop(int irq, void *cookie)
++
++#endif /* if POWER_FIQ */
++
++static irqreturn_t stmp3xxx_irq_vddio_brnout(int irq, void *cookie)
+ {
+ #ifdef DEBUG_IRQS
+ 	struct stmp3xxx_info *info = (struct stmp3xxx_info *)cookie;
+-	dev_info(info->dev, "vdd5v droop interrupt occurred\n");
++	dev_info(info->dev, "vddio brownout interrupt occurred\n");
++	ddi_power_disable_power_interrupts();
++#else
++	ddi_power_handle_vddio_brnout();
+ #endif
+-	ddi_power_handle_vdd5v_droop();
+-
+ 	return IRQ_HANDLED;
+ }
+ 
+@@ -738,6 +751,14 @@ static int stmp3xxx_bat_probe(struct platform_device *pdev)
+ 		goto free_info;
+ 	}
+ 
++	info->irq_vddio_brnout = platform_get_resource(
++		pdev, IORESOURCE_IRQ, 5);
++	if (info->irq_vddio_brnout == NULL) {
++		printk(KERN_ERR "%s: failed to get irq resouce\n", __func__);
++		goto free_info;
++	}
++
++#ifndef POWER_FIQ
+ 	info->irq_dcdc4p2_bo = platform_get_resource(pdev, IORESOURCE_IRQ, 1);
+ 	if (info->irq_dcdc4p2_bo == NULL) {
+ 		printk(KERN_ERR "%s: failed to get irq resouce\n", __func__);
+@@ -762,19 +783,13 @@ static int stmp3xxx_bat_probe(struct platform_device *pdev)
+ 		goto free_info;
+ 	}
+ 
+-	info->irq_vddio_brnout = platform_get_resource(
+-		pdev, IORESOURCE_IRQ, 5);
+-	if (info->irq_vddio_brnout == NULL) {
+-		printk(KERN_ERR "%s: failed to get irq resouce\n", __func__);
+-		goto free_info;
+-	}
+ 
+ 	info->irq_vdd5v_droop = platform_get_resource(pdev, IORESOURCE_IRQ, 6);
+ 	if (info->irq_vdd5v_droop == NULL) {
+ 		printk(KERN_ERR "%s: failed to get irq resouce\n", __func__);
+ 		goto free_info;
+ 	}
+-
++#endif
+ 
+ 
+ 	platform_set_drvdata(pdev, info);
+@@ -828,6 +843,15 @@ static int stmp3xxx_bat_probe(struct platform_device *pdev)
+ 		goto stop_sm;
+ 	}
+ 
++	ret = request_irq(info->irq_vddio_brnout->start,
++			stmp3xxx_irq_vddio_brnout, IRQF_DISABLED,
++			pdev->name, info);
++	if (ret) {
++		dev_err(info->dev, "failed to request irq\n");
++		goto stop_sm;
++	}
++
++#ifndef POWER_FIQ
+ 	ret = request_irq(info->irq_dcdc4p2_bo->start,
+ 			stmp3xxx_irq_dcdc4p2_bo, IRQF_DISABLED,
+ 			pdev->name, info);
+@@ -860,13 +884,6 @@ static int stmp3xxx_bat_probe(struct platform_device *pdev)
+ 		goto stop_sm;
+ 	}
+ 
+-	ret = request_irq(info->irq_vddio_brnout->start,
+-			stmp3xxx_irq_vddio_brnout, IRQF_DISABLED,
+-			pdev->name, info);
+-	if (ret) {
+-		dev_err(info->dev, "failed to request irq\n");
+-		goto stop_sm;
+-	}
+ 
+ 	ret = request_irq(info->irq_vdd5v_droop->start,
+ 			stmp3xxx_irq_vdd5v_droop, IRQF_DISABLED,
+@@ -875,7 +892,7 @@ static int stmp3xxx_bat_probe(struct platform_device *pdev)
+ 		dev_err(info->dev, "failed to request irq\n");
+ 		goto stop_sm;
+ 	}
+-
++#endif
+ 
+ 	ret = power_supply_register(&pdev->dev, &info->bat);
+ 	if (ret) {
+@@ -912,12 +929,15 @@ unregister_bat:
+ 	power_supply_unregister(&info->bat);
+ free_irq:
+ 	free_irq(info->irq_vdd5v->start, pdev);
++	free_irq(info->irq_vddio_brnout->start, pdev);
++#ifndef	POWER_FIQ
+ 	free_irq(info->irq_dcdc4p2_bo->start, pdev);
+ 	free_irq(info->irq_batt_brnout->start, pdev);
+ 	free_irq(info->irq_vddd_brnout->start, pdev);
+ 	free_irq(info->irq_vdda_brnout->start, pdev);
+-	free_irq(info->irq_vddio_brnout->start, pdev);
+ 	free_irq(info->irq_vdd5v_droop->start, pdev);
++#endif
++
+ stop_sm:
+ 	ddi_bc_ShutDown();
+ free_info:
+@@ -932,12 +952,14 @@ static int stmp3xxx_bat_remove(struct platform_device *pdev)
+ 	if (info->regulator)
+ 		regulator_put(info->regulator);
+ 	free_irq(info->irq_vdd5v->start, pdev);
++	free_irq(info->irq_vddio_brnout->start, pdev);
++#ifndef	POWER_FIQ
+ 	free_irq(info->irq_dcdc4p2_bo->start, pdev);
+ 	free_irq(info->irq_batt_brnout->start, pdev);
+ 	free_irq(info->irq_vddd_brnout->start, pdev);
+ 	free_irq(info->irq_vdda_brnout->start, pdev);
+-	free_irq(info->irq_vddio_brnout->start, pdev);
+ 	free_irq(info->irq_vdd5v_droop->start, pdev);
++#endif
+ 	ddi_bc_ShutDown();
+ 	power_supply_unregister(&info->usb);
+ 	power_supply_unregister(&info->ac);
+@@ -1030,8 +1052,89 @@ static struct platform_driver stmp3xxx_batdrv = {
+ 	},
+ };
+ 
++static int power_relinquish(void *data, int relinquish)
++{
++	return -1;
++}
++
++static struct fiq_handler power_fiq = {
++	.name = "stmp3xxx-battery",
++	.fiq_op = power_relinquish
++};
++
++static struct pt_regs fiq_regs;
++extern char power_fiq_start[], power_fiq_end[];
++extern void lock_vector_tlb(void *);
++extern long power_fiq_count;
++static struct proc_dir_entry *power_fiq_proc;
++
+ static int __init stmp3xxx_bat_init(void)
+ {
++#ifdef POWER_FIQ
++	int ret;
++	ret = claim_fiq(&power_fiq);
++	if (ret) {
++		pr_err("Can't claim fiq");
++	} else {
++		get_fiq_regs(&fiq_regs);
++		set_fiq_handler(power_fiq_start, power_fiq_end-power_fiq_start);
++		lock_vector_tlb((void *)0xffff0000);
++		lock_vector_tlb(REGS_POWER_BASE);
++
++		/* disable interrupts to be configured as FIQs */
++		__raw_writel(BM_ICOLL_INTERRUPTn_ENABLE,
++				HW_ICOLL_INTERRUPTn_CLR_ADDR(IRQ_DCDC4P2_BO));
++
++		__raw_writel(BM_ICOLL_INTERRUPTn_ENABLE,
++				HW_ICOLL_INTERRUPTn_CLR_ADDR(IRQ_BATT_BRNOUT));
++
++		__raw_writel(BM_ICOLL_INTERRUPTn_ENABLE,
++				HW_ICOLL_INTERRUPTn_CLR_ADDR(IRQ_VDDD_BRNOUT));
++
++		__raw_writel(BM_ICOLL_INTERRUPTn_ENABLE,
++				HW_ICOLL_INTERRUPTn_CLR_ADDR(IRQ_VDD18_BRNOUT));
++
++		__raw_writel(BM_ICOLL_INTERRUPTn_ENABLE,
++				HW_ICOLL_INTERRUPTn_CLR_ADDR(IRQ_VDD5V_DROOP));
++
++		/* Enable these interrupts as FIQs */
++		__raw_writel(BM_ICOLL_INTERRUPTn_ENFIQ,
++			HW_ICOLL_INTERRUPTn_SET_ADDR(IRQ_DCDC4P2_BO));
++
++		__raw_writel(BM_ICOLL_INTERRUPTn_ENFIQ,
++			HW_ICOLL_INTERRUPTn_SET_ADDR(IRQ_BATT_BRNOUT));
++
++		__raw_writel(BM_ICOLL_INTERRUPTn_ENFIQ,
++			HW_ICOLL_INTERRUPTn_SET_ADDR(IRQ_VDDD_BRNOUT));
++
++		__raw_writel(BM_ICOLL_INTERRUPTn_ENFIQ,
++			HW_ICOLL_INTERRUPTn_SET_ADDR(IRQ_VDD18_BRNOUT));
++
++		__raw_writel(BM_ICOLL_INTERRUPTn_ENFIQ,
++			HW_ICOLL_INTERRUPTn_SET_ADDR(IRQ_VDD5V_DROOP));
++
++		/* enable FIQ functionality */
++		__raw_writel(BM_ICOLL_CTRL_FIQ_FINAL_ENABLE,
++				HW_ICOLL_CTRL_SET_ADDR);
++
++		/* enable these interrupts */
++		__raw_writel(BM_ICOLL_INTERRUPTn_ENABLE,
++				HW_ICOLL_INTERRUPTn_SET_ADDR(IRQ_DCDC4P2_BO));
++
++		__raw_writel(BM_ICOLL_INTERRUPTn_ENABLE,
++				HW_ICOLL_INTERRUPTn_SET_ADDR(IRQ_BATT_BRNOUT));
++
++		__raw_writel(BM_ICOLL_INTERRUPTn_ENABLE,
++				HW_ICOLL_INTERRUPTn_SET_ADDR(IRQ_VDDD_BRNOUT));
++
++		__raw_writel(BM_ICOLL_INTERRUPTn_ENABLE,
++				HW_ICOLL_INTERRUPTn_SET_ADDR(IRQ_VDD18_BRNOUT));
++
++		__raw_writel(BM_ICOLL_INTERRUPTn_ENABLE,
++				HW_ICOLL_INTERRUPTn_SET_ADDR(IRQ_VDD5V_DROOP));
++
++	}
++#endif
+ 	return platform_driver_register(&stmp3xxx_batdrv);
+ }
+ 
+-- 
+1.5.4.4
+

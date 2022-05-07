@@ -1,0 +1,51 @@
+From bf52e5c4ff4114b3ff3cb52311a3a9a8989014c5 Mon Sep 17 00:00:00 2001
+From: Liu Ying <b17645@freescale.com>
+Date: Wed, 16 Sep 2009 13:49:49 +0800
+Subject: [PATCH] ENGR00116436 IPUv3:camera preview and camera capture can be used simultaneously
+
+PRP_VF and PRP_ENC channels are able to be used at the same time
+when their sources are the same.
+
+Signed-off-by: Liu Ying <b17645@freescale.com>
+---
+ drivers/mxc/ipu3/ipu_common.c |   10 ++++------
+ 1 files changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/drivers/mxc/ipu3/ipu_common.c b/drivers/mxc/ipu3/ipu_common.c
+index 0ad39e4..cdcbd19 100644
+--- a/drivers/mxc/ipu3/ipu_common.c
++++ b/drivers/mxc/ipu3/ipu_common.c
+@@ -399,8 +399,7 @@ int32_t ipu_init_channel(ipu_channel_t channel, ipu_channel_params_t *params)
+ 			ret = -EINVAL;
+ 			goto err;
+ 		}
+-		if ((using_ic_dirct_ch != 0) &&
+-			(using_ic_dirct_ch != MEM_PRP_ENC_MEM)) {
++		if (using_ic_dirct_ch == MEM_VDI_PRP_VF_MEM) {
+ 			ret = -EINVAL;
+ 			goto err;
+ 		}
+@@ -434,8 +433,7 @@ int32_t ipu_init_channel(ipu_channel_t channel, ipu_channel_params_t *params)
+ 			ret = -EINVAL;
+ 			goto err;
+ 		}
+-		if ((using_ic_dirct_ch != 0) &&
+-			(using_ic_dirct_ch != MEM_PRP_VF_MEM)) {
++		if (using_ic_dirct_ch == MEM_VDI_PRP_VF_MEM) {
+ 			ret = -EINVAL;
+ 			goto err;
+ 		}
+@@ -477,8 +475,8 @@ int32_t ipu_init_channel(ipu_channel_t channel, ipu_channel_params_t *params)
+ 		_ipu_ic_init_prpvf(params, false);
+ 		break;
+ 	case MEM_VDI_PRP_VF_MEM:
+-		if ((using_ic_dirct_ch != 0) &&
+-			(using_ic_dirct_ch != MEM_VDI_PRP_VF_MEM)) {
++		if ((using_ic_dirct_ch == CSI_PRP_VF_MEM) ||
++		     (using_ic_dirct_ch == CSI_PRP_ENC_MEM)) {
+ 			ret = -EINVAL;
+ 			goto err;
+ 		}
+-- 
+1.5.4.4
+

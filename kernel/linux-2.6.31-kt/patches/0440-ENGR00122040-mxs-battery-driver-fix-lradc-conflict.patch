@@ -1,0 +1,160 @@
+From b29c1776959bf4e763be8f6f328dc45a60859c72 Mon Sep 17 00:00:00 2001
+From: Zhou Jingyu <b02241@freescale.com>
+Date: Fri, 26 Mar 2010 14:52:10 +0800
+Subject: [PATCH] ENGR00122040 mxs battery driver: fix lradc conflict
+
+use configurable lraadc channel for tempreture
+increase conditioning current
+fix build warnings
+
+Signed-off-by: Zhou Jingyu <Jingyu.Zhou@freescale.com>
+---
+ arch/arm/mach-mx28/device.c           |    4 +-
+ drivers/power/mxs/ddi_power_battery.c |   39 +++++++++++++++++---------------
+ drivers/power/mxs/linux.c             |    2 +
+ 3 files changed, 25 insertions(+), 20 deletions(-)
+
+diff --git a/arch/arm/mach-mx28/device.c b/arch/arm/mach-mx28/device.c
+index 33ee4b6..8e1d27f 100644
+--- a/arch/arm/mach-mx28/device.c
++++ b/arch/arm/mach-mx28/device.c
+@@ -987,7 +987,7 @@ static ddi_bc_Cfg_t battery_data = {
+ 	.u16CurrentRampSlope		 = 75,		/* mA/s */
+ 	.u16ConditioningThresholdVoltage = 2900, 	/* mV */
+ 	.u16ConditioningMaxVoltage	 = 3000,	/* mV */
+-	.u16ConditioningCurrent		 = 60,		/* mA */
++	.u16ConditioningCurrent		 = 160,		/* mA */
+ 	.u32ConditioningTimeout		 = 4*60*60*1000, /* ms (4 hours) */
+ 	.u16ChargingVoltage		 = 4200,	/* mV */
+ 	/* FIXME: the current comparator could have h/w bugs in current
+@@ -1001,7 +1001,7 @@ static ddi_bc_Cfg_t battery_data = {
+ 	.u8DieTempLow			 = 65,		/* deg centigrade */
+ 	.u16DieTempSafeCurrent		 = 0,		/* mA */
+ 	.monitorBatteryTemp		 = 0,		/* Monitor the battery*/
+-	.u8BatteryTempChannel		 = 1,		/* LRADC 1 */
++	.u8BatteryTempChannel		 = 0,		/* LRADC 0 */
+ 	.u16BatteryTempHigh		 = 642,		/* Unknown units */
+ 	.u16BatteryTempLow		 = 497,		/* Unknown units */
+ 	.u16BatteryTempSafeCurrent	 = 0,		/* mA */
+diff --git a/drivers/power/mxs/ddi_power_battery.c b/drivers/power/mxs/ddi_power_battery.c
+index 9660ab6..c17b2da 100644
+--- a/drivers/power/mxs/ddi_power_battery.c
++++ b/drivers/power/mxs/ddi_power_battery.c
+@@ -965,73 +965,76 @@ int ddi_power_init_battery(void)
+ }
+ 
+ /*
+- * Use the the lradc1 channel
++ * Use the the lradc channel
+  * get the die temperature from on-chip sensor.
+  */
+ uint16_t MeasureInternalDieTemperature(void)
+ {
+-	uint32_t  ch8Value, ch9Value;
++	uint32_t  ch8Value, ch9Value, lradc_irq_mask, channel;
++
++	channel = g_ddi_bc_Configuration.u8BatteryTempChannel;
++	lradc_irq_mask = 1 << channel;
+ 
+ 	/* power up internal tep sensor block */
+ 	__raw_writel(BM_LRADC_CTRL2_TEMPSENSE_PWD,
+ 			REGS_LRADC_BASE + HW_LRADC_CTRL2_CLR);
+ 
+ 	/* mux to the lradc 8th temp channel */
+-	__raw_writel(BF_LRADC_CTRL4_LRADC1SELECT(0xF),
++	__raw_writel((0xF << (4 * channel)),
+ 			REGS_LRADC_BASE + HW_LRADC_CTRL4_CLR);
+-	__raw_writel(BF_LRADC_CTRL4_LRADC1SELECT(8),
++	__raw_writel((8 << (4 * channel)),
+ 			REGS_LRADC_BASE + HW_LRADC_CTRL4_SET);
+ 
+ 	/* Clear the interrupt flag */
+-	__raw_writel(BM_LRADC_CTRL1_LRADC1_IRQ,
++	__raw_writel(lradc_irq_mask,
+ 			REGS_LRADC_BASE + HW_LRADC_CTRL1_CLR);
+-	__raw_writel(BF_LRADC_CTRL0_SCHEDULE(1 << LRADC_CH1),
++	__raw_writel(BF_LRADC_CTRL0_SCHEDULE(1 << channel),
+ 			REGS_LRADC_BASE + HW_LRADC_CTRL0_SET);
+ 
+ 	/* Wait for conversion complete*/
+ 	while (!(__raw_readl(REGS_LRADC_BASE + HW_LRADC_CTRL1)
+-			& BM_LRADC_CTRL1_LRADC1_IRQ))
++			& lradc_irq_mask))
+ 		cpu_relax();
+ 
+ 	/* Clear the interrupt flag again */
+-	__raw_writel(BM_LRADC_CTRL1_LRADC1_IRQ,
++	__raw_writel(lradc_irq_mask,
+ 			REGS_LRADC_BASE + HW_LRADC_CTRL1_CLR);
+ 
+ 	/* read temperature value and clr lradc */
+ 	ch8Value = __raw_readl(REGS_LRADC_BASE +
+-			HW_LRADC_CHn(LRADC_CH1)) & BM_LRADC_CHn_VALUE;
++			HW_LRADC_CHn(channel)) & BM_LRADC_CHn_VALUE;
+ 
+ 
+ 	__raw_writel(BM_LRADC_CHn_VALUE,
+-			REGS_LRADC_BASE + HW_LRADC_CHn_CLR(LRADC_CH1));
++			REGS_LRADC_BASE + HW_LRADC_CHn_CLR(channel));
+ 
+ 	/* mux to the lradc 9th temp channel */
+-	__raw_writel(BF_LRADC_CTRL4_LRADC1SELECT(0xF),
++	__raw_writel((0xF << (4 * channel)),
+ 			REGS_LRADC_BASE + HW_LRADC_CTRL4_CLR);
+-	__raw_writel(BF_LRADC_CTRL4_LRADC1SELECT(9),
++	__raw_writel((9 << (4 * channel)),
+ 			REGS_LRADC_BASE + HW_LRADC_CTRL4_SET);
+ 
+ 	/* Clear the interrupt flag */
+-	__raw_writel(BM_LRADC_CTRL1_LRADC1_IRQ,
++	__raw_writel(lradc_irq_mask,
+ 			REGS_LRADC_BASE + HW_LRADC_CTRL1_CLR);
+-	__raw_writel(BF_LRADC_CTRL0_SCHEDULE(1 << LRADC_CH1),
++	__raw_writel(BF_LRADC_CTRL0_SCHEDULE(1 << channel),
+ 			REGS_LRADC_BASE + HW_LRADC_CTRL0_SET);
+ 	/* Wait for conversion complete */
+ 	while (!(__raw_readl(REGS_LRADC_BASE + HW_LRADC_CTRL1)
+-			& BM_LRADC_CTRL1_LRADC1_IRQ))
++			& lradc_irq_mask))
+ 		cpu_relax();
+ 
+ 	/* Clear the interrupt flag */
+-	__raw_writel(BM_LRADC_CTRL1_LRADC1_IRQ,
++	__raw_writel(lradc_irq_mask,
+ 			REGS_LRADC_BASE + HW_LRADC_CTRL1_CLR);
+ 	/* read temperature value */
+ 	ch9Value = __raw_readl(
+-			REGS_LRADC_BASE + HW_LRADC_CHn(LRADC_CH1))
++			REGS_LRADC_BASE + HW_LRADC_CHn(channel))
+ 		  & BM_LRADC_CHn_VALUE;
+ 
+ 
+ 	__raw_writel(BM_LRADC_CHn_VALUE,
+-			REGS_LRADC_BASE + HW_LRADC_CHn_CLR(LRADC_CH1));
++			REGS_LRADC_BASE + HW_LRADC_CHn_CLR(channel));
+ 
+ 	/* power down temp sensor block */
+ 	__raw_writel(BM_LRADC_CTRL2_TEMPSENSE_PWD,
+diff --git a/drivers/power/mxs/linux.c b/drivers/power/mxs/linux.c
+index f878f8e..ce8b0e3 100644
+--- a/drivers/power/mxs/linux.c
++++ b/drivers/power/mxs/linux.c
+@@ -1053,6 +1053,7 @@ static struct platform_driver mxs_batdrv = {
+ 	},
+ };
+ 
++#ifdef POWER_FIQ
+ static int power_relinquish(void *data, int relinquish)
+ {
+ 	return -1;
+@@ -1068,6 +1069,7 @@ extern char power_fiq_start[], power_fiq_end[];
+ extern void lock_vector_tlb(void *);
+ extern long power_fiq_count;
+ static struct proc_dir_entry *power_fiq_proc;
++#endif
+ 
+ static int __init mxs_bat_init(void)
+ {
+-- 
+1.5.4.4
+

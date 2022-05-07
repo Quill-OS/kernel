@@ -1,0 +1,44 @@
+From ee1fdae37d7251feee3eb696865f4b318bf80ce0 Mon Sep 17 00:00:00 2001
+From: Zhou Jingyu <b02241@shlinux1.ap.freescale.net>
+Date: Mon, 21 Dec 2009 13:15:41 +0800
+Subject: [PATCH] ENGR00119305 imx23: fix ethernet standby issue
+
+fix can not goto standby when using ethernet
+
+Signed-off-by: Zhou Jingyu <Jingyu.Zhou@freescale.com>
+---
+ arch/arm/plat-stmp3xxx/pinmux.c |   11 +++++++++++
+ 1 files changed, 11 insertions(+), 0 deletions(-)
+
+diff --git a/arch/arm/plat-stmp3xxx/pinmux.c b/arch/arm/plat-stmp3xxx/pinmux.c
+index 9dbf9dc..0bfdcb2 100644
+--- a/arch/arm/plat-stmp3xxx/pinmux.c
++++ b/arch/arm/plat-stmp3xxx/pinmux.c
+@@ -429,6 +429,16 @@ static void stmp3xxx_pin_unmask_irq(unsigned irq)
+ 	stmp3xxx_setl(1 << gpio, pm->pin2irq);
+ }
+ 
++static void stmp3xxx_pin_disable_irq(unsigned irq)
++{
++	struct stmp3xxx_pinmux_bank *pm;
++	unsigned gpio;
++
++	stmp3xxx_irq_to_gpio(irq, &pm, &gpio);
++	stmp3xxx_clearl(1 << gpio, pm->irqen);
++	stmp3xxx_clearl(1 << gpio, pm->pin2irq);
++}
++
+ static inline
+ struct stmp3xxx_pinmux_bank *to_pinmux_bank(struct gpio_chip *chip)
+ {
+@@ -510,6 +520,7 @@ static struct irq_chip gpio_irq_chip = {
+ 	.ack	= stmp3xxx_pin_ack_irq,
+ 	.mask	= stmp3xxx_pin_mask_irq,
+ 	.unmask	= stmp3xxx_pin_unmask_irq,
++	.disable = stmp3xxx_pin_disable_irq,
+ 	.set_type = stmp3xxx_set_irqtype,
+ };
+ 
+-- 
+1.5.4.4
+

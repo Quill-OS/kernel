@@ -1,0 +1,204 @@
+From ddac64af346783cd0b67b98ca63923790dcdafd9 Mon Sep 17 00:00:00 2001
+From: Robby Cai <R63905@freescale.com>
+Date: Tue, 23 Mar 2010 18:40:46 +0800
+Subject: [PATCH] ENGR00121886 Port VIIM driver to new MSL
+
+Port VIIM driver to new MSL
+
+Signed-off-by: Robby Cai <R63905@freescale.com>
+---
+ arch/arm/configs/imx23evk_defconfig |    3 ++-
+ arch/arm/configs/imx28evk_defconfig |    1 +
+ arch/arm/mach-mx23/device.c         |   33 +++++++++++++++++++++++++++++++++
+ arch/arm/mach-mx28/device.c         |   33 +++++++++++++++++++++++++++++++++
+ arch/arm/plat-mxs/device.c          |   18 ++++++++++++++++++
+ drivers/char/Kconfig                |    2 +-
+ 6 files changed, 88 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm/configs/imx23evk_defconfig b/arch/arm/configs/imx23evk_defconfig
+index d3f1366..ed25cdb 100644
+--- a/arch/arm/configs/imx23evk_defconfig
++++ b/arch/arm/configs/imx23evk_defconfig
+@@ -1,7 +1,7 @@
+ #
+ # Automatically generated make config: don't edit
+ # Linux kernel version: 2.6.31
+-# Tue Mar 23 12:52:26 2010
++# Tue Mar 23 17:51:06 2010
+ #
+ CONFIG_ARM=y
+ CONFIG_SYS_SUPPORTS_APM_EMULATION=y
+@@ -661,6 +661,7 @@ CONFIG_HW_CONSOLE=y
+ # CONFIG_VT_HW_CONSOLE_BINDING is not set
+ CONFIG_DEVKMEM=y
+ # CONFIG_SERIAL_NONSTANDARD is not set
++CONFIG_MXS_VIIM=y
+ 
+ #
+ # Serial drivers
+diff --git a/arch/arm/configs/imx28evk_defconfig b/arch/arm/configs/imx28evk_defconfig
+index 8490a59..44cfd4d 100644
+--- a/arch/arm/configs/imx28evk_defconfig
++++ b/arch/arm/configs/imx28evk_defconfig
+@@ -821,6 +821,7 @@ CONFIG_SERIAL_NONSTANDARD=y
+ # CONFIG_SPECIALIX is not set
+ # CONFIG_RIO is not set
+ CONFIG_STALDRV=y
++CONFIG_MXS_VIIM=y
+ 
+ #
+ # Serial drivers
+diff --git a/arch/arm/mach-mx23/device.c b/arch/arm/mach-mx23/device.c
+index 7d50436..b480c2b 100644
+--- a/arch/arm/mach-mx23/device.c
++++ b/arch/arm/mach-mx23/device.c
+@@ -194,6 +194,38 @@ static void __init mx23_init_pxp(void)
+ }
+ #endif
+ 
++#if defined(CONFIG_MXS_VIIM) || defined(CONFIG_MXS_VIIM_MODULE)
++struct resource viim_resources[] = {
++	[0] = {
++		.start  = DIGCTL_PHYS_ADDR,
++		.end    = DIGCTL_PHYS_ADDR + PAGE_SIZE - 1,
++		.flags  = IORESOURCE_MEM,
++	},
++	[1] = {
++		.start  = OCOTP_PHYS_ADDR,
++		.end    = OCOTP_PHYS_ADDR + PAGE_SIZE - 1,
++		.flags  = IORESOURCE_MEM,
++	},
++};
++static void __init mx23_init_viim(void)
++{
++	struct platform_device *pdev;
++
++	pdev = mxs_get_device("mxs_viim", 0);
++	if (pdev == NULL || IS_ERR(pdev))
++		return;
++
++	pdev->resource = viim_resources;
++	pdev->num_resources = ARRAY_SIZE(viim_resources);
++
++	mxs_add_device(pdev, 2);
++}
++#else
++static void __init mx23_init_viim(void)
++{
++}
++#endif
++
+ #if defined(CONFIG_I2C_MXS) || \
+ 	defined(CONFIG_I2C_MXS_MODULE)
+ static struct resource i2c_resource[] = {
+@@ -690,6 +722,7 @@ static void mx23_init_battery(void)
+ int __init mx23_device_init(void)
+ {
+ 	mx23_init_dma();
++	mx23_init_viim();
+ 	mx23_init_duart();
+ 	mx23_init_auart();
+ 	mx23_init_lradc();
+diff --git a/arch/arm/mach-mx28/device.c b/arch/arm/mach-mx28/device.c
+index 429625e..5b90b6e 100644
+--- a/arch/arm/mach-mx28/device.c
++++ b/arch/arm/mach-mx28/device.c
+@@ -194,6 +194,38 @@ static void __init mx28_init_pxp(void)
+ }
+ #endif
+ 
++#if defined(CONFIG_MXS_VIIM) || defined(CONFIG_MXS_VIIM_MODULE)
++struct resource viim_resources[] = {
++	[0] = {
++		.start  = DIGCTL_PHYS_ADDR,
++		.end    = DIGCTL_PHYS_ADDR + PAGE_SIZE - 1,
++		.flags  = IORESOURCE_MEM,
++	},
++	[1] = {
++		.start  = OCOTP_PHYS_ADDR,
++		.end    = OCOTP_PHYS_ADDR + PAGE_SIZE - 1,
++		.flags  = IORESOURCE_MEM,
++	},
++};
++static void __init mx28_init_viim(void)
++{
++	struct platform_device *pdev;
++
++	pdev = mxs_get_device("mxs_viim", 0);
++	if (pdev == NULL || IS_ERR(pdev))
++		return;
++
++	pdev->resource = viim_resources;
++	pdev->num_resources = ARRAY_SIZE(viim_resources);
++
++	mxs_add_device(pdev, 2);
++}
++#else
++static void __init mx28_init_viim(void)
++{
++}
++#endif
++
+ #if defined(CONFIG_I2C_MXS) || \
+ 	defined(CONFIG_I2C_MXS_MODULE)
+ #ifdef	CONFIG_I2C_MXS_SELECT0
+@@ -1164,6 +1196,7 @@ static inline mx28_init_spdif(void)
+ int __init mx28_device_init(void)
+ {
+ 	mx28_init_dma();
++	mx28_init_viim();
+ 	mx28_init_duart();
+ 	mx28_init_i2c();
+ 	mx28_init_lradc();
+diff --git a/arch/arm/plat-mxs/device.c b/arch/arm/plat-mxs/device.c
+index 88c477c..67520cd 100644
+--- a/arch/arm/plat-mxs/device.c
++++ b/arch/arm/plat-mxs/device.c
+@@ -399,6 +399,16 @@ static struct platform_device mxs_sgtl5000[] = {
+ };
+ #endif
+ 
++#if defined(CONFIG_MXS_VIIM) || defined(CONFIG_MXS_VIIM_MODULE)
++struct platform_device mxs_viim = {
++	.name   = "mxs_viim",
++	.id     = 0,
++	.dev = {
++		.release = mxs_nop_release,
++		},
++};
++#endif
++
+ #if defined(CONFIG_SND_SOC_MXS_SPDIF) || \
+ 	defined(CONFIG_SND_SOC_MXS_SPDIF_MODULE)
+ static struct platform_device mxs_spdif[] = {
+@@ -508,6 +518,14 @@ static struct mxs_dev_lookup dev_lookup[] = {
+ 	 },
+ #endif
+ 
++#if defined(CONFIG_MXS_VIIM) || defined(CONFIG_MXS_VIIM_MODULE)
++	{
++	 .name	= "mxs_viim",
++	 .size	= 1,
++	 .pdev	= &mxs_viim,
++	 },
++#endif
++
+ #if defined(CONFIG_FEC) || defined(CONFIG_FEC_MODULE)
+ 	{
+ 	.name = "mxs-fec",
+diff --git a/drivers/char/Kconfig b/drivers/char/Kconfig
+index 0594c49..8efaa5c 100644
+--- a/drivers/char/Kconfig
++++ b/drivers/char/Kconfig
+@@ -444,7 +444,7 @@ config MXC_IIM
+ 
+ config MXS_VIIM
+ 	tristate "MXS Virtual IIM device driver"
+-	depends on ARCH_STMP3XXX
++	depends on (ARCH_STMP3XXX || ARCH_MXS)
+ 	help
+ 	  Support for access to MXS Virtual IIM device, most people should say N here.
+ 
+-- 
+1.5.4.4
+

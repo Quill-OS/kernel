@@ -1,0 +1,29 @@
+From 2f29f947d25322efaf799f59bf893db7b26d15f9 Mon Sep 17 00:00:00 2001
+From: Jason Chen <b02280@freescale.com>
+Date: Mon, 17 May 2010 15:02:06 +0800
+Subject: [PATCH] ENGR00123512 ipu: fix ipu lib compile error
+
+Fix ipu lib compile error after 4-stripes resize patch pushed.
+
+Signed-off-by: Jason Chen <b02280@freescale.com>
+---
+ include/linux/ipu.h |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/include/linux/ipu.h b/include/linux/ipu.h
+index 111f20e..3211ad0 100644
+--- a/include/linux/ipu.h
++++ b/include/linux/ipu.h
+@@ -390,8 +390,8 @@ typedef union {
+ 		uint32_t out_width;
+ 		uint32_t out_height;
+ 		uint32_t out_pixel_fmt;
+-		uint32_t outv_resize_ratio;
+ 		uint32_t outh_resize_ratio;
++		uint32_t outv_resize_ratio;
+ 		bool graphics_combine_en;
+ 		bool global_alpha_en;
+ 		bool key_color_en;
+-- 
+1.5.4.4
+

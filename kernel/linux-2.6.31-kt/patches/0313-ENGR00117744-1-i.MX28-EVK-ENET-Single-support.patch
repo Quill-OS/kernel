@@ -1,0 +1,313 @@
+From 270c67621c162c54ebd92aa6f69db0383c8cf0e9 Mon Sep 17 00:00:00 2001
+From: Jason <r64343@freescale.com>
+Date: Tue, 26 Jan 2010 20:45:47 +0800
+Subject: [PATCH] ENGR00117744-1 i.MX28 EVK ENET(Single) support
+
+Add platform support
+
+Signed-off-by:Jason Liu <r64343@freescale.com>
+---
+ arch/arm/mach-mx28/clock.c        |   26 ++++++++
+ arch/arm/mach-mx28/device.c       |   50 ++++++++++++++++
+ arch/arm/mach-mx28/mx28evk_pins.c |  114 +++++++++++++++++++++++++++++++++++++
+ arch/arm/plat-mxs/device.c        |   20 +++++++
+ 4 files changed, 210 insertions(+), 0 deletions(-)
+
+diff --git a/arch/arm/mach-mx28/clock.c b/arch/arm/mach-mx28/clock.c
+index 913a20d..0a2f271 100644
+--- a/arch/arm/mach-mx28/clock.c
++++ b/arch/arm/mach-mx28/clock.c
+@@ -751,6 +751,14 @@ static struct clk pcmspdif_clk = {
+ 	.enable_bits = BM_CLKCTRL_SPDIF_CLKGATE,
+ };
+ 
++static struct clk enet_out_clk = {
++	.parent = &pll_clk[2],
++	.enable = mx28_raw_enable,
++	.disable = mx28_raw_disable,
++	.enable_reg = CLKCTRL_BASE_ADDR + HW_CLKCTRL_ENET,
++	.enable_bits = BM_CLKCTRL_ENET_DISABLE,
++};
++
+ static struct clk_lookup onchip_clocks[] = {
+ 	{
+ 	 .con_id = "xtal.0",
+@@ -900,6 +908,10 @@ static struct clk_lookup onchip_clocks[] = {
+ 	 .con_id = "flexcan.1",
+ 	 .clk = &flexcan_clk[1],
+ 	 },
++	{
++	.con_id = "fec_clk",
++	.clk = &enet_out_clk,
++	},
+ };
+ 
+ static void mx28_clock_scan(void)
+@@ -938,10 +950,24 @@ void __init mx28_set_input_clk(unsigned long xtal0,
+ 	enet_mii_phy_rate = enet;
+ }
+ 
++void  mx28_enet_clk_hook()
++{
++	unsigned long reg;
++
++	reg =  __raw_readl(CLKCTRL_BASE_ADDR + HW_CLKCTRL_ENET);
++
++	reg &= ~BM_CLKCTRL_ENET_SLEEP;
++	reg |= BM_CLKCTRL_ENET_CLK_OUT_EN;
++
++	__raw_writel(reg, CLKCTRL_BASE_ADDR + HW_CLKCTRL_ENET);
++
++}
++
+ void __init mx28_clock_init(void)
+ {
+ 	int i;
+ 	mx28_clock_scan();
++	mx28_enet_clk_hook();
+ 	for (i = 0; i < ARRAY_SIZE(onchip_clocks); i++)
+ 		clk_register(&onchip_clocks[i]);
+ 
+diff --git a/arch/arm/mach-mx28/device.c b/arch/arm/mach-mx28/device.c
+index 34d5603..a37f0c7 100644
+--- a/arch/arm/mach-mx28/device.c
++++ b/arch/arm/mach-mx28/device.c
+@@ -25,6 +25,8 @@
+ #include <linux/delay.h>
+ #include <linux/platform_device.h>
+ #include <linux/mmc/host.h>
++#include <linux/phy.h>
++#include <linux/fec.h>
+ 
+ #include <asm/mach/map.h>
+ 
+@@ -523,6 +525,53 @@ static void __init mx28_init_rtc(void)
+ }
+ #endif
+ 
++#if defined(CONFIG_FEC) || defined(CONFIG_FEC_MODULE)
++static struct resource fec_resources[] = {
++	{
++		.start  = ENET_PHYS_ADDR,
++		.end    = ENET_PHYS_ADDR + 0xffff,
++		.flags  = IORESOURCE_MEM
++	},
++	{
++		.start  = IRQ_ENET_SWI,
++		.end    = IRQ_ENET_SWI,
++		.flags  = IORESOURCE_IRQ
++	},
++	{
++		.start  = IRQ_ENET_MAC0,
++		.end    = IRQ_ENET_MAC0,
++		.flags  = IORESOURCE_IRQ
++	},
++	{
++		.start  = IRQ_ENET_MAC1,
++		.end    = IRQ_ENET_MAC1,
++		.flags  = IORESOURCE_IRQ
++	},
++};
++extern int mx28evk_enet_gpio_init(void);
++static struct fec_platform_data fec_pdata = {
++	.phy = PHY_INTERFACE_MODE_RMII,
++	.init = mx28evk_enet_gpio_init,
++};
++
++static void __init mx28_init_fec(void)
++{
++	struct platform_device *pdev;
++	pdev = mxs_get_device("mxs-fec", 0);
++	if (pdev == NULL || IS_ERR(pdev))
++		return;
++	pdev->resource = fec_resources;
++	pdev->num_resources = ARRAY_SIZE(fec_resources);
++	pdev->dev.platform_data = &fec_pdata;
++	mxs_add_device(pdev, 2);
++}
++#else
++static void __init mx28_init_fec(void)
++{
++	;
++}
++#endif
++
+ int __init mx28_device_init(void)
+ {
+ 	mx28_init_dma();
+@@ -531,6 +580,7 @@ int __init mx28_device_init(void)
+ 	mx28_init_mmc();
+ 	mx28_init_wdt();
+ 	mx28_init_rtc();
++	mx28_init_fec();
+ 	return 0;
+ }
+ 
+diff --git a/arch/arm/mach-mx28/mx28evk_pins.c b/arch/arm/mach-mx28/mx28evk_pins.c
+index a7a55b8..e90f844 100644
+--- a/arch/arm/mach-mx28/mx28evk_pins.c
++++ b/arch/arm/mach-mx28/mx28evk_pins.c
+@@ -280,8 +280,122 @@ static struct pin_desc mx28evk_fixed_pins[] = {
+ 	 .pull 		= 0,
+ 	 },
+ #endif
++
++#if defined(CONFIG_FEC) || defined(CONFIG_FEC_MODULE)
++	{
++	 .name = "ENET0_MDC",
++	 .id = PINID_ENET0_MDC,
++	 .fun = PIN_FUN1,
++	 .strength = PAD_8MA,
++	 .pull = 1,
++	 .pullup = 1,
++	 .voltage = PAD_3_3V,
++	 .drive	= 1,
++	 },
++	{
++	 .name = "ENET0_MDIO",
++	 .id = PINID_ENET0_MDIO,
++	 .fun = PIN_FUN1,
++	 .strength = PAD_8MA,
++	 .pull = 1,
++	 .pullup = 1,
++	 .voltage = PAD_3_3V,
++	 .drive	= 1,
++	 },
++	{
++	 .name = "ENET0_RX_EN",
++	 .id = PINID_ENET0_RX_EN,
++	 .fun = PIN_FUN1,
++	 .strength = PAD_8MA,
++	 .pull = 1,
++	 .pullup = 1,
++	 .voltage = PAD_3_3V,
++	 .drive	= 1,
++	 },
++	{
++	 .name = "ENET0_RXD0",
++	 .id = PINID_ENET0_RXD0,
++	 .fun = PIN_FUN1,
++	 .strength = PAD_8MA,
++	 .pull = 1,
++	 .pullup = 1,
++	 .voltage = PAD_3_3V,
++	 .drive	= 1,
++	 },
++	{
++	 .name = "ENET0_RXD1",
++	 .id = PINID_ENET0_RXD1,
++	 .fun = PIN_FUN1,
++	 .strength = PAD_8MA,
++	 .pull = 1,
++	 .pullup = 1,
++	 .voltage = PAD_3_3V,
++	 .drive	= 1,
++	 },
++	{
++	 .name = "ENET0_TX_EN",
++	 .id = PINID_ENET0_TX_EN,
++	 .fun = PIN_FUN1,
++	 .strength = PAD_8MA,
++	 .pull = 1,
++	 .pullup = 1,
++	 .voltage = PAD_3_3V,
++	 .drive	= 1,
++	 },
++	{
++	 .name = "ENET0_TXD0",
++	 .id = PINID_ENET0_TXD0,
++	 .fun = PIN_FUN1,
++	 .strength = PAD_8MA,
++	 .pull = 1,
++	 .pullup = 1,
++	 .voltage = PAD_3_3V,
++	 .drive	= 1,
++	 },
++	{
++	 .name = "ENET0_TXD1",
++	 .id = PINID_ENET0_TXD1,
++	 .fun = PIN_FUN1,
++	 .strength = PAD_8MA,
++	 .pull = 1,
++	 .pullup = 1,
++	 .voltage = PAD_3_3V,
++	 .drive	= 1,
++	 },
++	{
++	 .name = "ENET_CLK",
++	 .id = PINID_ENET_CLK,
++	 .fun = PIN_FUN1,
++	 .strength = PAD_8MA,
++	 .pull = 1,
++	 .pullup = 1,
++	 .voltage = PAD_3_3V,
++	 .drive	= 1,
++	 },
++#endif
+ };
+ 
++#if defined(CONFIG_FEC) || defined(CONFIG_FEC_MODULE)
++int mx28evk_enet_gpio_init(void)
++{
++	/* pwr */
++	gpio_request(MXS_PIN_TO_GPIO(PINID_SSP1_DATA3), "ENET_PWR");
++	gpio_direction_output(MXS_PIN_TO_GPIO(PINID_SSP1_DATA3), 0);
++
++	/* reset phy */
++	gpio_request(MXS_PIN_TO_GPIO(PINID_ENET0_RX_CLK), "PHY_RESET");
++	gpio_direction_output(MXS_PIN_TO_GPIO(PINID_ENET0_RX_CLK), 0);
++	gpio_direction_output(MXS_PIN_TO_GPIO(PINID_ENET0_RX_CLK), 1);
++
++	return 0;
++}
++#else
++int mx28evk_enet_gpio_init(void)
++{
++	return 0;
++}
++#endif
++
+ void __init mx28evk_pins_init(void)
+ {
+ 	int i;
+diff --git a/arch/arm/plat-mxs/device.c b/arch/arm/plat-mxs/device.c
+index 7e35c87..7eb37b0 100644
+--- a/arch/arm/plat-mxs/device.c
++++ b/arch/arm/plat-mxs/device.c
+@@ -172,6 +172,19 @@ static struct platform_device mxs_wdt = {
+ };
+ #endif
+ 
++#if defined(CONFIG_FEC) || \
++	defined(CONFIG_FEC_MODULE)
++static struct platform_device mxs_fec[] = {
++	{
++	.name = "fec",
++	.id = 0,
++	.dev = {
++		.release = mxs_nop_release,
++		},
++	},
++};
++#endif
++
+ #if defined(CONFIG_BACKLIGHT_MXS) || \
+ 	defined(CONFIG_BACKLIGHT_MXS_MODULE)
+ struct platform_device mxs_bl = {
+@@ -253,6 +266,13 @@ static struct mxs_dev_lookup dev_lookup[] = {
+ 	 },
+ #endif
+ 
++#if defined(CONFIG_FEC) || defined(CONFIG_FEC_MODULE)
++	{
++	.name = "mxs-fec",
++	.size = ARRAY_SIZE(mxs_fec),
++	.pdev = mxs_fec,
++	},
++#endif
+ };
+ 
+ struct platform_device *mxs_get_device(char *name, int id)
+-- 
+1.5.4.4
+

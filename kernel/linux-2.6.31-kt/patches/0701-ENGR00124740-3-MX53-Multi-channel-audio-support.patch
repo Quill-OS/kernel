@@ -1,0 +1,448 @@
+From e01220ea65dadfbb7acac0cbd39dd4628cf853bb Mon Sep 17 00:00:00 2001
+From: William Lai <b04597@freescale.com>
+Date: Wed, 30 Jun 2010 19:37:15 +0800
+Subject: [PATCH] ENGR00124740-3 MX53 : Multi-channel audio support
+
+CS4288 is built in as default for MX53, but with a command parameter
+of apc in the commandline to enable.
+
+Signed-off-by: William Lai <b04597@freescale.com>
+---
+ arch/arm/configs/imx5_defconfig   |    5 +-
+ arch/arm/mach-mx5/clock.c         |  103 +++++++++++++++++++++++++-------
+ arch/arm/mach-mx5/devices.c       |   22 +++++++
+ arch/arm/mach-mx5/devices.h       |    1 +
+ arch/arm/mach-mx5/mx53_evk.c      |   37 +++++++++++-
+ arch/arm/mach-mx5/mx53_evk_gpio.c |  118 ++++++++++++++++++++++++++++++++++++-
+ 6 files changed, 259 insertions(+), 27 deletions(-)
+
+diff --git a/arch/arm/configs/imx5_defconfig b/arch/arm/configs/imx5_defconfig
+index da699bd..5b8f801 100644
+--- a/arch/arm/configs/imx5_defconfig
++++ b/arch/arm/configs/imx5_defconfig
+@@ -1,7 +1,7 @@
+ #
+ # Automatically generated make config: don't edit
+ # Linux kernel version: 2.6.31
+-# Sat Jun 26 00:18:13 2010
++# Wed Jun 30 16:57:27 2010
+ #
+ CONFIG_ARM=y
+ CONFIG_HAVE_PWM=y
+@@ -1408,14 +1408,17 @@ CONFIG_SND_USB=y
+ CONFIG_SND_SOC=y
+ CONFIG_SND_MXC_SOC=y
+ CONFIG_SND_MXC_SOC_SSI=y
++CONFIG_SND_MXC_SOC_ESAI=y
+ CONFIG_SND_MXC_SOC_IRAM=y
+ CONFIG_SND_SOC_IMX_3STACK_SGTL5000=y
+ # CONFIG_SND_SOC_IMX_3STACK_AK4647 is not set
+ # CONFIG_SND_SOC_IMX_3STACK_WM8580 is not set
+ # CONFIG_SND_SOC_IMX_3STACK_AK5702 is not set
+ # CONFIG_SND_SOC_IMX_3STACK_BLUETOOTH is not set
++CONFIG_SND_SOC_IMX_3STACK_CS42888=y
+ CONFIG_SND_SOC_I2C_AND_SPI=y
+ # CONFIG_SND_SOC_ALL_CODECS is not set
++CONFIG_SND_SOC_CS42888=y
+ CONFIG_SND_SOC_SGTL5000=y
+ # CONFIG_SOUND_PRIME is not set
+ CONFIG_HID_SUPPORT=y
+diff --git a/arch/arm/mach-mx5/clock.c b/arch/arm/mach-mx5/clock.c
+index c501516..04f1208 100644
+--- a/arch/arm/mach-mx5/clock.c
++++ b/arch/arm/mach-mx5/clock.c
+@@ -2245,28 +2245,6 @@ static struct clk uart5_clk[] = {
+ 	 },
+ };
+ 
+-static struct clk esai_clk[] = {
+-	{
+-	 .name = "esai_clk",
+-	 .id = 2,
+-	 .parent = &pll3_sw_clk,
+-	 .secondary = &esai_clk[1],
+-	 .enable_reg = MXC_CCM_CCGR6,
+-	 .enable_shift = MXC_CCM_CCGR6_CG9_OFFSET,
+-	 .enable = _clk_enable,
+-	 .disable = _clk_disable,
+-	 },
+-	{
+-	 .name = "esai_ipg_clk",
+-	 .id = 2,
+-	 .parent = &pll3_sw_clk,
+-	 .enable_reg = MXC_CCM_CCGR6,
+-	 .enable_shift = MXC_CCM_CCGR6_CG8_OFFSET,
+-	 .enable = _clk_enable,
+-	 .disable = _clk_disable,
+-	 },
+-};
+-
+ static struct clk gpt_clk[] = {
+ 	{
+ 	 .name = "gpt_clk",
+@@ -2789,6 +2767,83 @@ static struct clk ssi_ext2_clk = {
+ 	.disable = _clk_disable,
+ };
+ 
++static int _clk_esai_set_parent(struct clk *clk, struct clk *parent)
++{
++	u32 reg, mux;
++
++	reg = __raw_readl(MXC_CCM_CSCMR2);
++	if (parent ==  &pll1_sw_clk || parent ==  &pll2_sw_clk ||
++		    parent ==  &pll3_sw_clk) {
++		mux = _get_mux(parent, &pll1_sw_clk, &pll2_sw_clk, &pll3_sw_clk,
++			NULL);
++		reg &= ~MXC_CCM_CSCMR2_ESAI_PRE_SEL_MASK;
++		reg |= mux << MXC_CCM_CSCMR2_ESAI_PRE_SEL_OFFSET;
++		reg &= ~MXC_CCM_CSCMR2_ESAI_POST_SEL_MASK;
++		reg |= 0 << MXC_CCM_CSCMR2_ESAI_POST_SEL_OFFSET;
++		/* divider setting */
++	} else {
++		mux = _get_mux(parent, &ssi1_clk[0], &ssi2_clk[0], &ckih_clk,
++			&ckih2_clk);
++		reg &= ~MXC_CCM_CSCMR2_ESAI_POST_SEL_MASK;
++		reg |= (mux + 1) << MXC_CCM_CSCMR2_ESAI_POST_SEL_OFFSET;
++		/* divider setting */
++	}
++
++	__raw_writel(reg, MXC_CCM_CSCMR2);
++
++	/* set podf = 0 */
++	reg = __raw_readl(MXC_CCM_CS1CDR);
++	reg &= ~MXC_CCM_CS1CDR_ESAI_CLK_PODF_MASK;
++	__raw_writel(reg, MXC_CCM_CS1CDR);
++
++	return 0;
++}
++
++static void _clk_esai_recalc(struct clk *clk)
++{
++	u32 reg, pred, podf;
++
++	reg = __raw_readl(MXC_CCM_CS1CDR);
++	if (clk->parent ==  &pll1_sw_clk || clk->parent ==  &pll2_sw_clk ||
++		    clk->parent ==  &pll3_sw_clk) {
++		pred = ((reg & MXC_CCM_CS1CDR_ESAI_CLK_PRED_MASK) >>
++			MXC_CCM_CS1CDR_ESAI_CLK_PRED_OFFSET) + 1;
++		podf = ((reg & MXC_CCM_CS1CDR_ESAI_CLK_PODF_MASK) >>
++			MXC_CCM_CS1CDR_ESAI_CLK_PODF_OFFSET) + 1;
++
++		clk->rate = clk->parent->rate / (pred * podf);
++	} else {
++		podf = ((reg & MXC_CCM_CS1CDR_ESAI_CLK_PODF_MASK) >>
++			MXC_CCM_CS1CDR_ESAI_CLK_PODF_OFFSET) + 1;
++
++		clk->rate = clk->parent->rate / podf;
++	}
++}
++
++static struct clk esai_clk[] = {
++	{
++	 .name = "esai_clk",
++	 .id = 0,
++	 .parent = &pll3_sw_clk,
++	 .set_parent = _clk_esai_set_parent,
++	 .recalc = _clk_esai_recalc,
++	 .secondary = &esai_clk[1],
++	 .enable_reg = MXC_CCM_CCGR6,
++	 .enable_shift = MXC_CCM_CCGR6_CG9_OFFSET,
++	 .enable = _clk_enable,
++	 .disable = _clk_disable,
++	 },
++	{
++	 .name = "esai_ipg_clk",
++	 .id = 0,
++	 .parent = &ipg_clk,
++	 .enable_reg = MXC_CCM_CCGR6,
++	 .enable_shift = MXC_CCM_CCGR6_CG8_OFFSET,
++	 .enable = _clk_enable,
++	 .disable = _clk_disable,
++	 },
++};
++
+ static struct clk iim_clk = {
+ 	.name = "iim_clk",
+ 	.parent = &ipg_clk,
+@@ -4732,6 +4787,10 @@ int __init mx53_clocks_init(unsigned long ckil, unsigned long osc, unsigned long
+ 	clk_register(&can2_clk[0]);
+ 	clk_register(&ldb_di_clk[0]);
+ 	clk_register(&ldb_di_clk[1]);
++	/* OSC of 22.5792M or 24.576M for ESAI */
++	clk_register(&esai_clk[0]);
++	clk_set_parent(&esai_clk[0], &ckih_clk);
++	clk_register(&esai_clk[1]);
+ 
+ 	ldb_di_clk[0].parent = ldb_di_clk[1].parent =
+ 	tve_clk.parent = &pll4_sw_clk;
+diff --git a/arch/arm/mach-mx5/devices.c b/arch/arm/mach-mx5/devices.c
+index 4a77e0e..6fceacc 100644
+--- a/arch/arm/mach-mx5/devices.c
++++ b/arch/arm/mach-mx5/devices.c
+@@ -578,6 +578,26 @@ struct platform_device mxc_ssi2_device = {
+ 	.resource = ssi2_resources,
+ };
+ 
++static struct resource esai_resources[] = {
++	{
++		.start = ESAI_BASE_ADDR,
++		.end = ESAI_BASE_ADDR + 0x100,
++		.flags = IORESOURCE_MEM,
++	},
++	{
++		.start = MXC_INT_ESAI,
++		.end = MXC_INT_ESAI,
++		.flags = IORESOURCE_IRQ,
++	},
++};
++
++struct platform_device mxc_esai_device = {
++	.name = "mxc_esai",
++	.id = 0,
++	.num_resources = ARRAY_SIZE(esai_resources),
++	.resource = esai_resources,
++};
++
+ static struct resource tve_resources[] = {
+ 	{
+ 		.start = TVE_BASE_ADDR,
+@@ -1428,6 +1448,8 @@ int __init mxc_init_devices(void)
+ 		ssi1_resources[0].end -= MX53_OFFSET;
+ 		ssi2_resources[0].start -= MX53_OFFSET;
+ 		ssi2_resources[0].end -= MX53_OFFSET;
++		esai_resources[0].start -= MX53_OFFSET;
++		esai_resources[0].end -= MX53_OFFSET;
+ 		tve_resources[0].start -= MX53_OFFSET;
+ 		tve_resources[0].end -= MX53_OFFSET;
+ 		dvfs_core_resources[0].start -= MX53_OFFSET;
+diff --git a/arch/arm/mach-mx5/devices.h b/arch/arm/mach-mx5/devices.h
+index 6272a42..0b897f6 100644
+--- a/arch/arm/mach-mx5/devices.h
++++ b/arch/arm/mach-mx5/devices.h
+@@ -44,6 +44,7 @@ extern struct platform_device mxc_dvfs_core_device;
+ extern struct platform_device mxc_dvfs_per_device;
+ extern struct platform_device mxc_ssi1_device;
+ extern struct platform_device mxc_ssi2_device;
++extern struct platform_device mxc_esai_device;
+ extern struct platform_device mxc_alsa_spdif_device;
+ extern struct platform_device mx51_lpmode_device;
+ extern struct platform_device mx53_lpmode_device;
+diff --git a/arch/arm/mach-mx5/mx53_evk.c b/arch/arm/mach-mx5/mx53_evk.c
+index 2de3ad0..f134209 100644
+--- a/arch/arm/mach-mx5/mx53_evk.c
++++ b/arch/arm/mach-mx5/mx53_evk.c
+@@ -309,6 +309,10 @@ static struct ldb_platform_data ldb_data = {
+ 	.ext_ref = 1,
+ };
+ 
++static struct mxc_esai_platform_data esai_data = {
++	.activate_esai_ports = gpio_activate_esai_ports,
++};
++
+ static void adv7180_pwdn(int pwdn)
+ {
+ 	gpio_request(IOMUX_TO_GPIO(MX53_PIN_CSI0_D5), "gpio5_23");
+@@ -410,6 +414,10 @@ static struct i2c_board_info mxc_i2c0_board_info[] __initdata = {
+ 	.addr = 0x21,
+ 	.platform_data = (void *)&adv7180_data,
+ 	 },
++	{
++	 .type = "cs42888",
++	 .addr = 0x48,
++	 },
+ };
+ 
+ /* TO DO add platform data */
+@@ -810,6 +818,26 @@ static struct mxc_spdif_platform_data mxc_spdif_data = {
+ 	.spdif_clk = NULL,	/* spdif bus clk */
+ };
+ 
++static struct mxc_audio_platform_data mxc_surround_audio_data = {
++	.ext_ram = 1,
++};
++
++
++static struct platform_device mxc_alsa_surround_device = {
++	.name = "imx-3stack-cs42888",
++};
++
++static int __initdata mxc_apc_on = { 0 };	/* OFF: 0 (default), ON: 1 */
++
++static int __init apc_setup(char *__unused)
++{
++	mxc_apc_on = 1;
++	printk(KERN_INFO "Automotive Port Card is Plugged on\n");
++	return 1;
++}
++__setup("apc", apc_setup);
++
++
+ /*!
+  * Board specific fixup function. It is called by \b setup_arch() in
+  * setup.c file very early on during kernel starts. It allows the user to
+@@ -966,8 +994,8 @@ static void __init mxc_board_init(void)
+ 	mxc_register_device(&mxc_ssi2_device, NULL);
+ 	mxc_register_device(&ahci_fsl_device, &sata_data);
+ 	mxc_register_device(&mxc_alsa_spdif_device, &mxc_spdif_data);
+-
+-	mxc_register_device(&mxc_fec_device, &fec_data);
++	if (!mxc_apc_on)
++		mxc_register_device(&mxc_fec_device, &fec_data);
+ 	spi_register_board_info(mxc_dataflash_device,
+ 				ARRAY_SIZE(mxc_dataflash_device));
+ 	i2c_register_board_info(0, mxc_i2c0_board_info,
+@@ -984,6 +1012,11 @@ static void __init mxc_board_init(void)
+ 	mx5_usb_dr_init();
+ 	mx5_usbh1_init();
+ 	mxc_register_device(&mxc_nandv2_mtd_device, &mxc_nand_data);
++	if (mxc_apc_on) {
++		mxc_register_device(&mxc_esai_device, &esai_data);
++		mxc_register_device(&mxc_alsa_surround_device,
++			&mxc_surround_audio_data);
++	}
+ }
+ 
+ static void __init mx53_evk_timer_init(void)
+diff --git a/arch/arm/mach-mx5/mx53_evk_gpio.c b/arch/arm/mach-mx5/mx53_evk_gpio.c
+index 25120d9..56e7d65 100644
+--- a/arch/arm/mach-mx5/mx53_evk_gpio.c
++++ b/arch/arm/mach-mx5/mx53_evk_gpio.c
+@@ -272,8 +272,11 @@ static struct mxc_iomux_pin_cfg __initdata mxc_iomux_pins[] = {
+ 	{
+ 	 MX53_PIN_GPIO_11, IOMUX_CONFIG_GPIO,
+ 	 },
+-	{
+-	 MX53_PIN_GPIO_12, IOMUX_CONFIG_GPIO,
++	{ /* ESAI reset */
++	 MX53_PIN_GPIO_12, IOMUX_CONFIG_ALT0,
++	(PAD_CTL_DRV_HIGH | PAD_CTL_HYS_ENABLE | PAD_CTL_PKE_ENABLE |
++	  PAD_CTL_PUE_PULL | PAD_CTL_100K_PU | PAD_CTL_ODE_OPENDRAIN_ENABLE |
++	  PAD_CTL_SRE_FAST),
+ 	 },
+ 	{
+ 	 MX53_PIN_GPIO_13, IOMUX_CONFIG_GPIO,
+@@ -905,6 +908,10 @@ void __init mx53_evk_io_init(void)
+ 		msleep(1);
+ 		gpio_set_value(IOMUX_TO_GPIO(MX53_PIN_ATA_DA_0), 1);
+ 
++		/* CS42888 reset GPIO */
++		gpio_direction_output(IOMUX_TO_GPIO(MX53_PIN_GPIO_12), 0);
++		gpio_set_value(IOMUX_TO_GPIO(MX53_PIN_GPIO_12), 0);
++
+ 	}
+ 
+ 	/* DVI Detect */
+@@ -1115,3 +1122,110 @@ void gpio_lcd_active(void)
+ /* TO DO */
+ }
+ EXPORT_SYMBOL(gpio_lcd_active);
++
++void gpio_activate_esai_ports(void)
++{
++	unsigned int pad_val;
++
++	/* ESAI1-HCKR */
++	mxc_request_iomux(MX53_PIN_FEC_RX_ER, IOMUX_CONFIG_ALT2);
++	/* ESAI1-SCKR */
++	mxc_request_iomux(MX53_PIN_FEC_MDIO, IOMUX_CONFIG_ALT2);
++	/* ESAI1-FSR */
++	mxc_request_iomux(MX53_PIN_FEC_REF_CLK, IOMUX_CONFIG_ALT2);
++	/* ESAI1-HCKT */
++	mxc_request_iomux(MX53_PIN_FEC_RXD0, IOMUX_CONFIG_ALT2);
++	/* ESAI1-SCKT */
++	mxc_request_iomux(MX53_PIN_FEC_CRS_DV, IOMUX_CONFIG_ALT2);
++	/* ESAI1-FST */
++	mxc_request_iomux(MX53_PIN_FEC_RXD1, IOMUX_CONFIG_ALT2);
++	/* ESAI1-TX5-RX0 */
++	mxc_request_iomux(MX53_PIN_FEC_MDC, IOMUX_CONFIG_ALT2);
++	/* ESAI1-TX4-RX1 */
++	mxc_request_iomux(MX53_PIN_FEC_TXD0, IOMUX_CONFIG_ALT2);
++	/* ESAI1-TX3-RX2 */
++	mxc_request_iomux(MX53_PIN_FEC_TX_EN, IOMUX_CONFIG_ALT2);
++	/* ESAI1-TX2-RX3 */
++	mxc_request_iomux(MX53_PIN_FEC_TXD1, IOMUX_CONFIG_ALT2);
++	/* ESAI1-TX1 */
++	mxc_request_iomux(MX53_PIN_NANDF_CS3, IOMUX_CONFIG_ALT3);
++	/* ESAI1-TX0 */
++	mxc_request_iomux(MX53_PIN_NANDF_CS2, IOMUX_CONFIG_ALT3);
++
++	pad_val = PAD_CTL_DRV_HIGH | PAD_CTL_HYS_ENABLE |
++		    PAD_CTL_PKE_ENABLE | PAD_CTL_PUE_PULL |
++		    PAD_CTL_100K_PU | PAD_CTL_ODE_OPENDRAIN_NONE;
++
++	/* ESAI1-HCKR */
++	mxc_iomux_set_pad(MX53_PIN_FEC_RX_ER, pad_val);
++	/* ESAI1-SCKR */
++	mxc_iomux_set_pad(MX53_PIN_FEC_MDIO, pad_val);
++	/* ESAI1-FSR */
++	mxc_iomux_set_pad(MX53_PIN_FEC_REF_CLK, pad_val);
++	/* ESAI1-HCKT */
++	mxc_iomux_set_pad(MX53_PIN_FEC_RXD0, pad_val);
++	/* ESAI1-SCKT */
++	mxc_iomux_set_pad(MX53_PIN_FEC_CRS_DV, pad_val);
++	/* ESAI1-FST */
++	mxc_iomux_set_pad(MX53_PIN_FEC_RXD1, pad_val);
++	/* ESAI1-TX5-RX0 */
++	mxc_iomux_set_pad(MX53_PIN_FEC_MDC, pad_val);
++	/* ESAI1-TX4-RX1 */
++	mxc_iomux_set_pad(MX53_PIN_FEC_TXD0, pad_val);
++	/* ESAI1-TX3-RX2 */
++	mxc_iomux_set_pad(MX53_PIN_FEC_TX_EN, pad_val);
++	/* ESAI1-TX2-RX3 */
++	mxc_iomux_set_pad(MX53_PIN_FEC_TXD1, pad_val);
++	/* ESAI1-TX1 */
++	mxc_iomux_set_pad(MX53_PIN_NANDF_CS3, pad_val);
++	/* ESAI1-TX0 */
++	mxc_iomux_set_pad(MX53_PIN_NANDF_CS2, pad_val);
++
++	/* ESAI1-HCKR */
++	mxc_iomux_set_input(MUX_IN_ESAI1_IPP_IND_HCKR_SELECT_INPUT,
++		INPUT_CTL_PATH0);
++	/* ESAI1-SCKR */
++	mxc_iomux_set_input(MUX_IN_ESAI1_IPP_IND_SCKR_SELECT_INPUT,
++		INPUT_CTL_PATH0);
++	/* ESAI1-FSR */
++	mxc_iomux_set_input(MUX_IN_ESAI1_IPP_IND_FSR_SELECT_INPUT,
++		INPUT_CTL_PATH0);
++	/* ESAI1-HCKT */
++	mxc_iomux_set_input(MUX_IN_ESAI1_IPP_IND_HCKT_SELECT_INPUT,
++		INPUT_CTL_PATH0);
++	/* ESAI1-SCKT */
++	mxc_iomux_set_input(MUX_IN_ESAI1_IPP_IND_SCKT_SELECT_INPUT,
++		INPUT_CTL_PATH0);
++	/* ESAI1-FST */
++	mxc_iomux_set_input(MUX_IN_ESAI1_IPP_IND_FST_SELECT_INPUT,
++		INPUT_CTL_PATH0);
++	/* ESAI1-TX5-RX0 */
++	mxc_iomux_set_input(MUX_IN_ESAI1_IPP_IND_SDO5_SDI0_SELECT_INPUT,
++		INPUT_CTL_PATH0);
++	/* ESAI1-TX4-RX1 */
++	mxc_iomux_set_input(MUX_IN_ESAI1_IPP_IND_SDO4_SDI1_SELECT_INPUT,
++		INPUT_CTL_PATH0);
++	/* ESAI1-TX3-RX2 */
++	mxc_iomux_set_input(MUX_IN_ESAI1_IPP_IND_SDO3_SDI2_SELECT_INPUT,
++		INPUT_CTL_PATH0);
++	/* ESAI1-TX2-RX3 */
++	mxc_iomux_set_input(MUX_IN_ESAI1_IPP_IND_SDO2_SDI3_SELECT_INPUT,
++		INPUT_CTL_PATH0);
++	/* ESAI1-TX1 */
++	mxc_iomux_set_input(MUX_IN_ESAI1_IPP_IND_SDO1_SELECT_INPUT,
++		INPUT_CTL_PATH0);
++	/* ESAI1-TX0 */
++	mxc_iomux_set_input(MUX_IN_ESAI1_IPP_IND_SDO0_SELECT_INPUT,
++		INPUT_CTL_PATH0);
++
++}
++EXPORT_SYMBOL(gpio_activate_esai_ports);
++
++void gpio_cs42888_pdwn(int pdwn)
++{
++	if (pdwn)
++		gpio_set_value(IOMUX_TO_GPIO(MX53_PIN_GPIO_12), 0);
++	else
++		gpio_set_value(IOMUX_TO_GPIO(MX53_PIN_GPIO_12), 1);
++}
++EXPORT_SYMBOL(gpio_cs42888_pdwn);
+-- 
+1.5.4.4
+

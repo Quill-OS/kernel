@@ -1,0 +1,37 @@
+From a57255e5776a65d7311ee3b9801208241b632173 Mon Sep 17 00:00:00 2001
+From: Lily Zhang <r58066@freescale.com>
+Date: Wed, 14 Apr 2010 18:55:54 +0800
+Subject: [PATCH] ENGR00122496 MX5: Enable CONFIG_SECURITY_FILE_CAPABILITIES
+
+Enable the CONFIG_SECURITY_FILE_CAPABILITIES option for ChromiumOS
+
+Signed-off-by: Lily Zhang <r58066@freescale.com>
+---
+ arch/arm/configs/imx5_defconfig |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm/configs/imx5_defconfig b/arch/arm/configs/imx5_defconfig
+index ce347b7..b79c756 100644
+--- a/arch/arm/configs/imx5_defconfig
++++ b/arch/arm/configs/imx5_defconfig
+@@ -1,7 +1,7 @@
+ #
+ # Automatically generated make config: don't edit
+ # Linux kernel version: 2.6.31
+-# Wed Apr 14 09:50:11 2010
++# Wed Apr 14 18:55:09 2010
+ #
+ CONFIG_ARM=y
+ CONFIG_HAVE_PWM=y
+@@ -1953,7 +1953,7 @@ CONFIG_ARM_UNWIND=y
+ # CONFIG_KEYS is not set
+ # CONFIG_SECURITY is not set
+ # CONFIG_SECURITYFS is not set
+-# CONFIG_SECURITY_FILE_CAPABILITIES is not set
++CONFIG_SECURITY_FILE_CAPABILITIES=y
+ CONFIG_CRYPTO=y
+ 
+ #
+-- 
+1.5.4.4
+

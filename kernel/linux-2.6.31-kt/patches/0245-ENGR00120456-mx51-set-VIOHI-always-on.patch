@@ -1,0 +1,28 @@
+From 95f9faad3bba18bab80ba7e26c33c0359177db24 Mon Sep 17 00:00:00 2001
+From: Zhou Jingyu <b02241@shlinux1.ap.freescale.net>
+Date: Wed, 3 Feb 2010 13:00:35 +0800
+Subject: [PATCH] ENGR00120456 mx51: set VIOHI always on
+
+Set regulator VIOHI to be always on for several
+soc power domains are supplied by VIOHI
+
+Signed-off-by: Zhou Jingyu <Jingyu.Zhou@freescale.com>
+---
+ arch/arm/mach-mx51/mx51_babbage_pmic_mc13892.c |    1 +
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+
+diff --git a/arch/arm/mach-mx51/mx51_babbage_pmic_mc13892.c b/arch/arm/mach-mx51/mx51_babbage_pmic_mc13892.c
+index daedc43..558bb00 100644
+--- a/arch/arm/mach-mx51/mx51_babbage_pmic_mc13892.c
++++ b/arch/arm/mach-mx51/mx51_babbage_pmic_mc13892.c
+@@ -178,6 +178,7 @@ static struct regulator_init_data sw4_init = {
+ static struct regulator_init_data viohi_init = {
+ 	.constraints = {
+ 		.name = "VIOHI",
++		.always_on = 1,
+ 		.boot_on = 1,
+ 	}
+ };
+-- 
+1.5.4.4
+

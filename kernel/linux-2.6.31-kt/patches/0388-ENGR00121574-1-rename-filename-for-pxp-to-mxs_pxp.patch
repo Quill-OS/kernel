@@ -1,0 +1,74 @@
+From 02b51a0bb08dc8fb79507e91cfe16c742fac1765 Mon Sep 17 00:00:00 2001
+From: Robby Cai <R63905@freescale.com>
+Date: Mon, 15 Mar 2010 16:57:17 +0800
+Subject: [PATCH] ENGR00121574-1 rename filename for pxp to mxs_pxp
+
+rename filename to avoid polluting original stmp codes
+this patch contains MSL-related code changes
+
+Signed-off-by: Robby Cai <R63905@freescale.com>
+---
+ arch/arm/mach-mx23/device.c |    4 ++--
+ arch/arm/mach-mx28/device.c |    4 ++--
+ arch/arm/plat-mxs/device.c  |    8 ++++----
+ 3 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/arch/arm/mach-mx23/device.c b/arch/arm/mach-mx23/device.c
+index fc2ddc1..4fde597 100644
+--- a/arch/arm/mach-mx23/device.c
++++ b/arch/arm/mach-mx23/device.c
+@@ -164,8 +164,8 @@ static void __init mx23_init_lcdif(void)
+ }
+ #endif
+ 
+-#if defined(CONFIG_VIDEO_PXP) || \
+-	defined(CONFIG_VIDEO_PXP_MODULE)
++#if defined(CONFIG_VIDEO_MXS_PXP) || \
++	defined(CONFIG_VIDEO_MXS_PXP_MODULE)
+ static struct resource pxp_resource[] = {
+ 	{
+ 		.flags	= IORESOURCE_MEM,
+diff --git a/arch/arm/mach-mx28/device.c b/arch/arm/mach-mx28/device.c
+index d63055a..0b5e440 100644
+--- a/arch/arm/mach-mx28/device.c
++++ b/arch/arm/mach-mx28/device.c
+@@ -163,8 +163,8 @@ static void __init mx28_init_lcdif(void)
+ }
+ #endif
+ 
+-#if defined(CONFIG_VIDEO_PXP) || \
+-	defined(CONFIG_VIDEO_PXP_MODULE)
++#if defined(CONFIG_VIDEO_MXS_PXP) || \
++	defined(CONFIG_VIDEO_MXS_PXP_MODULE)
+ static struct resource pxp_resource[] = {
+ 	{
+ 		.flags	= IORESOURCE_MEM,
+diff --git a/arch/arm/plat-mxs/device.c b/arch/arm/plat-mxs/device.c
+index 4b7b5d5..58f483b 100644
+--- a/arch/arm/plat-mxs/device.c
++++ b/arch/arm/plat-mxs/device.c
+@@ -221,8 +221,8 @@ struct platform_device mxs_bl = {
+ };
+ #endif
+ 
+-#if defined(CONFIG_VIDEO_PXP) || \
+-	defined(CONFIG_VIDEO_PXP_MODULE)
++#if defined(CONFIG_VIDEO_MXS_PXP) || \
++	defined(CONFIG_VIDEO_MXS_PXP_MODULE)
+ static struct platform_device mxs_pxp = {
+ 	.name		= "mxs-pxp",
+ 	.id		= 0,
+@@ -487,8 +487,8 @@ static struct mxs_dev_lookup dev_lookup[] = {
+ 	 },
+ #endif
+ 
+-#if defined(CONFIG_VIDEO_PXP) || \
+-	defined(CONFIG_VIDEO_PXP_MODULE)
++#if defined(CONFIG_VIDEO_MXS_PXP) || \
++	defined(CONFIG_VIDEO_MXS_PXP_MODULE)
+ 	{
+ 	 .name	= "mxs-pxp",
+ 	 .size	= 1,
+-- 
+1.5.4.4
+

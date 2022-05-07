@@ -1,0 +1,517 @@
+From 48e1bb64460d65984cc0a4c0d59dbc05180a647f Mon Sep 17 00:00:00 2001
+From: Fred Fan <r01011@freescale.com>
+Date: Thu, 28 Jan 2010 13:30:57 +0800
+Subject: [PATCH] ENGR00117733-2 i.MX28 EVK keypad support
+
+Add platform support
+
+Signed-off-by: Fred.fan <r01011@freescale.com>
+---
+ arch/arm/mach-mx28/device.c             |   54 +++++++++
+ arch/arm/plat-mxs/device.c              |   18 +++
+ arch/arm/plat-mxs/include/mach/device.h |   10 ++
+ drivers/input/keyboard/mxs-kbd.c        |  191 +++++++++++++++++--------------
+ 4 files changed, 185 insertions(+), 88 deletions(-)
+
+diff --git a/arch/arm/mach-mx28/device.c b/arch/arm/mach-mx28/device.c
+index b393af4..d26d693 100644
+--- a/arch/arm/mach-mx28/device.c
++++ b/arch/arm/mach-mx28/device.c
+@@ -23,6 +23,7 @@
+ #include <linux/err.h>
+ #include <linux/io.h>
+ #include <linux/delay.h>
++#include <linux/input.h>
+ #include <linux/platform_device.h>
+ #include <linux/mmc/host.h>
+ #include <linux/phy.h>
+@@ -609,6 +610,58 @@ static void __init mx28_init_lradc(void)
+ }
+ #endif
+ 
++#if defined(CONFIG_KEYBOARD_MXS) || defined(CONFIG_KEYBOARD_MXS_MODULE)
++static struct mxskbd_keypair keyboard_data[] = {
++	{ 100, KEY_F4 },
++	{ 306, KEY_F5 },
++	{ 626, KEY_F6 },
++	{ 932, KEY_F7 },
++	{ 1260, KEY_F8 },
++	{ 1584, KEY_F9 },
++	{ 1907, KEY_F10 },
++	{ 2207, KEY_F11 },
++	{ 2525, KEY_F12 },
++	{ 2831, KEY_F13},
++	{ 3134, KEY_F14 },
++	{ -1, 0 },
++};
++
++static struct mxs_kbd_plat_data mxs_kbd_data = {
++	.keypair = keyboard_data,
++	.channel = LRADC_CH1,
++};
++
++static struct resource mx28_kbd_res[] = {
++	{
++	 .flags = IORESOURCE_MEM,
++	 .start = LRADC_PHYS_ADDR,
++	 .end   = LRADC_PHYS_ADDR + 0x2000 - 1,
++	 },
++	{
++	 .flags = IORESOURCE_IRQ,
++	 .start = IRQ_LRADC_CH1,
++	 .end   = IRQ_LRADC_CH1,
++	 },
++};
++
++static void __init mx28_init_kbd(void)
++{
++	struct platform_device *pdev;
++	pdev = mxs_get_device("mxs-kbd", 0);
++	if (pdev == NULL || IS_ERR(pdev))
++		return;
++	pdev->resource = mx28_kbd_res;
++	pdev->num_resources = ARRAY_SIZE(mx28_kbd_res);
++	pdev->dev.platform_data = &mxs_kbd_data;
++	mxs_add_device(pdev, 3);
++}
++#else
++static void __init mx28_init_kbd(void)
++{
++	;
++}
++#endif
++
+ int __init mx28_device_init(void)
+ {
+ 	mx28_init_dma();
+@@ -619,6 +672,7 @@ int __init mx28_device_init(void)
+ 	mx28_init_wdt();
+ 	mx28_init_rtc();
+ 	mx28_init_fec();
++	mx28_init_kbd();
+ 	return 0;
+ }
+ 
+diff --git a/arch/arm/plat-mxs/device.c b/arch/arm/plat-mxs/device.c
+index f3fcad7..7fd8b3a 100644
+--- a/arch/arm/plat-mxs/device.c
++++ b/arch/arm/plat-mxs/device.c
+@@ -216,6 +216,16 @@ static struct platform_device mxs_lradc = {
+ };
+ #endif
+ 
++#if defined(CONFIG_KEYBOARD_MXS) || defined(CONFIG_KEYBOARD_MXS_MODULE)
++static struct platform_device mxs_kbd = {
++	.name = "mxs-kbd",
++	.id = 0,
++	.dev = {
++		.release = mxs_nop_release,
++		},
++};
++#endif
++
+ static struct mxs_dev_lookup dev_lookup[] = {
+ #if defined(CONFIG_SERIAL_MXS_DUART) || \
+ 	defined(CONFIG_SERIAL_MXS_DUART_MODULE)
+@@ -291,6 +301,14 @@ static struct mxs_dev_lookup dev_lookup[] = {
+ 	 .pdev = &mxs_lradc,
+ 	 },
+ #endif
++
++#if defined(CONFIG_KEYBOARD_MXS) || defined(CONFIG_KEYBOARD_MXS_MODULE)
++	{
++	 .name = "mxs-kbd",
++	 .size = 1,
++	 .pdev = &mxs_kbd,
++	 },
++#endif
+ };
+ 
+ struct platform_device *mxs_get_device(char *name, int id)
+diff --git a/arch/arm/plat-mxs/include/mach/device.h b/arch/arm/plat-mxs/include/mach/device.h
+index 7083baa..05230f2 100644
+--- a/arch/arm/plat-mxs/include/mach/device.h
++++ b/arch/arm/plat-mxs/include/mach/device.h
+@@ -62,6 +62,16 @@ struct mxs_lradc_plat_data {
+ 	unsigned int battery_voltage;
+ };
+ 
++struct mxskbd_keypair {
++	int raw;
++	int kcode;
++};
++
++struct mxs_kbd_plat_data {
++	struct mxskbd_keypair *keypair;
++	int channel;
++};
++
+ extern void mxs_timer_init(struct mxs_sys_timer *timer);
+ 
+ extern void mxs_nop_release(struct device *dev);
+diff --git a/drivers/input/keyboard/mxs-kbd.c b/drivers/input/keyboard/mxs-kbd.c
+index 6037c50..7161a61 100644
+--- a/drivers/input/keyboard/mxs-kbd.c
++++ b/drivers/input/keyboard/mxs-kbd.c
+@@ -1,5 +1,5 @@
+ /*
+- * Keypad ladder driver for Freescale STMP37XX/STMP378X boards
++ * Keypad ladder driver for Freescale MXS boards
+  *
+  * Author: dmitry pervushin <dimka@embeddedalley.com>
+  *
+@@ -20,13 +20,16 @@
+ #include <linux/init.h>
+ #include <linux/interrupt.h>
+ #include <linux/input.h>
++#include <linux/io.h>
++#include <linux/ioport.h>
+ #include <linux/device.h>
+ #include <linux/platform_device.h>
+ #include <linux/pm.h>
++
++#include <mach/device.h>
++#include <mach/hardware.h>
+ #include <mach/regs-lradc.h>
+ #include <mach/lradc.h>
+-#include <mach/stmp3xxx.h>
+-#include <mach/platform.h>
+ 
+ #define BUTTON_PRESS_THRESHOLD  3300
+ #define LRADC_NOISE_MARGIN      100
+@@ -34,23 +37,25 @@
+ /* this value represents the the lradc value at 3.3V ( 3.3V / 0.000879 V/b ) */
+ #define TARGET_VDDIO_LRADC_VALUE 3754
+ 
+-struct stmpkbd_data {
++struct mxskbd_data {
+ 	struct input_dev *input;
+ 	int last_button;
+ 	int irq;
+-	struct stmpkbd_keypair *keycodes;
++	struct mxskbd_keypair *keycodes;
++	unsigned int base;
++	int chan;
+ };
+ 
+ static int delay1 = 500;
+ static int delay2 = 200;
+ 
+-static int stmpkbd_open(struct input_dev *dev);
+-static void stmpkbd_close(struct input_dev *dev);
++static int mxskbd_open(struct input_dev *dev);
++static void mxskbd_close(struct input_dev *dev);
+ 
+-static struct stmpkbd_data *stmpkbd_data_alloc(struct platform_device *pdev,
+-		struct stmpkbd_keypair *keys)
++static struct mxskbd_data *mxskbd_data_alloc(struct platform_device *pdev,
++		struct mxskbd_keypair *keys)
+ {
+-	struct stmpkbd_data *d = kzalloc(sizeof(*d), GFP_KERNEL);
++	struct mxskbd_data *d = kzalloc(sizeof(*d), GFP_KERNEL);
+ 
+ 	if (!d)
+ 		return NULL;
+@@ -73,8 +78,8 @@ static struct stmpkbd_data *stmpkbd_data_alloc(struct platform_device *pdev,
+ 	d->input->uniq = "0000'0000";
+ 	d->input->name = pdev->name;
+ 	d->input->id.bustype = BUS_HOST;
+-	d->input->open = stmpkbd_open;
+-	d->input->close = stmpkbd_close;
++	d->input->open = mxskbd_open;
++	d->input->close = mxskbd_close;
+ 	d->input->dev.parent = &pdev->dev;
+ 
+ 	set_bit(EV_KEY, d->input->evbit);
+@@ -92,13 +97,13 @@ static struct stmpkbd_data *stmpkbd_data_alloc(struct platform_device *pdev,
+ 	return d;
+ }
+ 
+-static inline struct input_dev *GET_INPUT_DEV(struct stmpkbd_data *d)
++static inline struct input_dev *GET_INPUT_DEV(struct mxskbd_data *d)
+ {
+ 	BUG_ON(!d);
+ 	return d->input;
+ }
+ 
+-static void stmpkbd_data_free(struct stmpkbd_data *d)
++static void mxskbd_data_free(struct mxskbd_data *d)
+ {
+ 	if (!d)
+ 		return;
+@@ -107,7 +112,7 @@ static void stmpkbd_data_free(struct stmpkbd_data *d)
+ 	kfree(d);
+ }
+ 
+-static unsigned stmpkbd_decode_button(struct stmpkbd_keypair *codes,
++static unsigned mxskbd_decode_button(struct mxskbd_keypair *codes,
+ 			int raw_button)
+ 
+ {
+@@ -125,15 +130,15 @@ static unsigned stmpkbd_decode_button(struct stmpkbd_keypair *codes,
+ }
+ 
+ 
+-static irqreturn_t stmpkbd_irq_handler(int irq, void *dev_id)
++static irqreturn_t mxskbd_irq_handler(int irq, void *dev_id)
+ {
+ 	struct platform_device *pdev = dev_id;
+-	struct stmpkbd_data *devdata = platform_get_drvdata(pdev);
++	struct mxskbd_data *devdata = platform_get_drvdata(pdev);
+ 	u16 raw_button, normalized_button, vddio;
+ 	unsigned btn;
+ 
+-	raw_button = __raw_readl(REGS_LRADC_BASE +
+-			HW_LRADC_CHn(LRADC_CH0)) & BM_LRADC_CHn_VALUE;
++	raw_button = __raw_readl(devdata->base + HW_LRADC_CHn(devdata->chan)) &
++				 BM_LRADC_CHn_VALUE;
+ 	vddio = hw_lradc_vddio();
+ 	BUG_ON(vddio == 0);
+ 
+@@ -142,107 +147,115 @@ static irqreturn_t stmpkbd_irq_handler(int irq, void *dev_id)
+ 
+ 	if (normalized_button < BUTTON_PRESS_THRESHOLD &&
+ 	    devdata->last_button < 0) {
+-
+-		btn = stmpkbd_decode_button(devdata->keycodes,
+-				normalized_button);
+-
++		btn = mxskbd_decode_button(devdata->keycodes,
++					   normalized_button);
+ 		if (btn < KEY_MAX) {
+ 			devdata->last_button = btn;
+ 			input_report_key(GET_INPUT_DEV(devdata),
+-				devdata->last_button, !0);
++					 devdata->last_button, !0);
+ 		} else
+ 			dev_err(&pdev->dev, "Invalid button: raw = %d, "
+ 				"normalized = %d, vddio = %d\n",
+ 				raw_button, normalized_button, vddio);
+ 	} else if (devdata->last_button > 0 &&
+-		normalized_button >= BUTTON_PRESS_THRESHOLD) {
+-
++		   normalized_button >= BUTTON_PRESS_THRESHOLD) {
+ 		input_report_key(GET_INPUT_DEV(devdata),
+-				devdata->last_button, 0);
++				 devdata->last_button, 0);
+ 		devdata->last_button = -1;
+-
+ 	}
+ 
+-	__raw_writel(BM_LRADC_CTRL1_LRADC0_IRQ,
+-		REGS_LRADC_BASE + HW_LRADC_CTRL1_CLR);
++	__raw_writel(BM_LRADC_CTRL1_LRADC0_IRQ << devdata->chan,
++		     devdata->base + HW_LRADC_CTRL1_CLR);
+ 	return IRQ_HANDLED;
+ }
+ 
+-static int stmpkbd_open(struct input_dev *dev)
++static int mxskbd_open(struct input_dev *dev)
+ {
+ 	/* enable clock */
+ 	return 0;
+ }
+ 
+-static void stmpkbd_close(struct input_dev *dev)
++static void mxskbd_close(struct input_dev *dev)
+ {
+ 	/* disable clock */
+ }
+ 
+-static void stmpkbd_hwinit(struct platform_device *pdev)
++static void mxskbd_hwinit(struct platform_device *pdev)
+ {
+-	hw_lradc_init_ladder(LRADC_CH0, LRADC_DELAY_TRIGGER_BUTTON, 200);
+-	__raw_writel(BM_LRADC_CTRL1_LRADC0_IRQ,
+-		REGS_LRADC_BASE + HW_LRADC_CTRL1_CLR);
+-	__raw_writel(BM_LRADC_CTRL1_LRADC0_IRQ_EN,
+-		REGS_LRADC_BASE + HW_LRADC_CTRL1_SET);
++	struct mxskbd_data *d = platform_get_drvdata(pdev);
++
++	hw_lradc_init_ladder(d->chan, LRADC_DELAY_TRIGGER_BUTTON, 200);
++	__raw_writel(BM_LRADC_CTRL1_LRADC0_IRQ << d->chan,
++		     d->base + HW_LRADC_CTRL1_CLR);
++	__raw_writel(BM_LRADC_CTRL1_LRADC0_IRQ_EN << d->chan,
++		     d->base + HW_LRADC_CTRL1_SET);
+ 	hw_lradc_set_delay_trigger_kick(LRADC_DELAY_TRIGGER_BUTTON, !0);
+ }
+ 
+-static int stmpkbd_suspend(struct platform_device *pdev, pm_message_t state)
+-{
+ #ifdef CONFIG_PM
+-	struct input_dev *idev = platform_get_drvdata(pdev);
++static int mxskbd_suspend(struct platform_device *pdev, pm_message_t state)
++{
++	struct mxskbd_data *d = platform_get_drvdata(pdev);
+ 
+-	hw_lradc_stop_ladder(LRADC_CH0, LRADC_DELAY_TRIGGER_BUTTON);
++	hw_lradc_stop_ladder(d->chan, LRADC_DELAY_TRIGGER_BUTTON);
+ 	hw_lradc_set_delay_trigger_kick(LRADC_DELAY_TRIGGER_BUTTON, 0);
+-	hw_lradc_unuse_channel(LRADC_CH0);
+-	__raw_writel(BM_LRADC_CTRL1_LRADC0_IRQ_EN,
+-		REGS_LRADC_BASE + HW_LRADC_CTRL1_CLR);
+-	stmpkbd_close(idev);
+-#endif
++	hw_lradc_unuse_channel(d->chan);
++	__raw_writel(BM_LRADC_CTRL1_LRADC0_IRQ_EN << d->chan,
++		     d->base + HW_LRADC_CTRL1_CLR);
++	mxskbd_close(d->input);
+ 	return 0;
+ }
+ 
+-static int stmpkbd_resume(struct platform_device *pdev)
++static int mxskbd_resume(struct platform_device *pdev)
+ {
+-#ifdef CONFIG_PM
+-	struct input_dev *idev = platform_get_drvdata(pdev);
++	struct mxskbd_data *d = platform_get_drvdata(pdev);
+ 
+-	__raw_writel(BM_LRADC_CTRL1_LRADC0_IRQ_EN,
+-		REGS_LRADC_BASE + HW_LRADC_CTRL1_SET);
+-	stmpkbd_open(idev);
+-	hw_lradc_use_channel(LRADC_CH0);
+-	stmpkbd_hwinit(pdev);
+-#endif
++	__raw_writel(BM_LRADC_CTRL1_LRADC0_IRQ_EN << d->chan,
++		     d->base + HW_LRADC_CTRL1_SET);
++	mxskbd_open(d->input);
++	hw_lradc_use_channel(d->chan);
++	mxskbd_hwinit(pdev);
+ 	return 0;
+ }
++#endif
+ 
+-static int __devinit stmpkbd_probe(struct platform_device *pdev)
++static int __devinit mxskbd_probe(struct platform_device *pdev)
+ {
+ 	int err = 0;
+-	int irq = platform_get_irq(pdev, 0);
+-	struct stmpkbd_data *d;
++	struct resource *res;
++	struct mxskbd_data *d;
++	struct mxs_kbd_plat_data *plat_data;
++
++	plat_data = (struct mxs_kbd_plat_data *)pdev->dev.platform_data;
++	if (plat_data == NULL)
++		return -ENODEV;
+ 
+ 	/* Create and register the input driver. */
+-	d = stmpkbd_data_alloc(pdev,
+-		(struct stmpkbd_keypair *)pdev->dev.platform_data);
++	d = mxskbd_data_alloc(pdev, plat_data->keypair);
+ 	if (!d) {
+ 		dev_err(&pdev->dev, "Cannot allocate driver structures\n");
+ 		err = -ENOMEM;
+ 		goto err_out;
+ 	}
+ 
+-	d->irq = irq;
+-	err = request_irq(irq, stmpkbd_irq_handler,
+-		IRQF_DISABLED, pdev->name, pdev);
++	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
++	if (!res) {
++		err = -ENODEV;
++		goto err_out;
++	}
++	d->base = (unsigned int)IO_ADDRESS(res->start);
++	d->chan = plat_data->channel;
++	d->irq = platform_get_irq(pdev, 0);
++
++	platform_set_drvdata(pdev, d);
++
++	err = request_irq(d->irq, mxskbd_irq_handler,
++			  IRQF_DISABLED, pdev->name, pdev);
+ 	if (err) {
+ 		dev_err(&pdev->dev, "Cannot request keypad IRQ\n");
+ 		goto err_free_dev;
+ 	}
+ 
+-	platform_set_drvdata(pdev, d);
+-
+ 	/* Register the input device */
+ 	err = input_register_device(GET_INPUT_DEV(d));
+ 	if (err)
+@@ -252,56 +265,58 @@ static int __devinit stmpkbd_probe(struct platform_device *pdev)
+ 	d->input->rep[REP_DELAY] = delay1;
+ 	d->input->rep[REP_PERIOD] = delay2;
+ 
+-	hw_lradc_use_channel(LRADC_CH0);
+-	stmpkbd_hwinit(pdev);
++	hw_lradc_use_channel(d->chan);
++	mxskbd_hwinit(pdev);
+ 
+ 	return 0;
+ 
+ err_free_irq:
+ 	platform_set_drvdata(pdev, NULL);
+-	free_irq(irq, pdev);
++	free_irq(d->irq, pdev);
+ err_free_dev:
+-	stmpkbd_data_free(d);
++	mxskbd_data_free(d);
+ err_out:
+ 	return err;
+ }
+ 
+-static int __devexit stmpkbd_remove(struct platform_device *pdev)
++static int __devexit mxskbd_remove(struct platform_device *pdev)
+ {
+-	struct stmpkbd_data *d = platform_get_drvdata(pdev);
++	struct mxskbd_data *d = platform_get_drvdata(pdev);
+ 
+-	hw_lradc_unuse_channel(LRADC_CH0);
++	hw_lradc_unuse_channel(d->chan);
+ 	input_unregister_device(GET_INPUT_DEV(d));
+ 	free_irq(d->irq, pdev);
+-	stmpkbd_data_free(d);
++	mxskbd_data_free(d);
+ 
+ 	platform_set_drvdata(pdev, NULL);
+ 
+ 	return 0;
+ }
+ 
+-static struct platform_driver stmpkbd_driver = {
+-	.probe		= stmpkbd_probe,
+-	.remove		= __devexit_p(stmpkbd_remove),
+-	.suspend	= stmpkbd_suspend,
+-	.resume		= stmpkbd_resume,
++static struct platform_driver mxskbd_driver = {
++	.probe		= mxskbd_probe,
++	.remove		= __devexit_p(mxskbd_remove),
++#ifdef CONFIG_PM
++	.suspend	= mxskbd_suspend,
++	.resume		= mxskbd_resume,
++#endif
+ 	.driver		= {
+-		.name	= "stmp3xxx-keyboard",
++		.name	= "mxs-kbd",
+ 	},
+ };
+ 
+-static int __init stmpkbd_init(void)
++static int __init mxskbd_init(void)
+ {
+-	return platform_driver_register(&stmpkbd_driver);
++	return platform_driver_register(&mxskbd_driver);
+ }
+ 
+-static void __exit stmpkbd_exit(void)
++static void __exit mxskbd_exit(void)
+ {
+-	platform_driver_unregister(&stmpkbd_driver);
++	platform_driver_unregister(&mxskbd_driver);
+ }
+ 
+-module_init(stmpkbd_init);
+-module_exit(stmpkbd_exit);
+-MODULE_DESCRIPTION("Freescale STMP3xxxx keyboard driver");
+-MODULE_AUTHOR("dmitry pervushin <dimka@embeddedalley.com>");
++module_init(mxskbd_init);
++module_exit(mxskbd_exit);
++MODULE_DESCRIPTION("Freescale keyboard driver for mxs family");
++MODULE_AUTHOR("dmitry pervushin <dimka@embeddedalley.com>")
+ MODULE_LICENSE("GPL");
+-- 
+1.5.4.4
+

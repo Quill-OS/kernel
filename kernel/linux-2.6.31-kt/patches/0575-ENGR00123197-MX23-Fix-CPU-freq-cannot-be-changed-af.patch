@@ -1,0 +1,28 @@
+From 0d19d3c7655dcaff9c7430f9b0fdc840107d7508 Mon Sep 17 00:00:00 2001
+From: Nancy Chen <Nancy.Chen@freescale.com>
+Date: Thu, 6 May 2010 11:54:34 -0500
+Subject: [PATCH] ENGR00123197 MX23: Fix CPU freq cannot be changed after LCD is off if mDDR used
+
+MX23: Fix CPU frequency can not be changed after LCD is off if mDDR is used.
+
+Signed-off-by: Nancy Chen <Nancy.Chen@freescale.com>
+---
+ arch/arm/plat-mxs/cpufreq.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/arch/arm/plat-mxs/cpufreq.c b/arch/arm/plat-mxs/cpufreq.c
+index ada1b5b..ef4c1c9 100644
+--- a/arch/arm/plat-mxs/cpufreq.c
++++ b/arch/arm/plat-mxs/cpufreq.c
+@@ -429,7 +429,7 @@ static int __init mxs_cpu_init(struct cpufreq_policy *policy)
+ 	}
+ 
+ 	if (i == ARRAY_SIZE(profiles))
+-		lcd_off_freq_table_size = i + 1;
++		lcd_off_freq_table_size = i ;
+ 
+ 	/* Set the current working point. */
+ 	set_freq_table(policy, lcd_on_freq_table_size);
+-- 
+1.5.4.4
+

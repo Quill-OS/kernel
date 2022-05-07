@@ -1,0 +1,35 @@
+From 4c5d043d64664c8ecdc805dc7e096fafcb9e551f Mon Sep 17 00:00:00 2001
+From: Sammy He <r62914@freescale.com>
+Date: Thu, 28 Jan 2010 10:54:42 +0800
+Subject: [PATCH] ENGR00120539 MX25: Fix GPIO3_BASE_ADDR definition incorrect issue
+
+Fix GPIO3_BASE_ADDR definition incorrect issue
+
+Signed-off-by: Sammy He <r62914@freescale.com>
+---
+ arch/arm/plat-mxc/include/mach/mx25.h |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm/plat-mxc/include/mach/mx25.h b/arch/arm/plat-mxc/include/mach/mx25.h
+index 6b16229..58497d0 100644
+--- a/arch/arm/plat-mxc/include/mach/mx25.h
++++ b/arch/arm/plat-mxc/include/mach/mx25.h
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -196,7 +196,7 @@
+ #define EPIT2_BASE_ADDR     (AIPS2_BASE_ADDR + 0x00098000)
+ #define GPIO4_BASE_ADDR     (AIPS2_BASE_ADDR + 0x0009C000)
+ #define PWM2_BASE_ADDR      (AIPS2_BASE_ADDR + 0x000A0000)
+-#define GPIO3_BASE_ADDR     (AIPS2_BASE_ADDR + 0x000AD000)
++#define GPIO3_BASE_ADDR     (AIPS2_BASE_ADDR + 0x000A4000)
+ #define PWM3_BASE_ADDR      (AIPS2_BASE_ADDR + 0x000A8000)
+ #define SCC_BASE_ADDR       (AIPS2_BASE_ADDR + 0x000AC000)
+ #define RNGB_BASE_ADDR      (AIPS2_BASE_ADDR + 0x000B0000)
+-- 
+1.5.4.4
+

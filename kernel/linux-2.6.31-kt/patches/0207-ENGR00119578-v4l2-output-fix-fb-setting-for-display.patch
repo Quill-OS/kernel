@@ -1,0 +1,31 @@
+From 8b85700c6135228034200996c8df9ec2b6e30cf7 Mon Sep 17 00:00:00 2001
+From: Jason Chen <b02280@freescale.com>
+Date: Fri, 25 Dec 2009 09:41:53 +0800
+Subject: [PATCH] ENGR00119578 v4l2 output: fix fb setting for display 5
+
+when Cropping happen, for display 5(tvout), fb setting still need keep
+as org.
+
+Signed-off-by: Jason Chen <b02280@freescale.com>
+---
+ drivers/media/video/mxc/output/mxc_v4l2_output.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/media/video/mxc/output/mxc_v4l2_output.c b/drivers/media/video/mxc/output/mxc_v4l2_output.c
+index 5dc3876..5643aa3 100644
+--- a/drivers/media/video/mxc/output/mxc_v4l2_output.c
++++ b/drivers/media/video/mxc/output/mxc_v4l2_output.c
+@@ -1289,8 +1289,8 @@ static int mxc_v4l2out_streamon(vout_data * vout)
+ 				vout->yres = fbvar.yres;
+ 			}
+ 
+-			fbvar.xres_virtual = out_width;
+-			fbvar.yres_virtual = out_height * 2;
++			fbvar.xres_virtual = fbvar.xres;
++			fbvar.yres_virtual = fbvar.yres * 2;
+ 		}
+ 
+ 		if (out_width == vout->v2f.fmt.pix.width &&
+-- 
+1.5.4.4
+

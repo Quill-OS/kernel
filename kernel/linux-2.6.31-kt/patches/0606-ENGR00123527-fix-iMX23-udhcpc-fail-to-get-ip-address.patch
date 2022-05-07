@@ -1,0 +1,38 @@
+From c9281344c53d053ab95549762219cc04e2d308d6 Mon Sep 17 00:00:00 2001
+From: Frank Li <Frank.Li@freescale.com>
+Date: Mon, 17 May 2010 18:43:18 +0800
+Subject: [PATCH] ENGR00123527 fix iMX23 udhcpc fail to get ip address
+
+Miss CONFIG_PACKET at default config
+
+Signed-off-by: Frank Li <Frank.Li@freescale.com>
+---
+ arch/arm/configs/imx23evk_defconfig |    5 +++--
+ 1 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm/configs/imx23evk_defconfig b/arch/arm/configs/imx23evk_defconfig
+index 0ddc70e..49729e9 100644
+--- a/arch/arm/configs/imx23evk_defconfig
++++ b/arch/arm/configs/imx23evk_defconfig
+@@ -1,7 +1,7 @@
+ #
+ # Automatically generated make config: don't edit
+ # Linux kernel version: 2.6.31
+-# Wed May 12 14:38:18 2010
++# Mon May 17 17:59:55 2010
+ #
+ CONFIG_ARM=y
+ CONFIG_SYS_SUPPORTS_APM_EMULATION=y
+@@ -347,7 +347,8 @@ CONFIG_NET=y
+ #
+ # Networking options
+ #
+-# CONFIG_PACKET is not set
++CONFIG_PACKET=y
++CONFIG_PACKET_MMAP=y
+ CONFIG_UNIX=y
+ CONFIG_XFRM=y
+ # CONFIG_XFRM_USER is not set
+-- 
+1.5.4.4
+

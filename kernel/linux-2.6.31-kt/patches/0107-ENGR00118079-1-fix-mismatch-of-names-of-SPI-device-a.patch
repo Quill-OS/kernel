@@ -1,0 +1,28 @@
+From cce6fa6920d4dc8185ca4642ad019694c2fb41e5 Mon Sep 17 00:00:00 2001
+From: Robby Cai <R63905@freescale.com>
+Date: Mon, 9 Nov 2009 12:01:29 +0800
+Subject: [PATCH] ENGR00118079-1 fix mismatch of names of SPI device and driver
+
+change the spi driver's name
+
+Signed-off-by: Robby Cai <R63905@freescale.com>
+---
+ drivers/spi/spi_stmp.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/drivers/spi/spi_stmp.c b/drivers/spi/spi_stmp.c
+index 5b1022b..dc49b13 100644
+--- a/drivers/spi/spi_stmp.c
++++ b/drivers/spi/spi_stmp.c
+@@ -665,7 +665,7 @@ static struct platform_driver stmp_spi_driver = {
+ 	.probe	= stmp_spi_probe,
+ 	.remove	= __devexit_p(stmp_spi_remove),
+ 	.driver = {
+-		.name = "stmp37xx_ssp",
++		.name = "stmp3xxx_ssp",
+ 		.owner = THIS_MODULE,
+ 	},
+ 	.suspend = stmp_spi_suspend,
+-- 
+1.5.4.4
+

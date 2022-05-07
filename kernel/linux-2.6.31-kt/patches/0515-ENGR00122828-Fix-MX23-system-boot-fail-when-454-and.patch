@@ -1,0 +1,35 @@
+From 5fbe79cc8280fb65e1be76639c61667ee6ffd983 Mon Sep 17 00:00:00 2001
+From: Frank Li <frank.li@freescale.com>
+Date: Fri, 23 Apr 2010 15:46:08 +0800
+Subject: [PATCH] ENGR00122828 Fix MX23 system boot fail when 454 and enable 100mA
+
+Fix mx23 system boot fail when 454mhz and enable usb 100mA
+
+Signed-off-by: Frank Li <frank.li@freescale.com>
+---
+ arch/arm/mach-mx23/clock.c |    2 ++
+ 1 files changed, 2 insertions(+), 0 deletions(-)
+
+diff --git a/arch/arm/mach-mx23/clock.c b/arch/arm/mach-mx23/clock.c
+index 2459503..1b68d74 100644
+--- a/arch/arm/mach-mx23/clock.c
++++ b/arch/arm/mach-mx23/clock.c
+@@ -268,6 +268,7 @@ static int clkseq_set_parent(struct clk *clk, struct clk *parent)
+ 					CLKCTRL_BASE_ADDR + HW_CLKCTRL_HBUS);
+ 			__raw_writel(cpu_val,
+ 					CLKCTRL_BASE_ADDR + HW_CLKCTRL_CPU);
++			cpu_clk.parent = &ref_xtal_clk;
+ 			/* h_clk.rate = 0; */
+ 		} else if (clk == &cpu_clk && shift == 8) {
+ 			hbus_val = __raw_readl(CLKCTRL_BASE_ADDR +
+@@ -288,6 +289,7 @@ static int clkseq_set_parent(struct clk *clk, struct clk *parent)
+ 
+ 			__raw_writel(1 << clk->bypass_bits,
+ 					clk->bypass_reg + shift);
++			cpu_clk.parent = &ref_cpu_clk;
+ 		} else
+ 			__raw_writel(1 << clk->bypass_bits,
+ 					clk->bypass_reg + shift);
+-- 
+1.5.4.4
+

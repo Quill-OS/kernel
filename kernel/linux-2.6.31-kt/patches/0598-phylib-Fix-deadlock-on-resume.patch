@@ -1,0 +1,107 @@
+From 728fa2918bad0634e9dbc7c0238f366eb6776f18 Mon Sep 17 00:00:00 2001
+From: Anton Vorontsov <avorontsov@ru.mvista.com>
+Date: Wed, 30 Dec 2009 08:23:28 +0000
+Subject: [PATCH] phylib: Fix deadlock on resume
+
+Sometimes kernel hangs on resume with the following trace:
+
+ ucc_geth e0102000.ucc: resume
+ INFO: task bash:1764 blocked for more than 120 seconds.
+ "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+ bash          D 0fecf43c     0  1764   1763 0x00000000
+ Call Trace:
+ [cf9a7c10] [c0012868] ret_from_except+0x0/0x14 (unreliable)
+ --- Exception: cf9a7ce0 at __switch_to+0x4c/0x6c
+     LR = 0xcf9a7cc0
+ [cf9a7cd0] [c0008c14] __switch_to+0x4c/0x6c (unreliable)
+ [cf9a7ce0] [c028bcfc] schedule+0x158/0x260
+ [cf9a7d10] [c028c720] __mutex_lock_slowpath+0x80/0xd8
+ [cf9a7d40] [c01cf388] phy_stop+0x20/0x70
+ [cf9a7d50] [c01d514c] ugeth_resume+0x6c/0x13c
+ [...]
+
+Here is why.
+
+On suspend:
+
+- PM core starts suspending devices, ucc_geth_suspend gets called;
+
+- ucc_geth calls phy_stop() on suspend. Note that phy_stop() is
+  mostly asynchronous so it doesn't block ucc_geth's suspend routine,
+  it just sets PHY_HALTED state and disables PHY's interrupts;
+
+- Suddenly the state machine gets scheduled, it grabs the phydev->lock
+  mutex and tries to process the PHY_HALTED state, so it calls
+  phydev->adjust_link(phydev->attached_dev). In ucc_geth case
+  adjust_link() calls msleep(), which reschedules the code flow back to
+  PM core, which now finishes suspend and so we end up sleeping with
+  phydev->lock mutex held.
+
+On resume:
+
+- PM core starts resuming devices (notice that nobody rescheduled
+  the state machine yet, so the mutex is still held), the core calls
+  ucc_geth's resume routine;
+
+- ucc_geth_resume restarts the PHY with phy_stop()/phy_start()
+  sequence, and the phy_*() calls are trying to grab the phydev->lock
+  mutex. Here comes the deadlock.
+
+This patch fixes the issue by stopping the state machine on suspend
+and starting it again on resume.
+
+Signed-off-by: Anton Vorontsov <avorontsov@ru.mvista.com>
+Signed-off-by: David S. Miller <davem@davemloft.net>
+---
+ drivers/net/phy/mdio_bus.c |   24 ++++++++++++++++++++++--
+ 1 files changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/net/phy/mdio_bus.c b/drivers/net/phy/mdio_bus.c
+index bd4e8d7..49252d3 100644
+--- a/drivers/net/phy/mdio_bus.c
++++ b/drivers/net/phy/mdio_bus.c
+@@ -303,8 +303,18 @@ static int mdio_bus_suspend(struct device * dev, pm_message_t state)
+ 	struct phy_driver *phydrv = to_phy_driver(dev->driver);
+ 	struct phy_device *phydev = to_phy_device(dev);
+ 
++	/*
++	 * We must stop the state machine manually, otherwise it stops out of
++	 * control, possibly with the phydev->lock held. Upon resume, netdev
++	 * may call phy routines that try to grab the same lock, and that may
++	 * lead to a deadlock.
++	 */
++	if (phydev->attached_dev)
++		phy_stop_machine(phydev);
++
+ 	if (!mdio_bus_phy_may_suspend(phydev))
+ 		return 0;
++
+ 	return phydrv->suspend(phydev);
+ }
+ 
+@@ -312,10 +322,20 @@ static int mdio_bus_resume(struct device * dev)
+ {
+ 	struct phy_driver *phydrv = to_phy_driver(dev->driver);
+ 	struct phy_device *phydev = to_phy_device(dev);
++	int ret;
+ 
+ 	if (!mdio_bus_phy_may_suspend(phydev))
+-		return 0;
+-	return phydrv->resume(phydev);
++		goto no_resume;
++
++	ret = phydrv->resume(phydev);
++	if (ret < 0)
++		return ret;
++
++no_resume:
++	if (phydev->attached_dev)
++		phy_start_machine(phydev, NULL);
++
++	return 0;
+ }
+ 
+ struct bus_type mdio_bus_type = {
+-- 
+1.5.4.4
+

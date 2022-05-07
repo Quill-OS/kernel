@@ -1,0 +1,152 @@
+From 9b38c6d3194424f6df43012e57e2fa373d651bc2 Mon Sep 17 00:00:00 2001
+From: Alan Tull <r80115@freescale.com>
+Date: Mon, 5 Apr 2010 17:54:01 -0500
+Subject: [PATCH] ENGR00122274 mx23: spdif playback
+
+Support S/PDIF playback on the mx23evk.
+
+Signed-off-by: Alan Tull <r80115@freescale.com>
+---
+ arch/arm/mach-mx23/clock.c        |   18 ++++++++++++++++++
+ arch/arm/mach-mx23/device.c       |   15 +++++++++++++++
+ arch/arm/mach-mx23/mx23evk_pins.c |   14 +++++++++++++-
+ sound/soc/codecs/mxs_spdif.c      |    1 +
+ sound/soc/mxs/Kconfig             |    3 ++-
+ sound/soc/mxs/mxs-spdif-dai.c     |    1 +
+ 6 files changed, 50 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm/mach-mx23/clock.c b/arch/arm/mach-mx23/clock.c
+index d68f301..b73b4a6 100644
+--- a/arch/arm/mach-mx23/clock.c
++++ b/arch/arm/mach-mx23/clock.c
+@@ -898,6 +898,20 @@ static unsigned long ssp_get_rate(struct clk *clk)
+ 	return clk->parent->get_rate(clk->parent) / reg;
+ }
+ 
++static unsigned long pcmspdif_get_rate(struct clk *clk)
++{
++	return clk->parent->get_rate(clk->parent) / 4;
++}
++
++static struct clk pcmspdif_clk = {
++	.parent = &pll_clk,
++	.get_rate = pcmspdif_get_rate,
++	.enable = mx23_raw_enable,
++	.disable = mx23_raw_disable,
++	.enable_reg = CLKCTRL_BASE_ADDR + HW_CLKCTRL_SPDIF,
++	.enable_bits = BM_CLKCTRL_SPDIF_CLKGATE,
++};
++
+ /* usb_clk for usb0 */
+ static struct clk usb_clk = {
+ 	.parent = &pll_clk,
+@@ -1008,6 +1022,10 @@ static struct clk_lookup onchip_clocks[] = {
+ 	{
+ 	.con_id = "audio",
+ 	.clk = &audio_clk,
++	},
++	{
++	 .con_id = "spdif",
++	 .clk = &pcmspdif_clk,
+ 	}
+ };
+ 
+diff --git a/arch/arm/mach-mx23/device.c b/arch/arm/mach-mx23/device.c
+index b480c2b..9d56f9a 100644
+--- a/arch/arm/mach-mx23/device.c
++++ b/arch/arm/mach-mx23/device.c
+@@ -718,6 +718,20 @@ static void mx23_init_battery(void)
+ }
+ #endif
+ 
++#if defined(CONFIG_SND_SOC_MXS_SPDIF) || \
++       defined(CONFIG_SND_SOC_MXS_SPDIF_MODULE)
++void __init mx23_init_spdif(void)
++{	struct platform_device *pdev;
++	pdev = mxs_get_device("mxs-spdif", 0);
++	if (pdev == NULL || IS_ERR(pdev))
++		return;
++	mxs_add_device(pdev, 3);
++}
++#else
++static inline mx23_init_spdif(void)
++{
++}
++#endif
+ 
+ int __init mx23_device_init(void)
+ {
+@@ -733,6 +747,7 @@ int __init mx23_device_init(void)
+ 	mx23_init_rtc();
+ 	mx23_init_dcp();
+ 	mx23_init_mmc();
++	mx23_init_spdif();
+ 	mx23_init_lcdif();
+ 	mx23_init_pxp();
+ 	mx23_init_battery();
+diff --git a/arch/arm/mach-mx23/mx23evk_pins.c b/arch/arm/mach-mx23/mx23evk_pins.c
+index 459c6df..8c8198c 100644
+--- a/arch/arm/mach-mx23/mx23evk_pins.c
++++ b/arch/arm/mach-mx23/mx23evk_pins.c
+@@ -497,7 +497,19 @@ static struct pin_desc mx23evk_fixed_pins[] = {
+ 	 .voltage = PAD_3_3V,
+ 	},
+ #endif
+-
++#if defined(CONFIG_SND_SOC_MXS_SPDIF) || \
++       defined(CONFIG_SND_SOC_MXS_SPDIF_MODULE)
++	{
++	 .name		= "SPDIF",
++	 .id		= PINID_ROTARYA,
++	 .fun		= PIN_FUN3,
++	 .strength	= PAD_12MA,
++	 .voltage	= PAD_3_3V,
++	 .pullup	= 1,
++	 .drive 	= 1,
++	 .pull 		= 1,
++	},
++#endif
+ };
+ 
+ #if defined(CONFIG_FEC) || defined(CONFIG_FEC_MODULE)
+diff --git a/sound/soc/codecs/mxs_spdif.c b/sound/soc/codecs/mxs_spdif.c
+index a59f3a0..af47dcb 100644
+--- a/sound/soc/codecs/mxs_spdif.c
++++ b/sound/soc/codecs/mxs_spdif.c
+@@ -30,6 +30,7 @@
+ #include <sound/soc-dapm.h>
+ #include <sound/initval.h>
+ #include <asm/dma.h>
++#include <mach/hardware.h>
+ 
+ #include "mxs_spdif.h"
+ 
+diff --git a/sound/soc/mxs/Kconfig b/sound/soc/mxs/Kconfig
+index 10bed6d..213feb4 100644
+--- a/sound/soc/mxs/Kconfig
++++ b/sound/soc/mxs/Kconfig
+@@ -42,7 +42,8 @@ config SND_MXS_SOC_ADC
+ 
+ config SND_MXS_SOC_EVK_DEVB_SPDIF
+ 	tristate "SoC SPDIF support for MXS EVK Development Board"
+-	depends on SND_MXS_SOC && ARCH_MX28
++	default n
++	depends on SND_MXS_SOC && ARCH_MXS
+ 	select SND_MXS_SOC_SPDIF_DAI
+ 	select SND_SOC_MXS_SPDIF
+ 	help
+diff --git a/sound/soc/mxs/mxs-spdif-dai.c b/sound/soc/mxs/mxs-spdif-dai.c
+index 5c9f93d..052c404 100644
+--- a/sound/soc/mxs/mxs-spdif-dai.c
++++ b/sound/soc/mxs/mxs-spdif-dai.c
+@@ -22,6 +22,7 @@
+ #include <sound/pcm.h>
+ #include <sound/soc.h>
+ #include <mach/dma.h>
++#include <mach/hardware.h>
+ 
+ #include "../codecs/mxs_spdif.h"
+ #include "mxs-pcm.h"
+-- 
+1.5.4.4
+

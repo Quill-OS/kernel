@@ -1,0 +1,104 @@
+From 1b07ae665ef8afc6e3450398fd9fbb0a81395c69 Mon Sep 17 00:00:00 2001
+From: Alan Tull <r80115@freescale.com>
+Date: Wed, 24 Mar 2010 20:48:08 -0500
+Subject: [PATCH] ENGR00122025 mx28: support 24, 32 bit spdif
+
+The data in memory is 24 bit little endian in a 32 bit word.
+We need to shift the data in memory out one byte to get the proper
+alignment.
+
+Signed-off-by: Alan Tull <r80115@freescale.com>
+---
+ sound/soc/codecs/mxs_spdif.c |    1 +
+ sound/soc/codecs/mxs_spdif.h |    3 ++-
+ sound/soc/mxs/mxs-pcm.c      |   27 +++++++++++++++++++++++++++
+ 3 files changed, 30 insertions(+), 1 deletions(-)
+
+diff --git a/sound/soc/codecs/mxs_spdif.c b/sound/soc/codecs/mxs_spdif.c
+index b9f05f0..a59f3a0 100644
+--- a/sound/soc/codecs/mxs_spdif.c
++++ b/sound/soc/codecs/mxs_spdif.c
+@@ -171,6 +171,7 @@ static int mxs_codec_hw_params(struct snd_pcm_substream *substream,
+ 		break;
+ 	case SNDRV_PCM_FORMAT_S20_3LE:
+ 	case SNDRV_PCM_FORMAT_S24_LE:
++	case SNDRV_PCM_FORMAT_S32_LE:
+ 		if (playback)
+ 			__raw_writel(BM_SPDIF_CTRL_WORD_LENGTH,
+ 				     REGS_SPDIF_BASE + HW_SPDIF_CTRL_CLR);
+diff --git a/sound/soc/codecs/mxs_spdif.h b/sound/soc/codecs/mxs_spdif.h
+index 284b98c..6bce044 100644
+--- a/sound/soc/codecs/mxs_spdif.h
++++ b/sound/soc/codecs/mxs_spdif.h
+@@ -163,7 +163,8 @@
+ 
+ #define MXS_SPDIF_FORMATS       (SNDRV_PCM_FMTBIT_S16_LE | \
+ 				SNDRV_PCM_FMTBIT_S20_3LE | \
+-				SNDRV_PCM_FMTBIT_S24_LE)
++				SNDRV_PCM_FMTBIT_S24_LE | \
++				SNDRV_PCM_FMTBIT_S32_LE)
+ 
+ extern struct snd_soc_dai mxs_spdif_codec_dai;
+ extern struct snd_soc_codec_device soc_spdif_codec_dev_mxs;
+diff --git a/sound/soc/mxs/mxs-pcm.c b/sound/soc/mxs/mxs-pcm.c
+index 6bac0ee..db32146 100644
+--- a/sound/soc/mxs/mxs-pcm.c
++++ b/sound/soc/mxs/mxs-pcm.c
+@@ -62,6 +62,7 @@ struct mxs_runtime_data {
+ 	u32 dma_ch;
+ 	u32 dma_period;
+ 	u32 dma_totsize;
++	int format;
+ 
+ 	struct mxs_pcm_dma_params *params;
+ 	struct mxs_dma_desc *dma_desc_array[255];
+@@ -224,6 +225,7 @@ static int mxs_pcm_hw_params(struct snd_pcm_substream *substream,
+ 
+ 	prtd->dma_period = params_period_bytes(hw_params);
+ 	prtd->dma_totsize = params_buffer_bytes(hw_params);
++	prtd->format = params_format(hw_params);
+ 
+ 	return snd_pcm_lib_malloc_pages(substream,
+ 					params_buffer_bytes(hw_params));
+@@ -340,6 +342,30 @@ static int mxs_pcm_close(struct snd_pcm_substream *substream)
+ 	return 0;
+ }
+ 
++static int mcs_pcm_copy(struct snd_pcm_substream *substream, int channel,
++			snd_pcm_uframes_t hwoff, void __user *buf,
++			snd_pcm_uframes_t frames)
++{
++	struct snd_pcm_runtime *runtime = substream->runtime;
++	struct mxs_runtime_data *prtd = runtime->private_data;
++	char *hwbuf = runtime->dma_area + frames_to_bytes(runtime, hwoff);
++	unsigned long count = frames_to_bytes(runtime, frames);
++
++	/* For S/PDIF 24-bit playback, fix the buffer.  Code taken
++	   from snd_pcm_lib_write_transfer() in sound/core/pcm_lib.c */
++	if ((prtd->params->dma_ch == MXS_DMA_CHANNEL_AHB_APBX_SPDIF) &&
++	    ((prtd->format == SNDRV_PCM_FORMAT_S24_LE)
++	     || (prtd->format == SNDRV_PCM_FORMAT_S20_3LE))) {
++		if (copy_from_user(hwbuf + 1, buf, count - 1))
++			return -EFAULT;
++	} else {
++		if (copy_from_user(hwbuf, buf, count))
++			return -EFAULT;
++	}
++
++	return 0;
++}
++
+ static int mxs_pcm_mmap(struct snd_pcm_substream *substream,
+ 			     struct vm_area_struct *vma)
+ {
+@@ -358,6 +384,7 @@ struct snd_pcm_ops mxs_pcm_ops = {
+ 	.prepare	= mxs_pcm_prepare,
+ 	.trigger	= mxs_pcm_trigger,
+ 	.pointer	= mxs_pcm_pointer,
++	.copy		= mcs_pcm_copy,
+ 	.mmap		= mxs_pcm_mmap,
+ };
+ 
+-- 
+1.5.4.4
+

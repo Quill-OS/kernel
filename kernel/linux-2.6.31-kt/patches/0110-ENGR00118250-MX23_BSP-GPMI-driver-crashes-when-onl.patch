@@ -1,0 +1,55 @@
+From e3957c7e11113e7bba4925033d0637840efc45b6 Mon Sep 17 00:00:00 2001
+From: Patrick Turley <patrick.turley@freescale.com>
+Date: Mon, 9 Nov 2009 16:40:15 -0600
+Subject: [PATCH] ENGR00118250 [MX23_BSP] GPMI driver crashes when only one chip
+
+Fixed the one-chip branch during GPMI initialization.
+
+Signed-off-by: Patrick Turley <patrick.turley@freescale.com>
+---
+ arch/arm/mach-stmp378x/stmp378x_devb.c |    6 ++----
+ drivers/mtd/nand/gpmi/gpmi-base.c      |    2 ++
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/arch/arm/mach-stmp378x/stmp378x_devb.c b/arch/arm/mach-stmp378x/stmp378x_devb.c
+index fba9fe5..abfd516 100644
+--- a/arch/arm/mach-stmp378x/stmp378x_devb.c
++++ b/arch/arm/mach-stmp378x/stmp378x_devb.c
+@@ -213,11 +213,9 @@ static int gpmi_pinmux_handler(bool request)
+  * Platform-specific information the GPMI driver will need.
+  */
+ 
+-#if defined(CONFIG_MTD_PARTITIONS)
+ static const char *gpmi_partition_source_types[] = { "cmdlinepart", NULL };
+-#endif
+ 
+-static struct gpmi_platform_data gpmi_partitions = {
++static struct gpmi_platform_data gpmi_data = {
+ 	.io_uA                   = 70000,
+ 	.pinmux_handler          = gpmi_pinmux_handler,
+ 	.boot_area_size_in_bytes = 20 * SZ_1M,
+@@ -372,7 +370,7 @@ static void __init stmp378x_devb_init(void)
+ 
+ 	stmp3xxx_dbguart.dev.platform_data = dbguart_pinmux;
+ 	stmp3xxx_appuart.dev.platform_data = appuart_pinmux;
+-	stmp3xxx_gpmi.dev.platform_data = &gpmi_partitions;
++	stmp3xxx_gpmi.dev.platform_data = &gpmi_data;
+ 	stmp3xxx_mmc.dev.platform_data = &mmc_data;
+ 	stmp3xxx_spi1.dev.platform_data = &ssp1_pins;
+ 	stmp3xxx_spi2.dev.platform_data = &ssp2_pins;
+diff --git a/drivers/mtd/nand/gpmi/gpmi-base.c b/drivers/mtd/nand/gpmi/gpmi-base.c
+index 7d2ee99..93221da 100644
+--- a/drivers/mtd/nand/gpmi/gpmi-base.c
++++ b/drivers/mtd/nand/gpmi/gpmi-base.c
+@@ -1859,6 +1859,8 @@ static int  gpmi_register_with_mtd(struct gpmi_nand_data *g)
+ 				search_mtd = get_mtd_device(0, i);
+ 				if (!search_mtd)
+ 					continue;
++				if (search_mtd == ERR_PTR(-ENODEV))
++					continue;
+ 				if (search_mtd->name == gpmi_general_use_name)
+ 					g->general_use_mtd = search_mtd;
+ 			}
+-- 
+1.5.4.4
+

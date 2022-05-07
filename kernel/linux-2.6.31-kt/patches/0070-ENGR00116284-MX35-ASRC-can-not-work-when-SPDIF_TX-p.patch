@@ -1,0 +1,113 @@
+From d228eb430e5ddb84535fcd296a57468f9c8d9334 Mon Sep 17 00:00:00 2001
+From: William Lai <b04597@freescale.com>
+Date: Mon, 26 Oct 2009 14:49:55 +0800
+Subject: [PATCH] ENGR00116284 MX35: ASRC can not work when SPDIF_TX provides clock
+
+ASRC can not work correctly when SPDIF_TX provides clock for asrc input
+or output. The root cause is, the clock divider should be set as 6 if
+SPDIF_TX provides the bit clock for ASRC, and be set as 7 if SPDIF_RX
+provides the bit clock.
+
+Signed-off-by: William Lai <b04597@freescale.com>
+---
+ drivers/mxc/asrc/mxc_asrc.c |   44 ++++++++++++++++++++++++------------------
+ 1 files changed, 25 insertions(+), 19 deletions(-)
+
+diff --git a/drivers/mxc/asrc/mxc_asrc.c b/drivers/mxc/asrc/mxc_asrc.c
+index 62b8472..e420740 100644
+--- a/drivers/mxc/asrc/mxc_asrc.c
++++ b/drivers/mxc/asrc/mxc_asrc.c
+@@ -425,10 +425,11 @@ int asrc_config_pair(struct asrc_config *config)
+ 		reg = __raw_readl(asrc_vrt_base_addr + ASRC_ASRCDR1_REG);
+ 		reg &= 0xfc0fc0;
+ 		/* Input Part */
+-		if ((config->inclk & 0x0f) == INCLK_SPDIF_RX
+-		    || (config->inclk & 0x0f) == INCLK_SPDIF_TX) {
+-			reg |= 7 << AICPA;
+-		} else if ((config->inclk & 0x0f) == INCLK_ASRCK1_CLK) {
++		if ((config->inclk & 0x0f) == INCLK_SPDIF_RX)
++			reg | 7 << AICPA;
++		else if ((config->inclk & 0x0f) == INCLK_SPDIF_TX)
++			reg |= 6 << AICPA;
++		else if ((config->inclk & 0x0f) == INCLK_ASRCK1_CLK) {
+ 			tmp =
+ 			    asrc_get_asrck_clock_divider(config->
+ 							 input_sample_rate);
+@@ -443,10 +444,11 @@ int asrc_config_pair(struct asrc_config *config)
+ 				err = -EFAULT;
+ 		}
+ 		/* Output Part */
+-		if ((config->outclk & 0x0f) == OUTCLK_SPDIF_RX
+-		    || (config->outclk & 0x0f) == OUTCLK_SPDIF_TX) {
++		if ((config->outclk & 0x0f) == OUTCLK_SPDIF_RX)
+ 			reg |= 7 << AOCPA;
+-		} else if ((config->outclk & 0x0f) == OUTCLK_ASRCK1_CLK) {
++		else if ((config->outclk & 0x0f) == OUTCLK_SPDIF_TX)
++			reg |= 6 << AOCPA;
++		else if ((config->outclk & 0x0f) == OUTCLK_ASRCK1_CLK) {
+ 			tmp =
+ 			    asrc_get_asrck_clock_divider(config->
+ 							 output_sample_rate);
+@@ -467,10 +469,11 @@ int asrc_config_pair(struct asrc_config *config)
+ 		reg = __raw_readl(asrc_vrt_base_addr + ASRC_ASRCDR1_REG);
+ 		reg &= 0x03f03f;
+ 		/* Input Part */
+-		if ((config->inclk & 0x0f) == INCLK_SPDIF_RX
+-		    || (config->inclk & 0x0f) == INCLK_SPDIF_TX) {
++		if ((config->inclk & 0x0f) == INCLK_SPDIF_RX)
+ 			reg |= 7 << AICPB;
+-		} else if ((config->inclk & 0x0f) == INCLK_ASRCK1_CLK) {
++		else if ((config->inclk & 0x0f) == INCLK_SPDIF_TX)
++			reg |= 6 << AICPB;
++		else if ((config->inclk & 0x0f) == INCLK_ASRCK1_CLK) {
+ 			tmp =
+ 			    asrc_get_asrck_clock_divider(config->
+ 							 input_sample_rate);
+@@ -485,10 +488,11 @@ int asrc_config_pair(struct asrc_config *config)
+ 				err = -EFAULT;
+ 		}
+ 		/* Output Part */
+-		if ((config->outclk & 0x0f) == INCLK_SPDIF_RX
+-		    || (config->outclk & 0x0f) == INCLK_SPDIF_TX) {
++		if ((config->outclk & 0x0f) == OUTCLK_SPDIF_RX)
+ 			reg |= 7 << AOCPB;
+-		} else if ((config->outclk & 0x0f) == INCLK_ASRCK1_CLK) {
++		else if ((config->outclk & 0x0f) == OUTCLK_SPDIF_TX)
++			reg |= 6 << AOCPB;
++		else if ((config->outclk & 0x0f) == OUTCLK_ASRCK1_CLK) {
+ 			tmp =
+ 			    asrc_get_asrck_clock_divider(config->
+ 							 output_sample_rate);
+@@ -509,10 +513,11 @@ int asrc_config_pair(struct asrc_config *config)
+ 		reg = __raw_readl(asrc_vrt_base_addr + ASRC_ASRCDR2_REG);
+ 		reg &= 0;
+ 		/* Input Part */
+-		if ((config->inclk & 0x0f) == INCLK_SPDIF_RX
+-		    || (config->inclk & 0x0f) == INCLK_SPDIF_TX) {
++		if ((config->inclk & 0x0f) == INCLK_SPDIF_RX)
+ 			reg |= 7 << AICPC;
+-		} else if ((config->inclk & 0x0f) == INCLK_ASRCK1_CLK) {
++		else if ((config->inclk & 0x0f) == INCLK_SPDIF_TX)
++			reg |= 6 << AICPC;
++		else if ((config->inclk & 0x0f) == INCLK_ASRCK1_CLK) {
+ 			tmp =
+ 			    asrc_get_asrck_clock_divider(config->
+ 							 input_sample_rate);
+@@ -527,10 +532,11 @@ int asrc_config_pair(struct asrc_config *config)
+ 				err = -EFAULT;
+ 		}
+ 		/* Output Part */
+-		if ((config->outclk & 0x0f) == INCLK_SPDIF_RX
+-		    || (config->outclk & 0x0f) == INCLK_SPDIF_TX) {
++		if ((config->outclk & 0x0f) == OUTCLK_SPDIF_RX)
+ 			reg |= 7 << AOCPC;
+-		} else if ((config->outclk & 0x0f) == INCLK_ASRCK1_CLK) {
++		else if ((config->outclk & 0x0f) == OUTCLK_SPDIF_TX)
++			reg |= 6 << AOCPC;
++		else if ((config->outclk & 0x0f) == OUTCLK_ASRCK1_CLK) {
+ 			tmp =
+ 			    asrc_get_asrck_clock_divider(config->
+ 							 output_sample_rate);
+-- 
+1.5.4.4
+

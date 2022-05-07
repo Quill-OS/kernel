@@ -1,0 +1,29 @@
+From 3c524cea77268a60418b72f7a5e6570284c6c1cb Mon Sep 17 00:00:00 2001
+From: Guoqing Jiang <b22156@freescale.com>
+Date: Wed, 25 Nov 2009 15:57:09 +0800
+Subject: [PATCH] ENGR00118701 MX25:Fix headphone plug-in caused system hang
+
+To keep system runs well after plugin headphone, replace disable_irq with
+disable_irq_nosync.
+
+Signed-off-by: Guoqing Jiang <b22156@freescale.com>
+---
+ sound/soc/imx/imx-3stack-sgtl5000.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/sound/soc/imx/imx-3stack-sgtl5000.c b/sound/soc/imx/imx-3stack-sgtl5000.c
+index fed97f9..95978fd 100644
+--- a/sound/soc/imx/imx-3stack-sgtl5000.c
++++ b/sound/soc/imx/imx-3stack-sgtl5000.c
+@@ -312,7 +312,7 @@ static DECLARE_DELAYED_WORK(hp_event, headphone_detect_handler);
+ 
+ static irqreturn_t imx_headphone_detect_handler(int irq, void *data)
+ {
+-	disable_irq(irq);
++	disable_irq_nosync(irq);
+ 	schedule_delayed_work(&hp_event, msecs_to_jiffies(200));
+ 	return IRQ_HANDLED;
+ }
+-- 
+1.5.4.4
+

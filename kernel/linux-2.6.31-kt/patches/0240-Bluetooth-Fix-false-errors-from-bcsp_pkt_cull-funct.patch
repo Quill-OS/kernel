@@ -1,0 +1,48 @@
+From bc4f407d23865a863a0520e3b8d7ed0ec1141844 Mon Sep 17 00:00:00 2001
+From: Wending Weng <wweng@rheinmetall.ca>
+Date: Mon, 24 Aug 2009 16:05:17 -0400
+Subject: [PATCH] Bluetooth: Fix false errors from bcsp_pkt_cull function
+
+The error message "Removed only %u out of %u pkts" is printed when multiple
+to be acked packets are queued.
+
+    if (i++ >= pkts_to_be_removed)
+            break;
+
+This will break out of the loop and increase the counter i when
+i==pkts_to_be_removed and the loop ends up with i=pkts_to_be_removed+1.
+
+The following line
+
+    if (i != pkts_to_be_removed) {
+            BT_ERR("Removed only %u out of %u pkts", i, pkts_to_be_removed);
+    }
+
+will then display the false message.
+
+The counter i must not increase on the same statement.
+
+Signed-off-by: Wending Weng <wweng@rheinmetall.ca>
+Signed-off-by: Marcel Holtmann <marcel@holtmann.org>
+---
+ drivers/bluetooth/hci_bcsp.c |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletions(-)
+
+diff --git a/drivers/bluetooth/hci_bcsp.c b/drivers/bluetooth/hci_bcsp.c
+index 894b2cb..40aec0f 100644
+--- a/drivers/bluetooth/hci_bcsp.c
++++ b/drivers/bluetooth/hci_bcsp.c
+@@ -373,8 +373,9 @@ static void bcsp_pkt_cull(struct bcsp_struct *bcsp)
+ 
+ 	i = 0;
+ 	skb_queue_walk_safe(&bcsp->unack, skb, tmp) {
+-		if (i++ >= pkts_to_be_removed)
++		if (i >= pkts_to_be_removed)
+ 			break;
++		i++;
+ 
+ 		__skb_unlink(skb, &bcsp->unack);
+ 		kfree_skb(skb);
+-- 
+1.5.4.4
+

@@ -1,0 +1,1206 @@
+From 96728166ccdb7d2d48ac7bf3ef2edf842266e1b4 Mon Sep 17 00:00:00 2001
+From: Alan Tull <r80115@freescale.com>
+Date: Wed, 3 Mar 2010 10:06:23 -0600
+Subject: [PATCH] ENGR00117752 MX28: Support S/PDIF audio playback
+
+Support S/PDIF audio playback
+
+Signed-off-by: Alan Tull <r80115@freescale.com>
+---
+ arch/arm/configs/imx28evk_defconfig |   36 +++-
+ arch/arm/mach-mx28/device.c         |   15 ++
+ arch/arm/mach-mx28/mx28evk_pins.c   |   13 +
+ arch/arm/plat-mxs/device.c          |   22 ++
+ sound/soc/codecs/Kconfig            |    5 +
+ sound/soc/codecs/Makefile           |    2 +
+ sound/soc/codecs/mxs_spdif.c        |  452 +++++++++++++++++++++++++++++++++++
+ sound/soc/codecs/mxs_spdif.h        |  171 +++++++++++++
+ sound/soc/mxs/Kconfig               |    6 +-
+ sound/soc/mxs/mxs-devb-spdif.c      |   90 +++++++
+ sound/soc/mxs/mxs-pcm.c             |    2 +
+ sound/soc/mxs/mxs-spdif-dai.c       |  202 ++++++++++++++++
+ sound/soc/mxs/mxs-spdif-dai.h       |   21 ++
+ 13 files changed, 1033 insertions(+), 4 deletions(-)
+
+diff --git a/arch/arm/configs/imx28evk_defconfig b/arch/arm/configs/imx28evk_defconfig
+index 1842fed..37733e7 100644
+--- a/arch/arm/configs/imx28evk_defconfig
++++ b/arch/arm/configs/imx28evk_defconfig
+@@ -1029,7 +1029,41 @@ CONFIG_LOGO=y
+ # CONFIG_LOGO_LINUX_MONO is not set
+ # CONFIG_LOGO_LINUX_VGA16 is not set
+ CONFIG_LOGO_LINUX_CLUT224=y
+-# CONFIG_SOUND is not set
++CONFIG_SOUND=y
++# CONFIG_SOUND_OSS_CORE is not set
++CONFIG_SND=y
++CONFIG_SND_TIMER=y
++CONFIG_SND_PCM=y
++CONFIG_SND_JACK=y
++# CONFIG_SND_SEQUENCER is not set
++# CONFIG_SND_MIXER_OSS is not set
++# CONFIG_SND_PCM_OSS is not set
++# CONFIG_SND_DYNAMIC_MINORS is not set
++CONFIG_SND_SUPPORT_OLD_API=y
++CONFIG_SND_VERBOSE_PROCFS=y
++# CONFIG_SND_VERBOSE_PRINTK is not set
++# CONFIG_SND_DEBUG is not set
++# CONFIG_SND_RAWMIDI_SEQ is not set
++# CONFIG_SND_OPL3_LIB_SEQ is not set
++# CONFIG_SND_OPL4_LIB_SEQ is not set
++# CONFIG_SND_SBAWE_SEQ is not set
++# CONFIG_SND_EMU10K1_SEQ is not set
++# CONFIG_SND_DRIVERS is not set
++# CONFIG_SND_ARM is not set
++# CONFIG_SND_USB is not set
++CONFIG_SND_SOC=y
++CONFIG_SND_MXS_SOC=y
++CONFIG_SND_MXS_SOC_SPDIF_DAI=y
++CONFIG_SND_MXS_SOC_EVK_DEVB=y
++CONFIG_SND_MXS_SOC_DAI=y
++CONFIG_SND_MXS_SOC_SAIF0_SELECT=y
++# CONFIG_SND_MXS_SOC_SAIF1_SELECT is not set
++CONFIG_SND_MXS_SOC_EVK_DEVB_SPDIF=y
++CONFIG_SND_SOC_I2C_AND_SPI=y
++# CONFIG_SND_SOC_ALL_CODECS is not set
++CONFIG_SND_SOC_SGTL5000=y
++CONFIG_SND_SOC_MXS_SPDIF=y
++# CONFIG_SOUND_PRIME is not set
+ CONFIG_HID_SUPPORT=y
+ CONFIG_HID=y
+ # CONFIG_HID_DEBUG is not set
+diff --git a/arch/arm/mach-mx28/device.c b/arch/arm/mach-mx28/device.c
+index 4e07d52..d8cbba1 100644
+--- a/arch/arm/mach-mx28/device.c
++++ b/arch/arm/mach-mx28/device.c
+@@ -1079,6 +1079,20 @@ void __init mx28_init_audio(void)
+ }
+ #endif
+ 
++#if defined(CONFIG_SND_SOC_MXS_SPDIF) || \
++       defined(CONFIG_SND_SOC_MXS_SPDIF_MODULE)
++void __init mx28_init_spdif(void)
++{	struct platform_device *pdev;
++	pdev = mxs_get_device("mxs-spdif", 0);
++	if (pdev == NULL || IS_ERR(pdev))
++		return;
++	mxs_add_device(pdev, 3);
++}
++#else
++static inline mx28_init_spdif(void)
++{
++}
++#endif
+ 
+ int __init mx28_device_init(void)
+ {
+@@ -1095,6 +1109,7 @@ int __init mx28_device_init(void)
+ 	mx28_init_kbd();
+ 	mx28_init_ts();
+ 	mx28_init_audio();
++	mx28_init_spdif();
+ 	mx28_init_lcdif();
+ 	mx28_init_pxp();
+ 	mx28_init_dcp();
+diff --git a/arch/arm/mach-mx28/mx28evk_pins.c b/arch/arm/mach-mx28/mx28evk_pins.c
+index 8bddbeb..e8ac2d2 100644
+--- a/arch/arm/mach-mx28/mx28evk_pins.c
++++ b/arch/arm/mach-mx28/mx28evk_pins.c
+@@ -791,6 +791,19 @@ static struct pin_desc mx28evk_fixed_pins[] = {
+ 	 .pull 		= 1,
+ 	 },
+ #endif
++#if defined(CONFIG_SND_SOC_MXS_SPDIF) || \
++       defined(CONFIG_SND_SOC_MXS_SPDIF_MODULE)
++	{
++	 .name	= "SPDIF",
++	 .id	= PINID_SPDIF,
++	 .fun	= PIN_FUN1,
++	 .strength	= PAD_12MA,
++	 .voltage	= PAD_3_3V,
++	 .pullup	= 1,
++	 .drive 	= 1,
++	 .pull 		= 1,
++	},
++#endif
+ };
+ 
+ #if defined(CONFIG_FEC) || defined(CONFIG_FEC_MODULE)
+diff --git a/arch/arm/plat-mxs/device.c b/arch/arm/plat-mxs/device.c
+index 4cd1b0f..62d144a 100644
+--- a/arch/arm/plat-mxs/device.c
++++ b/arch/arm/plat-mxs/device.c
+@@ -386,6 +386,19 @@ static struct platform_device mxs_sgtl5000[] = {
+ };
+ #endif
+ 
++#if defined(CONFIG_SND_SOC_MXS_SPDIF) || \
++	defined(CONFIG_SND_SOC_MXS_SPDIF_MODULE)
++static struct platform_device mxs_spdif[] = {
++	{
++	.name = "mxs-spdif",
++	.id = 0,
++	.dev =	{
++		.release = mxs_nop_release,
++		},
++	},
++};
++#endif
++
+ static struct mxs_dev_lookup dev_lookup[] = {
+ #if defined(CONFIG_SERIAL_MXS_DUART) || \
+ 	defined(CONFIG_SERIAL_MXS_DUART_MODULE)
+@@ -542,6 +555,15 @@ static struct mxs_dev_lookup dev_lookup[] = {
+ 	.pdev = mxs_sgtl5000,
+ 	},
+ #endif
++
++#if defined(CONFIG_SND_SOC_MXS_SPDIF) || \
++	defined(CONFIG_SND_SOC_MXS_SPDIF_MODULE)
++	{
++	.name = "mxs-spdif",
++	.size = ARRAY_SIZE(mxs_spdif),
++	.pdev = mxs_spdif,
++	},
++#endif
+ };
+ 
+ struct platform_device *mxs_get_device(char *name, int id)
+diff --git a/sound/soc/codecs/Kconfig b/sound/soc/codecs/Kconfig
+index 4376914..893ad3b 100644
+--- a/sound/soc/codecs/Kconfig
++++ b/sound/soc/codecs/Kconfig
+@@ -200,3 +200,8 @@ config SND_SOC_STMP3XXX_SPDIF
+ config SND_SOC_BLUETOOTH
+         tristate
+ 	depends on SND_SOC
++
++config SND_SOC_MXS_SPDIF
++	tristate
++	depends on SND_SOC
++
+diff --git a/sound/soc/codecs/Makefile b/sound/soc/codecs/Makefile
+index 6b75d72..0b997cf 100644
+--- a/sound/soc/codecs/Makefile
++++ b/sound/soc/codecs/Makefile
+@@ -40,6 +40,7 @@ snd-soc-ak4647-objs := ak4647.o
+ snd-soc-stmp378x-codec-objs := stmp378x_codec.o
+ snd-soc-stmp3xxx-spdif-objs := stmp3xxx_spdif.o
+ snd-soc-bluetooth-objs := bluetooth.o
++snd-soc-mxs-spdif-objs := mxs_spdif.o
+ 
+ obj-$(CONFIG_SND_SOC_AC97_CODEC)	+= snd-soc-ac97.o
+ obj-$(CONFIG_SND_SOC_AD1980)	+= snd-soc-ad1980.o
+@@ -83,3 +84,4 @@ obj-$(CONFIG_SND_SOC_AK4647)    += snd-soc-ak4647.o
+ obj-$(CONFIG_SND_SOC_STMP378X_CODEC)	+= snd-soc-stmp378x-codec.o
+ obj-$(CONFIG_SND_SOC_STMP3XXX_SPDIF)	+= snd-soc-stmp3xxx-spdif.o
+ obj-$(CONFIG_SND_SOC_BLUETOOTH)    += snd-soc-bluetooth.o
++obj-$(CONFIG_SND_SOC_MXS_SPDIF)	+= snd-soc-mxs-spdif.o
+diff --git a/sound/soc/codecs/mxs_spdif.c b/sound/soc/codecs/mxs_spdif.c
+new file mode 100644
+index 0000000..b9f05f0
+--- /dev/null
++++ b/sound/soc/codecs/mxs_spdif.c
+@@ -0,0 +1,452 @@
++/*
++ * ALSA SoC MXS SPDIF codec driver
++ *
++ * Copyright (C) 2008-2010 Freescale Semiconductor, Inc.
++ *
++ * Based on stmp3xxx_spdif.h by:
++ * Vladimir Barinov <vbarinov@embeddedalley.com>
++ *
++ * Copyright 2008 SigmaTel, Inc
++ * Copyright 2008 Embedded Alley Solutions, Inc
++ *
++ * This file is licensed under the terms of the GNU General Public License
++ * version 2.  This program  is licensed "as is" without any warranty of any
++ * kind, whether express or implied.
++ */
++#include <linux/module.h>
++#include <linux/moduleparam.h>
++#include <linux/init.h>
++#include <linux/delay.h>
++#include <linux/pm.h>
++#include <linux/clk.h>
++#include <linux/platform_device.h>
++#include <linux/dma-mapping.h>
++#include <linux/interrupt.h>
++
++#include <sound/core.h>
++#include <sound/pcm.h>
++#include <sound/pcm_params.h>
++#include <sound/soc.h>
++#include <sound/soc-dapm.h>
++#include <sound/initval.h>
++#include <asm/dma.h>
++
++#include "mxs_spdif.h"
++
++#define REGS_SPDIF_BASE IO_ADDRESS(SPDIF_PHYS_ADDR)
++
++#define BF(value, field) (((value) << BP_##field) & BM_##field)
++
++struct mxs_codec_priv {
++	struct clk *clk;
++	struct snd_soc_codec codec;
++};
++
++/*
++ * ALSA API
++ */
++static void __iomem *spdif_regmap[] = {
++	REGS_SPDIF_BASE + HW_SPDIF_CTRL,
++	REGS_SPDIF_BASE + HW_SPDIF_STAT,
++	REGS_SPDIF_BASE + HW_SPDIF_FRAMECTRL,
++	REGS_SPDIF_BASE + HW_SPDIF_SRR,
++	REGS_SPDIF_BASE + HW_SPDIF_DEBUG,
++	REGS_SPDIF_BASE + HW_SPDIF_DATA,
++	REGS_SPDIF_BASE + HW_SPDIF_VERSION,
++};
++
++/*
++ * ALSA core supports only 16 bit registers. It means we have to simulate it
++ * by virtually splitting a 32bit SPDIF registers into two halves
++ * high (bits 31:16) and low (bits 15:0). The routins abow detects which part
++ * of 32bit register is accessed.
++ */
++static int mxs_codec_write(struct snd_soc_codec *codec,
++			   unsigned int reg, unsigned int value)
++{
++	unsigned int reg_val;
++	unsigned int mask = 0xffff;
++
++	if (reg >= SPDIF_REGNUM)
++		return -EIO;
++
++	if (reg & 0x1) {
++		mask <<= 16;
++		value <<= 16;
++	}
++
++	reg_val = __raw_readl(spdif_regmap[reg >> 1]);
++	reg_val = (reg_val & ~mask) | value;
++	__raw_writel(reg_val, spdif_regmap[reg >> 1]);
++
++	return 0;
++}
++
++static unsigned int mxs_codec_read(struct snd_soc_codec *codec,
++				   unsigned int reg)
++{
++	unsigned int reg_val;
++
++	if (reg >= SPDIF_REGNUM)
++		return -1;
++
++	reg_val = __raw_readl(spdif_regmap[reg >> 1]);
++	if (reg & 1)
++		reg_val >>= 16;
++
++	return reg_val & 0xffff;
++}
++
++/* Codec controls */
++static const struct snd_kcontrol_new mxs_snd_controls[] = {
++	SOC_SINGLE("PRO", SPDIF_FRAMECTRL_L, 0, 0x1, 0),
++	SOC_SINGLE("AUDIO", SPDIF_FRAMECTRL_L, 1, 0x1, 0),
++	SOC_SINGLE("COPY", SPDIF_FRAMECTRL_L, 2, 0x1, 0),
++	SOC_SINGLE("PRE", SPDIF_FRAMECTRL_L, 3, 0x1, 0),
++	SOC_SINGLE("CC", SPDIF_FRAMECTRL_L, 4, 0x7F, 0),
++	SOC_SINGLE("L", SPDIF_FRAMECTRL_L, 12, 0x1, 0),
++	SOC_SINGLE("V", SPDIF_FRAMECTRL_L, 13, 0x1, 0),
++	SOC_SINGLE("USER DATA", SPDIF_FRAMECTRL_L, 14, 0x1, 0),
++	SOC_SINGLE("AUTO MUTE", SPDIF_FRAMECTRL_H, 16, 0x1, 0),
++	SOC_SINGLE("V CONFIG", SPDIF_FRAMECTRL_H, 17, 0x1, 0),
++};
++
++struct spdif_srr {
++	u32 rate;
++	u32 basemult;
++	u32 rate_factor;
++};
++
++static struct spdif_srr srr_values[] = {
++	{96000, 0x2, 0x0BB80},
++	{88200, 0x2, 0x0AC44},
++	{64000, 0x2, 0x07D00},
++	{48000, 0x1, 0x0BB80},
++	{44100, 0x1, 0x0AC44},
++	{32000, 0x1, 0x07D00},
++};
++
++static inline int get_srr_values(int rate)
++{
++	int i;
++
++	for (i = 0; i < ARRAY_SIZE(srr_values); i++)
++		if (srr_values[i].rate == rate)
++			return i;
++
++	return -1;
++}
++
++static int mxs_codec_hw_params(struct snd_pcm_substream *substream,
++			       struct snd_pcm_hw_params *params,
++			       struct snd_soc_dai *dai)
++{
++	struct snd_soc_pcm_runtime *rtd = substream->private_data;
++	struct snd_soc_device *socdev = rtd->socdev;
++	struct snd_soc_codec *codec = socdev->card->codec;
++	int playback = substream->stream == SNDRV_PCM_STREAM_PLAYBACK ? 1 : 0;
++	int i;
++	u32 srr_value = 0;
++	u32 basemult;
++
++	i = get_srr_values(params_rate(params));
++	if (i < 0)
++		printk(KERN_WARNING "%s doesn't support rate %d\n",
++		       codec->name, params_rate(params));
++	else {
++		basemult = srr_values[i].basemult;
++
++		srr_value = BF(basemult, SPDIF_SRR_BASEMULT) |
++		    BF(srr_values[i].rate_factor, SPDIF_SRR_RATE);
++
++		if (playback)
++			__raw_writel(srr_value, REGS_SPDIF_BASE + HW_SPDIF_SRR);
++	}
++
++	switch (params_format(params)) {
++	case SNDRV_PCM_FORMAT_S16_LE:
++		if (playback)
++			__raw_writel(BM_SPDIF_CTRL_WORD_LENGTH,
++				     REGS_SPDIF_BASE + HW_SPDIF_CTRL_SET);
++		break;
++	case SNDRV_PCM_FORMAT_S20_3LE:
++	case SNDRV_PCM_FORMAT_S24_LE:
++		if (playback)
++			__raw_writel(BM_SPDIF_CTRL_WORD_LENGTH,
++				     REGS_SPDIF_BASE + HW_SPDIF_CTRL_CLR);
++		break;
++	default:
++		printk(KERN_WARNING "%s doesn't support format %d\n",
++		       codec->name, params_format(params));
++	}
++
++	return 0;
++}
++
++static void mxs_codec_spdif_enable(struct mxs_codec_priv *mxs_spdif)
++{
++	/* Move SPDIF codec out of reset */
++	__raw_writel(BM_SPDIF_CTRL_SFTRST, REGS_SPDIF_BASE + HW_SPDIF_CTRL_CLR);
++
++	/* Ungate SPDIF clocks */
++	__raw_writel(BM_SPDIF_CTRL_CLKGATE,
++		     REGS_SPDIF_BASE + HW_SPDIF_CTRL_CLR);
++
++	/* 16 bit word length */
++	__raw_writel(BM_SPDIF_CTRL_WORD_LENGTH,
++		     REGS_SPDIF_BASE + HW_SPDIF_CTRL_SET);
++}
++
++static void mxs_codec_spdif_disable(struct mxs_codec_priv *mxs_spdif)
++{
++	/* Gate SPDIF clocks */
++	__raw_writel(BM_SPDIF_CTRL_CLKGATE,
++		     REGS_SPDIF_BASE + HW_SPDIF_CTRL_SET);
++}
++
++static void mxs_codec_init(struct snd_soc_codec *codec)
++{
++	struct mxs_codec_priv *mxs_spdif = codec->private_data;
++
++	/* Soft reset SPDIF block */
++	__raw_writel(BM_SPDIF_CTRL_SFTRST, REGS_SPDIF_BASE + HW_SPDIF_CTRL_SET);
++
++	while (!(__raw_readl(REGS_SPDIF_BASE + HW_SPDIF_CTRL)
++		 & BM_SPDIF_CTRL_CLKGATE))
++		;
++
++	mxs_codec_spdif_enable(mxs_spdif);
++
++	snd_soc_add_controls(codec, mxs_snd_controls,
++			     ARRAY_SIZE(mxs_snd_controls));
++}
++
++static void mxs_codec_exit(struct snd_soc_codec *codec)
++{
++	struct mxs_codec_priv *mxs_spdif = codec->private_data;
++
++	mxs_codec_spdif_disable(mxs_spdif);
++}
++
++struct snd_soc_dai_ops mxs_spdif_codec_dai_ops = {
++	.hw_params = mxs_codec_hw_params,
++};
++
++struct snd_soc_dai mxs_spdif_codec_dai = {
++	.name = "mxs spdif",
++	.playback = {
++		     .stream_name = "Playback",
++		     .channels_min = 2,
++		     .channels_max = 2,
++		     .rates = MXS_SPDIF_RATES,
++		     .formats = MXS_SPDIF_FORMATS,
++		     },
++	.ops = &mxs_spdif_codec_dai_ops,
++};
++EXPORT_SYMBOL_GPL(mxs_spdif_codec_dai);
++
++static struct snd_soc_codec *mxs_spdif_codec;
++
++static int mxs_codec_probe(struct platform_device *pdev)
++{
++	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
++	struct snd_soc_codec *codec;
++	int ret = 0;
++
++	socdev->card->codec = mxs_spdif_codec;
++	codec = mxs_spdif_codec;
++
++	/* register pcms */
++	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
++	if (ret < 0) {
++		dev_err(codec->dev, "failed to create pcms\n");
++		return ret;
++	}
++
++	mxs_codec_init(codec);
++
++	/* Register the socdev */
++	ret = snd_soc_init_card(socdev);
++	if (ret < 0) {
++		dev_err(codec->dev, "failed to register card\n");
++		snd_soc_dapm_free(socdev);
++		snd_soc_free_pcms(socdev);
++		return ret;
++	}
++
++	return 0;
++}
++
++static int mxs_codec_remove(struct platform_device *pdev)
++{
++	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
++	struct snd_soc_codec *codec = socdev->card->codec;
++
++	mxs_codec_exit(codec);
++
++	snd_soc_free_pcms(socdev);
++	snd_soc_dapm_free(socdev);
++
++	return 0;
++}
++
++#ifdef CONFIG_PM
++static int mxs_codec_suspend(struct platform_device *pdev, pm_message_t state)
++{
++	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
++	struct snd_soc_codec *codec = socdev->card->codec;
++	struct mxs_codec_priv *mxs_spdif;
++	int ret = -EINVAL;
++
++	if (codec == NULL)
++		goto out;
++
++	mxs_spdif = codec->private_data;
++
++	mxs_codec_spdif_disable(mxs_spdif);
++	clk_disable(mxs_spdif->clk);
++	ret = 0;
++
++out:
++	return ret;
++}
++
++static int mxs_codec_resume(struct platform_device *pdev)
++{
++	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
++	struct snd_soc_codec *codec = socdev->card->codec;
++	struct mxs_codec_priv *mxs_spdif;
++	int ret = -EINVAL;
++
++	if (codec == NULL)
++		goto out;
++
++	mxs_spdif = codec->private_data;
++	clk_enable(mxs_spdif->clk);
++
++	/* Soft reset SPDIF block */
++	__raw_writel(BM_SPDIF_CTRL_SFTRST, REGS_SPDIF_BASE + HW_SPDIF_CTRL_SET);
++	while (!(__raw_readl(REGS_SPDIF_BASE + HW_SPDIF_CTRL)
++		 & BM_SPDIF_CTRL_CLKGATE))
++		;
++
++	mxs_codec_spdif_enable(mxs_spdif);
++
++	ret = 0;
++
++out:
++	return ret;
++}
++#else
++#define mxs_codec_suspend	NULL
++#define mxs_codec_resume	NULL
++#endif /* CONFIG_PM */
++
++struct snd_soc_codec_device soc_spdif_codec_dev_mxs = {
++	.probe = mxs_codec_probe,
++	.remove = mxs_codec_remove,
++	.suspend = mxs_codec_suspend,
++	.resume = mxs_codec_resume,
++};
++EXPORT_SYMBOL_GPL(soc_spdif_codec_dev_mxs);
++
++static int __init mxs_spdif_probe(struct platform_device *pdev)
++{
++	struct snd_soc_codec *codec;
++	struct mxs_codec_priv *mxs_spdif;
++	int ret = 0;
++
++	dev_info(&pdev->dev, "MXS SPDIF Audio Transmitter\n");
++
++	mxs_spdif = kzalloc(sizeof(struct mxs_codec_priv), GFP_KERNEL);
++	if (mxs_spdif == NULL)
++		return -ENOMEM;
++
++	codec = &mxs_spdif->codec;
++	codec->name = "mxs spdif";
++	codec->owner = THIS_MODULE;
++	codec->private_data = mxs_spdif;
++	codec->read = mxs_codec_read;
++	codec->write = mxs_codec_write;
++	codec->dai = &mxs_spdif_codec_dai;
++	codec->num_dai = 1;
++
++	platform_set_drvdata(pdev, mxs_spdif);
++	mxs_spdif_codec = codec;
++
++	mutex_init(&codec->mutex);
++	INIT_LIST_HEAD(&codec->dapm_widgets);
++	INIT_LIST_HEAD(&codec->dapm_paths);
++
++	/* Turn on audio clock */
++	mxs_spdif->clk = clk_get(&pdev->dev, "spdif");
++	if (IS_ERR(mxs_spdif->clk)) {
++		ret = PTR_ERR(mxs_spdif->clk);
++		dev_err(&pdev->dev, "Clocks initialization failed\n");
++		goto clk_err;
++	}
++	clk_enable(mxs_spdif->clk);
++
++	ret = snd_soc_register_codec(codec);
++	if (ret) {
++		dev_err(&pdev->dev, "failed to register card\n");
++		goto card_err;
++	}
++
++	ret = snd_soc_register_dai(&mxs_spdif_codec_dai);
++	if (ret) {
++		dev_err(&pdev->dev, "failed to register card\n");
++		goto dai_err;
++	}
++
++	return 0;
++
++dai_err:
++	snd_soc_unregister_codec(codec);
++card_err:
++	clk_disable(mxs_spdif->clk);
++	clk_put(mxs_spdif->clk);
++clk_err:
++	kfree(mxs_spdif);
++	return ret;
++}
++
++static int __devexit mxs_spdif_remove(struct platform_device *pdev)
++{
++	struct mxs_codec_priv *mxs_spdif = platform_get_drvdata(pdev);
++	struct snd_soc_codec *codec = &mxs_spdif->codec;
++
++	snd_soc_unregister_codec(codec);
++
++	clk_disable(mxs_spdif->clk);
++	clk_put(mxs_spdif->clk);
++
++	kfree(mxs_spdif);
++
++	return 0;
++}
++
++struct platform_driver mxs_spdif_driver = {
++	.driver = {
++		   .name = "mxs-spdif",
++		   },
++	.probe = mxs_spdif_probe,
++	.remove = __devexit_p(mxs_spdif_remove),
++};
++
++static int __init mxs_spdif_init(void)
++{
++	return platform_driver_register(&mxs_spdif_driver);
++}
++
++static void __exit mxs_spdif_exit(void)
++{
++	return platform_driver_unregister(&mxs_spdif_driver);
++}
++
++module_init(mxs_spdif_init);
++module_exit(mxs_spdif_exit);
++
++MODULE_DESCRIPTION("MXS SPDIF transmitter");
++MODULE_AUTHOR("Vladimir Barinov");
++MODULE_LICENSE("GPL");
+diff --git a/sound/soc/codecs/mxs_spdif.h b/sound/soc/codecs/mxs_spdif.h
+new file mode 100644
+index 0000000..284b98c
+--- /dev/null
++++ b/sound/soc/codecs/mxs_spdif.h
+@@ -0,0 +1,171 @@
++/*
++ * ALSA SoC MXS SPDIF codec driver
++ *
++ * Copyright (C) 2008-2010 Freescale Semiconductor, Inc.
++ *
++ * Based on stmp3xxx_spdif.h by:
++ * Vladimir Barinov <vbarinov@embeddedalley.com>
++ *
++ * Copyright 2008 SigmaTel, Inc
++ * Copyright 2008 Embedded Alley Solutions, Inc
++ * Copyright 2008-2009 Freescale Semiconductor, Inc.
++ *
++ * This file is licensed under the terms of the GNU General Public License
++ * version 2.  This program  is licensed "as is" without any warranty of any
++ * kind, whether express or implied.
++ */
++#ifndef __MXS_SPDIF_CODEC_H
++#define __MXS_SPDIF_CODEC_H
++
++#define SPDIF_CTRL_L		0
++#define SPDIF_CTRL_H		1
++#define SPDIF_STAT_L		2
++#define SPDIF_STAT_H		3
++#define SPDIF_FRAMECTRL_L	4
++#define SPDIF_FRAMECTRL_H	5
++#define SPDIF_SRR_L		6
++#define SPDIF_SRR_H		7
++#define SPDIF_DEBUG_L		8
++#define SPDIF_DEBUG_H		9
++#define SPDIF_DATA_L		10
++#define SPDIF_DATA_H		11
++#define SPDIF_VERSION_L		12
++#define SPDIF_VERSION_H		13
++
++#define SPDIF_REGNUM		14
++
++#define HW_SPDIF_CTRL	(0x00000000)
++#define HW_SPDIF_CTRL_SET	(0x00000004)
++#define HW_SPDIF_CTRL_CLR	(0x00000008)
++#define HW_SPDIF_CTRL_TOG	(0x0000000c)
++
++#define BM_SPDIF_CTRL_SFTRST	0x80000000
++#define BM_SPDIF_CTRL_CLKGATE	0x40000000
++#define BP_SPDIF_CTRL_RSRVD1	21
++#define BM_SPDIF_CTRL_RSRVD1	0x3FE00000
++#define BF_SPDIF_CTRL_RSRVD1(v)  \
++		(((v) << 21) & BM_SPDIF_CTRL_RSRVD1)
++#define BP_SPDIF_CTRL_DMAWAIT_COUNT	16
++#define BM_SPDIF_CTRL_DMAWAIT_COUNT	0x001F0000
++#define BF_SPDIF_CTRL_DMAWAIT_COUNT(v)  \
++		(((v) << 16) & BM_SPDIF_CTRL_DMAWAIT_COUNT)
++#define BP_SPDIF_CTRL_RSRVD0	6
++#define BM_SPDIF_CTRL_RSRVD0	0x0000FFC0
++#define BF_SPDIF_CTRL_RSRVD0(v)  \
++		(((v) << 6) & BM_SPDIF_CTRL_RSRVD0)
++#define BM_SPDIF_CTRL_WAIT_END_XFER	0x00000020
++#define BM_SPDIF_CTRL_WORD_LENGTH	0x00000010
++#define BM_SPDIF_CTRL_FIFO_UNDERFLOW_IRQ	0x00000008
++#define BM_SPDIF_CTRL_FIFO_OVERFLOW_IRQ	0x00000004
++#define BM_SPDIF_CTRL_FIFO_ERROR_IRQ_EN	0x00000002
++#define BM_SPDIF_CTRL_RUN	0x00000001
++
++#define HW_SPDIF_STAT	(0x00000010)
++#define HW_SPDIF_STAT_SET	(0x00000014)
++#define HW_SPDIF_STAT_CLR	(0x00000018)
++#define HW_SPDIF_STAT_TOG	(0x0000001c)
++
++#define BM_SPDIF_STAT_PRESENT	0x80000000
++#define BP_SPDIF_STAT_RSRVD1	1
++#define BM_SPDIF_STAT_RSRVD1	0x7FFFFFFE
++#define BF_SPDIF_STAT_RSRVD1(v)  \
++		(((v) << 1) & BM_SPDIF_STAT_RSRVD1)
++#define BM_SPDIF_STAT_END_XFER	0x00000001
++
++#define HW_SPDIF_FRAMECTRL	(0x00000020)
++#define HW_SPDIF_FRAMECTRL_SET	(0x00000024)
++#define HW_SPDIF_FRAMECTRL_CLR	(0x00000028)
++#define HW_SPDIF_FRAMECTRL_TOG	(0x0000002c)
++
++#define BP_SPDIF_FRAMECTRL_RSRVD2	18
++#define BM_SPDIF_FRAMECTRL_RSRVD2	0xFFFC0000
++#define BF_SPDIF_FRAMECTRL_RSRVD2(v) \
++		(((v) << 18) & BM_SPDIF_FRAMECTRL_RSRVD2)
++#define BM_SPDIF_FRAMECTRL_V_CONFIG	0x00020000
++#define BM_SPDIF_FRAMECTRL_AUTO_MUTE	0x00010000
++#define BM_SPDIF_FRAMECTRL_RSRVD1	0x00008000
++#define BM_SPDIF_FRAMECTRL_USER_DATA	0x00004000
++#define BM_SPDIF_FRAMECTRL_V	0x00002000
++#define BM_SPDIF_FRAMECTRL_L	0x00001000
++#define BM_SPDIF_FRAMECTRL_RSRVD0	0x00000800
++#define BP_SPDIF_FRAMECTRL_CC	4
++#define BM_SPDIF_FRAMECTRL_CC	0x000007F0
++#define BF_SPDIF_FRAMECTRL_CC(v)  \
++		(((v) << 4) & BM_SPDIF_FRAMECTRL_CC)
++#define BM_SPDIF_FRAMECTRL_PRE	0x00000008
++#define BM_SPDIF_FRAMECTRL_COPY	0x00000004
++#define BM_SPDIF_FRAMECTRL_AUDIO	0x00000002
++#define BM_SPDIF_FRAMECTRL_PRO	0x00000001
++
++#define HW_SPDIF_SRR	(0x00000030)
++#define HW_SPDIF_SRR_SET	(0x00000034)
++#define HW_SPDIF_SRR_CLR	(0x00000038)
++#define HW_SPDIF_SRR_TOG	(0x0000003c)
++
++#define BM_SPDIF_SRR_RSRVD1	0x80000000
++#define BP_SPDIF_SRR_BASEMULT	28
++#define BM_SPDIF_SRR_BASEMULT	0x70000000
++#define BF_SPDIF_SRR_BASEMULT(v)  \
++		(((v) << 28) & BM_SPDIF_SRR_BASEMULT)
++#define BP_SPDIF_SRR_RSRVD0	20
++#define BM_SPDIF_SRR_RSRVD0	0x0FF00000
++#define BF_SPDIF_SRR_RSRVD0(v)  \
++		(((v) << 20) & BM_SPDIF_SRR_RSRVD0)
++#define BP_SPDIF_SRR_RATE	0
++#define BM_SPDIF_SRR_RATE	0x000FFFFF
++#define BF_SPDIF_SRR_RATE(v)  \
++		(((v) << 0) & BM_SPDIF_SRR_RATE)
++
++#define HW_SPDIF_DEBUG	(0x00000040)
++#define HW_SPDIF_DEBUG_SET	(0x00000044)
++#define HW_SPDIF_DEBUG_CLR	(0x00000048)
++#define HW_SPDIF_DEBUG_TOG	(0x0000004c)
++
++#define BP_SPDIF_DEBUG_RSRVD1	2
++#define BM_SPDIF_DEBUG_RSRVD1	0xFFFFFFFC
++#define BF_SPDIF_DEBUG_RSRVD1(v) \
++		(((v) << 2) & BM_SPDIF_DEBUG_RSRVD1)
++#define BM_SPDIF_DEBUG_DMA_PREQ	0x00000002
++#define BM_SPDIF_DEBUG_FIFO_STATUS	0x00000001
++
++#define HW_SPDIF_DATA	(0x00000050)
++#define HW_SPDIF_DATA_SET	(0x00000054)
++#define HW_SPDIF_DATA_CLR	(0x00000058)
++#define HW_SPDIF_DATA_TOG	(0x0000005c)
++
++#define BP_SPDIF_DATA_HIGH	16
++#define BM_SPDIF_DATA_HIGH	0xFFFF0000
++#define BF_SPDIF_DATA_HIGH(v) \
++		(((v) << 16) & BM_SPDIF_DATA_HIGH)
++#define BP_SPDIF_DATA_LOW	0
++#define BM_SPDIF_DATA_LOW	0x0000FFFF
++#define BF_SPDIF_DATA_LOW(v)  \
++		(((v) << 0) & BM_SPDIF_DATA_LOW)
++
++#define HW_SPDIF_VERSION	(0x00000060)
++
++#define BP_SPDIF_VERSION_MAJOR	24
++#define BM_SPDIF_VERSION_MAJOR	0xFF000000
++#define BF_SPDIF_VERSION_MAJOR(v) \
++		(((v) << 24) & BM_SPDIF_VERSION_MAJOR)
++#define BP_SPDIF_VERSION_MINOR	16
++#define BM_SPDIF_VERSION_MINOR	0x00FF0000
++#define BF_SPDIF_VERSION_MINOR(v)  \
++		(((v) << 16) & BM_SPDIF_VERSION_MINOR)
++#define BP_SPDIF_VERSION_STEP	0
++#define BM_SPDIF_VERSION_STEP	0x0000FFFF
++#define BF_SPDIF_VERSION_STEP(v)  \
++		(((v) << 0) & BM_SPDIF_VERSION_STEP)
++
++#define MXS_SPDIF_RATES         (SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 | \
++				SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_64000 | \
++				SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000)
++
++#define MXS_SPDIF_FORMATS       (SNDRV_PCM_FMTBIT_S16_LE | \
++				SNDRV_PCM_FMTBIT_S20_3LE | \
++				SNDRV_PCM_FMTBIT_S24_LE)
++
++extern struct snd_soc_dai mxs_spdif_codec_dai;
++extern struct snd_soc_codec_device soc_spdif_codec_dev_mxs;
++
++#endif /* __MXS_SPDIF_CODEC_H */
+diff --git a/sound/soc/mxs/Kconfig b/sound/soc/mxs/Kconfig
+index 0e5bc1b..12e95ab 100644
+--- a/sound/soc/mxs/Kconfig
++++ b/sound/soc/mxs/Kconfig
+@@ -15,7 +15,7 @@ config SND_MXS_SOC_EVK_DEVB
+ 	depends on SND_MXS_SOC && ARCH_MX28
+ 	select SND_SOC_SGTL5000
+ 	help
+-	  Say Y if you want to add support for SoC audio on mx28 EVK development
++	  Say Y if you want to add support for SoC audio on MXS EVK development
+ 	  board with the sgtl5000 codec.
+ 
+ config SND_MXS_SOC_DAI
+@@ -40,10 +40,10 @@ config SND_MXS_SOC_SAIF1_SELECT
+ 
+ 
+ config SND_MXS_SOC_EVK_DEVB_SPDIF
+-	tristate "SoC SPDIF support for MX28 EVK Development Board"
++	tristate "SoC SPDIF support for MXS EVK Development Board"
+ 	depends on SND_MXS_SOC && ARCH_MX28
+ 	select SND_MXS_SOC_SPDIF_DAI
+ 	select SND_SOC_MXS_SPDIF
+ 	help
+-	  Say Y if you want to add support for SoC audio on mx28 EVK development
++	  Say Y if you want to add support for SoC audio on MXS EVK development
+ 	  board with the SPDIF transmitter.
+diff --git a/sound/soc/mxs/mxs-devb-spdif.c b/sound/soc/mxs/mxs-devb-spdif.c
+new file mode 100644
+index 0000000..9ed6211
+--- /dev/null
++++ b/sound/soc/mxs/mxs-devb-spdif.c
+@@ -0,0 +1,90 @@
++/*
++ * ASoC driver for MXS Evk development board
++ *
++ * Copyright (C) 2008-2010 Freescale Semiconductor, Inc.
++ *
++ * based on stmp3780_devb_spdif.c
++ *
++ * Vladimir Barinov <vbarinov@embeddedalley.com>
++ *
++ * Copyright 2008 SigmaTel, Inc
++ * Copyright 2008 Embedded Alley Solutions, Inc
++ *
++ * This file is licensed under the terms of the GNU General Public License
++ * version 2.  This program  is licensed "as is" without any warranty of any
++ * kind, whether express or implied.
++ */
++#include <linux/module.h>
++#include <linux/moduleparam.h>
++#include <linux/timer.h>
++#include <linux/interrupt.h>
++#include <linux/platform_device.h>
++#include <sound/core.h>
++#include <sound/pcm.h>
++#include <sound/soc.h>
++#include <sound/soc-dapm.h>
++
++#include <asm/mach-types.h>
++#include <asm/dma.h>
++#include <mach/hardware.h>
++
++#include "mxs-spdif-dai.h"
++#include "../codecs/mxs_spdif.h"
++#include "mxs-pcm.h"
++
++/* mxs devb digital audio interface glue - connects codec <--> CPU */
++static struct snd_soc_dai_link mxs_devb_dai = {
++	.name = "MXS SPDIF",
++	.stream_name = "MXS SPDIF",
++	.cpu_dai = &mxs_spdif_dai,
++	.codec_dai = &mxs_spdif_codec_dai,
++};
++
++/* mxs devb audio machine driver */
++static struct snd_soc_card snd_soc_machine_mxs_devb = {
++	.name = "mxs-evk",
++	.platform = &mxs_soc_platform,
++	.dai_link = &mxs_devb_dai,
++	.num_links = 1,
++};
++
++/* mxs devb audio subsystem */
++static struct snd_soc_device mxs_devb_snd_devdata = {
++	.card = &snd_soc_machine_mxs_devb,
++	.codec_dev = &soc_spdif_codec_dev_mxs,
++};
++
++static struct platform_device *mxs_devb_snd_device;
++
++static int __init mxs_devb_init(void)
++{
++	int ret = 0;
++
++	mxs_devb_snd_device = platform_device_alloc("soc-audio", 2);
++	if (!mxs_devb_snd_device)
++		return -ENOMEM;
++
++	platform_set_drvdata(mxs_devb_snd_device,
++			     &mxs_devb_snd_devdata);
++	mxs_devb_snd_devdata.dev = &mxs_devb_snd_device->dev;
++	mxs_devb_snd_device->dev.platform_data =
++		&mxs_devb_snd_devdata;
++
++	ret = platform_device_add(mxs_devb_snd_device);
++	if (ret)
++		platform_device_put(mxs_devb_snd_device);
++
++	return ret;
++}
++
++static void __exit mxs_devb_exit(void)
++{
++	platform_device_unregister(mxs_devb_snd_device);
++}
++
++module_init(mxs_devb_init);
++module_exit(mxs_devb_exit);
++
++MODULE_AUTHOR("Vladimir Barinov");
++MODULE_DESCRIPTION("MXS EVK development board ASoC driver");
++MODULE_LICENSE("GPL");
+diff --git a/sound/soc/mxs/mxs-pcm.c b/sound/soc/mxs/mxs-pcm.c
+index 2bb58b5..6bac0ee 100644
+--- a/sound/soc/mxs/mxs-pcm.c
++++ b/sound/soc/mxs/mxs-pcm.c
+@@ -40,6 +40,8 @@ static const struct snd_pcm_hardware mxs_pcm_hardware = {
+ 				  SNDRV_PCM_INFO_RESUME |
+ 				  SNDRV_PCM_INFO_INTERLEAVED,
+ 	.formats		= SNDRV_PCM_FMTBIT_S16_LE |
++				  SNDRV_PCM_FMTBIT_S20_3LE |
++				  SNDRV_PCM_FMTBIT_S24_LE |
+ 				  SNDRV_PCM_FMTBIT_S32_LE,
+ 	.channels_min		= 2,
+ 	.channels_max		= 2,
+diff --git a/sound/soc/mxs/mxs-spdif-dai.c b/sound/soc/mxs/mxs-spdif-dai.c
+new file mode 100644
+index 0000000..5c9f93d
+--- /dev/null
++++ b/sound/soc/mxs/mxs-spdif-dai.c
+@@ -0,0 +1,202 @@
++/*
++ * ALSA SoC SPDIF Audio Layer for MXS
++ *
++ * Copyright (C) 2008-2010 Freescale Semiconductor, Inc.
++ *
++ * Based on stmp3xxx_spdif_dai.c
++ * Vladimir Barinov <vbarinov@embeddedalley.com>
++ * Copyright 2008 SigmaTel, Inc
++ * Copyright 2008 Embedded Alley Solutions, Inc
++ *
++ * This file is licensed under the terms of the GNU General Public License
++ * version 2.  This program  is licensed "as is" without any warranty of any
++ * kind, whether express or implied.
++ */
++
++#include <linux/init.h>
++#include <linux/module.h>
++#include <linux/dma-mapping.h>
++#include <linux/clk.h>
++#include <linux/delay.h>
++#include <sound/core.h>
++#include <sound/pcm.h>
++#include <sound/soc.h>
++#include <mach/dma.h>
++
++#include "../codecs/mxs_spdif.h"
++#include "mxs-pcm.h"
++
++#define REGS_SPDIF_BASE IO_ADDRESS(SPDIF_PHYS_ADDR)
++
++struct mxs_pcm_dma_params mxs_spdif = {
++	.name = "mxs spdif",
++	.dma_ch	= MXS_DMA_CHANNEL_AHB_APBX_SPDIF,
++	.irq = IRQ_SPDIF_DMA,
++};
++
++static irqreturn_t mxs_err_irq(int irq, void *dev_id)
++{
++	struct snd_pcm_substream *substream = dev_id;
++	int playback = substream->stream == SNDRV_PCM_STREAM_PLAYBACK ? 1 : 0;
++	u32 ctrl_reg = 0;
++	u32 overflow_mask;
++	u32 underflow_mask;
++
++	if (playback) {
++		ctrl_reg = __raw_readl(REGS_SPDIF_BASE + HW_SPDIF_CTRL);
++		underflow_mask = BM_SPDIF_CTRL_FIFO_UNDERFLOW_IRQ;
++		overflow_mask = BM_SPDIF_CTRL_FIFO_OVERFLOW_IRQ;
++	}
++
++	if (ctrl_reg & underflow_mask) {
++		printk(KERN_DEBUG "underflow detected SPDIF\n");
++
++		if (playback)
++			__raw_writel(BM_SPDIF_CTRL_FIFO_UNDERFLOW_IRQ,
++				REGS_SPDIF_BASE + HW_SPDIF_CTRL_CLR);
++	} else if (ctrl_reg & overflow_mask) {
++		printk(KERN_DEBUG "overflow detected SPDIF\n");
++
++		if (playback)
++			__raw_writel(BM_SPDIF_CTRL_FIFO_OVERFLOW_IRQ,
++				REGS_SPDIF_BASE + HW_SPDIF_CTRL_CLR);
++	} else
++		printk(KERN_WARNING "Unknown SPDIF error interrupt\n");
++
++	return IRQ_HANDLED;
++}
++
++static int mxs_spdif_trigger(struct snd_pcm_substream *substream, int cmd,
++				  struct snd_soc_dai *dai)
++{
++	int playback = substream->stream == SNDRV_PCM_STREAM_PLAYBACK ? 1 : 0;
++	int ret = 0;
++
++	switch (cmd) {
++	case SNDRV_PCM_TRIGGER_START:
++		if (playback)
++			__raw_writel(BM_SPDIF_CTRL_RUN,
++				REGS_SPDIF_BASE + HW_SPDIF_CTRL_SET);
++		break;
++	case SNDRV_PCM_TRIGGER_STOP:
++		if (playback)
++			__raw_writel(BM_SPDIF_CTRL_RUN,
++				REGS_SPDIF_BASE + HW_SPDIF_CTRL_CLR);
++		break;
++	case SNDRV_PCM_TRIGGER_RESUME:
++	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
++	case SNDRV_PCM_TRIGGER_SUSPEND:
++	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
++
++	default:
++		ret = -EINVAL;
++	}
++
++	return ret;
++}
++
++static int mxs_spdif_startup(struct snd_pcm_substream *substream,
++				  struct snd_soc_dai *dai)
++{
++	struct snd_soc_pcm_runtime *rtd = substream->private_data;
++	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
++	int playback = substream->stream == SNDRV_PCM_STREAM_PLAYBACK ? 1 : 0;
++	int irq;
++	int ret;
++
++	if (playback) {
++		irq = IRQ_SPDIF_ERROR;
++		cpu_dai->dma_data = &mxs_spdif;
++	}
++
++	ret = request_irq(irq, mxs_err_irq, 0, "Mxs SPDIF Error",
++			  substream);
++	if (ret) {
++		printk(KERN_ERR "%s: Unable to request SPDIF error irq %d\n",
++		       __func__, IRQ_SPDIF_ERROR);
++		return ret;
++	}
++
++	/* Enable error interrupt */
++	if (playback) {
++		__raw_writel(BM_SPDIF_CTRL_FIFO_OVERFLOW_IRQ,
++				REGS_SPDIF_BASE + HW_SPDIF_CTRL_CLR);
++		__raw_writel(BM_SPDIF_CTRL_FIFO_UNDERFLOW_IRQ,
++				REGS_SPDIF_BASE + HW_SPDIF_CTRL_CLR);
++		__raw_writel(BM_SPDIF_CTRL_FIFO_ERROR_IRQ_EN,
++				REGS_SPDIF_BASE + HW_SPDIF_CTRL_SET);
++	}
++
++	return 0;
++}
++
++static void mxs_spdif_shutdown(struct snd_pcm_substream *substream,
++				    struct snd_soc_dai *dai)
++{
++	int playback = substream->stream == SNDRV_PCM_STREAM_PLAYBACK ? 1 : 0;
++
++	/* Disable error interrupt */
++	if (playback) {
++		__raw_writel(BM_SPDIF_CTRL_FIFO_ERROR_IRQ_EN,
++				REGS_SPDIF_BASE + HW_SPDIF_CTRL_CLR);
++		free_irq(IRQ_SPDIF_ERROR, substream);
++	}
++}
++
++#ifdef CONFIG_PM
++static int mxs_spdif_suspend(struct snd_soc_dai *cpu_dai)
++{
++	return 0;
++}
++
++static int mxs_spdif_resume(struct snd_soc_dai *cpu_dai)
++{
++	return 0;
++}
++#else
++#define mxs_spdif_suspend	NULL
++#define mxs_spdif_resume	NULL
++#endif /* CONFIG_PM */
++
++struct snd_soc_dai_ops mxs_spdif_dai_ops = {
++	.startup = mxs_spdif_startup,
++	.shutdown = mxs_spdif_shutdown,
++	.trigger = mxs_spdif_trigger,
++};
++
++struct snd_soc_dai mxs_spdif_dai = {
++	.name = "mxs-spdif",
++	.id = 0,
++	.suspend = mxs_spdif_suspend,
++	.resume = mxs_spdif_resume,
++	.playback = {
++		.channels_min = 2,
++		.channels_max = 2,
++		.rates = MXS_SPDIF_RATES,
++		.formats = MXS_SPDIF_FORMATS,
++	},
++	.capture = {
++		.channels_min = 2,
++		.channels_max = 2,
++		.rates = MXS_SPDIF_RATES,
++		.formats = MXS_SPDIF_FORMATS,
++	},
++	.ops = &mxs_spdif_dai_ops,
++};
++EXPORT_SYMBOL_GPL(mxs_spdif_dai);
++
++static int __init mxs_spdif_dai_init(void)
++{
++	return snd_soc_register_dai(&mxs_spdif_dai);
++}
++
++static void __exit mxs_spdif_dai_exit(void)
++{
++	snd_soc_unregister_dai(&mxs_spdif_dai);
++}
++module_init(mxs_spdif_dai_init);
++module_exit(mxs_spdif_dai_exit);
++
++MODULE_AUTHOR("Vladimir Barinov");
++MODULE_DESCRIPTION("MXS SPDIF DAI");
++MODULE_LICENSE("GPL");
+diff --git a/sound/soc/mxs/mxs-spdif-dai.h b/sound/soc/mxs/mxs-spdif-dai.h
+new file mode 100644
+index 0000000..035369a
+--- /dev/null
++++ b/sound/soc/mxs/mxs-spdif-dai.h
+@@ -0,0 +1,21 @@
++/*
++ * ASoC Audio Layer for Freescale STMP3XXX SPDIF transmitter
++ *
++ * Author: Vladimir Barinov <vbarinov@embeddedalley.com>
++ *
++ * Copyright 2008-2010 Freescale Semiconductor, Inc.
++ * Copyright 2008 Embedded Alley Solutions, Inc All Rights Reserved.
++ */
++
++/*
++ * The code contained herein is licensed under the GNU General Public
++ * License. You may obtain a copy of the GNU General Public License
++ * Version 2 or later at the following locations:
++ *
++ * http://www.opensource.org/licenses/gpl-license.html
++ * http://www.gnu.org/copyleft/gpl.html
++ */
++#ifndef _STMP3XXX_SPDIF_H
++#define _STMP3XXX_SPDIF_H
++extern struct snd_soc_dai mxs_spdif_dai;
++#endif
+-- 
+1.5.4.4
+

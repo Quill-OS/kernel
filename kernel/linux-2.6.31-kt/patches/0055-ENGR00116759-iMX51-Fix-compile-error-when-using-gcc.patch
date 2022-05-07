@@ -1,0 +1,29 @@
+From 39b2ec2cfc591472db51c75944d8462255e9cf4d Mon Sep 17 00:00:00 2001
+From: Miao Yu <r65093@freescale.com>
+Date: Fri, 23 Oct 2009 16:25:57 +0800
+Subject: [PATCH] ENGR00116759 iMX51: Fix compile error when using gcc4.3.3
+
+Enable armv7-a instruction when using gcc4.3.3 (code sourcery,
+version 2009q1, glibc2.8)
+
+Signed-off-by: Miao Yu <r65093@freescale.com>
+---
+ arch/arm/Makefile |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/arch/arm/Makefile b/arch/arm/Makefile
+index d22dff6..c72dea4 100644
+--- a/arch/arm/Makefile
++++ b/arch/arm/Makefile
+@@ -50,7 +50,7 @@ comma = ,
+ # Note that GCC does not numerically define an architecture version
+ # macro, but instead defines a whole series of macros which makes
+ # testing for a specific architecture or later rather impossible.
+-arch-$(CONFIG_CPU_32v7)		:=-D__LINUX_ARM_ARCH__=7 $(call cc-option,-march=armv7a,-march=armv5t -Wa$(comma)-march=armv7a)
++arch-$(CONFIG_CPU_32v7)		:=-D__LINUX_ARM_ARCH__=7 $(call cc-option,-march=armv7-a,-march=armv5t -Wa$(comma)-march=armv7-a)
+ arch-$(CONFIG_CPU_32v6)		:=-D__LINUX_ARM_ARCH__=6 $(call cc-option,-march=armv6,-march=armv5t -Wa$(comma)-march=armv6)
+ # Only override the compiler option if ARMv6. The ARMv6K extensions are
+ # always available in ARMv7
+-- 
+1.5.4.4
+

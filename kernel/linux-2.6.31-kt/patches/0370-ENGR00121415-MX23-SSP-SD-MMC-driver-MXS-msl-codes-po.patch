@@ -1,0 +1,659 @@
+From fe1fc8aed9dd48387cf00d10e8fdcc69c06012b5 Mon Sep 17 00:00:00 2001
+From: Richard Zhu <r65037@freescale.com>
+Date: Wed, 10 Mar 2010 11:30:22 +0800
+Subject: [PATCH] ENGR00121415 MX23 SSP SD/MMC driver MXS msl codes porting
+
+porting the SSP SD/MMC driver to the new MSL
+codes based on  MXS model.
+
+Signed-off-by: Richard Zhu <r65037@freescale.com>
+---
+ arch/arm/configs/imx23evk_defconfig |   19 ++++-
+ arch/arm/mach-mx23/clock.c          |   20 +++--
+ arch/arm/mach-mx23/device.c         |  128 +++++++++++++++++++++++++-
+ arch/arm/mach-mx23/mx23evk.c        |    4 +-
+ arch/arm/mach-mx23/mx23evk_pins.c   |  177 +++--------------------------------
+ drivers/mmc/host/Kconfig            |    2 +-
+ drivers/mmc/host/mxs-mmc.c          |   85 +++++++++++++++--
+ 7 files changed, 247 insertions(+), 188 deletions(-)
+
+diff --git a/arch/arm/configs/imx23evk_defconfig b/arch/arm/configs/imx23evk_defconfig
+index c1676d7..e3e6327 100644
+--- a/arch/arm/configs/imx23evk_defconfig
++++ b/arch/arm/configs/imx23evk_defconfig
+@@ -655,7 +655,24 @@ CONFIG_LOGO_LINUX_CLUT224=y
+ # CONFIG_HID_SUPPORT is not set
+ # CONFIG_USB_SUPPORT is not set
+ CONFIG_USB_ARCH_HAS_EHCI=y
+-# CONFIG_MMC is not set
++CONFIG_MMC=y
++# CONFIG_MMC_DEBUG is not set
++CONFIG_MMC_UNSAFE_RESUME=y
++
++#
++# MMC/SD/SDIO Card Drivers
++#
++CONFIG_MMC_BLOCK=y
++CONFIG_MMC_BLOCK_BOUNCE=y
++# CONFIG_SDIO_UART is not set
++# CONFIG_MMC_TEST is not set
++
++#
++# MMC/SD/SDIO Host Controller Drivers
++#
++# CONFIG_MMC_SDHCI is not set
++# CONFIG_MMC_IMX_ESDHCI_PIO_MODE is not set
++CONFIG_MMC_MXS=y
+ # CONFIG_MEMSTICK is not set
+ # CONFIG_ACCESSIBILITY is not set
+ # CONFIG_NEW_LEDS is not set
+diff --git a/arch/arm/mach-mx23/clock.c b/arch/arm/mach-mx23/clock.c
+index c2ea53e..a3ff8ae 100644
+--- a/arch/arm/mach-mx23/clock.c
++++ b/arch/arm/mach-mx23/clock.c
+@@ -382,20 +382,21 @@ static int ssp_set_parent(struct clk *clk, struct clk *parent)
+ 
+ 	if (clk->bypass_reg) {
+ 		if (clk->parent == parent)
++			return 0;
++		if (parent == &ref_io_clk)
+ 			__raw_writel(1 << clk->bypass_bits,
+-					clk->bypass_reg + SET_REGISTER);
+-		else
+-			__raw_writel(0 << clk->bypass_bits,
+ 					clk->bypass_reg + CLR_REGISTER);
+-
++		else
++			__raw_writel(1 << clk->bypass_bits,
++					clk->bypass_reg + SET_REGISTER);
++		clk->parent = parent;
+ 		ret = 0;
+ 	}
+ 
+ 	return ret;
+ }
+ 
+-static struct clk ssp_clk[] = {
+-	{
++static struct clk ssp_clk = {
+ 	 .parent = &ref_io_clk,
+ 	 .get_rate = ssp_get_rate,
+ 	 .enable = mx23_raw_enable,
+@@ -410,7 +411,6 @@ static struct clk ssp_clk[] = {
+ 	 .bypass_bits = 3,
+ 	 .set_rate = ssp_set_rate,
+ 	 .set_parent = ssp_set_parent,
+-	 },
+ };
+ 
+ static unsigned long ssp_get_rate(struct clk *clk)
+@@ -559,6 +559,10 @@ static struct clk_lookup onchip_clocks[] = {
+ 	 .clk = &lradc_clk,
+ 	 },
+ 	{
++	 .con_id = "ssp.0",
++	 .clk = &ssp_clk,
++	 },
++	{
+ 	 .con_id = "emi",
+ 	 .clk = &emi_clk,
+ 	 },
+@@ -579,6 +583,8 @@ static void mx23_clock_scan(void)
+ 		dis_lcdif_clk.parent = &ref_xtal_clk;
+ 	if (reg & BM_CLKCTRL_CLKSEQ_BYPASS_EMI)
+ 		emi_clk.parent = &ref_xtal_clk;
++	if (reg & BM_CLKCTRL_CLKSEQ_BYPASS_SSP)
++		ssp_clk.parent = &ref_xtal_clk;
+ };
+ 
+ 
+diff --git a/arch/arm/mach-mx23/device.c b/arch/arm/mach-mx23/device.c
+index 9af9601..488f0f4 100644
+--- a/arch/arm/mach-mx23/device.c
++++ b/arch/arm/mach-mx23/device.c
+@@ -396,6 +396,132 @@ static void __init mx23_init_dcp(void)
+ }
+ #endif
+ 
++#if defined(CONFIG_MMC_MXS) || defined(CONFIG_MMC_MXS_MODULE)
++#define MMC0_POWER	MXS_PIN_TO_GPIO(PINID_PWM3)
++#define MMC0_WP		MXS_PIN_TO_GPIO(PINID_PWM4)
++
++static int mxs_mmc_get_wp_mmc0(void)
++{
++	return gpio_get_value(MMC0_WP);
++}
++
++static int mxs_mmc_hw_init_mmc0(void)
++{
++	int ret = 0;
++
++	/* Configure write protect GPIO pin */
++	ret = gpio_request(MMC0_WP, "mmc0_wp");
++	if (ret) {
++		pr_err("wp\r\n");
++		goto out_wp;
++	}
++	gpio_set_value(MMC0_WP, 0);
++	gpio_direction_input(MMC0_WP);
++
++	/* Configure POWER pin as gpio to drive power to MMC slot */
++	ret = gpio_request(MMC0_POWER, "mmc0_power");
++	if (ret) {
++		pr_err("power\r\n");
++		goto out_power;
++	}
++	gpio_direction_output(MMC0_POWER, 0);
++	mdelay(100);
++
++	return 0;
++
++out_power:
++	gpio_free(MMC0_WP);
++out_wp:
++	return ret;
++}
++
++static void mxs_mmc_hw_release_mmc0(void)
++{
++	gpio_free(MMC0_POWER);
++	gpio_free(MMC0_WP);
++
++}
++
++static void mxs_mmc_cmd_pullup_mmc0(int enable)
++{
++	mxs_set_pullup(PINID_SSP1_CMD, enable, "mmc0_cmd");
++}
++
++static unsigned long mxs_mmc_setclock_mmc0(unsigned long hz)
++{
++	struct clk *ssp = clk_get(NULL, "ssp.0"), *parent;
++
++	if (hz > 1000000)
++		parent = clk_get(NULL, "ref_io.0");
++	else
++		parent = clk_get(NULL, "xtal.0");
++
++	clk_set_parent(ssp, parent);
++	clk_set_rate(ssp, 2 * hz);
++	clk_put(parent);
++	clk_put(ssp);
++
++	return hz;
++}
++
++static struct mxs_mmc_platform_data mx23_mmc0_data = {
++	.hw_init	= mxs_mmc_hw_init_mmc0,
++	.hw_release	= mxs_mmc_hw_release_mmc0,
++	.get_wp		= mxs_mmc_get_wp_mmc0,
++	.cmd_pullup	= mxs_mmc_cmd_pullup_mmc0,
++	.setclock	= mxs_mmc_setclock_mmc0,
++	.caps 		= MMC_CAP_4_BIT_DATA,
++	.min_clk	= 400000,
++	.max_clk	= 48000000,
++	.read_uA        = 50000,
++	.write_uA       = 70000,
++	.clock_mmc = "ssp.0",
++	.power_mmc = NULL,
++};
++
++static struct resource mx23_mmc0_resource[] = {
++	{
++		.flags	= IORESOURCE_MEM,
++		.start	= SSP1_PHYS_ADDR,
++		.end	= SSP1_PHYS_ADDR + 0x2000 - 1,
++	},
++	{
++		.flags	= IORESOURCE_DMA,
++		.start	= MXS_DMA_CHANNEL_AHB_APBH_SSP1,
++		.end	= MXS_DMA_CHANNEL_AHB_APBH_SSP1,
++	},
++	{
++		.flags	= IORESOURCE_IRQ,
++		.start	= IRQ_SSP1_DMA,
++		.end	= IRQ_SSP1_DMA,
++	},
++	{
++		.flags	= IORESOURCE_IRQ,
++		.start	= IRQ_SSP_ERROR,
++		.end	= IRQ_SSP_ERROR,
++	},
++};
++
++static void __init mx23_init_mmc(void)
++{
++	struct platform_device *pdev;
++
++	pdev = mxs_get_device("mxs-mmc", 0);
++	if (pdev == NULL || IS_ERR(pdev))
++		return;
++	pdev->resource = mx23_mmc0_resource;
++	pdev->num_resources = ARRAY_SIZE(mx23_mmc0_resource);
++	pdev->dev.platform_data = &mx23_mmc0_data;
++
++	mxs_add_device(pdev, 2);
++}
++#else
++static void mx23_init_mmc(void)
++{
++	;
++}
++#endif
++
+ int __init mx23_device_init(void)
+ {
+ 	mx23_init_dma();
+@@ -407,7 +533,7 @@ int __init mx23_device_init(void)
+ 	mx23_init_ts();
+ 	mx23_init_rtc();
+ 	mx23_init_dcp();
+-
++	mx23_init_mmc();
+ 	return 0;
+ }
+ 
+diff --git a/arch/arm/mach-mx23/mx23evk.c b/arch/arm/mach-mx23/mx23evk.c
+index 02c315b..4bf7ae3 100644
+--- a/arch/arm/mach-mx23/mx23evk.c
++++ b/arch/arm/mach-mx23/mx23evk.c
+@@ -46,10 +46,8 @@ static void __init mx23evk_device_init(void)
+ 
+ static void __init mx23evk_init_machine(void)
+ {
+-#if 0
+-	mx23_gpio_init();
+-#endif
+ 	mx23_pinctrl_init();
++	mx23_gpio_init();
+ 	mx23evk_pins_init();
+ 	mx23_device_init();
+ 	mx23evk_device_init();
+diff --git a/arch/arm/mach-mx23/mx23evk_pins.c b/arch/arm/mach-mx23/mx23evk_pins.c
+index 983d0d6..d4060ef 100644
+--- a/arch/arm/mach-mx23/mx23evk_pins.c
++++ b/arch/arm/mach-mx23/mx23evk_pins.c
+@@ -324,120 +324,9 @@ static struct pin_desc mx23evk_fixed_pins[] = {
+ #if defined(CONFIG_MMC_MXS) || defined(CONFIG_MMC_MXS_MODULE)
+ 	/* Configurations of SSP0 SD/MMC port pins */
+ 	{
+-	 .name	= "SSP0_DATA0",
+-	 .id	= PINID_SSP0_DATA0,
+-	 .fun	= PIN_FUN1,
+-	 .strength	= PAD_8MA,
+-	 .voltage	= PAD_3_3V,
+-	 .pullup	= 1,
+-	 .drive 	= 1,
+-	 .pull 		= 1,
+-	 },
+-	{
+-	 .name	= "SSP0_DATA1",
+-	 .id	= PINID_SSP0_DATA1,
+-	 .fun	= PIN_FUN1,
+-	 .strength	= PAD_8MA,
+-	 .voltage	= PAD_3_3V,
+-	 .pullup	= 1,
+-	 .drive 	= 1,
+-	 .pull 		= 1,
+-	 },
+-	{
+-	 .name	= "SSP0_DATA2",
+-	 .id	= PINID_SSP0_DATA2,
+-	 .fun	= PIN_FUN1,
+-	 .strength	= PAD_8MA,
+-	 .voltage	= PAD_3_3V,
+-	 .pullup	= 1,
+-	 .drive 	= 1,
+-	 .pull 		= 1,
+-	 },
+-	{
+-	 .name	= "SSP0_DATA3",
+-	 .id	= PINID_SSP0_DATA3,
+-	 .fun	= PIN_FUN1,
+-	 .strength	= PAD_8MA,
+-	 .voltage	= PAD_3_3V,
+-	 .pullup	= 1,
+-	 .drive 	= 1,
+-	 .pull 		= 1,
+-	 },
+-	{
+-	 .name	= "SSP0_DATA4",
+-	 .id	= PINID_SSP0_DATA4,
+-	 .fun	= PIN_FUN1,
+-	 .strength	= PAD_8MA,
+-	 .voltage	= PAD_3_3V,
+-	 .pullup	= 1,
+-	 .drive 	= 1,
+-	 .pull 		= 1,
+-	 },
+-	{
+-	 .name	= "SSP0_DATA5",
+-	 .id	= PINID_SSP0_DATA5,
+-	 .fun	= PIN_FUN1,
+-	 .strength	= PAD_8MA,
+-	 .voltage	= PAD_3_3V,
+-	 .pullup	= 1,
+-	 .drive 	= 1,
+-	 .pull 		= 1,
+-	 },
+-	{
+-	 .name	= "SSP0_DATA6",
+-	 .id	= PINID_SSP0_DATA6,
+-	 .fun	= PIN_FUN1,
+-	 .strength	= PAD_8MA,
+-	 .voltage	= PAD_3_3V,
+-	 .pullup	= 1,
+-	 .drive 	= 1,
+-	 .pull 		= 1,
+-	 },
+-	{
+-	 .name	= "SSP0_DATA7",
+-	 .id	= PINID_SSP0_DATA7,
+-	 .fun	= PIN_FUN1,
+-	 .strength	= PAD_8MA,
+-	 .voltage	= PAD_3_3V,
+-	 .pullup	= 1,
+-	 .drive 	= 1,
+-	 .pull 		= 1,
+-	 },
+-	{
+-	 .name	= "SSP0_CMD",
+-	 .id	= PINID_SSP0_CMD,
+-	 .fun	= PIN_FUN1,
+-	 .strength	= PAD_8MA,
+-	 .voltage	= PAD_3_3V,
+-	 .pullup	= 1,
+-	 .drive 	= 1,
+-	 .pull 		= 1,
+-	 },
+-	{
+-	 .name	= "SSP0_DETECT",
+-	 .id	= PINID_SSP0_DETECT,
+-	 .fun	= PIN_FUN1,
+-	 .strength	= PAD_8MA,
+-	 .voltage	= PAD_3_3V,
+-	 .pullup	= 0,
+-	 .drive 	= 1,
+-	 .pull 		= 0,
+-	 },
+-	{
+-	 .name	= "SSP0_SCK",
+-	 .id	= PINID_SSP0_SCK,
+-	 .fun	= PIN_FUN1,
+-	 .strength	= PAD_8MA,
+-	 .voltage	= PAD_3_3V,
+-	 .pullup	= 0,
+-	 .drive 	= 1,
+-	 .pull 		= 0,
+-	 },
+-	/* Configurations of SSP1 SD/MMC port pins */
+-	{
+ 	 .name	= "SSP1_DATA0",
+-	 .id	= PINID_GPMI_D00,
+-	 .fun	= PIN_FUN2,
++	 .id	= PINID_SSP1_DATA0,
++	 .fun	= PIN_FUN1,
+ 	 .strength	= PAD_8MA,
+ 	 .voltage	= PAD_3_3V,
+ 	 .pullup	= 1,
+@@ -446,8 +335,8 @@ static struct pin_desc mx23evk_fixed_pins[] = {
+ 	 },
+ 	{
+ 	 .name	= "SSP1_DATA1",
+-	 .id	= PINID_GPMI_D01,
+-	 .fun	= PIN_FUN2,
++	 .id	= PINID_SSP1_DATA1,
++	 .fun	= PIN_FUN1,
+ 	 .strength	= PAD_8MA,
+ 	 .voltage	= PAD_3_3V,
+ 	 .pullup	= 1,
+@@ -456,8 +345,8 @@ static struct pin_desc mx23evk_fixed_pins[] = {
+ 	 },
+ 	{
+ 	 .name	= "SSP1_DATA2",
+-	 .id	= PINID_GPMI_D02,
+-	 .fun	= PIN_FUN2,
++	 .id	= PINID_SSP1_DATA2,
++	 .fun	= PIN_FUN1,
+ 	 .strength	= PAD_8MA,
+ 	 .voltage	= PAD_3_3V,
+ 	 .pullup	= 1,
+@@ -466,48 +355,8 @@ static struct pin_desc mx23evk_fixed_pins[] = {
+ 	 },
+ 	{
+ 	 .name	= "SSP1_DATA3",
+-	 .id	= PINID_GPMI_D03,
+-	 .fun	= PIN_FUN2,
+-	 .strength	= PAD_8MA,
+-	 .voltage	= PAD_3_3V,
+-	 .pullup	= 1,
+-	 .drive 	= 1,
+-	 .pull 		= 1,
+-	 },
+-	{
+-	 .name	= "SSP1_DATA4",
+-	 .id	= PINID_GPMI_D04,
+-	 .fun	= PIN_FUN2,
+-	 .strength	= PAD_8MA,
+-	 .voltage	= PAD_3_3V,
+-	 .pullup	= 1,
+-	 .drive 	= 1,
+-	 .pull 		= 1,
+-	 },
+-	{
+-	 .name	= "SSP1_DATA5",
+-	 .id	= PINID_GPMI_D05,
+-	 .fun	= PIN_FUN2,
+-	 .strength	= PAD_8MA,
+-	 .voltage	= PAD_3_3V,
+-	 .pullup	= 1,
+-	 .drive 	= 1,
+-	 .pull 		= 1,
+-	 },
+-	{
+-	 .name	= "SSP1_DATA6",
+-	 .id	= PINID_GPMI_D06,
+-	 .fun	= PIN_FUN2,
+-	 .strength	= PAD_8MA,
+-	 .voltage	= PAD_3_3V,
+-	 .pullup	= 1,
+-	 .drive 	= 1,
+-	 .pull 		= 1,
+-	 },
+-	{
+-	 .name	= "SSP1_DATA7",
+-	 .id	= PINID_GPMI_D07,
+-	 .fun	= PIN_FUN2,
++	 .id	= PINID_SSP1_DATA3,
++	 .fun	= PIN_FUN1,
+ 	 .strength	= PAD_8MA,
+ 	 .voltage	= PAD_3_3V,
+ 	 .pullup	= 1,
+@@ -516,8 +365,8 @@ static struct pin_desc mx23evk_fixed_pins[] = {
+ 	 },
+ 	{
+ 	 .name	= "SSP1_CMD",
+-	 .id	= PINID_GPMI_RDY1,
+-	 .fun	= PIN_FUN2,
++	 .id	= PINID_SSP1_CMD,
++	 .fun	= PIN_FUN1,
+ 	 .strength	= PAD_8MA,
+ 	 .voltage	= PAD_3_3V,
+ 	 .pullup	= 1,
+@@ -526,7 +375,7 @@ static struct pin_desc mx23evk_fixed_pins[] = {
+ 	 },
+ 	{
+ 	 .name	= "SSP1_DETECT",
+-	 .id	= PINID_GPMI_RDY0,
++	 .id	= PINID_SSP1_DETECT,
+ 	 .fun	= PIN_FUN1,
+ 	 .strength	= PAD_8MA,
+ 	 .voltage	= PAD_3_3V,
+@@ -536,8 +385,8 @@ static struct pin_desc mx23evk_fixed_pins[] = {
+ 	 },
+ 	{
+ 	 .name	= "SSP1_SCK",
+-	 .id	= PINID_GPMI_WRN,
+-	 .fun	= PIN_FUN2,
++	 .id	= PINID_SSP1_SCK,
++	 .fun	= PIN_FUN1,
+ 	 .strength	= PAD_8MA,
+ 	 .voltage	= PAD_3_3V,
+ 	 .pullup	= 0,
+diff --git a/drivers/mmc/host/Kconfig b/drivers/mmc/host/Kconfig
+index b96d6cc..8cf0287 100644
+--- a/drivers/mmc/host/Kconfig
++++ b/drivers/mmc/host/Kconfig
+@@ -297,7 +297,7 @@ config MMC_STMP3XXX
+ 
+ config MMC_MXS
+ 	tristate "MXS MMC support"
+-	depends on MMC && ARCH_MX28
++	depends on MMC && (ARCH_MX28 || ARCH_MX23)
+ 	help
+ 	  Select Y if you would like to access MXS MMC support.
+ 
+diff --git a/drivers/mmc/host/mxs-mmc.c b/drivers/mmc/host/mxs-mmc.c
+index e47518f..3b58382 100644
+--- a/drivers/mmc/host/mxs-mmc.c
++++ b/drivers/mmc/host/mxs-mmc.c
+@@ -51,6 +51,49 @@
+ /* Max value supported for XFER_COUNT */
+ #define SSP_BUFFER_SIZE		(65536)
+ 
++#ifndef BF
++#define BF(value, field) (((value) << BP_##field) & BM_##field)
++#endif
++
++#ifndef HW_SSP_XFER_SIZE
++#define HW_SSP_XFER_SIZE	(0xFFFFFFFF)
++#endif
++#ifndef HW_SSP_BLOCK_SIZE
++#define HW_SSP_BLOCK_SIZE	(0xFFFFFFFF)
++#endif
++
++#ifndef BP_SSP_XFER_SIZE_XFER_COUNT
++#define BP_SSP_XFER_SIZE_XFER_COUNT BP_SSP_CTRL0_XFER_COUNT
++#endif
++#ifndef BM_SSP_XFER_SIZE_XFER_COUNT
++#define BM_SSP_XFER_SIZE_XFER_COUNT BM_SSP_CTRL0_XFER_COUNT
++#endif
++#ifndef BF_SSP_XFER_SIZE_XFER_COUNT
++#define BF_SSP_XFER_SIZE_XFER_COUNT(v)  \
++		(((v) << 0) & BM_SSP_CTRL0_XFER_COUNT)
++#endif
++
++#ifndef BP_SSP_BLOCK_SIZE_BLOCK_COUNT
++#define BP_SSP_BLOCK_SIZE_BLOCK_COUNT	8
++#endif
++#ifndef BM_SSP_BLOCK_SIZE_BLOCK_COUNT
++#define BM_SSP_BLOCK_SIZE_BLOCK_COUNT	0x0000FF00
++#endif
++#ifndef BF_SSP_BLOCK_SIZE_BLOCK_COUNT
++#define BF_SSP_BLOCK_SIZE_BLOCK_COUNT(v)  \
++		(((v) << 8) & BM_SSP_BLOCK_SIZE_BLOCK_COUNT)
++#endif
++#ifndef BP_SSP_BLOCK_SIZE_BLOCK_SIZE
++#define BP_SSP_BLOCK_SIZE_BLOCK_SIZE	16
++#endif
++#ifndef BM_SSP_BLOCK_SIZE_BLOCK_SIZE
++#define BM_SSP_BLOCK_SIZE_BLOCK_SIZE	0x000F0000
++#endif
++#ifndef BF_SSP_BLOCK_SIZE_BLOCK_SIZE
++#define BF_SSP_BLOCK_SIZE_BLOCK_SIZE(v)  \
++		(((v) << 16) & BM_SSP_BLOCK_SIZE_BLOCK_SIZE)
++#endif
++
+ struct mxs_mmc_host {
+ 	struct device *dev;
+ 	struct mmc_host *mmc;
+@@ -202,9 +245,11 @@ static void mxs_mmc_bc(struct mxs_mmc_host *host)
+ 
+ 	init_completion(&host->dma_done);
+ 	mxs_dma_reset(host->dmach);
+-	mxs_dma_desc_append(host->dmach, host->dma_desc);
++	if (mxs_dma_desc_append(host->dmach, host->dma_desc) < 0)
++		dev_err(host->dev, "mmc_dma_desc_append failed\n");
+ 	dev_dbg(host->dev, "%s start DMA.\n", __func__);
+-	mxs_dma_enable(host->dmach);
++	if (mxs_dma_enable(host->dmach) < 0)
++		dev_err(host->dev, "mmc_dma_enable failed\n");
+ 	wait_for_completion(&host->dma_done);
+ 
+ 	cmd->error = mxs_mmc_cmd_error(host->status);
+@@ -249,9 +294,11 @@ static void mxs_mmc_ac(struct mxs_mmc_host *host)
+ 
+ 	mxs_dma_reset(host->dmach);
+ 	init_completion(&host->dma_done);
+-	mxs_dma_desc_append(host->dmach, host->dma_desc);
++	if (mxs_dma_desc_append(host->dmach, host->dma_desc) < 0)
++		dev_err(host->dev, "mmc_dma_desc_append failed\n");
+ 	dev_dbg(host->dev, "%s start DMA.\n", __func__);
+-	mxs_dma_enable(host->dmach);
++	if (mxs_dma_enable(host->dmach) < 0)
++		dev_err(host->dev, "mmc_dma_enable failed\n");
+ 	wait_for_completion(&host->dma_done);
+ 
+ 	switch (mmc_resp_type(cmd)) {
+@@ -503,9 +550,11 @@ static void mxs_mmc_adtc(struct mxs_mmc_host *host)
+ 
+ 	init_completion(&host->dma_done);
+ 	mxs_dma_reset(host->dmach);
+-	mxs_dma_desc_append(host->dmach, host->dma_desc);
++	if (mxs_dma_desc_append(host->dmach, host->dma_desc) < 0)
++		dev_err(host->dev, "mmc_dma_desc_append failed\n");
+ 	dev_dbg(host->dev, "%s start DMA.\n", __func__);
+-	mxs_dma_enable(host->dmach);
++	if (mxs_dma_enable(host->dmach) < 0)
++		dev_err(host->dev, "mmc_dma_enable failed\n");
+ 	wait_for_completion(&host->dma_done);
+ 	if (host->regulator)
+ 		regulator_set_current_limit(host->regulator, 0, 0);
+@@ -636,6 +685,9 @@ mxs_set_sclk_speed(struct mxs_mmc_host *host, unsigned int hz)
+ 		dev_dbg(host->dev, "Setting clock rate to %d Hz"
+ 			"(requested %d)\n",
+ 			host->clkrt, hz);
++		dev_dbg(host->dev, "source %ldk\n",
++			clk_get_rate(host->clk));
++
+ 		return;
+ 	}
+ 
+@@ -862,6 +914,7 @@ static int __init mxs_mmc_probe(struct platform_device *pdev)
+ 	struct mmc_host *mmc;
+ 	struct resource *r;
+ 	int err = 0;
++	unsigned int ssp_ver_major;
+ 
+ 	mmc_data = dev->platform_data;
+ 	if (mmc_data == NULL) {
+@@ -987,11 +1040,21 @@ static int __init mxs_mmc_probe(struct platform_device *pdev)
+ 
+ 	/* Maximum block count requests. */
+ 	mmc->max_blk_size = 512;
+-	mmc->max_blk_count = SSP_BUFFER_SIZE / 512;
+-	mmc->max_hw_segs = SSP_BUFFER_SIZE / 512;
+-	mmc->max_phys_segs = SSP_BUFFER_SIZE / 512;
+-	mmc->max_req_size = SSP_BUFFER_SIZE;
+-	mmc->max_seg_size = SSP_BUFFER_SIZE;
++	ssp_ver_major = __raw_readl(host->ssp_base + HW_SSP_VERSION) >> 24;
++	dev_dbg(host->dev, "ssp ver major is 0x%x\n", ssp_ver_major);
++	if (ssp_ver_major > 3) {
++		mmc->max_blk_count = SSP_BUFFER_SIZE / 512;
++		mmc->max_hw_segs = SSP_BUFFER_SIZE / 512;
++		mmc->max_phys_segs = SSP_BUFFER_SIZE / 512;
++		mmc->max_req_size = SSP_BUFFER_SIZE;
++		mmc->max_seg_size = SSP_BUFFER_SIZE;
++	} else {
++		mmc->max_blk_count = SSP_BUFFER_SIZE / 512 - 1;
++		mmc->max_hw_segs = SSP_BUFFER_SIZE / 512 - 1;
++		mmc->max_phys_segs = SSP_BUFFER_SIZE / 512 - 1;
++		mmc->max_req_size = SSP_BUFFER_SIZE - 512;
++		mmc->max_seg_size = SSP_BUFFER_SIZE - 512;
++	}
+ 
+ 	mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
+ 
+-- 
+1.5.4.4
+

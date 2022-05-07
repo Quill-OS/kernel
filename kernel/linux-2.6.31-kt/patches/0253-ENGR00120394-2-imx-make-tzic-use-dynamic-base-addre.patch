@@ -1,0 +1,227 @@
+From f2572876daf608b336d0ef2e379e8d55f656764b Mon Sep 17 00:00:00 2001
+From: Rob Herring <r.herring@freescale.com>
+Date: Mon, 1 Feb 2010 17:29:57 -0200
+Subject: [PATCH] ENGR00120394-2 imx: make tzic use dynamic base address
+
+Different chips have TZIC interrupt controller at different addresses,
+so make the mapping dynamic.
+
+Signed-off-by: Rob Herring <r.herring@freescale.com>
+---
+ arch/arm/mach-mx37/devices.c                 |    6 ++++++
+ arch/arm/mach-mx37/mx37_3stack.c             |    2 +-
+ arch/arm/mach-mx51/devices.c                 |   13 +++++++++++++
+ arch/arm/mach-mx51/mm.c                      |   12 ------------
+ arch/arm/mach-mx51/mx51_3stack.c             |    2 +-
+ arch/arm/mach-mx51/mx51_babbage.c            |    2 +-
+ arch/arm/plat-mxc/include/mach/common.h      |    5 ++++-
+ arch/arm/plat-mxc/include/mach/entry-macro.S |    5 ++++-
+ arch/arm/plat-mxc/tzic.c                     |   10 +++++++---
+ 9 files changed, 37 insertions(+), 20 deletions(-)
+
+diff --git a/arch/arm/mach-mx37/devices.c b/arch/arm/mach-mx37/devices.c
+index ecc6ebf..6c7d5e9 100644
+--- a/arch/arm/mach-mx37/devices.c
++++ b/arch/arm/mach-mx37/devices.c
+@@ -22,6 +22,7 @@
+ #include <linux/iram_alloc.h>
+ 
+ #include <mach/gpio.h>
++#include <mach/common.h>
+ #include <mach/hardware.h>
+ #include <mach/mxc_dptc.h>
+ #include <mach/mxc_dvfs.h>
+@@ -1056,6 +1057,11 @@ int __init mxc_init_srpgconfig(void)
+ 	return 0;
+ }
+ 
++void __init mx37_init_irq(void)
++{
++	mxc_tzic_init_irq(TZIC_BASE_ADDR);
++}
++
+ int __init mxc_init_devices(void)
+ {
+ 	mxc_init_wdt();
+diff --git a/arch/arm/mach-mx37/mx37_3stack.c b/arch/arm/mach-mx37/mx37_3stack.c
+index 9987c89..4d6d871 100644
+--- a/arch/arm/mach-mx37/mx37_3stack.c
++++ b/arch/arm/mach-mx37/mx37_3stack.c
+@@ -960,7 +960,7 @@ MACHINE_START(MX37_3DS, "Freescale MX37 3-Stack Board")
+ 	.boot_params = PHYS_OFFSET + 0x100,
+ 	.fixup = fixup_mxc_board,
+ 	.map_io = mx37_map_io,
+-	.init_irq = mxc_init_irq,
++	.init_irq = mx37_init_irq,
+ 	.init_machine = mxc_board_init,
+ 	.timer = &mxc_timer,
+ MACHINE_END
+diff --git a/arch/arm/mach-mx51/devices.c b/arch/arm/mach-mx51/devices.c
+index 8a19d7e..a9fa32f 100644
+--- a/arch/arm/mach-mx51/devices.c
++++ b/arch/arm/mach-mx51/devices.c
+@@ -26,6 +26,7 @@
+ #include <linux/pwm_backlight.h>
+ #include <linux/iram_alloc.h>
+ #include <asm/mach-types.h>
++#include <mach/common.h>
+ #include <mach/hardware.h>
+ #include <mach/sdma.h>
+ #include <mach/mxc_dvfs.h>
+@@ -1326,6 +1327,18 @@ static inline void mxc_init_gpu2d(void)
+ }
+ #endif
+ 
++void __init mx51_init_irq(void)
++{
++	unsigned long tzic_addr;
++
++	if (cpu_is_mx51_rev(CHIP_REV_2_0) < 0)
++		tzic_addr = TZIC_BASE_ADDR_T01;
++	else
++		tzic_addr = TZIC_BASE_ADDR;
++
++	mxc_tzic_init_irq(tzic_addr);
++}
++
+ int __init mxc_init_devices(void)
+ {
+ 	mxc_init_wdt();
+diff --git a/arch/arm/mach-mx51/mm.c b/arch/arm/mach-mx51/mm.c
+index 8b3b450..42f3cea 100644
+--- a/arch/arm/mach-mx51/mm.c
++++ b/arch/arm/mach-mx51/mm.c
+@@ -35,11 +35,6 @@ static struct map_desc mx51_io_desc[] __initdata = {
+ 	 .length = DEBUG_SIZE,
+ 	 .type = MT_DEVICE},
+ 	{
+-	 .virtual = TZIC_BASE_ADDR_VIRT,
+-	 .pfn = __phys_to_pfn(TZIC_BASE_ADDR),
+-	 .length = TZIC_SIZE,
+-	 .type = MT_DEVICE},
+-	{
+ 	 .virtual = AIPS1_BASE_ADDR_VIRT,
+ 	 .pfn = __phys_to_pfn(AIPS1_BASE_ADDR),
+ 	 .length = AIPS1_SIZE,
+@@ -68,12 +63,5 @@ static struct map_desc mx51_io_desc[] __initdata = {
+  */
+ void __init mx51_map_io(void)
+ {
+-	u32 tzic_addr;
+-	if (cpu_is_mx51_rev(CHIP_REV_2_0) < 0)
+-		tzic_addr = TZIC_BASE_ADDR_T01;
+-	else
+-		tzic_addr = TZIC_BASE_ADDR;
+-
+-	mx51_io_desc[1].pfn =  __phys_to_pfn(tzic_addr);
+ 	iotable_init(mx51_io_desc, ARRAY_SIZE(mx51_io_desc));
+ }
+diff --git a/arch/arm/mach-mx51/mx51_3stack.c b/arch/arm/mach-mx51/mx51_3stack.c
+index 6665786..69a22b3 100644
+--- a/arch/arm/mach-mx51/mx51_3stack.c
++++ b/arch/arm/mach-mx51/mx51_3stack.c
+@@ -1306,7 +1306,7 @@ MACHINE_START(MX51_3DS, "Freescale MX51 3-Stack Board")
+ 	.boot_params = PHYS_OFFSET + 0x100,
+ 	.fixup = fixup_mxc_board,
+ 	.map_io = mx51_map_io,
+-	.init_irq = mxc_init_irq,
++	.init_irq = mx51_init_irq,
+ 	.init_machine = mxc_board_init,
+ 	.timer = &mxc_timer,
+ MACHINE_END
+diff --git a/arch/arm/mach-mx51/mx51_babbage.c b/arch/arm/mach-mx51/mx51_babbage.c
+index 677bd59..f5b699f 100644
+--- a/arch/arm/mach-mx51/mx51_babbage.c
++++ b/arch/arm/mach-mx51/mx51_babbage.c
+@@ -1115,7 +1115,7 @@ MACHINE_START(MX51_BABBAGE, "Freescale MX51 Babbage Board")
+ 	.boot_params = PHYS_OFFSET + 0x100,
+ 	.fixup = fixup_mxc_board,
+ 	.map_io = mx51_map_io,
+-	.init_irq = mxc_init_irq,
++	.init_irq = mx51_init_irq,
+ 	.init_machine = mxc_board_init,
+ 	.timer = &mxc_timer,
+ MACHINE_END
+diff --git a/arch/arm/plat-mxc/include/mach/common.h b/arch/arm/plat-mxc/include/mach/common.h
+index b66644d..4e84f40 100644
+--- a/arch/arm/plat-mxc/include/mach/common.h
++++ b/arch/arm/plat-mxc/include/mach/common.h
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2004-2007 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2004-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -23,6 +23,9 @@ extern void mx35_map_io(void);
+ extern void mx37_map_io(void);
+ extern void mx51_map_io(void);
+ extern void mxc_init_irq(void);
++extern void mx51_init_irq(void);
++extern void mx37_init_irq(void);
++extern void mxc_tzic_init_irq(unsigned long);
+ extern void mxc_timer_init(struct clk *timer_clk, void __iomem *base, int irq);
+ extern int mx1_clocks_init(unsigned long fref);
+ extern int mx21_clocks_init(unsigned long lref, unsigned long fref);
+diff --git a/arch/arm/plat-mxc/include/mach/entry-macro.S b/arch/arm/plat-mxc/include/mach/entry-macro.S
+index 92f553b..b2f41ef 100644
+--- a/arch/arm/plat-mxc/include/mach/entry-macro.S
++++ b/arch/arm/plat-mxc/include/mach/entry-macro.S
+@@ -11,6 +11,8 @@
+ 
+ #include <mach/hardware.h>
+ 
++.extern tzic_base
++
+ #define AVIC_NIMASK	0x04
+ 
+ 	@ this macro disables fast irq (not implemented)
+@@ -19,7 +21,8 @@
+ 
+ 	.macro  get_irqnr_preamble, base, tmp
+ #ifdef CONFIG_MXC_TZIC
+-	ldr	\base, =TZIC_IO_ADDRESS(TZIC_BASE_ADDR)
++	ldr \tmp, =tzic_base
++	ldr \base, [\tmp]
+ #else
+ 	ldr	\base, =AVIC_IO_ADDRESS(AVIC_BASE_ADDR)
+ #ifdef CONFIG_MXC_IRQ_PRIOR
+diff --git a/arch/arm/plat-mxc/tzic.c b/arch/arm/plat-mxc/tzic.c
+index 630d9f7..bcca6ac 100644
+--- a/arch/arm/plat-mxc/tzic.c
++++ b/arch/arm/plat-mxc/tzic.c
+@@ -1,5 +1,5 @@
+ /*
+- *  Copyright 2004-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ *  Copyright (C) 2004-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -26,7 +26,9 @@
+  * TZIC Registers                        *
+  *****************************************
+  */
+-#define TZIC_BASE               IO_ADDRESS(TZIC_BASE_ADDR)
++void __iomem *tzic_base;
++
++#define TZIC_BASE               (tzic_base)
+ #define TZIC_INTCNTL            (TZIC_BASE + 0x0000)	/* control register */
+ #define TZIC_INTTYPE            (TZIC_BASE + 0x0004)	/* Controller type register */
+ #define TZIC_IMPID              (TZIC_BASE + 0x0008)	/* Distributor Implementer Identification Register */
+@@ -117,10 +119,12 @@ static struct irq_chip mxc_tzic_chip = {
+  * interrupts. It registers the interrupt enable and disable functions
+  * to the kernel for each interrupt source.
+  */
+-void __init mxc_init_irq(void)
++void __init mxc_tzic_init_irq(unsigned long base)
+ {
+ 	int i;
+ 
++	tzic_base = ioremap(base, SZ_4K);
++
+ 	/* put the TZIC into the reset value with
+ 	 * all interrupts disabled
+ 	 */
+-- 
+1.5.4.4
+

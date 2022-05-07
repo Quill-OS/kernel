@@ -1,0 +1,82 @@
+From 9ccdd6f01995bdede051ee802725f7a966cc03bf Mon Sep 17 00:00:00 2001
+From: Zhou Jingyu <b02241@freescale.com>
+Date: Thu, 3 Dec 2009 13:37:38 +0800
+Subject: [PATCH] ENGR00118898 mx35: fix error when disable pseudo irq
+
+avoid i2c access of pseudo irq ops while suspending
+
+Signed-off-by: Zhou Jingyu <Jingyu.Zhou@freescale.com>
+---
+ arch/arm/mach-mx35/board-mx35_3stack.h |    1 +
+ arch/arm/mach-mx35/mx35_3stack_irq.c   |    3 +++
+ arch/arm/mach-mx35/pm.c                |    9 ++++++++-
+ 3 files changed, 12 insertions(+), 1 deletions(-)
+
+diff --git a/arch/arm/mach-mx35/board-mx35_3stack.h b/arch/arm/mach-mx35/board-mx35_3stack.h
+index 231ea5a..ded7907 100644
+--- a/arch/arm/mach-mx35/board-mx35_3stack.h
++++ b/arch/arm/mach-mx35/board-mx35_3stack.h
+@@ -195,6 +195,7 @@ extern void gpio_can_inactive(int id);
+ extern struct flexcan_platform_data flexcan_data[];
+ extern int __init mx35_3stack_init_mc13892(void);
+ extern int __init mx35_3stack_init_mc9s08dz60(void);
++extern int is_suspend_ops_started(void);
+ 
+ #endif				/* CONFIG_MACH_MX35_3DS */
+ #endif				/* __ASM_ARCH_MXC_BOARD_MX35_3STACK_H__ */
+diff --git a/arch/arm/mach-mx35/mx35_3stack_irq.c b/arch/arm/mach-mx35/mx35_3stack_irq.c
+index fd5872f..14c08fd 100644
+--- a/arch/arm/mach-mx35/mx35_3stack_irq.c
++++ b/arch/arm/mach-mx35/mx35_3stack_irq.c
+@@ -276,6 +276,9 @@ static void mcu_state_handler(struct work_struct *work)
+ 	event1 = pseudo_irq_enable & ((1 << MCU_INT_RTC) - 1);
+ 	event2 = pseudo_irq_enable >> MCU_INT_RTC;
+ 
++	if (is_suspend_ops_started())
++		return;
++
+ 	for (i = 0; i < 3; i++) {
+ 		err = mcu_pmic_write_reg(REG_MCU_INT_ENABLE_1, event1, 0xFF);
+ 		err |= mcu_pmic_write_reg(REG_MCU_INT_ENABLE_2, event2, 0xFF);
+diff --git a/arch/arm/mach-mx35/pm.c b/arch/arm/mach-mx35/pm.c
+index 6a7c8c8..1be097d 100644
+--- a/arch/arm/mach-mx35/pm.c
++++ b/arch/arm/mach-mx35/pm.c
+@@ -1,5 +1,5 @@
+ /*
+- *  Copyright 2008 Freescale Semiconductor, Inc. All Rights Reserved.
++ *  Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -19,6 +19,11 @@
+  * @defgroup MSL_MX35 i.MX35 Machine Specific Layer (MSL)
+  */
+ 
++int suspend_ops_started;
++int is_suspend_ops_started(void)
++{
++	return suspend_ops_started;
++}
+ /*!
+  * @file mach-mx35/pm.c
+  * @brief This file contains suspend operations
+@@ -47,6 +52,7 @@ static int mx35_suspend_enter(suspend_state_t state)
+  */
+ static int mx35_suspend_prepare(void)
+ {
++	suspend_ops_started = 1;
+ 	return 0;
+ }
+ 
+@@ -55,6 +61,7 @@ static int mx35_suspend_prepare(void)
+  */
+ static void mx35_suspend_finish(void)
+ {
++	suspend_ops_started = 0;
+ }
+ 
+ static int mx35_pm_valid(suspend_state_t state)
+-- 
+1.5.4.4
+

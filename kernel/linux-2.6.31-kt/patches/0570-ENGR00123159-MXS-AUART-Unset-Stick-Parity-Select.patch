@@ -1,0 +1,28 @@
+From 0501670738d989bbda906365d471a0da8eef1255 Mon Sep 17 00:00:00 2001
+From: Jeremy.Yao <r65161@freescale.com>
+Date: Thu, 6 May 2010 14:43:08 +0800
+Subject: [PATCH] ENGR00123159: MXS AUART Unset Stick Parity Select
+
+Unset SPS bit, allow normal parity check
+
+Signed-off-by: Jeremy Yao <r65161@freescale.com>
+---
+ drivers/serial/mxs-auart.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/drivers/serial/mxs-auart.c b/drivers/serial/mxs-auart.c
+index e5ad794..0791af1 100644
+--- a/drivers/serial/mxs-auart.c
++++ b/drivers/serial/mxs-auart.c
+@@ -514,7 +514,7 @@ static void mxs_auart_settermios(struct uart_port *u,
+ 
+ 	/* parity */
+ 	if (cflag & PARENB) {
+-		ctrl |= BM_UARTAPP_LINECTRL_PEN | BM_UARTAPP_LINECTRL_SPS;
++		ctrl |= BM_UARTAPP_LINECTRL_PEN;
+ 		if ((cflag & PARODD) == 0)
+ 			ctrl |= BM_UARTAPP_LINECTRL_EPS;
+ 	}
+-- 
+1.5.4.4
+

@@ -1,0 +1,27 @@
+From 6ffc821e7697a14c261a1e47a211d6921c6060b9 Mon Sep 17 00:00:00 2001
+From: Miao Yu <r65093@freescale.com>
+Date: Fri, 13 Nov 2009 14:55:41 +0800
+Subject: [PATCH] ENGR00118374 MX35 TVIN: Fail to build kernel 31 for TVIN module
+
+Miss one header file which includes the definition of mxc_tvin_platform_data
+
+Signed-off-by: Miao Yu <r65093@freescale.com>
+---
+ drivers/media/video/mxc/capture/adv7180.c |    1 +
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+
+diff --git a/drivers/media/video/mxc/capture/adv7180.c b/drivers/media/video/mxc/capture/adv7180.c
+index 07a68ec..1edee76 100644
+--- a/drivers/media/video/mxc/capture/adv7180.c
++++ b/drivers/media/video/mxc/capture/adv7180.c
+@@ -32,6 +32,7 @@
+ #include <linux/workqueue.h>
+ #include <linux/regulator/consumer.h>
+ #include <media/v4l2-int-device.h>
++#include <mach/hardware.h>
+ #include "mxc_v4l2_capture.h"
+ 
+ static struct regulator *dvddio_regulator;
+-- 
+1.5.4.4
+

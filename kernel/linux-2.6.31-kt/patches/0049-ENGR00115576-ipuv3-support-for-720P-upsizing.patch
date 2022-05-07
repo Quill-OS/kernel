@@ -1,0 +1,1626 @@
+From 8c4cbf3192bc8d4cef83fcd90b7deb63ef9a6d3f Mon Sep 17 00:00:00 2001
+From: Mark Gutman <r58412@freescale.com>
+Date: Thu, 3 Sep 2009 11:47:32 +0300
+Subject: [PATCH] ENGR00115576 ipuv3: support for 720P upsizing
+
+A new feature is added to support to upsizing by horizontal stripes
+via IC PP channels double using.
+
+Signed-off-by: Mark Gutman <r58412@freescale.com>
+---
+ drivers/media/video/mxc/output/mxc_v4l2_output.c |  296 ++++++++++++++---
+ drivers/media/video/mxc/output/mxc_v4l2_output.h |    8 +
+ drivers/mxc/ipu/Makefile                         |    2 +-
+ drivers/mxc/ipu/ipu_calc_stripes_sizes.c         |  374 ++++++++++++++++++++++
+ drivers/mxc/ipu/ipu_common.c                     |   58 ++++
+ drivers/mxc/ipu3/Makefile                        |    3 +-
+ drivers/mxc/ipu3/ipu_calc_stripes_sizes.c        |  374 ++++++++++++++++++++++
+ drivers/mxc/ipu3/ipu_common.c                    |   68 ++++-
+ drivers/mxc/ipu3/ipu_ic.c                        |   12 +-
+ drivers/mxc/ipu3/ipu_param_mem.h                 |  105 ++++++-
+ include/linux/ipu.h                              |   34 ++
+ 11 files changed, 1272 insertions(+), 62 deletions(-)
+
+diff --git a/drivers/media/video/mxc/output/mxc_v4l2_output.c b/drivers/media/video/mxc/output/mxc_v4l2_output.c
+index 5942059..9254db5 100644
+--- a/drivers/media/video/mxc/output/mxc_v4l2_output.c
++++ b/drivers/media/video/mxc/output/mxc_v4l2_output.c
+@@ -212,10 +212,12 @@ static u32 fmt_to_bpp(u32 pixelformat)
+ {
+ 	u32 bpp;
+ 
+-	bpp = 8*bytes_per_pixel(pixelformat);
++	bpp = 8 * bytes_per_pixel(pixelformat);
+ 	return bpp;
+ }
+ 
++
++
+ static bool format_is_yuv(u32 pixelformat)
+ {
+ 	switch (pixelformat) {
+@@ -285,7 +287,9 @@ static irqreturn_t mxc_v4l2out_disp_refresh_irq_handler(int irq, void *dev_id)
+ 			dev_err(&vout->video_dev->dev,
+ 				"unable to set IPU buffer ready\n");
+ 		}
+-		vout->next_rdy_ipu_buf = !vout->next_rdy_ipu_buf;
++		/* Non IC split action */
++		if (!vout->pp_split)
++			vout->next_rdy_ipu_buf = !vout->next_rdy_ipu_buf;
+ 
+ 		pending_buffer = 0;
+ 
+@@ -412,8 +416,8 @@ static void mxc_v4l2out_timer_handler(unsigned long arg)
+ 	} else {
+ 		if (LOAD_3FIELDS(vout)) {
+ 			int index_n = index;
+-			index = last_index_n;
+ 			int index_p = last_index_c;
++			index = last_index_n;
+ 			vout->ipu_buf_p[vout->next_rdy_ipu_buf] = index_p;
+ 			vout->ipu_buf[vout->next_rdy_ipu_buf] = last_index_c = index;
+ 			vout->ipu_buf_n[vout->next_rdy_ipu_buf] = last_index_n = index_n;
+@@ -433,9 +437,35 @@ static void mxc_v4l2out_timer_handler(unsigned long arg)
+ 							 vout->v4l2_bufs[index_n].m.offset+aid_field_offset);
+ 		} else {
+ 			vout->ipu_buf[vout->next_rdy_ipu_buf] = index;
+-			ret = ipu_update_channel_buffer(vout->post_proc_ch, IPU_INPUT_BUFFER,
+-							vout->next_rdy_ipu_buf,
+-							vout->v4l2_bufs[index].m.offset+current_field_offset);
++			if (vout->pp_split) {
++				vout->ipu_buf[!vout->next_rdy_ipu_buf] = index;
++				/* always left stripe */
++				ret = ipu_update_channel_buffer(vout->post_proc_ch,
++									IPU_INPUT_BUFFER,
++									0,/* vout->next_rdy_ipu_buf,*/
++									(vout->v4l2_bufs[index].m.offset) +
++									vout->pp_left_stripe.input_column +
++									current_field_offset);
++
++				/* the U/V offset has to be updated inside of IDMAC */
++				/* according to stripe offset */
++				ret += ipu_update_channel_offset(vout->post_proc_ch,
++									IPU_INPUT_BUFFER,
++									vout->v2f.fmt.pix.pixelformat,
++									vout->v2f.fmt.pix.width,
++									vout->v2f.fmt.pix.height,
++									vout->v2f.fmt.pix.width,
++									vout->offset.u_offset,
++									vout->offset.v_offset,
++									0,
++									vout->pp_left_stripe.input_column + current_field_offset);
++
++			} else
++				ret = ipu_update_channel_buffer(vout->post_proc_ch,
++									IPU_INPUT_BUFFER,
++									vout->next_rdy_ipu_buf,
++									vout->v4l2_bufs[index].m.offset +
++									current_field_offset);
+ 		}
+ 	}
+ 	if (ret < 0) {
+@@ -462,7 +492,13 @@ static irqreturn_t mxc_v4l2out_pp_in_irq_handler(int irq, void *dev_id)
+ 	unsigned long timeout;
+ 	unsigned long lock_flags = 0;
+ 	vout_data *vout = dev_id;
+-
++	int pp_out_buf_num = 0;
++	int disp_buf_num = 0;
++	int disp_buf_num_next = 1;
++	int pp_out_buf_offset = 0;
++	int release_buffer = 1;
++	int eba_offset;
++	int ret = -1;
+ 	spin_lock_irqsave(&g_lock, lock_flags);
+ 
+ 	g_irq_cnt++;
+@@ -473,21 +509,85 @@ static irqreturn_t mxc_v4l2out_pp_in_irq_handler(int irq, void *dev_id)
+ 	else
+ 		last_buf = vout->ipu_buf[vout->next_done_ipu_buf];
+ 
++	/* If IC split mode on, update output buffer number */
+ 	if (last_buf != -1) {
+-		if ((!INTERLACED_CONTENT(vout)) || (vout->next_done_ipu_buf)) {
+-			g_buf_output_cnt++;
+-			vout->v4l2_bufs[last_buf].flags = V4L2_BUF_FLAG_DONE;
+-			queue_buf(&vout->done_q, last_buf);
+-			wake_up_interruptible(&vout->v4l_bufq);
+-		}
+-		vout->ipu_buf[vout->next_done_ipu_buf] = -1;
+-		if (LOAD_3FIELDS(vout)) {
+-			vout->ipu_buf_p[vout->next_done_ipu_buf] = -1;
+-			vout->ipu_buf_n[vout->next_done_ipu_buf] = -1;
++		if (vout->pp_split) {
++			pp_out_buf_num = vout->pp_split_buf_num & 1;/* left/right stripe */
++			disp_buf_num = vout->pp_split_buf_num >> 1;
++			disp_buf_num_next = ((vout->pp_split_buf_num+2) & 3) >> 1;
++			if (!pp_out_buf_num) {/* next buffer is right stripe*/
++				eba_offset = vout->pp_right_stripe.input_column;/*always right stripe*/
++				ret = ipu_update_channel_buffer(vout->post_proc_ch,
++						IPU_INPUT_BUFFER,
++						1, /* right stripe */
++						(vout->v4l2_bufs[vout->ipu_buf[disp_buf_num]].m.offset)
++						+ eba_offset);
++
++				ret += ipu_update_channel_offset(vout->post_proc_ch,
++								IPU_INPUT_BUFFER,
++								vout->v2f.fmt.pix.pixelformat,
++								vout->v2f.fmt.pix.width,
++								vout->v2f.fmt.pix.height,
++								vout->v2f.fmt.pix.width,
++								vout->offset.u_offset,
++								vout->offset.v_offset,
++								0,
++								vout->pp_right_stripe.input_column);
++
++				/* select right stripe */
++				ret += ipu_select_buffer(vout->post_proc_ch,
++												IPU_INPUT_BUFFER, 1);
++				if (ret < 0)
++					dev_err(&vout->video_dev->dev,
++					"unable to set IPU buffer ready\n");
++
++				vout->ipu_buf[vout->next_done_ipu_buf] = -1;
++				vout->next_done_ipu_buf = !vout->next_done_ipu_buf;
++
++			} else /* right stripe is done, run display refresh */
++				ret = ipu_select_buffer(vout->display_ch, IPU_INPUT_BUFFER,
++								disp_buf_num);
++
++			vout->next_rdy_ipu_buf = !vout->next_rdy_ipu_buf;
++
++			/* offset for next buffer's EBA */
++			pp_out_buf_offset = pp_out_buf_num ? vout->pp_right_stripe.output_column :
++												vout->pp_left_stripe.output_column;
++
++			/* next buffer update */
++			eba_offset = vout->display_bufs[disp_buf_num_next] +
++								pp_out_buf_offset;
++
++			ipu_update_channel_buffer(vout->post_proc_ch, IPU_OUTPUT_BUFFER,
++												pp_out_buf_num, eba_offset);
++
++			/* next buffer ready */
++			ret = ipu_select_buffer(vout->post_proc_ch, IPU_OUTPUT_BUFFER, pp_out_buf_num);
++
++			/* next stripe_buffer index 0..3 */
++			vout->pp_split_buf_num = (vout->pp_split_buf_num + 1) & 3;
++		}
++
++		/* release buffer if second stripe is done */
++		release_buffer = vout->pp_split ? pp_out_buf_num : 1;
++		if (release_buffer) {
++			if ((!INTERLACED_CONTENT(vout)) || (vout->next_done_ipu_buf)) {
++				g_buf_output_cnt++;
++				vout->v4l2_bufs[last_buf].flags = V4L2_BUF_FLAG_DONE;
++				queue_buf(&vout->done_q, last_buf);
++				wake_up_interruptible(&vout->v4l_bufq);
++			}
++			vout->ipu_buf[vout->next_done_ipu_buf] = -1;
++			if (LOAD_3FIELDS(vout)) {
++				vout->ipu_buf_p[vout->next_done_ipu_buf] = -1;
++				vout->ipu_buf_n[vout->next_done_ipu_buf] = -1;
++			}
++			vout->next_done_ipu_buf = !vout->next_done_ipu_buf;
+ 		}
+-		vout->next_done_ipu_buf = !vout->next_done_ipu_buf;
+-	}
+-	pp_eof = 1;
++	} /* end of last_buf != -1 */
++
++	if (release_buffer)
++		pp_eof = 1;
+ 
+ 	if (vout->state == STATE_STREAM_STOPPING) {
+ 		if ((vout->ipu_buf[0] == -1) && (vout->ipu_buf[1] == -1)) {
+@@ -739,38 +839,93 @@ static int init_VDI(ipu_channel_params_t params, vout_data *vout,
+  *
+  * @return status  0 Success
+  */
+-static int init_PP(ipu_channel_params_t params, vout_data *vout,
++static int init_PP(ipu_channel_params_t *params, vout_data *vout,
+ 		   struct device *dev, struct fb_info *fbi,
+ 		   ipu_channel_t *display_input_ch, u16 out_width,
+ 		   u16 out_height)
+ {
+-	params.mem_pp_mem.in_width = vout->v2f.fmt.pix.width;
+-	params.mem_pp_mem.in_height = vout->v2f.fmt.pix.height;
+-	params.mem_pp_mem.in_pixel_fmt = vout->v2f.fmt.pix.pixelformat;
+-	params.mem_pp_mem.out_width = out_width;
+-	params.mem_pp_mem.out_height = out_height;
++	u16 in_width, out_stride; /* stride of output channel */
++	unsigned int ipu_ic_out_max_width_size;
++
+ 	if (vout->display_ch == ADC_SYS2)
+-		params.mem_pp_mem.out_pixel_fmt = SDC_FG_FB_FORMAT;
++		params->mem_pp_mem.out_pixel_fmt = SDC_FG_FB_FORMAT;
+ 	else
+-		params.mem_pp_mem.out_pixel_fmt = bpp_to_fmt(fbi);
+-	if (ipu_init_channel(vout->post_proc_ch, &params) != 0) {
++		params->mem_pp_mem.out_pixel_fmt = bpp_to_fmt(fbi);
++
++	out_stride = out_width;
++	in_width = params->mem_pp_mem.in_width = vout->v2f.fmt.pix.width;
++	params->mem_pp_mem.in_height = vout->v2f.fmt.pix.height;
++	params->mem_pp_mem.in_pixel_fmt = vout->v2f.fmt.pix.pixelformat;
++	params->mem_pp_mem.out_width = out_width;
++	params->mem_pp_mem.out_height = out_height;
++	params->mem_pp_mem.out_resize_ratio = 0; /* 0 means unused */
++
++#ifdef CONFIG_MXC_IPU_V1
++	ipu_ic_out_max_width_size = 800;
++#else
++	ipu_ic_out_max_width_size = 1024;
++#endif
++	/* split IC by two stripes, the by pass is impossible*/
++	if (out_width > ipu_ic_out_max_width_size) {
++		vout->pp_split = 1;
++		out_stride = 2*out_width;
++
++
++		ipu_calc_stripes_sizes(
++					params->mem_pp_mem.in_width, /* input frame width;>1 */
++					params->mem_pp_mem.out_width, /* output frame width; >1 */
++					ipu_ic_out_max_width_size,
++					(((unsigned long long)1) << 32), /* 32bit for fractional*/
++					1,	/* equal stripes */
++					params->mem_pp_mem.in_pixel_fmt,
++					params->mem_pp_mem.out_pixel_fmt,
++					&(vout->pp_left_stripe),
++					&(vout->pp_right_stripe));
++
++
++		vout->pp_left_stripe.input_column = vout->pp_left_stripe.input_column *
++								fmt_to_bpp(vout->v2f.fmt.pix.pixelformat) / 8;
++		vout->pp_left_stripe.output_column = vout->pp_left_stripe.output_column *
++								fmt_to_bpp(params->mem_pp_mem.out_pixel_fmt) / 8;
++		vout->pp_right_stripe.input_column = vout->pp_right_stripe.input_column *
++								fmt_to_bpp(vout->v2f.fmt.pix.pixelformat) / 8;
++
++
++		vout->pp_right_stripe.output_column = vout->pp_right_stripe.output_column *
++								fmt_to_bpp(params->mem_pp_mem.out_pixel_fmt) / 8;
++
++
++
++		/* updare parameters */
++		params->mem_pp_mem.in_width = vout->pp_left_stripe.input_width;
++		params->mem_pp_mem.out_width = vout->pp_left_stripe.output_width;
++		out_width = vout->pp_left_stripe.output_width;
++		/* for using in ic_init*/
++		params->mem_pp_mem.out_resize_ratio = vout->pp_left_stripe.irr;
++
++		vout->pp_split_buf_num = 0;
++	} else
++		vout->pp_split = 0;
++
++
++	if (ipu_init_channel(vout->post_proc_ch, params) != 0) {
+ 		dev_err(dev, "Error initializing PP channel\n");
+ 		return -EINVAL;
+ 	}
+ 
+ 	if (ipu_init_channel_buffer(vout->post_proc_ch,
+ 				    IPU_INPUT_BUFFER,
+-				    params.mem_pp_mem.in_pixel_fmt,
+-				    params.mem_pp_mem.in_width,
+-				    params.mem_pp_mem.in_height,
++				    params->mem_pp_mem.in_pixel_fmt,
++				    params->mem_pp_mem.in_width,
++				    params->mem_pp_mem.in_height,
+ 				    vout->v2f.fmt.pix.bytesperline /
+-				    bytes_per_pixel(params.mem_pp_mem.
+-						    in_pixel_fmt),
+-				    IPU_ROTATE_NONE,
+-				    vout->v4l2_bufs[vout->ipu_buf[0]].m.offset,
+-				    vout->v4l2_bufs[vout->ipu_buf[1]].m.offset,
+-				    vout->offset.u_offset,
+-				    vout->offset.v_offset) != 0) {
++				    bytes_per_pixel(params->mem_pp_mem.
++									in_pixel_fmt),
++									IPU_ROTATE_NONE,
++									vout->v4l2_bufs[vout->ipu_buf[0]].m.offset,
++									vout->v4l2_bufs[vout->ipu_buf[1]].m.offset,
++									vout->offset.u_offset,
++									vout->offset.v_offset) != 0) {
+ 		dev_err(dev, "Error initializing PP input buffer\n");
+ 		return -EINVAL;
+ 	}
+@@ -789,9 +944,9 @@ static int init_PP(ipu_channel_params_t params, vout_data *vout,
+ 
+ 		if (ipu_init_channel_buffer(vout->post_proc_ch,
+ 					    IPU_OUTPUT_BUFFER,
+-					    params.mem_pp_mem.
++					    params->mem_pp_mem.
+ 					    out_pixel_fmt, out_width,
+-					    out_height, out_width,
++					    out_height, out_stride,
+ 					    IPU_ROTATE_NONE,
+ 					    vout->rot_pp_bufs[0],
+ 					    vout->rot_pp_bufs[1], 0, 0) != 0) {
+@@ -805,9 +960,9 @@ static int init_PP(ipu_channel_params_t params, vout_data *vout,
+ 		}
+ 		if (ipu_init_channel_buffer(MEM_ROT_PP_MEM,
+ 					    IPU_INPUT_BUFFER,
+-					    params.mem_pp_mem.
++					    params->mem_pp_mem.
+ 					    out_pixel_fmt, out_width,
+-					    out_height, out_width,
++					    out_height, out_stride,
+ 					    vout->rotate,
+ 					    vout->rot_pp_bufs[0],
+ 					    vout->rot_pp_bufs[1], 0, 0) != 0) {
+@@ -818,15 +973,15 @@ static int init_PP(ipu_channel_params_t params, vout_data *vout,
+ 
+ 		/* swap width and height */
+ 		if (vout->rotate >= IPU_ROTATE_90_RIGHT) {
+-			out_width = vout->crop_current.width;
++			out_stride = out_width = vout->crop_current.width;
+ 			out_height = vout->crop_current.height;
+ 		}
+ 
+ 		if (ipu_init_channel_buffer(MEM_ROT_PP_MEM,
+ 					    IPU_OUTPUT_BUFFER,
+-					    params.mem_pp_mem.
++					    params->mem_pp_mem.
+ 					    out_pixel_fmt, out_width,
+-					    out_height, out_width,
++					    out_height, out_stride,
+ 					    IPU_ROTATE_NONE,
+ 					    vout->display_bufs[0],
+ 					    vout->display_bufs[1], 0, 0) != 0) {
+@@ -846,9 +1001,9 @@ static int init_PP(ipu_channel_params_t params, vout_data *vout,
+ 	} else {
+ 		if (ipu_init_channel_buffer(vout->post_proc_ch,
+ 					    IPU_OUTPUT_BUFFER,
+-					    params.mem_pp_mem.
++					    params->mem_pp_mem.
+ 					    out_pixel_fmt, out_width,
+-					    out_height, out_width,
++					    out_height, out_stride,
+ 					    vout->rotate,
+ 					    vout->display_bufs[0],
+ 					    vout->display_bufs[1], 0, 0) != 0) {
+@@ -856,6 +1011,28 @@ static int init_PP(ipu_channel_params_t params, vout_data *vout,
+ 			return -EINVAL;
+ 		}
+ 	}
++
++	/* fix EBAs for IDMAC channels */
++	if (vout->pp_split) {
++		ipu_update_channel_buffer(vout->post_proc_ch, IPU_INPUT_BUFFER,
++									0,
++									vout->v4l2_bufs[vout->ipu_buf[0]].m.offset +
++									vout->pp_left_stripe.input_column);
++		ipu_update_channel_buffer(vout->post_proc_ch, IPU_INPUT_BUFFER,
++									1,
++									vout->v4l2_bufs[vout->ipu_buf[0]].m.offset +
++									vout->pp_right_stripe.input_column);
++		ipu_update_channel_buffer(vout->post_proc_ch, IPU_OUTPUT_BUFFER,
++									0,
++									vout->display_bufs[0] +
++									vout->pp_left_stripe.output_column);
++
++		ipu_update_channel_buffer(vout->post_proc_ch, IPU_OUTPUT_BUFFER,
++									1,
++									vout->display_bufs[0] +
++									vout->pp_right_stripe.output_column);
++	}
++
+ 	return 0;
+ }
+ 
+@@ -921,8 +1098,15 @@ static int mxc_v4l2out_streamon(vout_data * vout)
+ 	if (!INTERLACED_CONTENT(vout)) {
+ 		vout->next_done_ipu_buf = vout->next_rdy_ipu_buf = 0;
+ 		vout->ipu_buf[0] = dequeue_buf(&vout->ready_q);
+-		vout->ipu_buf[1] = dequeue_buf(&vout->ready_q);
+-		vout->frame_count = 2;
++		if (out_width != vout->v2f.fmt.pix.width && /*pp_split*/
++			out_height != vout->v2f.fmt.pix.height &&
++			out_width > 1024) {
++			vout->ipu_buf[1] = vout->ipu_buf[0];
++			vout->frame_count = 1;
++	} else {
++			vout->ipu_buf[1] = dequeue_buf(&vout->ready_q);
++			vout->frame_count = 2;
++		}
+ 	} else if (!LOAD_3FIELDS(vout)) {
+ 		vout->ipu_buf[0] = dequeue_buf(&vout->ready_q);
+ 		vout->ipu_buf[1] = -1;
+@@ -1063,6 +1247,7 @@ static int mxc_v4l2out_streamon(vout_data * vout)
+ 		 * Bypass IC if resizing and rotation are not needed
+ 		 * Meanwhile, apply IC bypass to SDC only
+ 		 */
++      vout->pp_split = 0;/* no pp_split by default */
+ 		if (out_width == vout->v2f.fmt.pix.width &&
+ 			out_height == vout->v2f.fmt.pix.height &&
+ 			ipu_can_rotate_in_place(vout->rotate)) {
+@@ -1169,14 +1354,16 @@ static int mxc_v4l2out_streamon(vout_data * vout)
+ 			rc = init_VDI(params, vout, dev, fbi, &display_input_ch,
+ 				      out_width, out_height);
+ 		} else {
+-			rc = init_PP(params, vout, dev, fbi, &display_input_ch,
++			rc = init_PP(&params, vout, dev, fbi, &display_input_ch,
+ 				     out_width, out_height);
+ 		}
+ 		if (rc < 0)
+ 			return rc;
+-		if (ipu_link_channels(display_input_ch, vout->display_ch) < 0) {
+-			dev_err(dev, "Error linking ipu channels\n");
+-			return -EINVAL;
++		if (!vout->pp_split) { /* display channel link */
++			if (ipu_link_channels(display_input_ch, vout->display_ch) < 0) {
++				dev_err(dev, "Error linking ipu channels\n");
++				return -EINVAL;
++			}
+ 		}
+ 	}
+ 
+@@ -1195,7 +1382,8 @@ static int mxc_v4l2out_streamon(vout_data * vout)
+ 				ipu_select_buffer(vout->post_proc_ch, IPU_INPUT_BUFFER, 0);
+ 			} else {
+ 				ipu_select_buffer(vout->post_proc_ch, IPU_INPUT_BUFFER, 0);
+-				ipu_select_buffer(vout->post_proc_ch, IPU_INPUT_BUFFER, 1);
++				if (!vout->pp_split)
++					ipu_select_buffer(vout->post_proc_ch, IPU_INPUT_BUFFER, 1);
+ 			}
+ 			ipu_select_buffer(vout->post_proc_ch, IPU_OUTPUT_BUFFER, 0);
+ 			ipu_select_buffer(vout->post_proc_ch, IPU_OUTPUT_BUFFER, 1);
+diff --git a/drivers/media/video/mxc/output/mxc_v4l2_output.h b/drivers/media/video/mxc/output/mxc_v4l2_output.h
+index 069edde..45d7132 100644
+--- a/drivers/media/video/mxc/output/mxc_v4l2_output.h
++++ b/drivers/media/video/mxc/output/mxc_v4l2_output.h
+@@ -132,6 +132,14 @@ typedef struct _vout_data {
+ 	u32 bytesperline;
+ 	enum v4l2_field field_fmt;
+ 	ipu_motion_sel motion_sel;
++
++	/* PP split fot two stripes*/
++	int pp_split; /* 0,1 */
++	struct stripe_param pp_left_stripe;
++	struct stripe_param pp_right_stripe; /* struct for split parameters */
++	/* IC ouput buffer number. Counting from 0 to 3 */
++	int pp_split_buf_num; /*  0..3 */
++
+ } vout_data;
+ 
+ #endif
+diff --git a/drivers/mxc/ipu/Makefile b/drivers/mxc/ipu/Makefile
+index dc6d42a..4e9f19f 100644
+--- a/drivers/mxc/ipu/Makefile
++++ b/drivers/mxc/ipu/Makefile
+@@ -1,5 +1,5 @@
+ obj-$(CONFIG_MXC_IPU_V1) = mxc_ipu.o
+ 
+-mxc_ipu-objs := ipu_common.o ipu_sdc.o ipu_adc.o ipu_ic.o ipu_csi.o ipu_device.o
++mxc_ipu-objs := ipu_common.o ipu_sdc.o ipu_adc.o ipu_ic.o ipu_csi.o ipu_device.o ipu_calc_stripes_sizes.o
+ 
+ obj-$(CONFIG_MXC_IPU_PF)        +=   pf/
+diff --git a/drivers/mxc/ipu/ipu_calc_stripes_sizes.c b/drivers/mxc/ipu/ipu_calc_stripes_sizes.c
+new file mode 100644
+index 0000000..09c7664
+--- /dev/null
++++ b/drivers/mxc/ipu/ipu_calc_stripes_sizes.c
+@@ -0,0 +1,374 @@
++/*
++ * Copyright 2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ */
++
++/*
++ * The code contained herein is licensed under the GNU General Public
++ * License. You may obtain a copy of the GNU General Public License
++ * Version 2 or later at the following locations:
++ *
++ * http://www.opensource.org/licenses/gpl-license.html
++ * http://www.gnu.org/copyleft/gpl.html
++ */
++
++/*
++ * @file ipu_calc_stripes_sizes.c
++ *
++ * @brief IPU IC functions
++ *
++ * @ingroup IPU
++ */
++
++#include <linux/module.h>
++#include <linux/ipu.h>
++#include <asm/div64.h>
++
++#define BPP_32 0
++#define BPP_16 3
++#define BPP_8 5
++#define BPP_24 1
++#define BPP_12 4
++#define BPP_18 2
++
++static u64 _do_div(u64 a, u32 b)
++{
++	u64 div;
++	div = a;
++	do_div(div, b);
++	return div;
++}
++
++static u32 truncate(u32 up, /* 0: down; else: up */
++					u64 a, /* must be non-negative */
++					u32 b)
++{
++	u32 d;
++	u64 div;
++	div = _do_div(a, b);
++	d = b * (div >> 32);
++	if (up && (a > (((u64)d) << 32)))
++		return d+b;
++	else
++		return d;
++}
++
++static unsigned int f_calc(unsigned int pfs, unsigned int bpp, unsigned int *write)
++{/* return input_f */
++	unsigned int f_calculated = 0;
++	switch (pfs) {
++	case IPU_PIX_FMT_YVU422P:
++	case IPU_PIX_FMT_YUV422P:
++	case IPU_PIX_FMT_YUV420P2:
++	case IPU_PIX_FMT_YUV420P:
++		f_calculated = 16;
++		break;
++
++	case IPU_PIX_FMT_NV12:
++		f_calculated = 8;
++		break;
++
++	default:
++		f_calculated = 0;
++		break;
++
++	}
++	if (!f_calculated) {
++		switch (bpp) {
++		case BPP_32:
++			f_calculated = 2;
++			break;
++
++		case BPP_16:
++			f_calculated = 4;
++			break;
++
++		case BPP_8:
++		case BPP_24:
++			f_calculated = 8;
++			break;
++
++		case BPP_12:
++			f_calculated = 16;
++			break;
++
++		case BPP_18:
++			f_calculated = 32;
++			break;
++
++		default:
++			f_calculated = 0;
++			break;
++			}
++		}
++	return f_calculated;
++}
++
++
++static unsigned int m_calc(unsigned int pfs)
++{
++	unsigned int m_calculated = 0;
++	switch (pfs) {
++	case IPU_PIX_FMT_YUV420P2:
++	case IPU_PIX_FMT_YUV420P:
++	case IPU_PIX_FMT_YVU422P:
++	case IPU_PIX_FMT_YUV422P:
++	case IPU_PIX_FMT_YVU420P:
++	case IPU_PIX_FMT_NV12:
++		m_calculated = 8;
++		break;
++
++	case IPU_PIX_FMT_YUYV:
++	case IPU_PIX_FMT_UYVY:
++		m_calculated = 2;
++		break;
++
++	default:
++		m_calculated = 1;
++		break;
++
++	}
++	return m_calculated;
++}
++
++
++/* Stripe parameters calculator */
++/**************************************************************************
++Notes:
++MSW = the maximal width allowed for a stripe
++	i.MX31: 720, i.MX35: 800, i.MX37/51/53: 1024
++cirr = the maximal inverse resizing ratio for which overlap in the input
++	is requested; typically cirr~2
++equal_stripes:
++	0: each stripe is allowed to have independent parameters
++		for maximal image quality
++	1: the stripes are requested to have identical parameters
++	(except the base address), for maximal performance
++If performance is the top priority (above image quality)
++	Avoid overlap, by setting CIRR = 0
++		This will also force effectively identical_stripes = 1
++	Choose IF & OF that corresponds to the same IOX/SX for both stripes
++	Choose IFW & OFW such that
++	IFW/IM, IFW/IF, OFW/OM, OFW/OF are even integers
++	The function returns an error status:
++	0: no error
++	1: invalid input parameters -> aborted without result
++		Valid parameters should satisfy the following conditions
++		IFW <= OFW, otherwise downsizing is required
++					 - which is not supported yet
++		4 <= IFW,OFW, so some interpolation may be needed even without overlap
++		IM, OM, IF, OF should not vanish
++		2*IF <= IFW
++		so the frame can be split to two equal stripes, even without overlap
++		2*(OF+IF/irr_opt) <= OFW
++		so a valid positive INW exists even for equal stripes
++		OF <= MSW, otherwise, the left stripe cannot be sufficiently large
++		MSW < OFW, so splitting to stripes is required
++		OFW <= 2*MSW, so two stripes are sufficient
++		(this also implies that 2<=MSW)
++	2: OF is not a multiple of OM - not fully-supported yet
++	Output is produced but OW is not guaranited to be a multiple of OM
++	4: OFW reduced to be a multiple of OM
++	8: CIRR > 1: truncated to 1
++	Overlap is not supported (and not needed) y for upsizing)
++**************************************************************************/
++int ipu_calc_stripes_sizes(const unsigned int input_frame_width,
++			   /* input frame width;>1 */
++			   unsigned int output_frame_width, /* output frame width; >1 */
++			   const unsigned int maximal_stripe_width,
++			   /* the maximal width allowed for a stripe */
++			   const unsigned long long cirr, /* see above */
++			   const unsigned int equal_stripes, /* see above */
++			   u32 input_pixelformat,/* pixel format after of read channel*/
++			   u32 output_pixelformat,/* pixel format after of write channel*/
++			   struct stripe_param *left,
++			   struct stripe_param *right)
++{
++	const unsigned int irr_frac_bits = 13;
++	const unsigned long irr_steps = 1 << irr_frac_bits;
++	const u64 dirr = ((u64)1) << (32 - 2);
++	/* The maximum relative difference allowed between the irrs */
++	const u64 cr = ((u64)4) << 32;
++	/* The importance ratio between the two terms in the cost function below */
++
++	unsigned int status;
++	unsigned int temp;
++	unsigned int onw_min;
++	unsigned int inw, onw, inw_best = 0;
++	/* number of pixels in the left stripe NOT hidden by the right stripe */
++	u64 irr_opt; /* the optimal inverse resizing ratio */
++	u64 rr_opt; /* the optimal resizing ratio = 1/irr_opt*/
++	u64 dinw; /* the misalignment between the stripes */
++	/* (measured in units of input columns) */
++	u64 difwl, difwr;
++	/* The number of input columns not reflected in the output */
++	/* the resizing ratio used for the right stripe is */
++	/*   left->irr and right->irr respectively */
++	u64 cost, cost_min;
++	u64 div; /* result of division */
++
++	unsigned int input_m, input_f, output_m, output_f; /* parameters for upsizing by stripes */
++
++	status = 0;
++
++	/* M, F calculations */
++	/* read back pfs from params */
++
++	input_f = f_calc(input_pixelformat, 0, NULL);
++	input_m = 16;
++	/* BPP should be used in the out_F calc */
++	/* Temporarily not used */
++	/* out_F = F_calc(idmac->pfs, idmac->bpp, NULL); */
++
++	output_f = 16;
++	output_m = m_calc(output_pixelformat);
++
++
++	if ((output_frame_width < input_frame_width) || (input_frame_width < 4)
++	    || (output_frame_width < 4))
++		return 1;
++
++	irr_opt = _do_div((((u64)(input_frame_width - 1)) << 32),
++			  (output_frame_width - 1));
++	rr_opt = _do_div((((u64)(output_frame_width - 1)) << 32),
++			 (input_frame_width - 1));
++
++	if ((input_m == 0) || (output_m == 0) || (input_f == 0) || (output_f == 0)
++	    || (input_frame_width < (2 * input_f))
++	    || ((((u64)output_frame_width) << 32) <
++		(2 * ((((u64)output_f) << 32) + (input_f * rr_opt))))
++	    || (maximal_stripe_width < output_f)
++	    || (output_frame_width <= maximal_stripe_width)
++	    || ((2 * maximal_stripe_width) < output_frame_width))
++		return 1;
++
++	if (output_f % output_m)
++		status += 2;
++
++	temp = truncate(0, (((u64)output_frame_width) << 32), output_m);
++	if (temp < output_frame_width) {
++		output_frame_width = temp;
++		status += 4;
++	}
++
++	if (equal_stripes) {
++		if ((irr_opt > cirr) /* overlap in the input is not requested */
++		    && ((input_frame_width % (input_m << 1)) == 0)
++		    && ((input_frame_width % (input_f << 1)) == 0)
++		    && ((output_frame_width % (output_m << 1)) == 0)
++		    && ((output_frame_width % (output_f << 1)) == 0)) {
++			/* without overlap */
++			left->input_width = right->input_width = right->input_column =
++				input_frame_width >> 1;
++			left->output_width = right->output_width = right->output_column =
++				output_frame_width >> 1;
++			left->input_column = right->input_column = 0;
++			div = _do_div(((((u64)irr_steps) << 32) *
++				       (right->input_width - 1)), (right->output_width - 1));
++			left->irr = right->irr = truncate(0, div, 1);
++		} else { /* with overlap */
++			onw = truncate(0, (((u64)output_frame_width) << 32) >> 1,
++				       output_f);
++			inw = truncate(0, onw * irr_opt, input_f);
++			/* this is the maximal inw which allows the same resizing ratio */
++			/* in both stripes */
++			onw = truncate(1, (inw * rr_opt), output_f);
++			div = _do_div((((u64)(irr_steps * inw)) <<
++				       32), onw);
++			left->irr = right->irr = truncate(0, div, 1);
++			left->output_width = right->output_width =
++				output_frame_width - onw;
++			/* These are valid assignments for output_width, */
++			/* assuming output_f is a multiple of output_m */
++			div = (((u64)(left->output_width-1) * (left->irr)) << 32);
++			div = (((u64)1) << 32) + _do_div(div, irr_steps);
++
++			left->input_width = right->input_width = truncate(1, div, input_m);
++
++			div = _do_div((((u64)((right->output_width - 1) * right->irr)) <<
++				       32), irr_steps);
++			difwr = (((u64)(input_frame_width - 1 - inw)) << 32) - div;
++			div = _do_div((difwr + (((u64)input_f) << 32)), 2);
++			left->input_column = truncate(0, div, input_f);
++
++
++			/* This splits the truncated input columns evenly */
++			/*    between the left and right margins */
++			right->input_column = left->input_column + inw;
++			left->output_column = 0;
++			right->output_column = onw;
++		}
++	} else { /* independent stripes */
++		onw_min = output_frame_width - maximal_stripe_width;
++		/* onw is a multiple of output_f, in the range */
++		/* [max(output_f,output_frame_width-maximal_stripe_width),*/
++		/*min(output_frame_width-2,maximal_stripe_width)] */
++		/* definitely beyond the cost of any valid setting */
++		cost_min = (((u64)input_frame_width) << 32) + cr;
++		onw = truncate(0, ((u64)maximal_stripe_width), output_f);
++		if (output_frame_width - onw == 1)
++			onw -= output_f; /*  => onw and output_frame_width-1-onw are positive */
++		inw = truncate(0, onw * irr_opt, input_f);
++		/* this is the maximal inw which allows the same resizing ratio */
++		/* in both stripes */
++		onw = truncate(1, inw * rr_opt, output_f);
++		do {
++			div = _do_div((((u64)(irr_steps * inw)) << 32), onw);
++			left->irr = truncate(0, div, 1);
++			div = _do_div((((u64)(onw * left->irr)) << 32),
++				      irr_steps);
++			dinw = (((u64)inw) << 32) - div;
++
++			div = _do_div((((u64)((output_frame_width - 1 - onw) * left->irr)) <<
++				       32), irr_steps);
++
++			difwl = (((u64)(input_frame_width - 1 - inw)) << 32) - div;
++
++			cost = difwl + (((u64)(cr * dinw)) >> 32);
++
++			if (cost < cost_min) {
++				inw_best = inw;
++				cost_min = cost;
++			}
++
++			inw -= input_f;
++			onw = truncate(1, inw * rr_opt, output_f);
++			/* This is the minimal onw which allows the same resizing ratio */
++			/*     in both stripes */
++		} while (onw >= onw_min);
++
++		inw = inw_best;
++		onw = truncate(1, inw * rr_opt, output_f);
++		div = _do_div((((u64)(irr_steps * inw)) << 32), onw);
++		left->irr = truncate(0, div, 1);
++
++		left->output_width = onw;
++		right->output_width = output_frame_width - onw;
++		/* These are valid assignments for output_width, */
++		/* assuming output_f is a multiple of output_m */
++		left->input_width = truncate(1, ((u64)(inw + 1)) << 32, input_m);
++		right->input_width = truncate(1, ((u64)(input_frame_width - inw)) <<
++					      32, input_m);
++
++		div = _do_div((((u64)(irr_steps * (input_frame_width - 1 - inw))) <<
++			       32), (right->output_width - 1));
++		right->irr = truncate(0, div, 1);
++		temp = truncate(0, ((u64)left->irr) * ((((u64)1) << 32) + dirr), 1);
++		if (temp < right->irr)
++			right->irr = temp;
++		div = _do_div(((u64)((right->output_width - 1) * right->irr) <<
++			       32), irr_steps);
++		difwr = (u64)(input_frame_width - 1 - inw) - div;
++
++
++		div = _do_div((difwr + (((u64)input_f) << 32)), 2);
++		left->input_column = truncate(0, div, input_f);
++
++		/* This splits the truncated input columns evenly */
++		/*    between the left and right margins */
++		right->input_column = left->input_column + inw;
++		left->output_column = 0;
++		right->output_column = onw;
++	}
++	return status;
++}
++EXPORT_SYMBOL(ipu_calc_stripes_sizes);
+diff --git a/drivers/mxc/ipu/ipu_common.c b/drivers/mxc/ipu/ipu_common.c
+index b2795fe..1a73bd7 100644
+--- a/drivers/mxc/ipu/ipu_common.c
++++ b/drivers/mxc/ipu/ipu_common.c
+@@ -619,6 +619,64 @@ int32_t ipu_update_channel_buffer(ipu_channel_t channel, ipu_buffer_t type,
+ }
+ 
+ /*!
++ * This function is called to initialize a buffer for logical IPU channel.
++ *
++ * @param       channel         Input parameter for the logical channel ID.
++ *
++ * @param       type            Input parameter which buffer to initialize.
++ *
++ * @param       pixel_fmt       Input parameter for pixel format of buffer.
++ *                              Pixel format is a FOURCC ASCII code.
++ *
++ * @param       width           Input parameter for width of buffer in pixels.
++ *
++ * @param       height          Input parameter for height of buffer in pixels.
++ *
++ * @param       stride          Input parameter for stride length of buffer
++ *                              in pixels.
++ *
++ * @param       u				predefined private u offset for additional cropping,
++ *								zero if not used.
++ *
++ * @param       v				predefined private v offset for additional cropping,
++ *								zero if not used.
++ *
++ * @param		vertical_offset vertical offset for Y coordinate
++ * 								in the existed frame
++ *
++ *
++ * @param		horizontal_offset horizontal offset for X coordinate
++ * 								in the existed frame
++ *
++ *
++ * @return      Returns 0 on success or negative error code on fail
++ *              This function will fail if any buffer is set to ready.
++ */
++
++int32_t ipu_update_channel_offset(ipu_channel_t channel, ipu_buffer_t type,
++				uint32_t pixel_fmt,
++				uint16_t width, uint16_t height,
++				uint32_t stride,
++				uint32_t u, uint32_t v,
++				uint32_t vertical_offset, uint32_t horizontal_offset)
++{
++	uint32_t reg;
++	int ret = 0;
++	unsigned long lock_flags;
++	uint32_t dma_chan = channel_2_dma(channel, type);
++
++	if (dma_chan == IDMA_CHAN_INVALID)
++		return -EINVAL;
++
++	spin_lock_irqsave(&ipu_lock, lock_flags);
++
++	ret = -EACCES;
++	spin_unlock_irqrestore(&ipu_lock, lock_flags);
++	return ret;
++}
++EXPORT_SYMBOL(ipu_update_channel_offset);
++
++/*!
+  * This function is called to set a channel's buffer as ready.
+  *
+  * @param       channel         Input parameter for the logical channel ID.
+diff --git a/drivers/mxc/ipu3/Makefile b/drivers/mxc/ipu3/Makefile
+index 2d9bc3c..aa3e7b1 100644
+--- a/drivers/mxc/ipu3/Makefile
++++ b/drivers/mxc/ipu3/Makefile
+@@ -1,3 +1,4 @@
+ obj-$(CONFIG_MXC_IPU_V3) = mxc_ipu.o
+ 
+-mxc_ipu-objs := ipu_common.o ipu_ic.o ipu_disp.o ipu_capture.o ipu_device.o
++mxc_ipu-objs := ipu_common.o ipu_ic.o ipu_disp.o ipu_capture.o ipu_device.o ipu_calc_stripes_sizes.o
++
+diff --git a/drivers/mxc/ipu3/ipu_calc_stripes_sizes.c b/drivers/mxc/ipu3/ipu_calc_stripes_sizes.c
+new file mode 100644
+index 0000000..09c7664
+--- /dev/null
++++ b/drivers/mxc/ipu3/ipu_calc_stripes_sizes.c
+@@ -0,0 +1,374 @@
++/*
++ * Copyright 2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ */
++
++/*
++ * The code contained herein is licensed under the GNU General Public
++ * License. You may obtain a copy of the GNU General Public License
++ * Version 2 or later at the following locations:
++ *
++ * http://www.opensource.org/licenses/gpl-license.html
++ * http://www.gnu.org/copyleft/gpl.html
++ */
++
++/*
++ * @file ipu_calc_stripes_sizes.c
++ *
++ * @brief IPU IC functions
++ *
++ * @ingroup IPU
++ */
++
++#include <linux/module.h>
++#include <linux/ipu.h>
++#include <asm/div64.h>
++
++#define BPP_32 0
++#define BPP_16 3
++#define BPP_8 5
++#define BPP_24 1
++#define BPP_12 4
++#define BPP_18 2
++
++static u64 _do_div(u64 a, u32 b)
++{
++	u64 div;
++	div = a;
++	do_div(div, b);
++	return div;
++}
++
++static u32 truncate(u32 up, /* 0: down; else: up */
++					u64 a, /* must be non-negative */
++					u32 b)
++{
++	u32 d;
++	u64 div;
++	div = _do_div(a, b);
++	d = b * (div >> 32);
++	if (up && (a > (((u64)d) << 32)))
++		return d+b;
++	else
++		return d;
++}
++
++static unsigned int f_calc(unsigned int pfs, unsigned int bpp, unsigned int *write)
++{/* return input_f */
++	unsigned int f_calculated = 0;
++	switch (pfs) {
++	case IPU_PIX_FMT_YVU422P:
++	case IPU_PIX_FMT_YUV422P:
++	case IPU_PIX_FMT_YUV420P2:
++	case IPU_PIX_FMT_YUV420P:
++		f_calculated = 16;
++		break;
++
++	case IPU_PIX_FMT_NV12:
++		f_calculated = 8;
++		break;
++
++	default:
++		f_calculated = 0;
++		break;
++
++	}
++	if (!f_calculated) {
++		switch (bpp) {
++		case BPP_32:
++			f_calculated = 2;
++			break;
++
++		case BPP_16:
++			f_calculated = 4;
++			break;
++
++		case BPP_8:
++		case BPP_24:
++			f_calculated = 8;
++			break;
++
++		case BPP_12:
++			f_calculated = 16;
++			break;
++
++		case BPP_18:
++			f_calculated = 32;
++			break;
++
++		default:
++			f_calculated = 0;
++			break;
++			}
++		}
++	return f_calculated;
++}
++
++
++static unsigned int m_calc(unsigned int pfs)
++{
++	unsigned int m_calculated = 0;
++	switch (pfs) {
++	case IPU_PIX_FMT_YUV420P2:
++	case IPU_PIX_FMT_YUV420P:
++	case IPU_PIX_FMT_YVU422P:
++	case IPU_PIX_FMT_YUV422P:
++	case IPU_PIX_FMT_YVU420P:
++	case IPU_PIX_FMT_NV12:
++		m_calculated = 8;
++		break;
++
++	case IPU_PIX_FMT_YUYV:
++	case IPU_PIX_FMT_UYVY:
++		m_calculated = 2;
++		break;
++
++	default:
++		m_calculated = 1;
++		break;
++
++	}
++	return m_calculated;
++}
++
++
++/* Stripe parameters calculator */
++/**************************************************************************
++Notes:
++MSW = the maximal width allowed for a stripe
++	i.MX31: 720, i.MX35: 800, i.MX37/51/53: 1024
++cirr = the maximal inverse resizing ratio for which overlap in the input
++	is requested; typically cirr~2
++equal_stripes:
++	0: each stripe is allowed to have independent parameters
++		for maximal image quality
++	1: the stripes are requested to have identical parameters
++	(except the base address), for maximal performance
++If performance is the top priority (above image quality)
++	Avoid overlap, by setting CIRR = 0
++		This will also force effectively identical_stripes = 1
++	Choose IF & OF that corresponds to the same IOX/SX for both stripes
++	Choose IFW & OFW such that
++	IFW/IM, IFW/IF, OFW/OM, OFW/OF are even integers
++	The function returns an error status:
++	0: no error
++	1: invalid input parameters -> aborted without result
++		Valid parameters should satisfy the following conditions
++		IFW <= OFW, otherwise downsizing is required
++					 - which is not supported yet
++		4 <= IFW,OFW, so some interpolation may be needed even without overlap
++		IM, OM, IF, OF should not vanish
++		2*IF <= IFW
++		so the frame can be split to two equal stripes, even without overlap
++		2*(OF+IF/irr_opt) <= OFW
++		so a valid positive INW exists even for equal stripes
++		OF <= MSW, otherwise, the left stripe cannot be sufficiently large
++		MSW < OFW, so splitting to stripes is required
++		OFW <= 2*MSW, so two stripes are sufficient
++		(this also implies that 2<=MSW)
++	2: OF is not a multiple of OM - not fully-supported yet
++	Output is produced but OW is not guaranited to be a multiple of OM
++	4: OFW reduced to be a multiple of OM
++	8: CIRR > 1: truncated to 1
++	Overlap is not supported (and not needed) y for upsizing)
++**************************************************************************/
++int ipu_calc_stripes_sizes(const unsigned int input_frame_width,
++			   /* input frame width;>1 */
++			   unsigned int output_frame_width, /* output frame width; >1 */
++			   const unsigned int maximal_stripe_width,
++			   /* the maximal width allowed for a stripe */
++			   const unsigned long long cirr, /* see above */
++			   const unsigned int equal_stripes, /* see above */
++			   u32 input_pixelformat,/* pixel format after of read channel*/
++			   u32 output_pixelformat,/* pixel format after of write channel*/
++			   struct stripe_param *left,
++			   struct stripe_param *right)
++{
++	const unsigned int irr_frac_bits = 13;
++	const unsigned long irr_steps = 1 << irr_frac_bits;
++	const u64 dirr = ((u64)1) << (32 - 2);
++	/* The maximum relative difference allowed between the irrs */
++	const u64 cr = ((u64)4) << 32;
++	/* The importance ratio between the two terms in the cost function below */
++
++	unsigned int status;
++	unsigned int temp;
++	unsigned int onw_min;
++	unsigned int inw, onw, inw_best = 0;
++	/* number of pixels in the left stripe NOT hidden by the right stripe */
++	u64 irr_opt; /* the optimal inverse resizing ratio */
++	u64 rr_opt; /* the optimal resizing ratio = 1/irr_opt*/
++	u64 dinw; /* the misalignment between the stripes */
++	/* (measured in units of input columns) */
++	u64 difwl, difwr;
++	/* The number of input columns not reflected in the output */
++	/* the resizing ratio used for the right stripe is */
++	/*   left->irr and right->irr respectively */
++	u64 cost, cost_min;
++	u64 div; /* result of division */
++
++	unsigned int input_m, input_f, output_m, output_f; /* parameters for upsizing by stripes */
++
++	status = 0;
++
++	/* M, F calculations */
++	/* read back pfs from params */
++
++	input_f = f_calc(input_pixelformat, 0, NULL);
++	input_m = 16;
++	/* BPP should be used in the out_F calc */
++	/* Temporarily not used */
++	/* out_F = F_calc(idmac->pfs, idmac->bpp, NULL); */
++
++	output_f = 16;
++	output_m = m_calc(output_pixelformat);
++
++
++	if ((output_frame_width < input_frame_width) || (input_frame_width < 4)
++	    || (output_frame_width < 4))
++		return 1;
++
++	irr_opt = _do_div((((u64)(input_frame_width - 1)) << 32),
++			  (output_frame_width - 1));
++	rr_opt = _do_div((((u64)(output_frame_width - 1)) << 32),
++			 (input_frame_width - 1));
++
++	if ((input_m == 0) || (output_m == 0) || (input_f == 0) || (output_f == 0)
++	    || (input_frame_width < (2 * input_f))
++	    || ((((u64)output_frame_width) << 32) <
++		(2 * ((((u64)output_f) << 32) + (input_f * rr_opt))))
++	    || (maximal_stripe_width < output_f)
++	    || (output_frame_width <= maximal_stripe_width)
++	    || ((2 * maximal_stripe_width) < output_frame_width))
++		return 1;
++
++	if (output_f % output_m)
++		status += 2;
++
++	temp = truncate(0, (((u64)output_frame_width) << 32), output_m);
++	if (temp < output_frame_width) {
++		output_frame_width = temp;
++		status += 4;
++	}
++
++	if (equal_stripes) {
++		if ((irr_opt > cirr) /* overlap in the input is not requested */
++		    && ((input_frame_width % (input_m << 1)) == 0)
++		    && ((input_frame_width % (input_f << 1)) == 0)
++		    && ((output_frame_width % (output_m << 1)) == 0)
++		    && ((output_frame_width % (output_f << 1)) == 0)) {
++			/* without overlap */
++			left->input_width = right->input_width = right->input_column =
++				input_frame_width >> 1;
++			left->output_width = right->output_width = right->output_column =
++				output_frame_width >> 1;
++			left->input_column = right->input_column = 0;
++			div = _do_div(((((u64)irr_steps) << 32) *
++				       (right->input_width - 1)), (right->output_width - 1));
++			left->irr = right->irr = truncate(0, div, 1);
++		} else { /* with overlap */
++			onw = truncate(0, (((u64)output_frame_width) << 32) >> 1,
++				       output_f);
++			inw = truncate(0, onw * irr_opt, input_f);
++			/* this is the maximal inw which allows the same resizing ratio */
++			/* in both stripes */
++			onw = truncate(1, (inw * rr_opt), output_f);
++			div = _do_div((((u64)(irr_steps * inw)) <<
++				       32), onw);
++			left->irr = right->irr = truncate(0, div, 1);
++			left->output_width = right->output_width =
++				output_frame_width - onw;
++			/* These are valid assignments for output_width, */
++			/* assuming output_f is a multiple of output_m */
++			div = (((u64)(left->output_width-1) * (left->irr)) << 32);
++			div = (((u64)1) << 32) + _do_div(div, irr_steps);
++
++			left->input_width = right->input_width = truncate(1, div, input_m);
++
++			div = _do_div((((u64)((right->output_width - 1) * right->irr)) <<
++				       32), irr_steps);
++			difwr = (((u64)(input_frame_width - 1 - inw)) << 32) - div;
++			div = _do_div((difwr + (((u64)input_f) << 32)), 2);
++			left->input_column = truncate(0, div, input_f);
++
++
++			/* This splits the truncated input columns evenly */
++			/*    between the left and right margins */
++			right->input_column = left->input_column + inw;
++			left->output_column = 0;
++			right->output_column = onw;
++		}
++	} else { /* independent stripes */
++		onw_min = output_frame_width - maximal_stripe_width;
++		/* onw is a multiple of output_f, in the range */
++		/* [max(output_f,output_frame_width-maximal_stripe_width),*/
++		/*min(output_frame_width-2,maximal_stripe_width)] */
++		/* definitely beyond the cost of any valid setting */
++		cost_min = (((u64)input_frame_width) << 32) + cr;
++		onw = truncate(0, ((u64)maximal_stripe_width), output_f);
++		if (output_frame_width - onw == 1)
++			onw -= output_f; /*  => onw and output_frame_width-1-onw are positive */
++		inw = truncate(0, onw * irr_opt, input_f);
++		/* this is the maximal inw which allows the same resizing ratio */
++		/* in both stripes */
++		onw = truncate(1, inw * rr_opt, output_f);
++		do {
++			div = _do_div((((u64)(irr_steps * inw)) << 32), onw);
++			left->irr = truncate(0, div, 1);
++			div = _do_div((((u64)(onw * left->irr)) << 32),
++				      irr_steps);
++			dinw = (((u64)inw) << 32) - div;
++
++			div = _do_div((((u64)((output_frame_width - 1 - onw) * left->irr)) <<
++				       32), irr_steps);
++
++			difwl = (((u64)(input_frame_width - 1 - inw)) << 32) - div;
++
++			cost = difwl + (((u64)(cr * dinw)) >> 32);
++
++			if (cost < cost_min) {
++				inw_best = inw;
++				cost_min = cost;
++			}
++
++			inw -= input_f;
++			onw = truncate(1, inw * rr_opt, output_f);
++			/* This is the minimal onw which allows the same resizing ratio */
++			/*     in both stripes */
++		} while (onw >= onw_min);
++
++		inw = inw_best;
++		onw = truncate(1, inw * rr_opt, output_f);
++		div = _do_div((((u64)(irr_steps * inw)) << 32), onw);
++		left->irr = truncate(0, div, 1);
++
++		left->output_width = onw;
++		right->output_width = output_frame_width - onw;
++		/* These are valid assignments for output_width, */
++		/* assuming output_f is a multiple of output_m */
++		left->input_width = truncate(1, ((u64)(inw + 1)) << 32, input_m);
++		right->input_width = truncate(1, ((u64)(input_frame_width - inw)) <<
++					      32, input_m);
++
++		div = _do_div((((u64)(irr_steps * (input_frame_width - 1 - inw))) <<
++			       32), (right->output_width - 1));
++		right->irr = truncate(0, div, 1);
++		temp = truncate(0, ((u64)left->irr) * ((((u64)1) << 32) + dirr), 1);
++		if (temp < right->irr)
++			right->irr = temp;
++		div = _do_div(((u64)((right->output_width - 1) * right->irr) <<
++			       32), irr_steps);
++		difwr = (u64)(input_frame_width - 1 - inw) - div;
++
++
++		div = _do_div((difwr + (((u64)input_f) << 32)), 2);
++		left->input_column = truncate(0, div, input_f);
++
++		/* This splits the truncated input columns evenly */
++		/*    between the left and right margins */
++		right->input_column = left->input_column + inw;
++		left->output_column = 0;
++		right->output_column = onw;
++	}
++	return status;
++}
++EXPORT_SYMBOL(ipu_calc_stripes_sizes);
+diff --git a/drivers/mxc/ipu3/ipu_common.c b/drivers/mxc/ipu3/ipu_common.c
+index cdcbd19..9ee4c6b 100644
+--- a/drivers/mxc/ipu3/ipu_common.c
++++ b/drivers/mxc/ipu3/ipu_common.c
+@@ -947,8 +947,9 @@ int32_t ipu_init_channel_buffer(ipu_channel_t channel, ipu_buffer_t type,
+ 	} else if (_ipu_is_dmfc_chan(dma_chan))
+ 		_ipu_dmfc_set_wait4eot(dma_chan, width);
+ 
+-	if (_ipu_chan_is_interlaced(channel))
++	if (_ipu_chan_is_interlaced(channel)) {
+ 		_ipu_ch_param_set_interlaced_scan(dma_chan);
++	}
+ 
+ 	if (_ipu_is_ic_chan(dma_chan) || _ipu_is_irt_chan(dma_chan)) {
+ 		burst_size = _ipu_ch_param_get_burst_size(dma_chan);
+@@ -1031,6 +1032,71 @@ int32_t ipu_update_channel_buffer(ipu_channel_t channel, ipu_buffer_t type,
+ }
+ EXPORT_SYMBOL(ipu_update_channel_buffer);
+ 
++
++/*!
++ * This function is called to initialize a buffer for logical IPU channel.
++ *
++ * @param       channel         Input parameter for the logical channel ID.
++ *
++ * @param       type            Input parameter which buffer to initialize.
++ *
++ * @param       pixel_fmt       Input parameter for pixel format of buffer.
++ *                              Pixel format is a FOURCC ASCII code.
++ *
++ * @param       width           Input parameter for width of buffer in pixels.
++ *
++ * @param       height          Input parameter for height of buffer in pixels.
++ *
++ * @param       stride          Input parameter for stride length of buffer
++ *                              in pixels.
++ *
++ * @param       u		predefined private u offset for additional cropping,
++ *								zero if not used.
++ *
++ * @param       v		predefined private v offset for additional cropping,
++ *								zero if not used.
++ *
++ * @param			vertical_offset vertical offset for Y coordinate
++ * 								in the existed frame
++ *
++ *
++ * @param			horizontal_offset horizontal offset for X coordinate
++ * 								in the existed frame
++ *
++ *
++ * @return      Returns 0 on success or negative error code on fail
++ *              This function will fail if any buffer is set to ready.
++ */
++
++int32_t ipu_update_channel_offset(ipu_channel_t channel, ipu_buffer_t type,
++				uint32_t pixel_fmt,
++				uint16_t width, uint16_t height,
++				uint32_t stride,
++				uint32_t u, uint32_t v,
++				uint32_t vertical_offset, uint32_t horizontal_offset)
++{
++	int ret = 0;
++	unsigned long lock_flags;
++	uint32_t dma_chan = channel_2_dma(channel, type);
++
++	if (dma_chan == IDMA_CHAN_INVALID)
++		return -EINVAL;
++
++	spin_lock_irqsave(&ipu_lock, lock_flags);
++
++	if ((__raw_readl(IPU_CHA_BUF0_RDY(dma_chan)) & idma_mask(dma_chan)) ||
++		(__raw_readl(IPU_CHA_BUF0_RDY(dma_chan)) & idma_mask(dma_chan)))
++		ret = -EACCES;
++	else
++		_ipu_ch_offset_update(dma_chan, pixel_fmt, width, height, stride,
++				      u, v, 0, vertical_offset, horizontal_offset);
++
++	spin_unlock_irqrestore(&ipu_lock, lock_flags);
++	return ret;
++}
++EXPORT_SYMBOL(ipu_update_channel_offset);
++
++
+ /*!
+  * This function is called to set a channel's buffer as ready.
+  *
+diff --git a/drivers/mxc/ipu3/ipu_ic.c b/drivers/mxc/ipu3/ipu_ic.c
+index 4589426..1a4bda3 100644
+--- a/drivers/mxc/ipu3/ipu_ic.c
++++ b/drivers/mxc/ipu3/ipu_ic.c
+@@ -416,10 +416,14 @@ void _ipu_ic_init_pp(ipu_channel_params_t *params)
+ 	reg = (downsizeCoeff << 30) | (resizeCoeff << 16);
+ 
+ 	/* Setup horizontal resizing */
+-	_calc_resize_coeffs(params->mem_pp_mem.in_width,
+-			    params->mem_pp_mem.out_width,
+-			    &resizeCoeff, &downsizeCoeff);
+-	reg |= (downsizeCoeff << 14) | resizeCoeff;
++   /* Upadeted for IC split case */
++	if (!(params->mem_pp_mem.out_resize_ratio)) {
++		_calc_resize_coeffs(params->mem_pp_mem.in_width,
++							params->mem_pp_mem.out_width,
++							&resizeCoeff, &downsizeCoeff);
++		reg |= (downsizeCoeff << 14) | resizeCoeff;
++	} else
++		reg |= params->mem_pp_mem.out_resize_ratio;
+ 
+ 	__raw_writel(reg, IC_PP_RSC);
+ 
+diff --git a/drivers/mxc/ipu3/ipu_param_mem.h b/drivers/mxc/ipu3/ipu_param_mem.h
+index 067ace1..dd30cb3 100644
+--- a/drivers/mxc/ipu3/ipu_param_mem.h
++++ b/drivers/mxc/ipu3/ipu_param_mem.h
+@@ -383,9 +383,112 @@ static inline void _ipu_ch_param_set_high_priority(uint32_t ch)
+ 	ipu_ch_param_mod_field(ipu_ch_param_addr(ch), 1, 93, 2, 1);
+ };
+ 
++/* IDMAC U/V offset changing support */
++/* U and V input is not affected, */
++/* the update is done by new calculation according to */
++/* vertical_offset and horizontal_offset */
++static inline void _ipu_ch_offset_update(int ch,
++					uint32_t pixel_fmt,
++					uint32_t width,
++					uint32_t height,
++					uint32_t stride,
++					uint32_t u,
++					uint32_t v,
++					uint32_t uv_stride,
++					uint32_t vertical_offset,
++					uint32_t horizontal_offset)
++{
++	uint32_t u_offset = 0;
++	uint32_t v_offset = 0;
++	uint32_t u_fix = 0;
++	uint32_t v_fix = 0;
++
++	switch (pixel_fmt) {
++	case IPU_PIX_FMT_GENERIC:
++	case IPU_PIX_FMT_GENERIC_32:
++	case IPU_PIX_FMT_RGB565:
++	case IPU_PIX_FMT_BGR24:
++	case IPU_PIX_FMT_RGB24:
++	case IPU_PIX_FMT_YUV444:
++	case IPU_PIX_FMT_BGRA32:
++	case IPU_PIX_FMT_BGR32:
++	case IPU_PIX_FMT_RGBA32:
++	case IPU_PIX_FMT_RGB32:
++	case IPU_PIX_FMT_ABGR32:
++	case IPU_PIX_FMT_UYVY:
++	case IPU_PIX_FMT_YUYV:
++		break;
++
++	case IPU_PIX_FMT_YUV420P2:
++	case IPU_PIX_FMT_YUV420P:
++		if (uv_stride < stride / 2)
++			uv_stride = stride / 2;
++
++		u_fix = u + (uv_stride * vertical_offset / 2) + horizontal_offset / 4;
++		v_fix = v + (uv_stride * vertical_offset / 2) + horizontal_offset / 4;
++		u_offset = (u == 0) ? stride * (height - vertical_offset - 1) +
++								(stride - horizontal_offset) +
++								(uv_stride * vertical_offset / 2) +
++								horizontal_offset / 2 : u_fix;
++		v_offset = (v == 0) ? u_offset + (uv_stride * height / 2) : v_fix;
++
++		break;
++	case IPU_PIX_FMT_YVU422P:
++		if (uv_stride < stride / 2)
++			uv_stride = stride / 2;
++
++		u_fix = u + (uv_stride * vertical_offset) + horizontal_offset / 2;
++		v_fix = v + (uv_stride * vertical_offset) + horizontal_offset / 2;
++
++		v_offset = (v == 0) ? stride * (height - vertical_offset - 1) +
++								(stride - horizontal_offset) +
++								(uv_stride * vertical_offset) +
++								horizontal_offset / 2 :	v_fix;
++		u_offset = (u == 0) ? v_offset + uv_stride * height : u_fix;
++		break;
++	case IPU_PIX_FMT_YUV422P:
++		if (uv_stride < stride / 2)
++			uv_stride = stride / 2;
++
++		u_fix = u + (uv_stride * vertical_offset) + horizontal_offset / 2;
++		v_fix = v + (uv_stride * vertical_offset) + horizontal_offset / 2;
++
++		u_offset = (u == 0) ? stride * (height - vertical_offset - 1) +
++								(stride - horizontal_offset) +
++								(uv_stride * vertical_offset) +
++								horizontal_offset / 2 :	u_fix;
++		v_offset = (v == 0) ? u_offset + uv_stride * height : v_fix;
++		break;
++
++	case IPU_PIX_FMT_NV12:
++		uv_stride = stride;
++		u_fix = u + (uv_stride * vertical_offset) + horizontal_offset;
++		u_offset = (u == 0) ? stride * (height - vertical_offset - 1) +
++								(stride - horizontal_offset) +
++								(uv_stride * vertical_offset) +
++								horizontal_offset :	u_fix;
++
++		break;
++	default:
++		dev_err(g_ipu_dev, "mxc ipu: unimplemented pixel format\n");
++		break;
++	}
++
++
++
++	if (u_fix > u_offset)
++		u_offset = u_fix;
++
++	if (v_fix > v_offset)
++		v_offset = v_fix;
++	ipu_ch_param_mod_field(ipu_ch_param_addr(ch), 0, 46, 22, u_offset / 8);
++	ipu_ch_param_mod_field(ipu_ch_param_addr(ch), 0, 68, 22, v_offset / 8);
++
++};
++
+ static inline void _ipu_ch_params_set_alpha_width(uint32_t ch, int alpha_width)
+ {
+ 	ipu_ch_param_set_field(ipu_ch_param_addr(ch), 1, 125, 3, alpha_width - 1);
+-}
++};
+ 
+ #endif
+diff --git a/include/linux/ipu.h b/include/linux/ipu.h
+index 29a24c9..167abf1 100644
+--- a/include/linux/ipu.h
++++ b/include/linux/ipu.h
+@@ -393,6 +393,7 @@ typedef union {
+ 		uint8_t alpha;
+ 		uint32_t key_color;
+ 		bool alpha_chan_en;
++		uint32_t out_resize_ratio;
+ 	} mem_pp_mem;
+ 	struct {
+ 		uint32_t temp;
+@@ -877,6 +878,13 @@ int32_t ipu_init_channel_buffer(ipu_channel_t channel, ipu_buffer_t type,
+ int32_t ipu_update_channel_buffer(ipu_channel_t channel, ipu_buffer_t type,
+ 				  uint32_t bufNum, dma_addr_t phyaddr);
+ 
++int32_t ipu_update_channel_offset(ipu_channel_t channel, ipu_buffer_t type,
++				uint32_t pixel_fmt,
++				uint16_t width, uint16_t height,
++				uint32_t stride,
++				uint32_t u, uint32_t v,
++				uint32_t vertical_offset, uint32_t horizontal_offset);
++
+ int32_t ipu_select_buffer(ipu_channel_t channel,
+ 			  ipu_buffer_t type, uint32_t bufNum);
+ int32_t ipu_select_multi_vdi_buffer(uint32_t bufNum);
+@@ -1198,4 +1206,30 @@ typedef struct _ipu_mem_info {
+ #define IPU_FREE_MEM		      _IOW('I', 0x25, ipu_mem_info)
+ #define IPU_IS_CHAN_BUSY	      _IOW('I', 0x26, ipu_channel_t)
+ 
++
++/* two stripe calculations */
++struct stripe_param{
++	unsigned int input_width; /* width of the input stripe */
++	unsigned int output_width; /* width of the output stripe */
++	unsigned int input_column; /* the first column on the input stripe */
++	unsigned int output_column; /* the first column on the output stripe */
++	unsigned int idr;
++	/* inverse downisizing ratio parameter; expressed as a power of 2 */
++	unsigned int irr;
++	/* inverse resizing ratio parameter; expressed as a multiple of 2^-13 */
++};
++
++
++
++
++int ipu_calc_stripes_sizes(const unsigned int input_frame_width,
++				unsigned int output_frame_width,
++				const unsigned int maximal_stripe_width,
++				const unsigned long long cirr,
++				const unsigned int equal_stripes,
++				u32 input_pixelformat,
++				u32 output_pixelformat,
++				struct stripe_param *left,
++				struct stripe_param *right);
++
+ #endif
+-- 
+1.5.4.4
+

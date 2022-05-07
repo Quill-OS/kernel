@@ -1,0 +1,93 @@
+From f4625f1e03519d47efb07b50091ccaa99de6d73a Mon Sep 17 00:00:00 2001
+From: Lily Zhang <r58066@freescale.com>
+Date: Mon, 5 Jul 2010 20:42:10 +0800
+Subject: [PATCH] ENGR00124864 MX5: Fix MSL issue
+
+1. correct mx53 sdma script variable
+2. CSPI should not use cspi_main_clk
+3. remove duplicated M4IF setting codes in clock.c, which
+are already in cpu.c
+
+Signed-off-by: Lily Zhang <r58066@freescale.com>
+---
+ arch/arm/mach-mx5/clock.c |   36 ++++++++++--------------------------
+ arch/arm/mach-mx5/dma.c   |    2 +-
+ 2 files changed, 11 insertions(+), 27 deletions(-)
+
+diff --git a/arch/arm/mach-mx5/clock.c b/arch/arm/mach-mx5/clock.c
+index 3df6b9d..c501516 100644
+--- a/arch/arm/mach-mx5/clock.c
++++ b/arch/arm/mach-mx5/clock.c
+@@ -2496,23 +2496,15 @@ static struct clk cspi2_clk[] = {
+ 	 },
+ };
+ 
+-static struct clk cspi3_clk[] = {
+-	{
+-	 .name = "cspi_clk",
+-	 .id = 2,
+-	 .parent = &cspi_main_clk,
+-	 .enable_reg = MXC_CCM_CCGR4,
+-	 .enable_shift = MXC_CCM_CCGR4_CG13_OFFSET,
+-	 .enable = _clk_enable,
+-	 .disable = _clk_disable,
+-	 .secondary = &cspi3_clk[1],
+-	 },
+-	{
+-	 .name = "cspi_ipg_clk",
+-	 .id = 2,
+-	 .parent = &ipg_clk,
+-	 .secondary = &aips_tz2_clk,
+-	 },
++static struct clk cspi3_clk = {
++	.name = "cspi_ipg_clk",
++	.id = 2,
++	.parent = &ipg_clk,
++	.enable_reg = MXC_CCM_CCGR4,
++	.enable_shift = MXC_CCM_CCGR4_CG13_OFFSET,
++	.enable = _clk_enable,
++	.disable = _clk_disable,
++	.secondary = &aips_tz2_clk,
+ };
+ 
+ static int _clk_ssi_lp_apm_set_parent(struct clk *clk, struct clk *parent)
+@@ -4197,8 +4189,7 @@ static struct clk *mxc_clks[] = {
+ 	&cspi1_clk[1],
+ 	&cspi2_clk[0],
+ 	&cspi2_clk[1],
+-	&cspi3_clk[0],
+-	&cspi3_clk[1],
++	&cspi3_clk,
+ 	&ssi_lp_apm_clk,
+ 	&ssi1_clk[0],
+ 	&ssi1_clk[1],
+@@ -4586,13 +4577,6 @@ int __init mx51_clocks_init(unsigned long ckil, unsigned long osc, unsigned long
+ 	if (i > cpu_wp_nr)
+ 		BUG();
+ 
+-	/*Allow for automatic gating of the EMI internal clock.
+-	 * If this is done, emi_intr CCGR bits should be set to 11.
+-	 */
+-	reg = __raw_readl((IO_ADDRESS(M4IF_BASE_ADDR) + 0x8c));
+-	reg &= ~0x1;
+-	__raw_writel(reg, (IO_ADDRESS(M4IF_BASE_ADDR) + 0x8c));
+-
+ 	clk_set_parent(&arm_axi_clk, &axi_a_clk);
+ 	clk_set_parent(&ipu_clk[0], &axi_b_clk);
+ 
+diff --git a/arch/arm/mach-mx5/dma.c b/arch/arm/mach-mx5/dma.c
+index b79fab7..475d6df 100644
+--- a/arch/arm/mach-mx5/dma.c
++++ b/arch/arm/mach-mx5/dma.c
+@@ -1344,7 +1344,7 @@ static void __init mx53_sdma_get_script_info(sdma_script_start_addrs *sdma_scrip
+ 	sdma_script_addr->mxc_sdma_dptc_dvfs_addr = -1;
+ 
+ 	/* core */
+-	sdma_script_addr->mxc_sdma_start_addr = (unsigned short *)sdma_code;
++	sdma_script_addr->mxc_sdma_start_addr = (unsigned short *)sdma_code_mx53;
+ 	sdma_script_addr->mxc_sdma_ram_code_start_addr = RAM_CODE_START_ADDR_MX53;
+ 	sdma_script_addr->mxc_sdma_ram_code_size = RAM_CODE_SIZE_MX53;
+ }
+-- 
+1.5.4.4
+

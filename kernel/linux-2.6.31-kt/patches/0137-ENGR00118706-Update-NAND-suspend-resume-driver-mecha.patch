@@ -1,0 +1,64 @@
+From 8f6850c957153b874dc9d2e3dfaea82dcd137dd6 Mon Sep 17 00:00:00 2001
+From: Jason <r64343@freescale.com>
+Date: Tue, 24 Nov 2009 16:14:47 +0800
+Subject: [PATCH] ENGR00118706 Update NAND suspend-resume driver mechanism on 2.6.31 kernel
+
+Suspend then resume, kernel will print one warning message.
+This is due to mtd suspend/resume framework change on 2.6.31 kernel.
+Please refer to the follwing commit for detailed information
+commit 15bce40cb3133bcc07d548013df97e4653d363c1
+[MTD] Restore suspend/resume support for mtd devices
+
+Signed-off-by: Jason Liu <r64343@freescale.com>
+---
+ drivers/mtd/nand/mxc_nd2.c |   16 +++-------------
+ 1 files changed, 3 insertions(+), 13 deletions(-)
+
+diff --git a/drivers/mtd/nand/mxc_nd2.c b/drivers/mtd/nand/mxc_nd2.c
+index f53707a..470f799 100644
+--- a/drivers/mtd/nand/mxc_nd2.c
++++ b/drivers/mtd/nand/mxc_nd2.c
+@@ -1364,19 +1364,13 @@ static int __exit mxcnd_remove(struct platform_device *pdev)
+ static int mxcnd_suspend(struct platform_device *pdev, pm_message_t state)
+ {
+ 	struct mtd_info *info = platform_get_drvdata(pdev);
+-	int ret = 0;
+ 
+ 	DEBUG(MTD_DEBUG_LEVEL0, "MXC_ND2 : NAND suspend\n");
+-	if (info)
+-		ret = info->suspend(info);
+-
+-	/* Disable the NFC clock */
+-	clk_disable(nfc_clk);
+ 
+ 	/* Disable the NFC clock */
+ 	clk_disable(nfc_clk);
+ 
+-	return ret;
++	return 0;
+ }
+ 
+ /*!
+@@ -1391,17 +1385,13 @@ static int mxcnd_suspend(struct platform_device *pdev, pm_message_t state)
+ static int mxcnd_resume(struct platform_device *pdev)
+ {
+ 	struct mtd_info *info = platform_get_drvdata(pdev);
+-	int ret = 0;
+ 
+ 	DEBUG(MTD_DEBUG_LEVEL0, "MXC_ND2 : NAND resume\n");
++
+ 	/* Enable the NFC clock */
+ 	clk_enable(nfc_clk);
+ 
+-	if (info) {
+-		info->resume(info);
+-	}
+-
+-	return ret;
++	return 0;
+ }
+ 
+ #else
+-- 
+1.5.4.4
+

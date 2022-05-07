@@ -1,0 +1,66 @@
+From bc517907cdf9cbc14302273da4c3d4ff19527341 Mon Sep 17 00:00:00 2001
+From: b02241 <b02241@shlinux1.ap.freescale.net>
+Date: Tue, 17 Nov 2009 15:37:46 +0800
+Subject: [PATCH] ENGR00118029 i.mx233: fix resume issue
+
+fix system can not resume on 2.6.31 branch
+
+Signed-off-by: Zhou Jingyu <Jingyu.Zhou@freescale.com>
+---
+ arch/arm/mach-stmp378x/pm.c |   12 +++++++-----
+ 1 files changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/arch/arm/mach-stmp378x/pm.c b/arch/arm/mach-stmp378x/pm.c
+index ecb3c23..cbc5207 100644
+--- a/arch/arm/mach-stmp378x/pm.c
++++ b/arch/arm/mach-stmp378x/pm.c
+@@ -69,7 +69,9 @@ static void stmp378x_standby(void)
+ 	stmp3xxx_setl(BM_DRAM_CTL08_SREFRESH, REGS_DRAM_BASE + HW_DRAM_CTL08);
+ 
+ 	/* Gating EMI CLock */
+-	stmp3xxx_setl(BM_CLKCTRL_EMI_CLKGATE, REGS_CLKCTRL_BASE + HW_CLKCTRL_EMI);
++	__raw_writel(BM_CLKCTRL_EMI_CLKGATE |
++			__raw_readl(REGS_CLKCTRL_BASE + HW_CLKCTRL_EMI),
++			REGS_CLKCTRL_BASE + HW_CLKCTRL_EMI);
+ 
+ 	/* Disable PLL */
+ 	stmp3xxx_clearl(BM_CLKCTRL_PLLCTRL0_POWER, REGS_CLKCTRL_BASE + HW_CLKCTRL_PLLCTRL0);
+@@ -166,7 +168,9 @@ static void stmp378x_standby(void)
+ 	/* Enable PLL */
+ 	stmp3xxx_setl(BM_CLKCTRL_PLLCTRL0_POWER, REGS_CLKCTRL_BASE + HW_CLKCTRL_PLLCTRL0);
+ 	/* Ungating EMI CLock */
+-	stmp3xxx_clearl(BM_CLKCTRL_EMI_CLKGATE, REGS_CLKCTRL_BASE + HW_CLKCTRL_EMI);
++	__raw_writel(~BM_CLKCTRL_EMI_CLKGATE &
++			__raw_readl(REGS_CLKCTRL_BASE + HW_CLKCTRL_EMI),
++			REGS_CLKCTRL_BASE + HW_CLKCTRL_EMI);
+ 
+ 	/* LeaveSelfrefreshMode */
+ 	stmp3xxx_clearl(BM_DRAM_CTL08_SREFRESH, REGS_DRAM_BASE + HW_DRAM_CTL08);
+@@ -202,7 +206,7 @@ static inline void do_standby(void)
+ 	flush_cache_all();
+ 
+ 	/* copy suspend function into SRAM */
+-	memcpy((void *)STMP3XXX_OCRAM_BASE, stmp37xx_cpu_standby,
++	memcpy((void *)STMP3XXX_OCRAM_BASE, stmp378x_standby,
+ 			MAX_POWEROFF_CODE_SIZE);
+ 
+ 	/* now switch the CPU to ref_xtal */
+@@ -218,7 +222,6 @@ static inline void do_standby(void)
+ 		clk_set_parent(cpu_clk, osc_clk);
+ 	}
+ 
+-	local_irq_disable();
+ 	local_fiq_disable();
+ 
+ 	stmp3xxx_dma_suspend();
+@@ -272,7 +275,6 @@ static inline void do_standby(void)
+ 	stmp3xxx_dma_resume();
+ 
+ 	local_fiq_enable();
+-	local_irq_enable();
+ 
+ 	if (cpu_parent) {
+ 		clk_set_parent(cpu_clk, cpu_parent);
+-- 
+1.5.4.4
+

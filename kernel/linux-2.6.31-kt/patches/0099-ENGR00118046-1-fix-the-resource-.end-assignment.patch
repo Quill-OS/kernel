@@ -1,0 +1,124 @@
+From 7fd91b58a3b207f91cacd89edc69ce86b3eeec9d Mon Sep 17 00:00:00 2001
+From: Robby Cai <R63905@freescale.com>
+Date: Fri, 6 Nov 2009 13:55:44 +0800
+Subject: [PATCH] ENGR00118046-1 fix the resource .end assignment
+
+IIM resource has overlap with PXP resource
+Fix all potential conflict by this patch
+
+Signed-off-by: Robby Cai <R63905@freescale.com>
+---
+ arch/arm/mach-stmp378x/stmp378x.c |    6 +++---
+ arch/arm/plat-stmp3xxx/devices.c  |   16 ++++++++--------
+ 2 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/arch/arm/mach-stmp378x/stmp378x.c b/arch/arm/mach-stmp378x/stmp378x.c
+index eb418c6..32574d2 100644
+--- a/arch/arm/mach-stmp378x/stmp378x.c
++++ b/arch/arm/mach-stmp378x/stmp378x.c
+@@ -3,7 +3,7 @@
+  *
+  * Embedded Alley Solutions, Inc <source@embeddedalley.com>
+  *
+- * Copyright 2008 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
+  * Copyright 2008 Embedded Alley Solutions, Inc All Rights Reserved.
+  */
+ 
+@@ -248,7 +248,7 @@ static struct resource pxp_resource[] = {
+ 	{
+ 		.flags	= IORESOURCE_MEM,
+ 		.start	= REGS_PXP_PHYS,
+-		.end	= REGS_PXP_PHYS + REGS_PXP_SIZE,
++		.end	= REGS_PXP_PHYS + REGS_PXP_SIZE - 1,
+ 	}, {
+ 		.flags	= IORESOURCE_IRQ,
+ 		.start	= IRQ_PXP,
+@@ -275,7 +275,7 @@ static struct resource i2c_resources[] = {
+ 	}, {
+ 		.flags = IORESOURCE_MEM,
+ 		.start = REGS_I2C_PHYS,
+-		.end = REGS_I2C_PHYS + REGS_I2C_SIZE,
++		.end = REGS_I2C_PHYS + REGS_I2C_SIZE - 1,
+ 	}, {
+ 		.flags = IORESOURCE_DMA,
+ 		.start = STMP3XXX_DMA(3, STMP3XXX_BUS_APBX),
+diff --git a/arch/arm/plat-stmp3xxx/devices.c b/arch/arm/plat-stmp3xxx/devices.c
+index 406631a..37f00d9 100644
+--- a/arch/arm/plat-stmp3xxx/devices.c
++++ b/arch/arm/plat-stmp3xxx/devices.c
+@@ -3,7 +3,7 @@
+ *
+ * Embedded Alley Solutions, Inc <source@embeddedalley.com>
+ *
+-* Copyright 2008 Freescale Semiconductor, Inc. All Rights Reserved.
++* Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2008 Embedded Alley Solutions, Inc All Rights Reserved.
+ */
+ 
+@@ -57,7 +57,7 @@ static struct resource appuart_resources[] = {
+ 		.flags = IORESOURCE_IRQ,
+ 	}, {
+ 		.start = REGS_UARTAPP1_PHYS,
+-		.end = REGS_UARTAPP1_PHYS + REGS_UARTAPP_SIZE,
++		.end = REGS_UARTAPP1_PHYS + REGS_UARTAPP_SIZE - 1,
+ 		.flags = IORESOURCE_MEM,
+ 	}, {
+ 		/* Rx DMA channel */
+@@ -135,7 +135,7 @@ static struct resource gpmi_resources[] = {
+ 	{
+ 		.flags = IORESOURCE_MEM,
+ 		.start = REGS_GPMI_PHYS,
+-		.end = REGS_GPMI_PHYS + REGS_GPMI_SIZE,
++		.end = REGS_GPMI_PHYS + REGS_GPMI_SIZE - 1,
+ 	}, {
+ 		.flags = IORESOURCE_IRQ,
+ 		.start = IRQ_GPMI_DMA,
+@@ -162,7 +162,7 @@ static struct resource mmc1_resource[] = {
+ 	{
+ 		.flags	= IORESOURCE_MEM,
+ 		.start	= REGS_SSP1_PHYS,
+-		.end	= REGS_SSP1_PHYS + REGS_SSP_SIZE,
++		.end	= REGS_SSP1_PHYS + REGS_SSP_SIZE - 1,
+ 	}, {
+ 		.flags	= IORESOURCE_DMA,
+ 		.start	= STMP3XXX_DMA(1, STMP3XXX_BUS_APBH),
+@@ -192,7 +192,7 @@ struct platform_device stmp3xxx_mmc = {
+ static struct resource rtc_resources[] = {
+ 	{
+ 		.start	= REGS_RTC_PHYS,
+-		.end	= REGS_RTC_PHYS + REGS_RTC_SIZE,
++		.end	= REGS_RTC_PHYS + REGS_RTC_SIZE - 1,
+ 		.flags	= IORESOURCE_MEM,
+ 	}, {
+ 		.start	= IRQ_RTC_ALARM,
+@@ -215,7 +215,7 @@ struct platform_device stmp3xxx_rtc = {
+ static struct resource ssp1_resources[] = {
+ 	{
+ 		.start	= REGS_SSP1_PHYS,
+-		.end	= REGS_SSP1_PHYS + REGS_SSP_SIZE,
++		.end	= REGS_SSP1_PHYS + REGS_SSP_SIZE - 1,
+ 		.flags	= IORESOURCE_MEM,
+ 	}, {
+ 		.start	= IRQ_SSP1_DMA,
+@@ -231,7 +231,7 @@ static struct resource ssp1_resources[] = {
+ static struct resource ssp2_resources[] = {
+ 	{
+ 		.start	= REGS_SSP2_PHYS,
+-		.end	= REGS_SSP2_PHYS + REGS_SSP_SIZE,
++		.end	= REGS_SSP2_PHYS + REGS_SSP_SIZE - 1,
+ 		.flags	= IORESOURCE_MEM,
+ 	}, {
+ 		.start	= IRQ_SSP2_DMA,
+@@ -278,7 +278,7 @@ static struct resource fb_resource[] = {
+ 	}, {
+ 		.flags	= IORESOURCE_MEM,
+ 		.start	= REGS_LCDIF_PHYS,
+-		.end	= REGS_LCDIF_PHYS + REGS_LCDIF_SIZE,
++		.end	= REGS_LCDIF_PHYS + REGS_LCDIF_SIZE - 1,
+ 	},
+ };
+ 
+-- 
+1.5.4.4
+

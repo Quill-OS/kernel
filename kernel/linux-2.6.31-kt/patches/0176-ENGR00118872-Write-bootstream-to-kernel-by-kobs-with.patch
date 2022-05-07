@@ -1,0 +1,209 @@
+From 4483b16bda143ac78bf398aee1eb1ac53ae5c9f5 Mon Sep 17 00:00:00 2001
+From: Jason <r64343@freescale.com>
+Date: Tue, 8 Dec 2009 18:38:32 +0800
+Subject: [PATCH] ENGR00118872 Write bootstream to kernel by kobs with BCH ECC
+
+Write bootstream to kernel by kobs with BCH ECC.
+Using the same combined Metadata & Block 0 BCH layout
+with ROM code.
+
+Page size 2048B; spare area  64B => ECC8,  N=3, B0=512B, M=10B
+Page size 4096B; spare area 128B => ECC8,  N=7, B0=512B, M=10B
+Page size 4096B; spare area 218B => ECC16, N=7, B0=512B, M=10B
+
+Signed-off-by:Jason Liu <r64343@freescale.com>
+---
+ drivers/mtd/nand/gpmi/gpmi-base.c |   54 +++++++++++++++++++++++++-----------
+ drivers/mtd/nand/gpmi/gpmi-bch.c  |   14 +++++----
+ 2 files changed, 45 insertions(+), 23 deletions(-)
+
+diff --git a/drivers/mtd/nand/gpmi/gpmi-base.c b/drivers/mtd/nand/gpmi/gpmi-base.c
+index d2c10cc..035d2e6 100644
+--- a/drivers/mtd/nand/gpmi/gpmi-base.c
++++ b/drivers/mtd/nand/gpmi/gpmi-base.c
+@@ -160,7 +160,7 @@ static long clk = -1;
+  * hardware block for error correction.
+  */
+ 
+-static int bch = 0/* = 0 */;
++static int bch = 1;
+ 
+ /* Forward references. */
+ 
+@@ -1580,7 +1580,7 @@ int gpmi_ecc_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
+ 	ecc = g->raw_oob_mode == 0 && raw_mode == 0;
+ 
+ 	if (sndcmd) {
+-		if (!bch_mode())
++		if (!bch_mode() || !ecc)
+ 			oob_offset = mtd->writesize;
+ 		if (likely(ecc) && !bch_mode())
+ 			oob_offset += chip->ecc.bytes * chip->ecc.steps;
+@@ -1606,7 +1606,7 @@ int gpmi_ecc_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
+ 	if (map_buffers && bch_mode())
+ 		bufphys = dma_map_single(&g->dev->dev, chip->buffers->databuf,
+ 				mtd->writesize, DMA_FROM_DEVICE);
+-	if (dma_mapping_error(&g->dev->dev, bufphys))
++	if (bch_mode() && dma_mapping_error(&g->dev->dev, bufphys))
+ 		bufphys = g->data_buffer_handle;
+ 
+ 	/* ECC read */
+@@ -1657,8 +1657,8 @@ static int gpmi_ecc_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
+ {
+ 	int status = 0;
+ 	struct gpmi_nand_data *g = chip->priv;
+-	loff_t oob_offset;
+-	dma_addr_t oobphys;
++	loff_t oob_offset = 0;
++	dma_addr_t oobphys, bufphys;
+ 	int ecc;
+ 	int err = 0;
+ 
+@@ -1674,12 +1674,15 @@ static int gpmi_ecc_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
+ 	ecc = g->raw_oob_mode == 0 && raw_mode == 0;
+ 
+ 	/* Send command to start input data     */
+-	oob_offset = mtd->writesize;
+-	if (likely(ecc)) {
+-		oob_offset += chip->ecc.bytes * chip->ecc.steps;
+-		memset(chip->oob_poi + g->oob_free, 0xff,
+-		       mtd->oobsize - g->oob_free);
++	if (!bch_mode() || !ecc) {
++		oob_offset = mtd->writesize;
++		if (likely(ecc)) {
++			oob_offset += chip->ecc.bytes * chip->ecc.steps;
++			memset(chip->oob_poi + g->oob_free, 0xff,
++			       mtd->oobsize - g->oob_free);
++		}
+ 	}
++
+ 	chip->cmdfunc(mtd, NAND_CMD_SEQIN, oob_offset, page);
+ 
+ 	/* call ECC */
+@@ -1696,8 +1699,15 @@ static int gpmi_ecc_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
+ 			copies++;
+ 		}
+ 
++		bufphys = ~0;
++
++		if (bch_mode()) {
++			bufphys = g->data_buffer_handle;
++			memset(g->data_buffer, 0xff, mtd->writesize);
++		}
++
+ 		g->hc->write(g->hc, g->selected_chip, g->cchip->d,
+-			     g->cchip->error.handle, ~0, oobphys);
++			     g->cchip->error.handle, bufphys, oobphys);
+ 
+ 		err = gpmi_dma_exchange(g, NULL);
+ 	} else
+@@ -2101,6 +2111,7 @@ static int gpmi_get_device_info(struct gpmi_nand_data *g)
+ static int gpmi_scan_middle(struct gpmi_nand_data *g)
+ {
+ 	int oobsize = 0;
++	int index = 0;
+ 
+ 	/*
+ 	 * Hook the command function provided by the reference implementation.
+@@ -2134,6 +2145,10 @@ static int gpmi_scan_middle(struct gpmi_nand_data *g)
+ 
+ 	g->ecc_oob_bytes = 9;
+ 
++	/* correct mtd writesize setting */
++	g->mtd.writesize =
++	1 << (fls(g->device_info.page_total_size_in_bytes) - 1);
++
+ 	/* Look at the page size and configure appropriately. */
+ 
+ 	switch (g->mtd.writesize) {
+@@ -2151,7 +2166,9 @@ static int gpmi_scan_middle(struct gpmi_nand_data *g)
+ 		g->oob_free = 65;
+ 		g->hwecc_type_read = GPMI_ECC8_RD;
+ 		g->hwecc_type_write = GPMI_ECC8_WR;
+-		oobsize = 218;
++		oobsize =
++		g->device_info.page_total_size_in_bytes - g->mtd.writesize;
++
+ 		break;
+ 	default:
+ 		printk(KERN_ERR "Unsupported writesize %d.", g->mtd.writesize);
+@@ -2174,13 +2191,16 @@ static int gpmi_scan_middle(struct gpmi_nand_data *g)
+ 
+ 	if (oobsize > 0) {
+ 		g->mtd.oobsize = oobsize;
+-		/* otherwise error; oobsize should be set
+-		   in valid cases */
+-		if (!bch_mode())
++		if (!bch_mode()) {
+ 			g->hc = gpmi_ecc_find("ecc8");
+-		else
++			g->hc->setup(g->hc, 0,
++			g->mtd.writesize, g->mtd.oobsize);
++		} else {
+ 			g->hc = gpmi_ecc_find("bch");
+-		g->hc->setup(g->hc, 0, g->mtd.writesize, g->mtd.oobsize);
++			for (index = 0; index < g->nand.numchips; index++)
++				g->hc->setup(g->hc, index,
++				g->mtd.writesize, g->mtd.oobsize);
++		}
+ 		return 0;
+ 	}
+ 
+diff --git a/drivers/mtd/nand/gpmi/gpmi-bch.c b/drivers/mtd/nand/gpmi/gpmi-bch.c
+index b455581..6936e55 100644
+--- a/drivers/mtd/nand/gpmi/gpmi-bch.c
++++ b/drivers/mtd/nand/gpmi/gpmi-bch.c
+@@ -193,8 +193,8 @@ static int bch_setup(void *context, int index, int writesize, int oobsize)
+ 
+ 	switch (writesize) {
+ 	case 2048:
+-		ecc0 = 4;
+-		eccn = 4;
++		ecc0 = 8;
++		eccn = 8;
+ 		metasize = 10;
+ 		break;
+ 	case 4096:
+@@ -203,7 +203,7 @@ static int bch_setup(void *context, int index, int writesize, int oobsize)
+ 			eccn = 8;
+ 		} else {
+ 			ecc0 = 16;
+-			eccn = 14;
++			eccn = 16;
+ 		}
+ 
+ 		metasize = 10;
+@@ -220,10 +220,10 @@ static int bch_setup(void *context, int index, int writesize, int oobsize)
+ 	state->nands[index].ecc0 = ecc0;
+ 	state->nands[index].eccn = eccn;
+ 
+-	__raw_writel(BF(writesize/512, BCH_FLASH0LAYOUT0_NBLOCKS) |
++	__raw_writel(BF(writesize/512 - 1, BCH_FLASH0LAYOUT0_NBLOCKS) |
+ 		     BF(metasize, BCH_FLASH0LAYOUT0_META_SIZE) |
+ 		     BF(ecc0 >> 1, BCH_FLASH0LAYOUT0_ECC0) | /* for oob */
+-		     BF(0x00, BCH_FLASH0LAYOUT0_DATA0_SIZE), layout);
++		     BF(512, BCH_FLASH0LAYOUT0_DATA0_SIZE), layout);
+ 	__raw_writel(BF(writesize + oobsize, BCH_FLASH0LAYOUT1_PAGE_SIZE) |
+ 		     BF(eccn >> 1, BCH_FLASH0LAYOUT1_ECCN) | /* for dblock */
+ 		     BF(512, BCH_FLASH0LAYOUT1_DATAN_SIZE), layout + 0x10);
+@@ -409,6 +409,8 @@ static int bch_write(void *context,
+ 		BM_APBH_CHn_CMD_IRQONCMPLT      |
+ 		BF(BV_APBH_CHn_CMD_COMMAND__NO_DMA_XFER, APBH_CHn_CMD_COMMAND);
+ 
++	init_completion(&state->nands[index].done);
++
+ 	return 0;
+ }
+ 
+@@ -437,7 +439,7 @@ int __init bch_init(void)
+ 	if (err)
+ 		return err;
+ 
+-	printk(KERN_DEBUG"%s: initialized\n", __func__);
++	printk(KERN_INFO"%s: initialized\n", __func__);
+ 	return 0;
+ }
+ 
+-- 
+1.5.4.4
+

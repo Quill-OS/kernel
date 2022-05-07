@@ -1,0 +1,187 @@
+From 7f736a028f5d6cc985bd53d2082ae538cb995755 Mon Sep 17 00:00:00 2001
+From: Rob Herring <r.herring@freescale.com>
+Date: Tue, 15 Sep 2009 21:21:53 -0500
+Subject: [PATCH] cache-l2x0: cache enhancements
+
+Add flush all
+Add enable/disable
+Add Event bus
+
+Signed-off-by: Rob Herring <r.herring@freescale.com>
+---
+ arch/arm/include/asm/cacheflush.h          |    8 +++
+ arch/arm/include/asm/hardware/cache-l2x0.h |    2 +
+ arch/arm/mm/cache-l2x0.c                   |   81 ++++++++++++++++++++++++++++
+ 3 files changed, 91 insertions(+), 0 deletions(-)
+
+diff --git a/arch/arm/include/asm/cacheflush.h b/arch/arm/include/asm/cacheflush.h
+index 1a711ea..3d74a65 100644
+--- a/arch/arm/include/asm/cacheflush.h
++++ b/arch/arm/include/asm/cacheflush.h
+@@ -222,6 +222,7 @@ struct outer_cache_fns {
+ 	void (*inv_range)(unsigned long, unsigned long);
+ 	void (*clean_range)(unsigned long, unsigned long);
+ 	void (*flush_range)(unsigned long, unsigned long);
++	void (*flush_all)(void);
+ };
+ 
+ /*
+@@ -299,6 +300,11 @@ static inline void outer_flush_range(unsigned long start, unsigned long end)
+ 	if (outer_cache.flush_range)
+ 		outer_cache.flush_range(start, end);
+ }
++static inline void outer_flush_all(void)
++{
++	if (outer_cache.flush_all)
++		outer_cache.flush_all();
++}
+ 
+ #else
+ 
+@@ -308,6 +314,8 @@ static inline void outer_clean_range(unsigned long start, unsigned long end)
+ { }
+ static inline void outer_flush_range(unsigned long start, unsigned long end)
+ { }
++static inline void outer_flush_all(void)
++{ }
+ 
+ #endif
+ 
+diff --git a/arch/arm/include/asm/hardware/cache-l2x0.h b/arch/arm/include/asm/hardware/cache-l2x0.h
+index cdb9022..9344c69 100644
+--- a/arch/arm/include/asm/hardware/cache-l2x0.h
++++ b/arch/arm/include/asm/hardware/cache-l2x0.h
+@@ -53,6 +53,8 @@
+ 
+ #ifndef __ASSEMBLY__
+ extern void __init l2x0_init(void __iomem *base, __u32 aux_val, __u32 aux_mask);
++extern void l2x0_enable(void);
++extern void l2x0_disable(void);
+ #endif
+ 
+ #endif
+diff --git a/arch/arm/mm/cache-l2x0.c b/arch/arm/mm/cache-l2x0.c
+index b480f1d..ca69ff5 100644
+--- a/arch/arm/mm/cache-l2x0.c
++++ b/arch/arm/mm/cache-l2x0.c
+@@ -24,8 +24,16 @@
+ #include <asm/hardware/cache-l2x0.h>
+ 
+ #define CACHE_LINE_SIZE		32
++#ifdef CONFIG_OPROFILE_ARM11_EVTMON
++#include <linux/module.h>
++#define L2_ENABLE_BIT           0x1
++#define L2_EVTBUS_BIT           0x100000
++#define L2_CTL_REG              (l2x0_base + L2X0_CTRL)
++#define L2_AUX_REG              (l2x0_base + L2X0_AUX_CTRL)
++#endif
+ 
+ static void __iomem *l2x0_base;
++static unsigned long l2x0_aux;
+ static DEFINE_SPINLOCK(l2x0_lock);
+ 
+ static inline void sync_writel(unsigned long val, unsigned long reg,
+@@ -53,6 +61,13 @@ static inline void l2x0_inv_all(void)
+ 	cache_sync();
+ }
+ 
++static void l2x0_flush_all(void)
++{
++	/* clean and invalidate all ways */
++	sync_writel(0xff, L2X0_CLEAN_INV_WAY, 0xff);
++	cache_sync();
++}
++
+ static void l2x0_inv_range(unsigned long start, unsigned long end)
+ {
+ 	unsigned long addr;
+@@ -93,6 +108,49 @@ static void l2x0_flush_range(unsigned long start, unsigned long end)
+ 	cache_sync();
+ }
+ 
++#ifdef CONFIG_OPROFILE_ARM11_EVTMON
++/*!
++ * Enable the EVTBUS to monitor L2 cache events
++ */
++void l2x0_evtbus_enable(void)
++{
++        unsigned int flags;
++
++        local_irq_save(flags);
++	/* If L2 cache is enabled then disable L2 cache, enable L2 evtbus,
++	re-enable L2 cache */
++        if ((readl(L2_CTL_REG) & L2_ENABLE_BIT) != 0) {
++                writel(0, L2_CTL_REG);
++                writel((readl(L2_AUX_REG)| L2_EVTBUS_BIT), L2_AUX_REG);
++                writel(L2_ENABLE_BIT, L2_CTL_REG);
++        } else {
++                writel((readl(L2_AUX_REG)| L2_EVTBUS_BIT), L2_AUX_REG);
++        }
++        local_irq_restore(flags);
++}
++
++/*!
++ * Disable the EVTBUS
++ */
++void l2x0_evtbus_disable(void)
++{
++        unsigned int flags;
++
++        local_irq_save(flags);
++	/* If L2 cache is enabled then disable L2 cache, disable L2 evtbus,
++	re-enable L2 cache */
++        if ((readl(L2_CTL_REG) & L2_ENABLE_BIT) != 0) {
++                writel(0, L2_CTL_REG);
++                writel((readl(L2_AUX_REG)& ~L2_EVTBUS_BIT), L2_AUX_REG);
++                writel(L2_ENABLE_BIT, L2_CTL_REG);
++        } else {
++                writel((readl(L2_AUX_REG)& ~L2_EVTBUS_BIT), L2_AUX_REG);
++        }
++        local_irq_restore(flags);
++}
++EXPORT_SYMBOL(l2x0_evtbus_enable);
++EXPORT_SYMBOL(l2x0_evtbus_disable);
++#endif
+ void __init l2x0_init(void __iomem *base, __u32 aux_val, __u32 aux_mask)
+ {
+ 	__u32 aux;
+@@ -105,6 +163,7 @@ void __init l2x0_init(void __iomem *base, __u32 aux_val, __u32 aux_mask)
+ 	aux = readl(l2x0_base + L2X0_AUX_CTRL);
+ 	aux &= aux_mask;
+ 	aux |= aux_val;
++	l2x0_aux = aux;
+ 	writel(aux, l2x0_base + L2X0_AUX_CTRL);
+ 
+ 	l2x0_inv_all();
+@@ -115,6 +174,28 @@ void __init l2x0_init(void __iomem *base, __u32 aux_val, __u32 aux_mask)
+ 	outer_cache.inv_range = l2x0_inv_range;
+ 	outer_cache.clean_range = l2x0_clean_range;
+ 	outer_cache.flush_range = l2x0_flush_range;
++	outer_cache.flush_all = l2x0_flush_all;
+ 
+ 	printk(KERN_INFO "L2X0 cache controller enabled\n");
+ }
++EXPORT_SYMBOL(outer_cache);
++
++void l2x0_disable(void)
++{
++	if (readl(l2x0_base + L2X0_CTRL)
++	    && !(readl(l2x0_base + L2X0_DEBUG_CTRL) & 0x2)) {
++		l2x0_flush_all();
++		writel(0, l2x0_base + L2X0_CTRL);
++		l2x0_flush_all();
++	}
++}
++
++void l2x0_enable(void)
++{
++	if (!readl(l2x0_base + L2X0_CTRL)) {
++		writel(l2x0_aux, l2x0_base + L2X0_AUX_CTRL);
++		l2x0_inv_all();
++		/* enable L2X0 */
++		writel(1, l2x0_base + L2X0_CTRL);
++	}
++}
+-- 
+1.5.4.4
+

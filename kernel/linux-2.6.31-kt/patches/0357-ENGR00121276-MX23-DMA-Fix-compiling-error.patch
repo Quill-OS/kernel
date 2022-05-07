@@ -1,0 +1,40 @@
+From 2ba5248200ea0e79fcb6d0538acab584b828a907 Mon Sep 17 00:00:00 2001
+From: Lionel Xu <Lionel.Xu@freescale.com>
+Date: Thu, 4 Mar 2010 11:10:54 +0800
+Subject: [PATCH] ENGR00121276 MX23 DMA: Fix compiling error
+
+Fix compiling error on mx23 evk
+
+Signed-off-by: Lionel Xu <Lionel.Xu@freescale.com>
+---
+ arch/arm/plat-mxs/dma-apbh.c |    1 +
+ arch/arm/plat-mxs/dma-apbx.c |    1 +
+ 2 files changed, 2 insertions(+), 0 deletions(-)
+
+diff --git a/arch/arm/plat-mxs/dma-apbh.c b/arch/arm/plat-mxs/dma-apbh.c
+index 7689f8e..6b04287 100644
+--- a/arch/arm/plat-mxs/dma-apbh.c
++++ b/arch/arm/plat-mxs/dma-apbh.c
+@@ -26,6 +26,7 @@
+ #include <linux/delay.h>
+ #include <linux/io.h>
+ 
++#include <mach/hardware.h>
+ #include <mach/device.h>
+ #include <mach/dmaengine.h>
+ 
+diff --git a/arch/arm/plat-mxs/dma-apbx.c b/arch/arm/plat-mxs/dma-apbx.c
+index b38298b..cb86538 100644
+--- a/arch/arm/plat-mxs/dma-apbx.c
++++ b/arch/arm/plat-mxs/dma-apbx.c
+@@ -26,6 +26,7 @@
+ #include <linux/delay.h>
+ #include <linux/io.h>
+ 
++#include <mach/hardware.h>
+ #include <mach/device.h>
+ #include <mach/dmaengine.h>
+ 
+-- 
+1.5.4.4
+

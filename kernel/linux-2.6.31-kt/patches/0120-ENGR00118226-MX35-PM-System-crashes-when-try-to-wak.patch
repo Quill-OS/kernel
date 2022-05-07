@@ -1,0 +1,39 @@
+From 161002cda0ea134e71c4c903159a2d570bfcab8d Mon Sep 17 00:00:00 2001
+From: William Lai <b04597@freescale.com>
+Date: Mon, 16 Nov 2009 11:34:42 +0800
+Subject: [PATCH] ENGR00118226 MX35 PM: System crashes when try to wake up from standby
+
+The ak4647_codec is not initialized as there is no ak4647 codec existing
+on MX35 board. In the 31 kernel, the card and codec drivers are
+registered separately, and there is no check whether the codec is probed
+successfully or not. On MX35 board, the card is sucessfully registered,
+but there is no ak4647 codec. In this case, the system will crash if the
+system try to invoke the codec's resume function.
+To resolve the problem, add a check in registering the card. If the
+codec does not exist, give up registering the card either.
+
+Signed-off-by: William Lai <b04597@freescale.com>
+---
+ sound/soc/imx/imx-3stack-ak4647.c |    6 ++++++
+ 1 files changed, 6 insertions(+), 0 deletions(-)
+
+diff --git a/sound/soc/imx/imx-3stack-ak4647.c b/sound/soc/imx/imx-3stack-ak4647.c
+index bb3606c..fd595c1 100644
+--- a/sound/soc/imx/imx-3stack-ak4647.c
++++ b/sound/soc/imx/imx-3stack-ak4647.c
+@@ -412,6 +412,12 @@ static int __init imx_3stack_asoc_init(void)
+ 	ret = platform_driver_register(&imx_3stack_ak4647_driver);
+ 	if (ret < 0)
+ 		goto exit;
++
++	if (snd_soc_card_imx_3stack.codec == NULL) {
++		ret = -ENOMEM;
++		goto err_device_alloc;
++	}
++
+ 	imx_3stack_snd_device = platform_device_alloc("soc-audio", 3);
+ 	if (!imx_3stack_snd_device)
+ 		goto err_device_alloc;
+-- 
+1.5.4.4
+

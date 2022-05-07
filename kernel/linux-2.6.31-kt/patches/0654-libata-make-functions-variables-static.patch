@@ -1,0 +1,50 @@
+From 9c3992bacdebc856ac4db7a2655494bee4b86942 Mon Sep 17 00:00:00 2001
+From: Robert Hancock <hancockrwd@gmail.com>
+Date: Tue, 19 Jan 2010 23:03:39 -0600
+Subject: [PATCH] libata: make functions/variables static
+
+Make some variables in ahci and a function in pata_pcmcia static, as found
+using sparse.
+
+Signed-off-by: Robert Hancock <hancockrwd@gmail.com>
+Signed-off-by: Jeff Garzik <jgarzik@redhat.com>
+---
+ drivers/ata/ahci.c        |    8 ++++----
+ drivers/ata/pata_pcmcia.c |    2 +-
+ 2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/ata/ahci.c b/drivers/ata/ahci.c
+index b4b47d6..64e6418 100644
+--- a/drivers/ata/ahci.c
++++ b/drivers/ata/ahci.c
+@@ -375,10 +375,10 @@ static ssize_t ahci_show_host_version(struct device *dev,
+ static ssize_t ahci_show_port_cmd(struct device *dev,
+ 				  struct device_attribute *attr, char *buf);
+ 
+-DEVICE_ATTR(ahci_host_caps, S_IRUGO, ahci_show_host_caps, NULL);
+-DEVICE_ATTR(ahci_host_cap2, S_IRUGO, ahci_show_host_cap2, NULL);
+-DEVICE_ATTR(ahci_host_version, S_IRUGO, ahci_show_host_version, NULL);
+-DEVICE_ATTR(ahci_port_cmd, S_IRUGO, ahci_show_port_cmd, NULL);
++static DEVICE_ATTR(ahci_host_caps, S_IRUGO, ahci_show_host_caps, NULL);
++static DEVICE_ATTR(ahci_host_cap2, S_IRUGO, ahci_show_host_cap2, NULL);
++static DEVICE_ATTR(ahci_host_version, S_IRUGO, ahci_show_host_version, NULL);
++static DEVICE_ATTR(ahci_port_cmd, S_IRUGO, ahci_show_port_cmd, NULL);
+ 
+ static struct device_attribute *ahci_shost_attrs[] = {
+ 	&dev_attr_link_power_management_policy,
+diff --git a/drivers/ata/pata_pcmcia.c b/drivers/ata/pata_pcmcia.c
+index dc99e26..c4647f5 100644
+--- a/drivers/ata/pata_pcmcia.c
++++ b/drivers/ata/pata_pcmcia.c
+@@ -136,7 +136,7 @@ static unsigned int ata_data_xfer_8bit(struct ata_device *dev,
+  *
+  */
+  
+-void pcmcia_8bit_drain_fifo(struct ata_queued_cmd *qc)
++static void pcmcia_8bit_drain_fifo(struct ata_queued_cmd *qc)
+ {
+ 	int count;
+ 	struct ata_port *ap;
+-- 
+1.5.4.4
+

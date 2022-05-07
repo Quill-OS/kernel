@@ -1,0 +1,553 @@
+From d59f2d59efa43d0ad0fa83199c2b17353745ec05 Mon Sep 17 00:00:00 2001
+From: Zhou Jingyu <b02241@shlinux1.ap.freescale.net>
+Date: Mon, 25 Jan 2010 17:13:38 +0800
+Subject: [PATCH] ENGR00117729-1 rename imx28 backlight
+
+rename imx28 backlight
+
+Signed-off-by: Zhou Jingyu <Jingyu.Zhou@freescale.com>
+---
+ arch/arm/mach-mx28/include/mach/regs-pwm.h |  147 +++++++++++
+ drivers/video/backlight/mxs_bl.c           |  378 ++++++++++++++++++++++++++++
+ 2 files changed, 525 insertions(+), 0 deletions(-)
+
+diff --git a/arch/arm/mach-mx28/include/mach/regs-pwm.h b/arch/arm/mach-mx28/include/mach/regs-pwm.h
+new file mode 100644
+index 0000000..431bda9
+--- /dev/null
++++ b/arch/arm/mach-mx28/include/mach/regs-pwm.h
+@@ -0,0 +1,147 @@
++/*
++ * Freescale PWM Register Definitions
++ *
++ * Copyright 2010 Freescale Semiconductor, Inc. All Rights Reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
++ *
++ * This file is created by xml file. Don't Edit it.
++ *
++ * Xml Revision: 1.30
++ * Template revision: 26195
++ */
++
++#ifndef __ARCH_ARM___PWM_H
++#define __ARCH_ARM___PWM_H
++
++#include <mach/mx28.h>
++
++#define REGS_PWM_BASE IO_ADDRESS(PWM_PHYS_ADDR)
++#define REGS_PWM_PHYS (0x80064000)
++#define REGS_PWM_SIZE 0x00002000
++
++#define HW_PWM_CTRL	(0x00000000)
++#define HW_PWM_CTRL_SET	(0x00000004)
++#define HW_PWM_CTRL_CLR	(0x00000008)
++#define HW_PWM_CTRL_TOG	(0x0000000c)
++
++#define BM_PWM_CTRL_SFTRST	0x80000000
++#define BM_PWM_CTRL_CLKGATE	0x40000000
++#define BM_PWM_CTRL_PWM7_PRESENT	0x20000000
++#define BM_PWM_CTRL_PWM6_PRESENT	0x10000000
++#define BM_PWM_CTRL_PWM5_PRESENT	0x08000000
++#define BM_PWM_CTRL_PWM4_PRESENT	0x04000000
++#define BM_PWM_CTRL_PWM3_PRESENT	0x02000000
++#define BM_PWM_CTRL_PWM2_PRESENT	0x01000000
++#define BM_PWM_CTRL_PWM1_PRESENT	0x00800000
++#define BM_PWM_CTRL_PWM0_PRESENT	0x00400000
++#define BP_PWM_CTRL_RSRVD1	10
++#define BM_PWM_CTRL_RSRVD1	0x003FFC00
++#define BF_PWM_CTRL_RSRVD1(v)  \
++		(((v) << 10) & BM_PWM_CTRL_RSRVD1)
++#define BM_PWM_CTRL_OUTPUT_CUTOFF_EN	0x00000200
++#define BM_PWM_CTRL_RSRVD2	0x00000100
++#define BM_PWM_CTRL_PWM7_ENABLE	0x00000080
++#define BM_PWM_CTRL_PWM6_ENABLE	0x00000040
++#define BM_PWM_CTRL_PWM5_ENABLE	0x00000020
++#define BM_PWM_CTRL_PWM4_ENABLE	0x00000010
++#define BM_PWM_CTRL_PWM3_ENABLE	0x00000008
++#define BM_PWM_CTRL_PWM2_ENABLE	0x00000004
++#define BM_PWM_CTRL_PWM1_ENABLE	0x00000002
++#define BM_PWM_CTRL_PWM0_ENABLE	0x00000001
++
++/*
++ *  multi-register-define name HW_PWM_ACTIVEn
++ *              base 0x00000010
++ *              count 8
++ *              offset 0x20
++ */
++#define HW_PWM_ACTIVEn(n)	(0x00000010 + (n) * 0x20)
++#define HW_PWM_ACTIVEn_SET(n)	(0x00000014 + (n) * 0x20)
++#define HW_PWM_ACTIVEn_CLR(n)	(0x00000018 + (n) * 0x20)
++#define HW_PWM_ACTIVEn_TOG(n)	(0x0000001c + (n) * 0x20)
++#define BP_PWM_ACTIVEn_INACTIVE	16
++#define BM_PWM_ACTIVEn_INACTIVE	0xFFFF0000
++#define BF_PWM_ACTIVEn_INACTIVE(v) \
++		(((v) << 16) & BM_PWM_ACTIVEn_INACTIVE)
++#define BP_PWM_ACTIVEn_ACTIVE	0
++#define BM_PWM_ACTIVEn_ACTIVE	0x0000FFFF
++#define BF_PWM_ACTIVEn_ACTIVE(v)  \
++		(((v) << 0) & BM_PWM_ACTIVEn_ACTIVE)
++
++/*
++ *  multi-register-define name HW_PWM_PERIODn
++ *              base 0x00000020
++ *              count 8
++ *              offset 0x20
++ */
++#define HW_PWM_PERIODn(n)	(0x00000020 + (n) * 0x20)
++#define HW_PWM_PERIODn_SET(n)	(0x00000024 + (n) * 0x20)
++#define HW_PWM_PERIODn_CLR(n)	(0x00000028 + (n) * 0x20)
++#define HW_PWM_PERIODn_TOG(n)	(0x0000002c + (n) * 0x20)
++#define BP_PWM_PERIODn_RSRVD2	27
++#define BM_PWM_PERIODn_RSRVD2	0xF8000000
++#define BF_PWM_PERIODn_RSRVD2(v) \
++		(((v) << 27) & BM_PWM_PERIODn_RSRVD2)
++#define BM_PWM_PERIODn_HSADC_OUT	0x04000000
++#define BM_PWM_PERIODn_HSADC_CLK_SEL	0x02000000
++#define BM_PWM_PERIODn_MATT_SEL	0x01000000
++#define BM_PWM_PERIODn_MATT	0x00800000
++#define BP_PWM_PERIODn_CDIV	20
++#define BM_PWM_PERIODn_CDIV	0x00700000
++#define BF_PWM_PERIODn_CDIV(v)  \
++		(((v) << 20) & BM_PWM_PERIODn_CDIV)
++#define BV_PWM_PERIODn_CDIV__DIV_1    0x0
++#define BV_PWM_PERIODn_CDIV__DIV_2    0x1
++#define BV_PWM_PERIODn_CDIV__DIV_4    0x2
++#define BV_PWM_PERIODn_CDIV__DIV_8    0x3
++#define BV_PWM_PERIODn_CDIV__DIV_16   0x4
++#define BV_PWM_PERIODn_CDIV__DIV_64   0x5
++#define BV_PWM_PERIODn_CDIV__DIV_256  0x6
++#define BV_PWM_PERIODn_CDIV__DIV_1024 0x7
++#define BP_PWM_PERIODn_INACTIVE_STATE	18
++#define BM_PWM_PERIODn_INACTIVE_STATE	0x000C0000
++#define BF_PWM_PERIODn_INACTIVE_STATE(v)  \
++		(((v) << 18) & BM_PWM_PERIODn_INACTIVE_STATE)
++#define BV_PWM_PERIODn_INACTIVE_STATE__HI_Z 0x0
++#define BV_PWM_PERIODn_INACTIVE_STATE__0    0x2
++#define BV_PWM_PERIODn_INACTIVE_STATE__1    0x3
++#define BP_PWM_PERIODn_ACTIVE_STATE	16
++#define BM_PWM_PERIODn_ACTIVE_STATE	0x00030000
++#define BF_PWM_PERIODn_ACTIVE_STATE(v)  \
++		(((v) << 16) & BM_PWM_PERIODn_ACTIVE_STATE)
++#define BV_PWM_PERIODn_ACTIVE_STATE__HI_Z 0x0
++#define BV_PWM_PERIODn_ACTIVE_STATE__0    0x2
++#define BV_PWM_PERIODn_ACTIVE_STATE__1    0x3
++#define BP_PWM_PERIODn_PERIOD	0
++#define BM_PWM_PERIODn_PERIOD	0x0000FFFF
++#define BF_PWM_PERIODn_PERIOD(v)  \
++		(((v) << 0) & BM_PWM_PERIODn_PERIOD)
++
++#define HW_PWM_VERSION	(0x00000110)
++
++#define BP_PWM_VERSION_MAJOR	24
++#define BM_PWM_VERSION_MAJOR	0xFF000000
++#define BF_PWM_VERSION_MAJOR(v) \
++		(((v) << 24) & BM_PWM_VERSION_MAJOR)
++#define BP_PWM_VERSION_MINOR	16
++#define BM_PWM_VERSION_MINOR	0x00FF0000
++#define BF_PWM_VERSION_MINOR(v)  \
++		(((v) << 16) & BM_PWM_VERSION_MINOR)
++#define BP_PWM_VERSION_STEP	0
++#define BM_PWM_VERSION_STEP	0x0000FFFF
++#define BF_PWM_VERSION_STEP(v)  \
++		(((v) << 0) & BM_PWM_VERSION_STEP)
++#endif /* __ARCH_ARM___PWM_H */
+diff --git a/drivers/video/backlight/mxs_bl.c b/drivers/video/backlight/mxs_bl.c
+new file mode 100644
+index 0000000..e39b3d9
+--- /dev/null
++++ b/drivers/video/backlight/mxs_bl.c
+@@ -0,0 +1,378 @@
++/*
++ * Backlight Driver for Freescale STMP37XX/STMP378X
++ *
++ * Embedded Alley Solutions, Inc <source@embeddedalley.com>
++ *
++ * Copyright 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2008 Embedded Alley Solutions, Inc All Rights Reserved.
++ */
++
++/*
++ * The code contained herein is licensed under the GNU General Public
++ * License. You may obtain a copy of the GNU General Public License
++ * Version 2 or later at the following locations:
++ *
++ * http://www.opensource.org/licenses/gpl-license.html
++ * http://www.gnu.org/copyleft/gpl.html
++ */
++#include <linux/module.h>
++#include <linux/kernel.h>
++#include <linux/init.h>
++#include <linux/platform_device.h>
++#include <linux/spinlock.h>
++#include <linux/fb.h>
++#include <linux/backlight.h>
++#include <linux/clk.h>
++#include <linux/io.h>
++#include <linux/delay.h>
++#include <linux/regulator/consumer.h>
++
++#include <mach/lcdif.h>
++#include <mach/regulator.h>
++
++struct stmp3xxx_bl_data {
++	struct notifier_block nb;
++	struct notifier_block reg_nb;
++	struct notifier_block reg_init_nb;
++	struct backlight_device *bd;
++	struct stmp3xxx_platform_bl_data *pdata;
++	int current_intensity;
++	int saved_intensity;
++	int stmp3xxxbl_suspended;
++	int stmp3xxxbl_constrained;
++};
++
++static int stmp3xxxbl_do_probe(struct stmp3xxx_bl_data *data,
++		struct stmp3xxx_platform_bl_data *pdata);
++static int stmp3xxxbl_set_intensity(struct backlight_device *bd);
++static inline void bl_register_reg(struct stmp3xxx_platform_bl_data *pdata,
++				   struct stmp3xxx_bl_data *data);
++
++
++/*
++ * If we got here init is done
++ */
++static int bl_init_reg_callback(struct notifier_block *self,
++			unsigned long event, void *data)
++{
++	struct stmp3xxx_bl_data *bdata;
++	struct stmp3xxx_platform_bl_data *pdata;
++	struct regulator *r = regulator_get(NULL, "stmp3xxx-bl-1");
++
++	bdata = container_of(self, struct stmp3xxx_bl_data, reg_init_nb);
++	pdata = bdata->pdata;
++
++	if (r && !IS_ERR(r))
++		regulator_put(r);
++	else
++		goto out;
++
++	bl_register_reg(pdata, bdata);
++
++	if (pdata->regulator) {
++
++		printk(KERN_NOTICE"%s: setting intensity\n", __func__);
++
++		bus_unregister_notifier(&platform_bus_type,
++					&bdata->reg_init_nb);
++		mutex_lock(&bdata->bd->ops_lock);
++		stmp3xxxbl_set_intensity(bdata->bd);
++		mutex_unlock(&bdata->bd->ops_lock);
++	}
++
++out:
++	return 0;
++}
++
++static int bl_reg_callback(struct notifier_block *self,
++			unsigned long event, void *data)
++{
++	struct stmp3xxx_bl_data *bdata;
++	struct stmp3xxx_platform_bl_data *pdata;
++	bdata = container_of(self, struct stmp3xxx_bl_data, reg_nb);
++	pdata = bdata->pdata;
++
++	mutex_lock(&bdata->bd->ops_lock);
++
++	switch (event) {
++	case STMP3XXX_REG5V_IS_USB:
++		bdata->bd->props.max_brightness = pdata->bl_cons_intensity;
++		bdata->bd->props.brightness = pdata->bl_cons_intensity;
++		bdata->saved_intensity = bdata->current_intensity;
++		bdata->stmp3xxxbl_constrained = 1;
++		break;
++	case STMP3XXX_REG5V_NOT_USB:
++		bdata->bd->props.max_brightness = pdata->bl_max_intensity;
++		bdata->bd->props.brightness = bdata->saved_intensity;
++		bdata->stmp3xxxbl_constrained = 0;
++		break;
++	}
++
++	stmp3xxxbl_set_intensity(bdata->bd);
++	mutex_unlock(&bdata->bd->ops_lock);
++	return 0;
++}
++
++static inline void bl_unregister_reg(struct stmp3xxx_platform_bl_data *pdata,
++				  struct stmp3xxx_bl_data *data)
++{
++	if (!pdata)
++		return;
++	if (pdata->regulator)
++		regulator_unregister_notifier(pdata->regulator,
++					    &data->reg_nb);
++	if (pdata->regulator)
++		regulator_put(pdata->regulator);
++	pdata->regulator = NULL;
++}
++
++static inline void bl_register_reg(struct stmp3xxx_platform_bl_data *pdata,
++				   struct stmp3xxx_bl_data *data)
++{
++	pdata->regulator = regulator_get(NULL, "stmp3xxx-bl-1");
++	if (pdata->regulator && !IS_ERR(pdata->regulator)) {
++		regulator_set_mode(pdata->regulator, REGULATOR_MODE_FAST);
++		if (pdata->regulator) {
++			data->reg_nb.notifier_call = bl_reg_callback;
++			regulator_register_notifier(pdata->regulator,
++						    &data->reg_nb);
++		}
++	} else{
++		printk(KERN_ERR "%s: failed to get regulator\n", __func__);
++		pdata->regulator = NULL;
++	}
++
++}
++
++static int bl_callback(struct notifier_block *self,
++		       unsigned long event, void *data)
++{
++	struct stmp3xxx_platform_fb_entry *pentry = data;
++	struct stmp3xxx_bl_data *bdata;
++	struct stmp3xxx_platform_bl_data *pdata;
++
++	switch (event) {
++	case STMP3XXX_LCDIF_PANEL_INIT:
++		bdata = container_of(self, struct stmp3xxx_bl_data, nb);
++		pdata = pentry->bl_data;
++		bdata->pdata = pdata;
++		if (pdata) {
++			bl_register_reg(pdata, bdata);
++			if (!pdata->regulator) {
++				/* wait for regulator to appear */
++				bdata->reg_init_nb.notifier_call =
++						bl_init_reg_callback;
++				bus_register_notifier(&platform_bus_type,
++						      &bdata->reg_init_nb);
++			}
++			return stmp3xxxbl_do_probe(bdata, pdata);
++		}
++		break;
++
++	case STMP3XXX_LCDIF_PANEL_RELEASE:
++		bdata = container_of(self, struct stmp3xxx_bl_data, nb);
++		pdata = pentry->bl_data;
++		if (pdata) {
++			bus_unregister_notifier(&platform_bus_type,
++						&bdata->reg_init_nb);
++			bl_unregister_reg(pdata, bdata);
++			pdata->free_bl(pdata);
++		}
++		bdata->pdata = NULL;
++		break;
++	}
++	return 0;
++}
++
++#ifdef CONFIG_PM
++static int stmp3xxxbl_suspend(struct platform_device *pdev, pm_message_t state)
++{
++	struct stmp3xxx_bl_data *data = platform_get_drvdata(pdev);
++	struct stmp3xxx_platform_bl_data *pdata = data->pdata;
++
++	data->stmp3xxxbl_suspended = 1;
++	if (pdata) {
++		dev_dbg(&pdev->dev, "real suspend\n");
++		stmp3xxxbl_set_intensity(data->bd);
++	}
++	return 0;
++}
++
++static int stmp3xxxbl_resume(struct platform_device *pdev)
++{
++	struct stmp3xxx_bl_data *data = platform_get_drvdata(pdev);
++	struct stmp3xxx_platform_bl_data *pdata = data->pdata;
++	int ret = 0;
++
++	data->stmp3xxxbl_suspended = 0;
++	if (pdata) {
++		dev_dbg(&pdev->dev, "real resume\n");
++		pdata->free_bl(pdata);
++		ret = pdata->init_bl(pdata);
++		if (ret)
++			goto out;
++		stmp3xxxbl_set_intensity(data->bd);
++	}
++out:
++	return ret;
++}
++#else
++#define stmp3xxxbl_suspend	NULL
++#define stmp3xxxbl_resume	NULL
++#endif
++/*
++ *  This function should be called with bd->ops_lock held
++ *  Suspend/resume ?
++ */
++static int stmp3xxxbl_set_intensity(struct backlight_device *bd)
++{
++	struct platform_device *pdev = dev_get_drvdata(&bd->dev);
++	struct stmp3xxx_bl_data *data = platform_get_drvdata(pdev);
++	struct stmp3xxx_platform_bl_data *pdata = data->pdata;
++
++	if (pdata) {
++		int ret;
++
++		ret = pdata->set_bl_intensity(pdata, bd,
++					      data->stmp3xxxbl_suspended);
++		if (ret)
++			bd->props.brightness = data->current_intensity;
++		else
++			data->current_intensity = bd->props.brightness;
++		return ret;
++	} else
++		return -ENODEV;
++}
++
++static int stmp3xxxbl_get_intensity(struct backlight_device *bd)
++{
++	struct platform_device *pdev = dev_get_drvdata(&bd->dev);
++	struct stmp3xxx_bl_data *data = platform_get_drvdata(pdev);
++
++	return data->current_intensity;
++}
++
++static struct backlight_ops stmp3xxxbl_ops = {
++	.get_brightness = stmp3xxxbl_get_intensity,
++	.update_status  = stmp3xxxbl_set_intensity,
++};
++
++static int stmp3xxxbl_do_probe(struct stmp3xxx_bl_data *data,
++		struct stmp3xxx_platform_bl_data *pdata)
++{
++	int ret = pdata->init_bl(pdata);
++
++	if (ret)
++		goto out;
++
++	data->bd->props.power = FB_BLANK_UNBLANK;
++	data->bd->props.fb_blank = FB_BLANK_UNBLANK;
++	if (data->stmp3xxxbl_constrained) {
++		data->bd->props.max_brightness = pdata->bl_cons_intensity;
++		data->bd->props.brightness = pdata->bl_cons_intensity;
++	} else {
++		data->bd->props.max_brightness = pdata->bl_max_intensity;
++		data->bd->props.brightness = pdata->bl_default_intensity;
++	}
++
++	data->pdata = pdata;
++	stmp3xxxbl_set_intensity(data->bd);
++
++out:
++	return ret;
++}
++
++static int __init stmp3xxxbl_probe(struct platform_device *pdev)
++{
++	struct stmp3xxx_bl_data *data;
++	struct stmp3xxx_platform_bl_data *pdata = pdev->dev.platform_data;
++	int ret = 0;
++
++	data = kzalloc(sizeof(*data), GFP_KERNEL);
++	if (!data) {
++		ret = -ENOMEM;
++		goto out;
++	}
++	data->bd = backlight_device_register(pdev->name, &pdev->dev, pdev,
++					&stmp3xxxbl_ops);
++	if (IS_ERR(data->bd)) {
++		ret = PTR_ERR(data->bd);
++		goto out_1;
++	}
++
++	get_device(&pdev->dev);
++
++	data->nb.notifier_call = bl_callback;
++	stmp3xxx_lcdif_register_client(&data->nb);
++	platform_set_drvdata(pdev, data);
++
++	if (pdata) {
++		ret = stmp3xxxbl_do_probe(data, pdata);
++		if (ret)
++			goto out_2;
++	}
++
++	goto out;
++
++out_2:
++	put_device(&pdev->dev);
++out_1:
++	kfree(data);
++out:
++	return ret;
++}
++
++static int stmp3xxxbl_remove(struct platform_device *pdev)
++{
++	struct stmp3xxx_platform_bl_data *pdata = pdev->dev.platform_data;
++	struct stmp3xxx_bl_data *data = platform_get_drvdata(pdev);
++	struct backlight_device *bd = data->bd;
++
++	bd->props.power = FB_BLANK_POWERDOWN;
++	bd->props.fb_blank = FB_BLANK_POWERDOWN;
++	bd->props.brightness = 0;
++	data->current_intensity = bd->props.brightness;
++
++	if (pdata) {
++		pdata->set_bl_intensity(pdata, bd, data->stmp3xxxbl_suspended);
++		if (pdata->free_bl)
++			pdata->free_bl(pdata);
++	}
++	backlight_device_unregister(bd);
++	if (pdata->regulator)
++		regulator_put(pdata->regulator);
++	put_device(&pdev->dev);
++	platform_set_drvdata(pdev, NULL);
++	stmp3xxx_lcdif_unregister_client(&data->nb);
++	kfree(data);
++
++	return 0;
++}
++
++static struct platform_driver stmp3xxxbl_driver = {
++	.probe		= stmp3xxxbl_probe,
++	.remove		= __devexit_p(stmp3xxxbl_remove),
++	.suspend	= stmp3xxxbl_suspend,
++	.resume		= stmp3xxxbl_resume,
++	.driver		= {
++		.name	= "stmp3xxx-bl",
++		.owner	= THIS_MODULE,
++	},
++};
++
++static int __init stmp3xxx_init(void)
++{
++	return platform_driver_register(&stmp3xxxbl_driver);
++}
++
++static void __exit stmp3xxx_exit(void)
++{
++	platform_driver_unregister(&stmp3xxxbl_driver);
++}
++
++module_init(stmp3xxx_init);
++module_exit(stmp3xxx_exit);
++
++MODULE_AUTHOR("Embedded Alley Solutions, Inc <sources@embeddedalley.com>");
++MODULE_DESCRIPTION("STMP3xxx Backlight Driver");
++MODULE_LICENSE("GPL");
+-- 
+1.5.4.4
+

@@ -1,0 +1,574 @@
+From ad92b58e97b9c3e9b7a4aa56166687d555ad23c7 Mon Sep 17 00:00:00 2001
+From: Rob Herring <r.herring@freescale.com>
+Date: Thu, 4 Feb 2010 09:40:46 -0600
+Subject: [PATCH] ENGR00120394-4 mx51: Clean-up IO_ADDRESS usage
+
+Replace static mappings with dynamic mapping in MX51 MSL.
+
+Signed-off-by: Rob Herring <r.herring@freescale.com>
+---
+ arch/arm/mach-mx51/clock.c                |   49 ++++++++++------------
+ arch/arm/mach-mx51/cpu.c                  |   18 +++++++-
+ arch/arm/mach-mx51/crm_regs.h             |   64 ++++++++++++++++-------------
+ arch/arm/mach-mx51/devices.c              |   15 ++++++-
+ arch/arm/mach-mx51/mm.c                   |    5 --
+ arch/arm/mach-mx51/mx51_babbage.c         |    2 -
+ arch/arm/mach-mx51/sdram_autogating.c     |   22 +++++++---
+ arch/arm/plat-mxc/include/mach/mx51.h     |   20 +--------
+ arch/arm/plat-mxc/sdma/iapi/include/epm.h |    5 +-
+ arch/arm/plat-mxc/sdma/sdma.c             |    8 +++-
+ 10 files changed, 114 insertions(+), 94 deletions(-)
+
+diff --git a/arch/arm/mach-mx51/clock.c b/arch/arm/mach-mx51/clock.c
+index 9b9fed8..8a6ace6 100644
+--- a/arch/arm/mach-mx51/clock.c
++++ b/arch/arm/mach-mx51/clock.c
+@@ -30,12 +30,6 @@
+ 
+ #include "crm_regs.h"
+ 
+-static unsigned long pll_base[] = {
+-	(unsigned long)MXC_DPLL1_BASE,
+-	(unsigned long)MXC_DPLL2_BASE,
+-	(unsigned long)MXC_DPLL3_BASE,
+-};
+-
+ static struct clk pll1_main_clk;
+ static struct clk pll1_sw_clk;
+ static struct clk pll2_sw_clk;
+@@ -57,6 +51,10 @@ static struct clk vpu_clk[];
+ static int cpu_curr_wp;
+ static struct cpu_wp *cpu_wp_tbl;
+ 
++void __iomem *pll1_base;
++void __iomem *pll2_base;
++void __iomem *pll3_base;
++
+ int cpu_wp_nr;
+ int lp_high_freq;
+ int lp_med_freq;
+@@ -192,18 +190,18 @@ static inline u32 _get_mux_ddr(struct clk *parent, struct clk *m0,
+ 	return 0;
+ }
+ 
+-static inline unsigned long _get_pll_base(struct clk *pll)
++static inline void __iomem *_get_pll_base(struct clk *pll)
+ {
+ 	if (pll == &pll1_main_clk)
+-		return pll_base[0];
++		return pll1_base;
+ 	else if (pll == &pll2_sw_clk)
+-		return pll_base[1];
++		return pll2_base;
+ 	else if (pll == &pll3_sw_clk)
+-		return pll_base[2];
++		return pll3_base;
+ 	else
+ 		BUG();
+ 
+-	return 0;
++	return NULL;
+ }
+ 
+ static struct clk ckih_clk = {
+@@ -274,7 +272,7 @@ static void _clk_pll_recalc(struct clk *clk)
+ {
+ 	long mfi, mfn, mfd, pdf, ref_clk, mfn_abs;
+ 	unsigned long dp_op, dp_mfd, dp_mfn, dp_ctl, pll_hfsm, dbl;
+-	unsigned long pllbase;
++	void __iomem *pllbase;
+ 	s64 temp;
+ 
+ 	pllbase = _get_pll_base(clk);
+@@ -320,7 +318,7 @@ static void _clk_pll_recalc(struct clk *clk)
+ static int _clk_pll_set_rate(struct clk *clk, unsigned long rate)
+ {
+ 	u32 reg, reg1;
+-	u32 pllbase;
++	void __iomem *pllbase;
+ 	struct timespec nstimeofday;
+ 	struct timespec curtime;
+ 
+@@ -385,7 +383,7 @@ static int _clk_pll_set_rate(struct clk *clk, unsigned long rate)
+ static int _clk_pll_enable(struct clk *clk)
+ {
+ 	u32 reg;
+-	u32 pllbase;
++	void __iomem *pllbase;
+ 	struct timespec nstimeofday;
+ 	struct timespec curtime;
+ 
+@@ -406,7 +404,7 @@ static int _clk_pll_enable(struct clk *clk)
+ static void _clk_pll_disable(struct clk *clk)
+ {
+ 	u32 reg;
+-	u32 pllbase;
++	void __iomem *pllbase;
+ 
+ 	pllbase = _get_pll_base(clk);
+ 	reg = __raw_readl(pllbase + MXC_PLL_DP_CTL) & ~MXC_PLL_DP_CTL_UPEN;
+@@ -3571,17 +3569,17 @@ static void clk_tree_init(void)
+ 
+ 	/* set pll1_main_clk parent */
+ 	pll1_main_clk.parent = &osc_clk;
+-	dp_ctl = __raw_readl(pll_base[0] + MXC_PLL_DP_CTL);
++	dp_ctl = __raw_readl(pll1_base + MXC_PLL_DP_CTL);
+ 	if ((dp_ctl & MXC_PLL_DP_CTL_REF_CLK_SEL_MASK) == 0)
+ 		pll1_main_clk.parent = &fpm_clk;
+ 	/* set pll2_sw_clk parent */
+ 	pll2_sw_clk.parent = &osc_clk;
+-	dp_ctl = __raw_readl(pll_base[1] + MXC_PLL_DP_CTL);
++	dp_ctl = __raw_readl(pll2_base + MXC_PLL_DP_CTL);
+ 	if ((dp_ctl & MXC_PLL_DP_CTL_REF_CLK_SEL_MASK) == 0)
+ 		pll2_sw_clk.parent = &fpm_clk;
+ 	/* set pll3_clk parent */
+ 	pll3_sw_clk.parent = &osc_clk;
+-	dp_ctl = __raw_readl(pll_base[2] + MXC_PLL_DP_CTL);
++	dp_ctl = __raw_readl(pll3_base + MXC_PLL_DP_CTL);
+ 	if ((dp_ctl & MXC_PLL_DP_CTL_REF_CLK_SEL_MASK) == 0)
+ 		pll3_sw_clk.parent = &fpm_clk;
+ 
+@@ -3624,10 +3622,15 @@ static void clk_tree_init(void)
+ 
+ int __init mx51_clocks_init(unsigned long ckil, unsigned long osc, unsigned long ckih1, unsigned long ckih2)
+ {
++	__iomem void *base;
+ 	struct clk **clkp;
+ 	int i = 0, j = 0, reg;
+ 	int wp_cnt = 0;
+ 
++	pll1_base = ioremap(PLL1_BASE_ADDR, SZ_4K);
++	pll2_base = ioremap(PLL2_BASE_ADDR, SZ_4K);
++	pll3_base = ioremap(PLL3_BASE_ADDR, SZ_4K);
++
+ 	/* Turn off all possible clocks */
+ 	if (mxc_jtag_enabled) {
+ 		__raw_writel(1 << MXC_CCM_CCGR0_CG0_OFFSET |
+@@ -3840,13 +3843,6 @@ int __init mx51_clocks_init(unsigned long ckil, unsigned long osc, unsigned long
+ 	propagate_rate(&pll1_sw_clk);
+ 	propagate_rate(&pll2_sw_clk);
+ 
+-	/*Allow for automatic gating of the EMI internal clock.
+-	 * If this is done, emi_intr CCGR bits should be set to 11.
+-	 */
+-	reg = __raw_readl((IO_ADDRESS(M4IF_BASE_ADDR) + 0x8c));
+-	reg &= ~0x1;
+-	__raw_writel(reg, (IO_ADDRESS(M4IF_BASE_ADDR) + 0x8c));
+-
+ 	clk_set_parent(&arm_axi_clk, &axi_a_clk);
+ 	clk_set_parent(&ipu_clk[0], &axi_b_clk);
+ 	clk_set_parent(&uart_main_clk, &pll2_sw_clk);
+@@ -3858,7 +3854,8 @@ int __init mx51_clocks_init(unsigned long ckil, unsigned long osc, unsigned long
+ 	clk_set_rate(&emi_enfc_clk, clk_round_rate(&emi_enfc_clk,
+ 			(clk_get_rate(&emi_slow_clk))/4));
+ 
+-	mxc_timer_init(&gpt_clk[0], IO_ADDRESS(GPT1_BASE_ADDR), MXC_INT_GPT);
++	base = ioremap(GPT1_BASE_ADDR, SZ_4K);
++	mxc_timer_init(&gpt_clk[0], base, MXC_INT_GPT);
+ 	return 0;
+ }
+ 
+diff --git a/arch/arm/mach-mx51/cpu.c b/arch/arm/mach-mx51/cpu.c
+index 2f8f216..6375806 100644
+--- a/arch/arm/mach-mx51/cpu.c
++++ b/arch/arm/mach-mx51/cpu.c
+@@ -27,6 +27,8 @@
+ #include <mach/hardware.h>
+ #include "crm_regs.h"
+ 
++void __iomem *arm_plat_base;
++
+ /*!
+  * CPU initialization. It is called by fixup_mxc_board()
+  */
+@@ -49,24 +51,36 @@ static int __init post_cpu_init(void)
+ 	iram_init(IRAM_BASE_ADDR, iram_size);
+ 
+ 	/* Set ALP bits to 000. Set ALP_EN bit in Arm Memory Controller reg. */
++	arm_plat_base = ioremap(ARM_BASE_ADDR, SZ_4K);
+ 	reg = 0x8;
+ 	__raw_writel(reg, MXC_CORTEXA8_PLAT_AMC);
+ 
+-	base = IO_ADDRESS(AIPS1_BASE_ADDR);
++	base = ioremap(AIPS1_BASE_ADDR, SZ_4K);
+ 	__raw_writel(0x0, base + 0x40);
+ 	__raw_writel(0x0, base + 0x44);
+ 	__raw_writel(0x0, base + 0x48);
+ 	__raw_writel(0x0, base + 0x4C);
+ 	reg = __raw_readl(base + 0x50) & 0x00FFFFFF;
+ 	__raw_writel(reg, base + 0x50);
++	iounmap(base);
+ 
+-	base = IO_ADDRESS(AIPS2_BASE_ADDR);
++	base = ioremap(AIPS2_BASE_ADDR, SZ_4K);
+ 	__raw_writel(0x0, base + 0x40);
+ 	__raw_writel(0x0, base + 0x44);
+ 	__raw_writel(0x0, base + 0x48);
+ 	__raw_writel(0x0, base + 0x4C);
+ 	reg = __raw_readl(base + 0x50) & 0x00FFFFFF;
+ 	__raw_writel(reg, base + 0x50);
++	iounmap(base);
++
++	/*Allow for automatic gating of the EMI internal clock.
++	 * If this is done, emi_intr CCGR bits should be set to 11.
++	 */
++	base = ioremap(M4IF_BASE_ADDR, SZ_4K);
++	reg = __raw_readl(base + 0x8c);
++	reg &= ~0x1;
++	__raw_writel(reg, base + 0x8c);
++	iounmap(base);
+ 
+ 	return 0;
+ }
+diff --git a/arch/arm/mach-mx51/crm_regs.h b/arch/arm/mach-mx51/crm_regs.h
+index 4ac483b..32b2add 100644
+--- a/arch/arm/mach-mx51/crm_regs.h
++++ b/arch/arm/mach-mx51/crm_regs.h
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -13,10 +13,15 @@
+ #ifndef __ARCH_ARM_MACH_MX51_CRM_REGS_H__
+ #define __ARCH_ARM_MACH_MX51_CRM_REGS_H__
+ 
+-#define MXC_CCM_BASE	((char *)IO_ADDRESS(CCM_BASE_ADDR))
+-#define MXC_DPLL1_BASE	IO_ADDRESS(PLL1_BASE_ADDR)
+-#define MXC_DPLL2_BASE	IO_ADDRESS(PLL2_BASE_ADDR)
+-#define MXC_DPLL3_BASE	IO_ADDRESS(PLL3_BASE_ADDR)
++extern void __iomem *ccm_base;
++extern void __iomem *pll1_base;
++extern void __iomem *pll2_base;
++extern void __iomem *pll3_base;
++
++#define MXC_CCM_BASE	(IO_ADDRESS(CCM_BASE_ADDR))
++#define MXC_DPLL1_BASE	(pll1_base)
++#define MXC_DPLL2_BASE	(pll2_base)
++#define MXC_DPLL3_BASE	(pll3_base)
+ 
+ /* PLL Register Offsets */
+ #define MXC_PLL_DP_CTL			0x00
+@@ -583,32 +588,33 @@
+ #define MXC_CCM_CCGR6_CG1_OFFSET			2
+ #define MXC_CCM_CCGR6_CG0_OFFSET			0
+ 
+-#define MXC_CORTEXA8_BASE	IO_ADDRESS(ARM_BASE_ADDR)
+-#define MXC_GPC_BASE		IO_ADDRESS(GPC_BASE_ADDR)
+-#define MXC_DPTC_LP_BASE	IO_ADDRESS(GPC_BASE_ADDR + 0x80)
+-#define MXC_DPTC_GP_BASE	IO_ADDRESS(GPC_BASE_ADDR + 0x100)
+-#define MXC_DVFS_CORE_BASE	IO_ADDRESS(GPC_BASE_ADDR + 0x180)
+-#define MXC_DVFS_PER_BASE	IO_ADDRESS(GPC_BASE_ADDR + 0x1C4)
+-#define MXC_PGC_IPU_BASE	IO_ADDRESS(GPC_BASE_ADDR + 0x220)
+-#define MXC_PGC_VPU_BASE	IO_ADDRESS(GPC_BASE_ADDR + 0x240)
+-#define MXC_PGC_GPU_BASE	IO_ADDRESS(GPC_BASE_ADDR + 0x260)
+-#define MXC_SRPG_NEON_BASE	IO_ADDRESS(GPC_BASE_ADDR + 0x280)
+-#define MXC_SRPG_ARM_BASE	IO_ADDRESS(GPC_BASE_ADDR + 0x2A0)
+-#define MXC_SRPG_EMPGC0_BASE	IO_ADDRESS(GPC_BASE_ADDR + 0x2C0)
+-#define MXC_SRPG_EMPGC1_BASE	IO_ADDRESS(GPC_BASE_ADDR + 0x2D0)
+-#define MXC_SRPG_MEGAMIX_BASE	IO_ADDRESS(GPC_BASE_ADDR + 0x2E0)
+-#define MXC_SRPG_EMI_BASE	IO_ADDRESS(GPC_BASE_ADDR + 0x300)
++#define MXC_GPC_BASE		(IO_ADDRESS(GPC_BASE_ADDR))
++#define MXC_DPTC_LP_BASE	(MXC_GPC_BASE + 0x80)
++#define MXC_DPTC_GP_BASE	(MXC_GPC_BASE + 0x100)
++#define MXC_DVFS_CORE_BASE	(MXC_GPC_BASE + 0x180)
++#define MXC_DVFS_PER_BASE	(MXC_GPC_BASE + 0x1C4)
++#define MXC_PGC_IPU_BASE	(MXC_GPC_BASE + 0x220)
++#define MXC_PGC_VPU_BASE	(MXC_GPC_BASE + 0x240)
++#define MXC_PGC_GPU_BASE	(MXC_GPC_BASE + 0x260)
++#define MXC_SRPG_NEON_BASE	(MXC_GPC_BASE + 0x280)
++#define MXC_SRPG_ARM_BASE	(MXC_GPC_BASE + 0x2A0)
++#define MXC_SRPG_EMPGC0_BASE	(MXC_GPC_BASE + 0x2C0)
++#define MXC_SRPG_EMPGC1_BASE	(MXC_GPC_BASE + 0x2D0)
++#define MXC_SRPG_MEGAMIX_BASE	(MXC_GPC_BASE + 0x2E0)
++#define MXC_SRPG_EMI_BASE	(MXC_GPC_BASE + 0x300)
+ 
+ /* CORTEXA8 platform */
+-#define MXC_CORTEXA8_PLAT_PVID		(MXC_CORTEXA8_BASE + 0x0)
+-#define MXC_CORTEXA8_PLAT_GPC		(MXC_CORTEXA8_BASE + 0x4)
+-#define MXC_CORTEXA8_PLAT_PIC		(MXC_CORTEXA8_BASE + 0x8)
+-#define MXC_CORTEXA8_PLAT_LPC		(MXC_CORTEXA8_BASE + 0xC)
+-#define MXC_CORTEXA8_PLAT_NEON_LPC	(MXC_CORTEXA8_BASE + 0x10)
+-#define MXC_CORTEXA8_PLAT_ICGC		(MXC_CORTEXA8_BASE + 0x14)
+-#define MXC_CORTEXA8_PLAT_AMC		(MXC_CORTEXA8_BASE + 0x18)
+-#define MXC_CORTEXA8_PLAT_NMC		(MXC_CORTEXA8_BASE + 0x20)
+-#define MXC_CORTEXA8_PLAT_NMS		(MXC_CORTEXA8_BASE + 0x24)
++extern void __iomem *arm_plat_base;
++#define MXC_CORTEXA8_BASE		(arm_plat_base)
++#define MXC_CORTEXA8_PLAT_PVID		(arm_plat_base + 0x0)
++#define MXC_CORTEXA8_PLAT_GPC		(arm_plat_base + 0x4)
++#define MXC_CORTEXA8_PLAT_PIC		(arm_plat_base + 0x8)
++#define MXC_CORTEXA8_PLAT_LPC		(arm_plat_base + 0xC)
++#define MXC_CORTEXA8_PLAT_NEON_LPC	(arm_plat_base + 0x10)
++#define MXC_CORTEXA8_PLAT_ICGC		(arm_plat_base + 0x14)
++#define MXC_CORTEXA8_PLAT_AMC		(arm_plat_base + 0x18)
++#define MXC_CORTEXA8_PLAT_NMC		(arm_plat_base + 0x20)
++#define MXC_CORTEXA8_PLAT_NMS		(arm_plat_base + 0x24)
+ 
+ /* DVFS CORE */
+ #define MXC_DVFSTHRS		(MXC_DVFS_CORE_BASE + 0x00)
+diff --git a/arch/arm/mach-mx51/devices.c b/arch/arm/mach-mx51/devices.c
+index a9fa32f..dc31bed 100644
+--- a/arch/arm/mach-mx51/devices.c
++++ b/arch/arm/mach-mx51/devices.c
+@@ -302,8 +302,8 @@ static struct platform_device mxc_ipu_device = {
+ 
+ static void mxc_init_ipu(void)
+ {
+-	void __iomem *reg_hsc_mcd = IO_ADDRESS(MIPI_HSC_BASE_ADDR);
+-	void __iomem *reg_hsc_mxt_conf = IO_ADDRESS(MIPI_HSC_BASE_ADDR + 0x800);
++	void __iomem *reg_hsc_mcd = ioremap(MIPI_HSC_BASE_ADDR, SZ_4K);
++	void __iomem *reg_hsc_mxt_conf = reg_hsc_mcd + 0x800;
+ 	struct clk *clk;
+ 	uint32_t temp;
+ 
+@@ -333,6 +333,7 @@ static void mxc_init_ipu(void)
+ 		clk_disable(clk);
+ 		clk_put(clk);
+ 	}
++	iounmap(reg_hsc_mcd);
+ 	platform_device_register(&mxc_ipu_device);
+ }
+ #else
+@@ -1152,12 +1153,22 @@ static inline void mxc_init_busfreq(void)
+ 	(void)platform_device_register(&busfreq_device);
+ }
+ 
++static struct resource mxc_m4if_resources[] = {
++	{
++	 .start = M4IF_BASE_ADDR,
++	 .end = M4IF_BASE_ADDR + SZ_4K - 1,
++	 .flags = IORESOURCE_MEM,
++	 },
++};
++
+ static struct platform_device sdram_autogating_device = {
+ 	.name = "sdram_autogating",
+ 	.id = 0,
+ 	.dev = {
+ 		.release = mxc_nop_release,
+ 		},
++	.resource = mxc_m4if_resources,
++	.num_resources = ARRAY_SIZE(mxc_m4if_resources),
+ };
+ 
+ static inline void mxc_init_sdram_autogating(void)
+diff --git a/arch/arm/mach-mx51/mm.c b/arch/arm/mach-mx51/mm.c
+index 42f3cea..39222b8 100644
+--- a/arch/arm/mach-mx51/mm.c
++++ b/arch/arm/mach-mx51/mm.c
+@@ -30,11 +30,6 @@
+  */
+ static struct map_desc mx51_io_desc[] __initdata = {
+ 	{
+-	 .virtual = DEBUG_BASE_ADDR_VIRT,
+-	 .pfn = __phys_to_pfn(DEBUG_BASE_ADDR),
+-	 .length = DEBUG_SIZE,
+-	 .type = MT_DEVICE},
+-	{
+ 	 .virtual = AIPS1_BASE_ADDR_VIRT,
+ 	 .pfn = __phys_to_pfn(AIPS1_BASE_ADDR),
+ 	 .length = AIPS1_SIZE,
+diff --git a/arch/arm/mach-mx51/mx51_babbage.c b/arch/arm/mach-mx51/mx51_babbage.c
+index f5b699f..d019bec 100644
+--- a/arch/arm/mach-mx51/mx51_babbage.c
++++ b/arch/arm/mach-mx51/mx51_babbage.c
+@@ -1110,8 +1110,6 @@ static struct sys_timer mxc_timer = {
+ /* *INDENT-OFF* */
+ MACHINE_START(MX51_BABBAGE, "Freescale MX51 Babbage Board")
+ 	/* Maintainer: Freescale Semiconductor, Inc. */
+-	.phys_io = AIPS1_BASE_ADDR,
+-	.io_pg_offst = ((AIPS1_BASE_ADDR_VIRT) >> 18) & 0xfffc,
+ 	.boot_params = PHYS_OFFSET + 0x100,
+ 	.fixup = fixup_mxc_board,
+ 	.map_io = mx51_map_io,
+diff --git a/arch/arm/mach-mx51/sdram_autogating.c b/arch/arm/mach-mx51/sdram_autogating.c
+index e22ed74..fa9f0cc 100644
+--- a/arch/arm/mach-mx51/sdram_autogating.c
++++ b/arch/arm/mach-mx51/sdram_autogating.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2009-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -38,6 +38,7 @@ static struct device *sdram_autogating_dev;
+ /* Flag used to indicate if SDRAM M4IF autoclock gating feature is active. */
+ static int sdram_autogating_is_active;
+ static int sdram_autogating_paused;
++static void __iomem *m4if_base;
+ 
+ void start_sdram_autogating(void);
+ void stop_sdram_autogating(void);
+@@ -48,16 +49,16 @@ static void enable(void)
+ 	u32 reg;
+ 
+ 	/* Set the Fast arbitration Power saving timer */
+-	reg = __raw_readl((IO_ADDRESS(M4IF_BASE_ADDR) + M4IF_CNTL_REG1));
++	reg = __raw_readl(m4if_base + M4IF_CNTL_REG1);
+ 	reg &= ~0xFF;
+ 	reg |= 0x09;
+-	__raw_writel(reg, (IO_ADDRESS(M4IF_BASE_ADDR) + M4IF_CNTL_REG1));
++	__raw_writel(reg, m4if_base + M4IF_CNTL_REG1);
+ 	/*Allow for automatic gating of the EMI internal clock.
+ 	 * If this is done, emi_intr CCGR bits should be set to 11.
+ 	 */
+-	reg = __raw_readl((IO_ADDRESS(M4IF_BASE_ADDR) + M4IF_CNTL_REG0));
++	reg = __raw_readl(m4if_base + M4IF_CNTL_REG0);
+ 	reg &= ~0x5;
+-	__raw_writel(reg, (IO_ADDRESS(M4IF_BASE_ADDR) + M4IF_CNTL_REG0));
++	__raw_writel(reg, m4if_base + M4IF_CNTL_REG0);
+ 
+ 	sdram_autogating_is_active = 1;
+ }
+@@ -66,9 +67,9 @@ static void disable(void)
+ {
+ 	u32 reg;
+ 
+-	reg = __raw_readl((IO_ADDRESS(M4IF_BASE_ADDR) + M4IF_CNTL_REG0));
++	reg = __raw_readl(m4if_base + M4IF_CNTL_REG0);
+ 	reg |= 0x4;
+-	__raw_writel(reg, (IO_ADDRESS(M4IF_BASE_ADDR) + M4IF_CNTL_REG0));
++	__raw_writel(reg, m4if_base + M4IF_CNTL_REG0);
+ 	sdram_autogating_is_active = 0;
+ }
+ 
+@@ -130,10 +131,17 @@ static DEVICE_ATTR(enable, 0644, sdram_autogating_enable_show,
+  */
+ static int __devinit sdram_autogating_probe(struct platform_device *pdev)
+ {
++	struct resource *res;
+ 	int err = 0;
+ 
+ 	sdram_autogating_dev = &pdev->dev;
+ 
++	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
++	if (!res) {
++		return -ENOMEM;
++	}
++	m4if_base = ioremap(res->start, res->end - res->start + 1);
++
+ 	err = sysfs_create_file(&sdram_autogating_dev->kobj,
+ 							&dev_attr_enable.attr);
+ 	if (err) {
+diff --git a/arch/arm/plat-mxc/include/mach/mx51.h b/arch/arm/plat-mxc/include/mach/mx51.h
+index 12b1db9..82e2eac 100644
+--- a/arch/arm/plat-mxc/include/mach/mx51.h
++++ b/arch/arm/plat-mxc/include/mach/mx51.h
+@@ -103,11 +103,9 @@
+ 
+ #define TZIC_BASE_ADDR_T01		0x8FFFC000
+ #define TZIC_BASE_ADDR			0xE0000000
+-#define TZIC_BASE_ADDR_VIRT	0xFA100000
+ #define TZIC_SIZE		SZ_16K
+ 
+ #define DEBUG_BASE_ADDR	0x60000000
+-#define DEBUG_BASE_ADDR_VIRT	0xFA200000
+ #define DEBUG_SIZE		SZ_1M
+ #define ETB_BASE_ADDR		(DEBUG_BASE_ADDR + 0x00001000)
+ #define ETM_BASE_ADDR		(DEBUG_BASE_ADDR + 0x00002000)
+@@ -158,7 +156,7 @@
+  * AIPS 1
+  */
+ #define AIPS1_BASE_ADDR 	0x73F00000
+-#define AIPS1_BASE_ADDR_VIRT	0xFB000000
++#define AIPS1_BASE_ADDR_VIRT	0xF7E00000
+ #define AIPS1_SIZE		SZ_1M
+ 
+ #define OTG_BASE_ADDR	(AIPS1_BASE_ADDR + 0x00080000)
+@@ -218,7 +216,7 @@
+  * AIPS 2
+  */
+ #define AIPS2_BASE_ADDR	0x83F00000
+-#define AIPS2_BASE_ADDR_VIRT	0xFB200000
++#define AIPS2_BASE_ADDR_VIRT	0xF7D00000
+ #define AIPS2_SIZE		SZ_1M
+ 
+ #define PLL1_BASE_ADDR		(AIPS2_BASE_ADDR + 0x00080000)
+@@ -276,13 +274,7 @@
+  */
+ #define IO_ADDRESS(x)   \
+ 	(void __force __iomem *) \
+-	((((x) >= (unsigned long)TZIC_BASE_ADDR) && \
+-	    ((x) < (unsigned long)TZIC_BASE_ADDR + TZIC_SIZE)) ? \
+-	     TZIC_IO_ADDRESS(x):\
+-	(((x) >= (unsigned long)DEBUG_BASE_ADDR) && \
+-	  ((x) < (unsigned long)DEBUG_BASE_ADDR + DEBUG_SIZE)) ? \
+-	   DEBUG_IO_ADDRESS(x):\
+-	(((x) >= (unsigned long)SPBA0_BASE_ADDR) && \
++	((((x) >= (unsigned long)SPBA0_BASE_ADDR) && \
+ 	  ((x) < (unsigned long)SPBA0_BASE_ADDR + SPBA0_SIZE)) ? \
+ 	   SPBA0_IO_ADDRESS(x):\
+ 	(((x) >= (unsigned long)AIPS1_BASE_ADDR) && \
+@@ -299,12 +291,6 @@
+ /*
+  * define the address mapping macros: in physical address order
+  */
+-#define TZIC_IO_ADDRESS(x)  \
+-	(((x) - TZIC_BASE_ADDR) + TZIC_BASE_ADDR_VIRT)
+-
+-#define DEBUG_IO_ADDRESS(x)  \
+-	(((x) - DEBUG_BASE_ADDR) + DEBUG_BASE_ADDR_VIRT)
+-
+ #define SPBA0_IO_ADDRESS(x)  \
+ 	(((x) - SPBA0_BASE_ADDR) + SPBA0_BASE_ADDR_VIRT)
+ 
+diff --git a/arch/arm/plat-mxc/sdma/iapi/include/epm.h b/arch/arm/plat-mxc/sdma/iapi/include/epm.h
+index a12fff9..f9c3a90 100644
+--- a/arch/arm/plat-mxc/sdma/iapi/include/epm.h
++++ b/arch/arm/plat-mxc/sdma/iapi/include/epm.h
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2007-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2007-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -17,7 +17,8 @@
+ #include <mach/hardware.h>
+ 
+ /* SDMA Reg definition */
+-#define SDMA_BASE_IO_ADDR IO_ADDRESS(SDMA_BASE_ADDR)
++extern void __iomem *sdma_base;
++#define SDMA_BASE_IO_ADDR (sdma_base)
+ 
+ #define SDMA_H_C0PTR            *((volatile unsigned long *)(SDMA_BASE_IO_ADDR + 0x000))
+ #define SDMA_H_INTR             *((volatile unsigned long *)(SDMA_BASE_IO_ADDR + 0x004))
+diff --git a/arch/arm/plat-mxc/sdma/sdma.c b/arch/arm/plat-mxc/sdma/sdma.c
+index 6bdce33..8ad2603 100644
+--- a/arch/arm/plat-mxc/sdma/sdma.c
++++ b/arch/arm/plat-mxc/sdma/sdma.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2004-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2004-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -66,8 +66,8 @@ extern void init_sdma_pool(void);
+  * Flags are save and restored during interrupt handler
+  */
+ unsigned long flags;
+-
+ struct clk *mxc_sdma_ahb_clk, *mxc_sdma_ipg_clk;
++void __iomem *sdma_base;
+ 
+ /*!
+  * Structure containing sdma channels information.
+@@ -1411,6 +1411,10 @@ int __init sdma_init(void)
+ 		goto sdma_init_fail;
+ 	}
+ 
++	sdma_base = ioremap(SDMA_BASE_ADDR, SZ_4K);
++	if (sdma_base == NULL)
++		goto sdma_init_fail;
++
+ 	init_mutexes();
+ 
+ 	init_iapi_struct();
+-- 
+1.5.4.4
+

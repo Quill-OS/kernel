@@ -1,0 +1,268 @@
+From caf809f93e9990bee3727ada86ae6d12c13384b2 Mon Sep 17 00:00:00 2001
+From: Lionel Xu <Lionel.Xu@freescale.com>
+Date: Tue, 2 Mar 2010 20:59:58 +0800
+Subject: [PATCH] ENGR00121221 MX28 DMA: Support circular dma chain used on audio playback
+
+Support circular DMA which will be used on audio playback/record.
+
+Signed-off-by: Lionel Xu <r63889@freescale.com>
+(cherry picked from commit 68e74123a031794578464b8a16d4f704fc8e7960)
+---
+ arch/arm/plat-mxs/dma-apbh.c               |   11 +++++-
+ arch/arm/plat-mxs/dma-apbx.c               |   11 +++++-
+ arch/arm/plat-mxs/dmaengine.c              |   61 ++++++++++++++++++++++++---
+ arch/arm/plat-mxs/include/mach/dmaengine.h |   15 +++++++
+ 4 files changed, 89 insertions(+), 9 deletions(-)
+
+diff --git a/arch/arm/plat-mxs/dma-apbh.c b/arch/arm/plat-mxs/dma-apbh.c
+index 9dfcadd..7689f8e 100644
+--- a/arch/arm/plat-mxs/dma-apbh.c
++++ b/arch/arm/plat-mxs/dma-apbh.c
+@@ -28,7 +28,6 @@
+ 
+ #include <mach/device.h>
+ #include <mach/dmaengine.h>
+-#include <mach/hardware.h>
+ 
+ #include "regs-apbh.h"
+ 
+@@ -94,6 +93,15 @@ mxs_dma_apbh_unfreeze(struct mxs_dma_device *pdev, unsigned int chan)
+ 	__raw_writel(1 << chan, pdev->base + HW_APBH_CHANNEL_CTRL_CLR);
+ }
+ 
++static void mxs_dma_apbh_info(struct mxs_dma_device *pdev,
++		unsigned int chan, struct mxs_dma_info *info)
++{
++	unsigned int reg;
++	reg = __raw_readl(pdev->base + HW_APBH_CTRL2);
++	info->status = reg >> chan;
++	info->buf_addr = __raw_readl(pdev->base + HW_APBH_CHn_BAR(chan));
++}
++
+ static int
+ mxs_dma_apbh_read_semaphore(struct mxs_dma_device *pdev, unsigned int chan)
+ {
+@@ -137,6 +145,7 @@ static struct mxs_dma_device mxs_dma_apbh = {
+ 	.reset = mxs_dma_apbh_reset,
+ 	.freeze = mxs_dma_apbh_freeze,
+ 	.unfreeze = mxs_dma_apbh_unfreeze,
++	.info = mxs_dma_apbh_info,
+ 	.read_semaphore = mxs_dma_apbh_read_semaphore,
+ 	.enable_irq = mxs_dma_apbh_enable_irq,
+ 	.irq_is_pending = mxs_dma_apbh_irq_is_pending,
+diff --git a/arch/arm/plat-mxs/dma-apbx.c b/arch/arm/plat-mxs/dma-apbx.c
+index 6f41231..b38298b 100644
+--- a/arch/arm/plat-mxs/dma-apbx.c
++++ b/arch/arm/plat-mxs/dma-apbx.c
+@@ -28,7 +28,6 @@
+ 
+ #include <mach/device.h>
+ #include <mach/dmaengine.h>
+-#include <mach/hardware.h>
+ 
+ #include "regs-apbx.h"
+ 
+@@ -92,6 +91,15 @@ mxs_dma_apbx_unfreeze(struct mxs_dma_device *pdev, unsigned int chan)
+ 	__raw_writel(1 << chan, pdev->base + HW_APBX_CHANNEL_CTRL_CLR);
+ }
+ 
++static void mxs_dma_apbx_info(struct mxs_dma_device *pdev,
++		unsigned int chan, struct mxs_dma_info *info)
++{
++	unsigned int reg;
++	reg = __raw_readl(pdev->base + HW_APBX_CTRL2);
++	info->status = reg >> chan;
++	info->buf_addr = __raw_readl(pdev->base + HW_APBX_CHn_BAR(chan));
++}
++
+ static int
+ mxs_dma_apbx_read_semaphore(struct mxs_dma_device *pdev, unsigned int chan)
+ {
+@@ -135,6 +143,7 @@ static struct mxs_dma_device mxs_dma_apbx = {
+ 	.reset = mxs_dma_apbx_reset,
+ 	.freeze = mxs_dma_apbx_freeze,
+ 	.unfreeze = mxs_dma_apbx_unfreeze,
++	.info = mxs_dma_apbx_info,
+ 	.read_semaphore = mxs_dma_apbx_read_semaphore,
+ 	.enable_irq = mxs_dma_apbx_enable_irq,
+ 	.irq_is_pending = mxs_dma_apbx_irq_is_pending,
+diff --git a/arch/arm/plat-mxs/dmaengine.c b/arch/arm/plat-mxs/dmaengine.c
+index eaa522e..453346e 100644
+--- a/arch/arm/plat-mxs/dmaengine.c
++++ b/arch/arm/plat-mxs/dmaengine.c
+@@ -165,6 +165,25 @@ void mxs_dma_disable(int channel)
+ }
+ EXPORT_SYMBOL(mxs_dma_disable);
+ 
++int mxs_dma_get_info(int channel, struct mxs_dma_info *info)
++{
++	struct mxs_dma_chan *pchan;
++	struct mxs_dma_device *pdma;
++
++	if (!info)
++		return -EINVAL;
++	if ((channel < 0) || (channel >= MAX_DMA_CHANNELS))
++		return -EINVAL;
++	pchan = mxs_dma_channels + channel;
++	if (!(pchan->flags & MXS_DMA_FLAGS_ALLOCATED))
++		return -EFAULT;
++	pdma = pchan->dma;
++	if (pdma->info)
++		pdma->info(pdma, channel - pdma->chan_base, info);
++	return 0;
++}
++EXPORT_SYMBOL(mxs_dma_get_info);
++
+ int mxs_dma_cooked(int channel, struct list_head *head)
+ {
+ 	int sem;
+@@ -181,6 +200,9 @@ int mxs_dma_cooked(int channel, struct list_head *head)
+ 	sem = mxs_dma_read_semaphore(channel);
+ 	if (sem < 0)
+ 		return sem;
++	if (sem == pchan->active_num)
++		return 0;
++	BUG_ON(sem > pchan->active_num);
+ 	spin_lock_irqsave(&pchan->lock, flags);
+ 	list_for_each_safe(p, q, &pchan->active) {
+ 		if ((pchan->active_num) <= sem)
+@@ -191,7 +213,8 @@ int mxs_dma_cooked(int channel, struct list_head *head)
+ 			list_move_tail(p, head);
+ 		else
+ 			list_move_tail(p, &pchan->done);
+-		pchan->active_num--;
++		if (pdesc->flags & MXS_DMA_DESC_LAST)
++			pchan->active_num--;
+ 	}
+ 	if (sem == 0)
+ 		pchan->flags &= ~MXS_DMA_FLAGS_BUSY;
+@@ -394,21 +417,29 @@ int mxs_dma_desc_append(int channel, struct mxs_dma_desc *pdesc)
+ 	if (!(pchan->flags & MXS_DMA_FLAGS_ALLOCATED))
+ 		return -EINVAL;
+ 	pdma = pchan->dma;
+-	pdesc->cmd.next = 0;
++	pdesc->cmd.next = mxs_dma_cmd_address(pdesc);
++	pdesc->flags |= MXS_DMA_DESC_FIRST | MXS_DMA_DESC_LAST;
+ 	spin_lock_irqsave(&pchan->lock, flags);
+ 	if (!list_empty(&pchan->active)) {
+ 		last = list_entry(pchan->active.prev,
+ 				  struct mxs_dma_desc, node);
++		if (pdesc->cmd.cmd.bits.dec_sem != last->cmd.cmd.bits.dec_sem) {
++			ret = -EFAULT;
++			goto out;
++		}
++		if (!pdesc->cmd.cmd.bits.dec_sem) {
++			pdesc->flags &= ~MXS_DMA_DESC_FIRST;
++			last->flags &= ~MXS_DMA_DESC_LAST;
++		}
+ 		pdesc->cmd.next = last->cmd.next;
+ 		last->cmd.next = mxs_dma_cmd_address(pdesc);
+-		if (pdesc->cmd.cmd.bits.chain) {
+-			last->cmd.cmd.bits.chain = 1;
+-			pdesc->cmd.cmd.bits.chain = 0;
+-		}
++		last->cmd.cmd.bits.chain = 1;
+ 	}
+ 	pdesc->flags |= MXS_DMA_DESC_READY;
+-	pchan->pending_num++;
++	if (pdesc->flags & MXS_DMA_DESC_FIRST)
++		pchan->pending_num++;
+ 	list_add_tail(&pdesc->node, &pchan->active);
++out:
+ 	spin_unlock_irqrestore(&pchan->lock, flags);
+ 	return ret;
+ }
+@@ -434,27 +465,43 @@ int mxs_dma_desc_add_list(int channel, struct list_head *head)
+ 	pdma = pchan->dma;
+ 	list_for_each(p, head) {
+ 		pcur = list_entry(p, struct mxs_dma_desc, node);
++		if (!(pcur->cmd.cmd.bits.dec_sem || pcur->cmd.cmd.bits.chain))
++			return -EINVAL;
+ 		if (prev)
+ 			prev->cmd.next = mxs_dma_cmd_address(pcur);
++		else
++			pcur->flags |= MXS_DMA_DESC_FIRST;
+ 		pcur->flags |= MXS_DMA_DESC_READY;
+ 		prev = pcur;
+ 		size++;
+ 	}
+ 	pcur = list_first_entry(head, struct mxs_dma_desc, node);
+ 	prev->cmd.next = mxs_dma_cmd_address(pcur);
++	prev->flags |= MXS_DMA_DESC_LAST;
+ 
+ 	spin_lock_irqsave(&pchan->lock, flags);
+ 	if (!list_empty(&pchan->active)) {
+ 		pcur = list_entry(pchan->active.next,
+ 				  struct mxs_dma_desc, node);
++		if (pcur->cmd.cmd.bits.dec_sem != prev->cmd.cmd.bits.dec_sem) {
++			ret = -EFAULT;
++			goto out;
++		}
+ 		prev->cmd.next = mxs_dma_cmd_address(pcur);
+ 		prev = list_entry(pchan->active.prev,
+ 				  struct mxs_dma_desc, node);
+ 		pcur = list_first_entry(head, struct mxs_dma_desc, node);
++		pcur->flags &= ~MXS_DMA_DESC_FIRST;
++		prev->flags &= ~MXS_DMA_DESC_LAST;
+ 		prev->cmd.next = mxs_dma_cmd_address(pcur);
+ 	}
+ 	list_splice(head, &pchan->active);
+ 	pchan->pending_num += size;
++	if (!(pcur->cmd.cmd.bits.dec_sem) && (pcur->flags & MXS_DMA_DESC_FIRST))
++		pchan->pending_num += 1;
++	else
++		pchan->pending_num += size;
++out:
+ 	spin_unlock_irqrestore(&pchan->lock, flags);
+ 	return ret;
+ }
+diff --git a/arch/arm/plat-mxs/include/mach/dmaengine.h b/arch/arm/plat-mxs/include/mach/dmaengine.h
+index 1071f4e..4bbbcb4 100644
+--- a/arch/arm/plat-mxs/include/mach/dmaengine.h
++++ b/arch/arm/plat-mxs/include/mach/dmaengine.h
+@@ -93,11 +93,20 @@ struct mxs_dma_desc {
+ 	struct mxs_dma_cmd cmd;
+ 	unsigned int flags;
+ #define MXS_DMA_DESC_READY 0x80000000
++#define MXS_DMA_DESC_FIRST 0x00000001
++#define MXS_DMA_DESC_LAST  0x00000002
+ 	dma_addr_t address;
+ 	void *buffer;
+ 	struct list_head node;
+ };
+ 
++struct mxs_dma_info {
++	unsigned int status;
++#define MXS_DMA_INFO_ERR       0x00000001
++#define MXS_DMA_INFO_ERR_STAT  0x00010000
++	unsigned int buf_addr;
++};
++
+ /**
+  * struct mxs_dma_chan - MXS DMA channel
+  *
+@@ -176,6 +185,8 @@ struct mxs_dma_device {
+ 	void (*unfreeze) (struct mxs_dma_device *, unsigned int);
+ 	int (*read_semaphore) (struct mxs_dma_device *, unsigned int);
+ 	void (*add_semaphore) (struct mxs_dma_device *, unsigned int, unsigned);
++	void (*info)(struct mxs_dma_device *,
++		unsigned int, struct mxs_dma_info *info);
+ 	void (*enable_irq) (struct mxs_dma_device *, unsigned int, int);
+ 	int (*irq_is_pending) (struct mxs_dma_device *, unsigned int);
+ 	void (*ack_irq) (struct mxs_dma_device *, unsigned int);
+@@ -286,8 +297,12 @@ extern void mxs_dma_freeze(int channel);
+  * @channel:  The channel number. This is one of the globally unique DMA channel
+  *            numbers given in mach/dma.h.
+  */
++
+ extern void mxs_dma_unfreeze(int channel);
+ 
++/* get dma channel information */
++extern int mxs_dma_get_info(int channel, struct mxs_dma_info *info);
++
+ /**
+  * mxs_dma_cooked - Clean up processed DMA descriptors.
+  *
+-- 
+1.5.4.4
+

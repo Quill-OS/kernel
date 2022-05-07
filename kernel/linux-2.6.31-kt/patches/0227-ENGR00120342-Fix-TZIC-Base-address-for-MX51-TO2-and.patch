@@ -1,0 +1,67 @@
+From cc0276e34f2e2e06df94f5407793471ec41a4f8e Mon Sep 17 00:00:00 2001
+From: Dinh Nguyen <r00091@freescale.com>
+Date: Tue, 26 Jan 2010 17:44:24 -0600
+Subject: [PATCH] ENGR00120342 Fix TZIC Base address for MX51 TO2 and TO3
+
+The TZIC base address for MX51 non TO1 is defined as 0xE0003000,
+but the according the MX51 TO2 Ref Manual, it should be 0xE0000000.
+
+The reason the system still works with this error is because the TZIC
+registers are mirrored at offset 0x3000.
+
+Signed-off-by: Dinh L. Nguyen <Dinh.Nguyen@freescale.com>
+---
+ arch/arm/mach-mx51/mm.c               |    6 +++---
+ arch/arm/plat-mxc/include/mach/mx51.h |    7 ++++---
+ 2 files changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/arch/arm/mach-mx51/mm.c b/arch/arm/mach-mx51/mm.c
+index cf3bc45..5d1695b 100644
+--- a/arch/arm/mach-mx51/mm.c
++++ b/arch/arm/mach-mx51/mm.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -75,9 +75,9 @@ void __init mx51_map_io(void)
+ {
+ 	u32 tzic_addr;
+ 	if (cpu_is_mx51_rev(CHIP_REV_2_0) < 0)
+-		tzic_addr = 0x8FFFC000;
++		tzic_addr = TZIC_BASE_ADDR_T01;
+ 	else
+-		tzic_addr = 0xE0003000;
++		tzic_addr = TZIC_BASE_ADDR;
+ 
+ 	mx51_io_desc[2].pfn =  __phys_to_pfn(tzic_addr);
+ 	iotable_init(mx51_io_desc, ARRAY_SIZE(mx51_io_desc));
+diff --git a/arch/arm/plat-mxc/include/mach/mx51.h b/arch/arm/plat-mxc/include/mach/mx51.h
+index e2dd51e..8113ea9 100644
+--- a/arch/arm/plat-mxc/include/mach/mx51.h
++++ b/arch/arm/plat-mxc/include/mach/mx51.h
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -117,9 +117,10 @@
+  */
+ #define GPU_GMEM_BASE_ADDR	0x20000000
+ #define GPU_BASE_ADDR			0x30000000
+-#define GPU2D_BASE_ADDR			0xD0000000
++#define GPU2D_BASE_ADDR		0xD0000000
+ 
+-#define TZIC_BASE_ADDR		0x8FFFC000
++#define TZIC_BASE_ADDR_T01		0x8FFFC000
++#define TZIC_BASE_ADDR			0xE0000000
+ #define TZIC_BASE_ADDR_VIRT	0xFA100000
+ #define TZIC_SIZE		SZ_16K
+ 
+-- 
+1.5.4.4
+

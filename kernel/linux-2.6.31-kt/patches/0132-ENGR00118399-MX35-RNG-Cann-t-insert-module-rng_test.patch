@@ -1,0 +1,32 @@
+From ee882f37061b3fb5dc8b536582c66e8904af6b6b Mon Sep 17 00:00:00 2001
+From: William Lai <b04597@freescale.com>
+Date: Tue, 24 Nov 2009 11:25:32 +0800
+Subject: [PATCH] ENGR00118399 MX35 RNG: Cann't insert module rng_test_driver.ko
+
+In the rng_test_driver.ko and rng_test, RNG_REGISTER_PEEK_POKE flag
+should be defined, otherwise, the rng_read_register() and rng_write_register()
+functions will not be defined. And the flag RNG_REGISTER_PEEK_POKE depends on
+CONFIG_RNG_TEST_DRIVER, which is not set in the default config file.
+Resolve the problem by setting the CONFIG_RNG_TEST_DRIVER.
+
+Signed-off-by: William Lai <b04597@freescale.com>
+---
+ arch/arm/configs/imx35_3stack_defconfig |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/arch/arm/configs/imx35_3stack_defconfig b/arch/arm/configs/imx35_3stack_defconfig
+index dbcb42a..a9c2e04 100644
+--- a/arch/arm/configs/imx35_3stack_defconfig
++++ b/arch/arm/configs/imx35_3stack_defconfig
+@@ -1638,7 +1638,7 @@ CONFIG_MXC_PMIC_MC9S08DZ60=y
+ CONFIG_MXC_SECURITY_SCC=y
+ # CONFIG_SCC_DEBUG is not set
+ CONFIG_MXC_SECURITY_RNG=y
+-# CONFIG_MXC_RNG_TEST_DRIVER is not set
++CONFIG_MXC_RNG_TEST_DRIVER=y
+ # CONFIG_MXC_RNG_DEBUG is not set
+ 
+ #
+-- 
+1.5.4.4
+

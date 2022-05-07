@@ -1,0 +1,46 @@
+From c301cc51fd5b60e23600a6f599e91a5c2b091e25 Mon Sep 17 00:00:00 2001
+From: Lily Zhang <r58066@freescale.com>
+Date: Fri, 30 Oct 2009 10:47:34 +0800
+Subject: [PATCH] ENGR00117920 MX51 3DS: Add SMSC911X platform data
+
+Add SMSC911X platform data for MX51 3DS to make it work.
+
+Signed-off-by: Lily Zhang <r58066@freescale.com>
+---
+ arch/arm/mach-mx51/mx51_3stack.c |    8 ++++++++
+ 1 files changed, 8 insertions(+), 0 deletions(-)
+
+diff --git a/arch/arm/mach-mx51/mx51_3stack.c b/arch/arm/mach-mx51/mx51_3stack.c
+index dd4ce3e..0ff08e9 100644
+--- a/arch/arm/mach-mx51/mx51_3stack.c
++++ b/arch/arm/mach-mx51/mx51_3stack.c
+@@ -23,6 +23,7 @@
+ #include <linux/clk.h>
+ #include <linux/platform_device.h>
+ #include <linux/fsl_devices.h>
++#include <linux/smsc911x.h>
+ #include <linux/spi/spi.h>
+ #include <linux/i2c.h>
+ #include <linux/ata.h>
+@@ -552,11 +553,18 @@ static struct resource smsc911x_resources[] = {
+ 	 .flags = IORESOURCE_IRQ,
+ 	 },
+ };
++
++struct smsc911x_platform_config smsc911x_config = {
++	.irq_polarity = SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
++	.flags = SMSC911X_USE_32BIT | SMSC911X_FORCE_INTERNAL_PHY,
++};
++
+ static struct platform_device smsc_lan9217_device = {
+ 	.name = "smsc911x",
+ 	.id = 0,
+ 	.dev = {
+ 		.release = mxc_nop_release,
++		.platform_data = &smsc911x_config,
+ 		},
+ 	.num_resources = ARRAY_SIZE(smsc911x_resources),
+ 	.resource = smsc911x_resources,
+-- 
+1.5.4.4
+

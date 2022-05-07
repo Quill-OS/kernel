@@ -1,0 +1,91 @@
+From cc71a46a668785196a6c91d49f62472d069d1a2a Mon Sep 17 00:00:00 2001
+From: Wallace Wang <r59996@freescale.com>
+Date: Wed, 9 Dec 2009 22:30:27 +0800
+Subject: [PATCH] ENGR00119150 Bluetooth: Handsfree audio has noise
+
+When bluetooth handsfree is enabled, sgtl5000 and bt
+sound cards are both opened. BT sound card playback
+can't use IRAM as sgtl5000 has used IRAM. The bt audio
+platform data - ext_ram is not set when kernel porting
+to 2.6.31.
+
+Signed-off-by: Wallace Wang <r59996@freescale.com>
+---
+ sound/soc/imx/imx-3stack-bt.c |    1 +
+ sound/soc/imx/imx-pcm.c       |   18 ++++++++++++------
+ 2 files changed, 13 insertions(+), 6 deletions(-)
+
+diff --git a/sound/soc/imx/imx-3stack-bt.c b/sound/soc/imx/imx-3stack-bt.c
+index 28d47ee..37ed099 100644
+--- a/sound/soc/imx/imx-3stack-bt.c
++++ b/sound/soc/imx/imx-3stack-bt.c
+@@ -191,6 +191,7 @@ static int __init imx_3stack_bt_probe(struct platform_device *pdev)
+ 	else
+ 		bt_cpu_dai = &imx_ssi_dai[2];
+ 
++	bt_cpu_dai->dev = &pdev->dev;
+ 	imx_3stack_dai.cpu_dai = bt_cpu_dai;
+ 
+ 	/* Configure audio port */
+diff --git a/sound/soc/imx/imx-pcm.c b/sound/soc/imx/imx-pcm.c
+index bcfc59a..e17d544 100644
+--- a/sound/soc/imx/imx-pcm.c
++++ b/sound/soc/imx/imx-pcm.c
+@@ -542,7 +542,7 @@ imx_pcm_mmap(struct snd_pcm_substream *substream, struct vm_area_struct *vma)
+ 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+ 	struct snd_soc_device *socdev = rtd->socdev;
+ 	struct snd_soc_dai *cpu_dai = socdev->card->dai_link->cpu_dai;
+-	struct mxc_audio_platform_data *dev_data = cpu_dai->private_data;
++	struct mxc_audio_platform_data *dev_data;
+ 	int ext_ram = 0;
+ 	int ret = 0;
+ 
+@@ -551,8 +551,10 @@ imx_pcm_mmap(struct snd_pcm_substream *substream, struct vm_area_struct *vma)
+ 	    UseIram, (unsigned int)runtime->dma_addr,
+ 	    runtime->dma_area, runtime->dma_bytes);
+ 
+-	if (dev_data)
++	if (cpu_dai->dev && cpu_dai->dev->platform_data) {
++		dev_data = cpu_dai->dev->platform_data;
+ 		ext_ram = dev_data->ext_ram;
++	}
+ 
+ 	if ((substream->stream == SNDRV_PCM_STREAM_CAPTURE)
+ 	    || ext_ram || !UseIram) {
+@@ -586,12 +588,14 @@ static int imx_pcm_preallocate_dma_buffer(struct snd_pcm *pcm, int stream)
+ 	struct snd_soc_pcm_runtime *rtd = pcm->private_data;
+ 	struct snd_soc_device *socdev = rtd->socdev;
+ 	struct snd_soc_dai *cpu_dai = socdev->card->dai_link->cpu_dai;
+-	struct mxc_audio_platform_data *dev_data = cpu_dai->private_data;
++	struct mxc_audio_platform_data *dev_data;
+ 	int ext_ram = 0;
+ 	size_t size = imx_pcm_hardware.buffer_bytes_max;
+ 
+-	if (dev_data)
++	if (cpu_dai->dev && cpu_dai->dev->platform_data) {
++		dev_data = cpu_dai->dev->platform_data;
+ 		ext_ram = dev_data->ext_ram;
++	}
+ 
+ 	buf->dev.type = SNDRV_DMA_TYPE_DEV;
+ 	buf->dev.dev = pcm->card->dev;
+@@ -620,12 +624,14 @@ static void imx_pcm_free_dma_buffers(struct snd_pcm *pcm)
+ 	struct snd_soc_pcm_runtime *rtd = pcm->private_data;
+ 	struct snd_soc_device *socdev = rtd->socdev;
+ 	struct snd_soc_dai *cpu_dai = socdev->card->dai_link->cpu_dai;
+-	struct mxc_audio_platform_data *dev_data = cpu_dai->private_data;
++	struct mxc_audio_platform_data *dev_data;
+ 	int ext_ram = 0;
+ 	int stream;
+ 
+-	if (dev_data)
++	if (cpu_dai->dev && cpu_dai->dev->platform_data) {
++		dev_data = cpu_dai->dev->platform_data;
+ 		ext_ram = dev_data->ext_ram;
++	}
+ 
+ 	for (stream = 0; stream < 2; stream++) {
+ 		substream = pcm->streams[stream].substream;
+-- 
+1.5.4.4
+

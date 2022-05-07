@@ -1,0 +1,289 @@
+From aa863ab0e53fcf2337b6e6250fe60683b3011c31 Mon Sep 17 00:00:00 2001
+From: Ranjani Vaidyanathan-RA5478 <Ranjani.Vaidyanathan@freescale.com>
+Date: Thu, 8 Oct 2009 10:21:37 -0500
+Subject: [PATCH] ENGR00117112 : MX51: Add support for automatic clock gating of EMI_FAST clock.
+
+Enable automatic power saving of the EMI_FAST path in M4IF (TO3 only).
+
+Signed-off-by: Ranjani Vaidyanathan-RA5478 <Ranjani.Vaidyanathan@freescale.com>
+---
+ arch/arm/mach-mx51/Makefile           |    2 +-
+ arch/arm/mach-mx51/bus_freq.c         |   19 ++++
+ arch/arm/mach-mx51/devices.c          |   14 +++
+ arch/arm/mach-mx51/sdram_autogating.c |  164 +++++++++++++++++++++++++++++++++
+ 4 files changed, 198 insertions(+), 1 deletions(-)
+
+diff --git a/arch/arm/mach-mx51/Makefile b/arch/arm/mach-mx51/Makefile
+index 3ac8416..a86947a 100644
+--- a/arch/arm/mach-mx51/Makefile
++++ b/arch/arm/mach-mx51/Makefile
+@@ -5,7 +5,7 @@
+ # Object file lists.
+ 
+ 
+-obj-y   := system.o iomux.o cpu.o mm.o clock.o devices.o serial.o dma.o lpmodes.o pm.o bus_freq.o
++obj-y   := system.o iomux.o cpu.o mm.o clock.o devices.o serial.o dma.o lpmodes.o pm.o sdram_autogating.o bus_freq.o
+ 
+ obj-y += dummy_gpio.o
+ 
+diff --git a/arch/arm/mach-mx51/bus_freq.c b/arch/arm/mach-mx51/bus_freq.c
+index c0c33f6..a321081 100644
+--- a/arch/arm/mach-mx51/bus_freq.c
++++ b/arch/arm/mach-mx51/bus_freq.c
+@@ -73,11 +73,16 @@ char *lp_reg_id = "SW2";
+ 
+ static struct cpu_wp *cpu_wp_tbl;
+ static struct device *busfreq_dev;
++int sdram_autogating_paused;
++
+ extern int lp_high_freq;
+ extern int lp_med_freq;
+ extern int dvfs_core_is_active;
+ extern struct cpu_wp *(*get_cpu_wp)(int *wp);
+ extern int cpu_wp_nr;
++extern int sdram_autogating_is_active;
++extern void enable_sdram_autogating(void);
++extern void disable_sdram_autogating(void);
+ 
+ struct dvfs_wp dvfs_core_setpoint[] = {
+ 						{33, 8, 33, 10, 10, 0x08},
+@@ -95,6 +100,11 @@ int set_low_bus_freq(void)
+ 	if (bus_freq_scaling_is_active) {
+ 		if (clk_get_rate(cpu_clk) != cpu_wp_tbl[cpu_wp_nr - 1].cpu_rate)
+ 			return 0;
++
++		if (sdram_autogating_is_active) {
++			disable_sdram_autogating();
++			sdram_autogating_paused = 1;
++		}
+ #ifdef DISABLE_PLL1
+ 		tclk = clk_get(NULL, "ddr_clk");
+ 		clk_set_parent(tclk, clk_get(NULL, "axi_a_clk"));
+@@ -189,6 +199,11 @@ int set_high_bus_freq(int high_bus_freq)
+ 	struct clk *tclk;
+ 
+ 	if (bus_freq_scaling_is_active) {
++		if (sdram_autogating_is_active) {
++			disable_sdram_autogating();
++			sdram_autogating_paused = 1;
++		}
++
+ 		if (dvfs_podf > 1) {
+ 			reg = __raw_readl(MXC_CCM_CBCDR);
+ 			reg &= ~(MXC_CCM_CBCDR_AXI_A_PODF_MASK
+@@ -294,6 +309,10 @@ int set_high_bus_freq(int high_bus_freq)
+ 			clk_set_rate(ahb_clk,
+ 				     clk_round_rate(ahb_clk, LP_MED_CLK));
+ 		}
++		if (sdram_autogating_paused) {
++			enable_sdram_autogating();
++			sdram_autogating_paused = 0;
++		}
+ 	}
+ 	return 0;
+ }
+diff --git a/arch/arm/mach-mx51/devices.c b/arch/arm/mach-mx51/devices.c
+index 4d09382..9006401 100644
+--- a/arch/arm/mach-mx51/devices.c
++++ b/arch/arm/mach-mx51/devices.c
+@@ -1003,6 +1003,19 @@ static inline void mxc_init_busfreq(void)
+ 	(void)platform_device_register(&busfreq_device);
+ }
+ 
++static struct platform_device sdram_autogating_device = {
++	.name = "sdram_autogating",
++	.id = 0,
++	.dev = {
++		.release = mxc_nop_release,
++		},
++};
++
++static inline void mxc_init_sdram_autogating(void)
++{
++	(void)platform_device_register(&sdram_autogating_device);
++}
++
+ #if defined(CONFIG_MXC_IIM) || defined(CONFIG_MXC_IIM_MODULE)
+ static struct resource mxc_iim_resources[] = {
+ 	{
+@@ -1160,6 +1173,7 @@ int __init mxc_init_devices(void)
+ 	mxc_init_tve();
+ 	mx51_init_lpmode();
+ 	mxc_init_busfreq();
++	mxc_init_sdram_autogating();
+ 	mxc_init_dvfs();
+ 	mxc_init_iim();
+ 	mxc_init_gpu();
+diff --git a/arch/arm/mach-mx51/sdram_autogating.c b/arch/arm/mach-mx51/sdram_autogating.c
+new file mode 100644
+index 0000000..c8667b9
+--- /dev/null
++++ b/arch/arm/mach-mx51/sdram_autogating.c
+@@ -0,0 +1,164 @@
++/*
++ * Copyright 2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ */
++
++/*
++ * The code contained herein is licensed under the GNU General Public
++ * License. You may obtain a copy of the GNU General Public License
++ * Version 2 or later at the following locations:
++ *
++ * http://www.opensource.org/licenses/gpl-license.html
++ * http://www.gnu.org/copyleft/gpl.html
++ */
++
++/*!
++ * @file sdram_autogating.c
++ *
++ * @brief Enable auto clock gating of the EMI_FAST clock using M4IF.
++ *
++ * The APIs are for enabling and disabling automatic clock gating of EMI_FAST.
++ *
++ * @ingroup PM
++ */
++#include <asm/io.h>
++#include <linux/proc_fs.h>
++#include <linux/clk.h>
++#include <linux/delay.h>
++#include <linux/platform_device.h>
++#include <linux/regulator/consumer.h>
++#include <mach/hardware.h>
++#include <mach/clock.h>
++#include <mach/mxc_dvfs.h>
++#include "crm_regs.h"
++
++int sdram_autogating_is_active;
++static struct device *sdram_autogating_dev;
++#define M4IF_CNTL_REG0		0x8c
++#define M4IF_CNTL_REG1		0x90
++
++void enable_sdram_autogating(void);
++void disable_sdram_autogating(void);
++
++void enable_sdram_autogating()
++{
++	u32 reg;
++
++	/* Set the Fast arbitration Power saving timer */
++	reg = __raw_readl((IO_ADDRESS(M4IF_BASE_ADDR) + M4IF_CNTL_REG1));
++	reg &= ~0xFF;
++	reg |= 0x09;
++	__raw_writel(reg, (IO_ADDRESS(M4IF_BASE_ADDR) + M4IF_CNTL_REG1));
++	/*Allow for automatic gating of the EMI internal clock.
++	 * If this is done, emi_intr CCGR bits should be set to 11.
++	 */
++	reg = __raw_readl((IO_ADDRESS(M4IF_BASE_ADDR) + M4IF_CNTL_REG0));
++	reg &= ~0x5;
++	__raw_writel(reg, (IO_ADDRESS(M4IF_BASE_ADDR) + M4IF_CNTL_REG0));
++
++	sdram_autogating_is_active = 1;
++}
++
++void disable_sdram_autogating()
++{
++	u32 reg;
++
++	reg = __raw_readl((IO_ADDRESS(M4IF_BASE_ADDR) + M4IF_CNTL_REG0));
++	reg |= 0x4;
++	__raw_writel(reg, (IO_ADDRESS(M4IF_BASE_ADDR) + M4IF_CNTL_REG0));
++	sdram_autogating_is_active = 0;
++}
++
++static ssize_t sdram_autogating_enable_show(struct device *dev,
++				struct device_attribute *attr, char *buf)
++{
++	if (sdram_autogating_is_active)
++		return sprintf(buf,
++			"M4IF autoclock gating for EMI_FAST enabled\n");
++	else
++		return sprintf(buf,
++			"M4IF autoclock gating for EMI_FAST disabled\n");
++}
++
++static ssize_t sdram_autogating_enable_store(struct device *dev,
++				 struct device_attribute *attr,
++				 const char *buf, size_t size)
++{
++	if (strstr(buf, "1") != NULL)
++		enable_sdram_autogating();
++	else if (strstr(buf, "0") != NULL) {
++		if (sdram_autogating_is_active)
++			disable_sdram_autogating();
++	}
++	return size;
++}
++
++static DEVICE_ATTR(enable, 0644, sdram_autogating_enable_show,
++			sdram_autogating_enable_store);
++
++/*!
++ * This is the probe routine for the auto clockgating of sdram driver.
++ *
++ * @param   pdev   The platform device structure
++ *
++ * @return         The function returns 0 on success
++ *
++ */
++static int __devinit sdram_autogating_probe(struct platform_device *pdev)
++{
++	int err = 0;
++
++	sdram_autogating_dev = &pdev->dev;
++
++	err = sysfs_create_file(&sdram_autogating_dev->kobj,
++							&dev_attr_enable.attr);
++	if (err) {
++		printk(KERN_ERR
++		       "Unable to register sysdev entry for sdram_autogating");
++		return err;
++	}
++
++	sdram_autogating_is_active = 0;
++
++	enable_sdram_autogating();
++	return 0;
++}
++
++static struct platform_driver sdram_autogating_driver = {
++	.driver = {
++		   .name = "sdram_autogating",
++		},
++	.probe = sdram_autogating_probe,
++};
++
++/*!
++ * Initialise the sdram_autogating_driver.
++ *
++ * @return  The function always returns 0.
++ */
++
++static int __init sdram_autogating_init(void)
++{
++	if (platform_driver_register(&sdram_autogating_driver) != 0) {
++		printk(KERN_ERR "sdram_autogating_driver register failed\n");
++		return -ENODEV;
++	}
++
++	printk(KERN_INFO "sdram autogating driver module loaded\n");
++	return 0;
++}
++
++static void __exit sdram_autogating_cleanup(void)
++{
++	sysfs_remove_file(&sdram_autogating_dev->kobj, &dev_attr_enable.attr);
++
++	/* Unregister the device structure */
++	platform_driver_unregister(&sdram_autogating_driver);
++}
++
++module_init(sdram_autogating_init);
++module_exit(sdram_autogating_cleanup);
++
++MODULE_AUTHOR("Freescale Semiconductor, Inc.");
++MODULE_DESCRIPTION("sdram_autogating driver");
++MODULE_LICENSE("GPL");
++
+-- 
+1.5.4.4
+

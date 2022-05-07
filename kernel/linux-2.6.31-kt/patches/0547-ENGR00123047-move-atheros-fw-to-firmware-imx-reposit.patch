@@ -1,0 +1,29 @@
+From 49af2780a989597daaafd3c998e5e19fed9d4308 Mon Sep 17 00:00:00 2001
+From: Alan Tull <r80115@freescale.com>
+Date: Thu, 29 Apr 2010 13:53:05 -0500
+Subject: [PATCH] ENGR00123047 move atheros fw to firmware imx repository
+
+Firmware will be copied to the /lib/firmware/ath6k/AR6102 directory
+so change the path in the driver.
+
+Signed-off-by: Alan Tull <r80115@freescale.com>
+---
+ .../net/wireless/ath6kl/os/linux/ar6000_android.c  |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/drivers/net/wireless/ath6kl/os/linux/ar6000_android.c b/drivers/net/wireless/ath6kl/os/linux/ar6000_android.c
+index 1ca77e5..9d0c377 100644
+--- a/drivers/net/wireless/ath6kl/os/linux/ar6000_android.c
++++ b/drivers/net/wireless/ath6kl/os/linux/ar6000_android.c
+@@ -56,7 +56,7 @@ ATH_DEBUG_INSTANTIATE_MODULE_VAR(android,
+ #endif
+ 
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
+-char fwpath[256] = "/system/wifi";
++char fwpath[256] = "/lib/firmware/ath6k/AR6102";
+ #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0) */
+ int buspm = WLAN_PWR_CTRL_CUT_PWR;
+ int wow2mode = WLAN_PWR_CTRL_CUT_PWR;
+-- 
+1.5.4.4
+

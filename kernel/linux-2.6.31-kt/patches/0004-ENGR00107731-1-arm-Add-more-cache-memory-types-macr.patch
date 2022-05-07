@@ -1,0 +1,64 @@
+From ed88ab6cb9e792e4ba38576799c131a93dc11587 Mon Sep 17 00:00:00 2001
+From: Rob Herring <ra7055@blueberry.sigmatel.com>
+Date: Fri, 30 Jan 2009 17:09:27 -0600
+Subject: [PATCH] ENGR00107731-1 arm: Add more cache memory types macros
+
+Add memory types for different inner and outer cache settings.
+
+Signed-off-by: Rob Herring <r.herring@freescale.com>
+---
+ arch/arm/include/asm/pgtable.h |   15 +++++++++++++++
+ arch/arm/mm/proc-macros.S      |    4 ++--
+ 2 files changed, 17 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm/include/asm/pgtable.h b/arch/arm/include/asm/pgtable.h
+index c433c6c..cde0a04 100644
+--- a/arch/arm/include/asm/pgtable.h
++++ b/arch/arm/include/asm/pgtable.h
+@@ -186,6 +186,8 @@ extern void __pgd_error(const char *file, int line, unsigned long val);
+ #define L_PTE_MT_DEV_NONSHARED	(0x0c << 2)	/* 1100 */
+ #define L_PTE_MT_DEV_WC		(0x09 << 2)	/* 1001 */
+ #define L_PTE_MT_DEV_CACHED	(0x0b << 2)	/* 1011 */
++#define L_PTE_MT_OUTER_UNCACHED	(0x0d << 2)	/* 1101 */
++#define L_PTE_MT_OUTER_WRITETHRU (0x0e << 2)	/* 1110 */
+ #define L_PTE_MT_MASK		(0x0f << 2)
+ 
+ #ifndef __ASSEMBLY__
+@@ -304,6 +306,19 @@ static inline pte_t pte_mkspecial(pte_t pte) { return pte; }
+ 	__pgprot((pgprot_val(prot) & ~L_PTE_MT_MASK) | L_PTE_MT_UNCACHED)
+ #define pgprot_writecombine(prot) \
+ 	__pgprot((pgprot_val(prot) & ~L_PTE_MT_MASK) | L_PTE_MT_BUFFERABLE)
++#define pgprot_writethru(prot) \
++	__pgprot((pgprot_val(prot) & ~L_PTE_MT_MASK) | L_PTE_MT_WRITETHROUGH)
++#define pgprot_nonshareddev(prot) \
++	__pgprot((pgprot_val(prot) & ~L_PTE_MT_MASK) | L_PTE_MT_DEV_NONSHARED)
++
++/* Extended configurations for inner writeback cacheable */
++#define pgprot_writealloc(prot) \
++	__pgprot((pgprot_val(prot) & ~L_PTE_MT_MASK) | L_PTE_MT_WRITEALLOC)
++#define pgprot_outer_wrthru(prot) \
++	__pgprot((pgprot_val(prot) & ~L_PTE_MT_MASK) | L_PTE_MT_OUTER_WRITETHRU)
++#define pgprot_outer_noncached(prot) \
++	__pgprot((pgprot_val(prot) & ~L_PTE_MT_MASK) | L_PTE_MT_OUTER_UNCACHED)
++
+ 
+ #define pmd_none(pmd)		(!pmd_val(pmd))
+ #define pmd_present(pmd)	(pmd_val(pmd))
+diff --git a/arch/arm/mm/proc-macros.S b/arch/arm/mm/proc-macros.S
+index 54b1f72..2d92119 100644
+--- a/arch/arm/mm/proc-macros.S
++++ b/arch/arm/mm/proc-macros.S
+@@ -119,8 +119,8 @@
+ 	.long	0x00						@ unused
+ 	.long	PTE_CACHEABLE | PTE_BUFFERABLE			@ L_PTE_MT_DEV_CACHED
+ 	.long	PTE_EXT_TEX(2)					@ L_PTE_MT_DEV_NONSHARED
+-	.long	0x00						@ unused
+-	.long	0x00						@ unused
++	.long	PTE_EXT_TEX(4) | PTE_CACHEABLE | PTE_BUFFERABLE	@ L_PTE_MT_OUTER_UNCACHED
++	.long	PTE_EXT_TEX(6) | PTE_CACHEABLE | PTE_BUFFERABLE	@ L_PTE_MT_OUTER_WRITETHRU
+ 	.long	0x00						@ unused
+ 	.endm
+ 
+-- 
+1.5.4.4
+

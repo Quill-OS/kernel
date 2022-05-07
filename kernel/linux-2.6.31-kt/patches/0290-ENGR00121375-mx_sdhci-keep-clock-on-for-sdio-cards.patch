@@ -1,0 +1,76 @@
+From 95e1abdf2cb847c8ad50f5238c155aabcd18e284 Mon Sep 17 00:00:00 2001
+From: Richard Zhao <richard.zhao@freescale.com>
+Date: Mon, 8 Mar 2010 14:37:59 +0800
+Subject: [PATCH] ENGR00121375 mx_sdhci: keep clock on for sdio cards
+
+Atheros AR6102 wifi driver need it, or host controler will not receive sdio irq.
+
+Signed-off-by: Richard Zhao <richard.zhao@freescale.com>
+Signed-off-by: Rob Herring <r.herring@freescale.com>
+---
+ drivers/mmc/host/mx_sdhci.c |   35 +++++++++++++++--------------------
+ 1 files changed, 15 insertions(+), 20 deletions(-)
+
+diff --git a/drivers/mmc/host/mx_sdhci.c b/drivers/mmc/host/mx_sdhci.c
+index 4e686d8..9ef6432 100644
+--- a/drivers/mmc/host/mx_sdhci.c
++++ b/drivers/mmc/host/mx_sdhci.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -1139,6 +1139,7 @@ static void sdhci_tasklet_finish(unsigned long param)
+ {
+ 	struct sdhci_host *host;
+ 	unsigned long flags;
++	int req_done;
+ 	struct mmc_request *mrq;
+ 
+ 	host = (struct sdhci_host *)param;
+@@ -1184,26 +1185,20 @@ static void sdhci_tasklet_finish(unsigned long param)
+ 	spin_unlock_irqrestore(&host->lock, flags);
+ 
+ 	/* Stop the clock when the req is done */
+-	flags = SDHCI_DATA_ACTIVE | SDHCI_DOING_WRITE | SDHCI_DOING_READ;
+-	if (machine_is_mx35_3ds()) {
+-		/* Do not disable the eSDHC clk on MX35 3DS board,
+-		 * since SYSTEM can't boot up after the reset key
+-		 * is pressed when the SD/MMC boot mode is used.
+-		 * The root cause is that the ROM code don't ensure
+-		 * the SD/MMC clk is running when boot system.
+-		 * */
+-		mmc_request_done(host->mmc, mrq);
+-	} else {
+-		if (!(readl(host->ioaddr + SDHCI_PRESENT_STATE) & flags)) {
+-			if (host->plat_data->clk_flg) {
+-				clk_disable(host->clk);
+-				host->plat_data->clk_flg = 0;
+-			}
+-		}
+-
+-		mmc_request_done(host->mmc, mrq);
+-	}
+-
++	req_done = !(readl(host->ioaddr + SDHCI_PRESENT_STATE) &
++		(SDHCI_DATA_ACTIVE | SDHCI_DOING_WRITE | SDHCI_DOING_READ));
++	/* Do not disable the eSDHC clk on MX35 3DS board,
++	 * since SYSTEM can't boot up after the reset key
++	 * is pressed when the SD/MMC boot mode is used.
++	 * The root cause is that the ROM code don't ensure
++	 * the SD/MMC clk is running when boot system.
++	 * */
++	if (!machine_is_mx35_3ds() && req_done && host->plat_data->clk_flg &&
++	    !(host->mmc && host->mmc->card && mmc_card_sdio(host->mmc->card))) {
++		clk_disable(host->clk);
++		host->plat_data->clk_flg = 0;
++	}
++	mmc_request_done(host->mmc, mrq);
+ }
+ 
+ static void sdhci_timeout_timer(unsigned long data)
+-- 
+1.5.4.4
+

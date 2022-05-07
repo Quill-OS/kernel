@@ -1,0 +1,63 @@
+From a7163ded1ae272c24e275337a646b97f2da778d7 Mon Sep 17 00:00:00 2001
+From: Lionel Xu <Lionel.Xu@freescale.com>
+Date: Tue, 18 May 2010 15:31:20 +0800
+Subject: [PATCH] ENGR00122302 MX23 ALSA: Resolve the failure when pausing and resuming playback
+
+To reslove the problem when resuming a playback from pausing
+
+Signed-off-by: Lionel Xu <r63889@freescale.com>
+---
+ arch/arm/plat-mxs/dmaengine.c |    2 +-
+ sound/soc/mxs/mxs-adc.c       |    1 +
+ sound/soc/mxs/mxs-pcm.c       |    3 +++
+ 3 files changed, 5 insertions(+), 1 deletions(-)
+
+diff --git a/arch/arm/plat-mxs/dmaengine.c b/arch/arm/plat-mxs/dmaengine.c
+index 453346e..52330d3 100644
+--- a/arch/arm/plat-mxs/dmaengine.c
++++ b/arch/arm/plat-mxs/dmaengine.c
+@@ -159,7 +159,7 @@ void mxs_dma_disable(int channel)
+ 	pchan->flags &= ~MXS_DMA_FLAGS_BUSY;
+ 	pchan->active_num = 0;
+ 	pchan->pending_num = 0;
+-	list_splice(&pchan->active, &pchan->done);
++	list_splice_init(&pchan->active, &pchan->done);
+ 	spin_unlock_irqrestore(&pchan->lock, flags);
+ 	mutex_unlock(&mxs_dma_mutex);
+ }
+diff --git a/sound/soc/mxs/mxs-adc.c b/sound/soc/mxs/mxs-adc.c
+index af2cbbd..44e04d6 100644
+--- a/sound/soc/mxs/mxs-adc.c
++++ b/sound/soc/mxs/mxs-adc.c
+@@ -224,6 +224,7 @@ static int mxs_adc_trigger(struct snd_pcm_substream *substream,
+ 			/* disable the fifo error interrupt */
+ 			__raw_writel(BM_AUDIOOUT_CTRL_FIFO_ERROR_IRQ_EN,
+ 				REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL_CLR);
++			mdelay(50);
+ 		}
+ 		else
+ 			__raw_writel(BM_AUDIOIN_CTRL_RUN,
+diff --git a/sound/soc/mxs/mxs-pcm.c b/sound/soc/mxs/mxs-pcm.c
+index a9f0358..f3cdcdb 100644
+--- a/sound/soc/mxs/mxs-pcm.c
++++ b/sound/soc/mxs/mxs-pcm.c
+@@ -141,6 +141,7 @@ static int mxs_pcm_prepare(struct snd_pcm_substream *substream)
+ 		/* Link with previous command */
+ 		prtd->dma_desc_array[i]->cmd.cmd.bits.bytes = prtd->dma_period;
+ 		prtd->dma_desc_array[i]->cmd.cmd.bits.irq = 1;
++		prtd->dma_desc_array[i]->cmd.cmd.bits.dec_sem = 0;
+ 		prtd->dma_desc_array[i]->cmd.cmd.bits.chain = 1;
+ 		/* Set DMA direction */
+ 		if (playback)
+@@ -194,6 +195,8 @@ static void mxs_pcm_stop(struct snd_pcm_substream *substream)
+ 	prtd->dma_desc_array[(desc + 1)%8]->cmd.cmd.bits.command = NO_DMA_XFER;
+ 
+ 	mxs_dma_unfreeze(prtd->dma_ch);
++
++	mxs_dma_disable(prtd->dma_ch);
+ }
+ 
+ static int mxs_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
+-- 
+1.5.4.4
+

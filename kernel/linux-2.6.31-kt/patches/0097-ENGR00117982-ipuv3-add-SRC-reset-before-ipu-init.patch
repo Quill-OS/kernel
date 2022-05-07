@@ -1,0 +1,66 @@
+From 761fdaddcc95173df3ef28289562068f57716401 Mon Sep 17 00:00:00 2001
+From: Jason Chen <b02280@freescale.com>
+Date: Fri, 6 Nov 2009 12:55:54 +0800
+Subject: [PATCH] ENGR00117982 ipuv3: add SRC reset before ipu init
+
+Bootload may do ipu init to display something, add SRC reset here to
+make sure ipu working well in BSP.
+
+Signed-off-by: Jason Chen <b02280@freescale.com>
+---
+ drivers/mxc/ipu3/ipu_common.c |   17 +++++++++++++++++
+ drivers/mxc/ipu3/ipu_regs.h   |    3 +++
+ 2 files changed, 20 insertions(+), 0 deletions(-)
+
+diff --git a/drivers/mxc/ipu3/ipu_common.c b/drivers/mxc/ipu3/ipu_common.c
+index 6cb5345..e654eee 100644
+--- a/drivers/mxc/ipu3/ipu_common.c
++++ b/drivers/mxc/ipu3/ipu_common.c
+@@ -138,6 +138,21 @@ static inline int _ipu_is_smfc_chan(uint32_t dma_chan)
+ #define idma_is_set(reg, dma)	(__raw_readl(reg(dma)) & idma_mask(dma))
+ 
+ /*!
++ * This function resets IPU
++ */
++void ipu_reset(void)
++{
++	u32 *reg;
++	u32 value;
++	reg = ioremap(SRC_BASE_ADDR, PAGE_SIZE);
++	value = __raw_readl(reg);
++	value = value | SW_IPU_RST;
++	__raw_writel(value, reg);
++	iounmap(reg);
++}
++EXPORT_SYMBOL(ipu_reset);
++
++/*!
+  * This function is called by the driver framework to initialize the IPU
+  * hardware.
+  *
+@@ -222,6 +237,8 @@ static int ipu_probe(struct platform_device *pdev)
+ 	g_ipu_clk = clk_get(&pdev->dev, "ipu_clk");
+ 	dev_dbg(g_ipu_dev, "ipu_clk = %lu\n", clk_get_rate(g_ipu_clk));
+ 
++	ipu_reset();
++
+ 	clk_enable(g_ipu_clk);
+ 
+ 	g_di_clk[0] = plat_data->di_clk[0];
+diff --git a/drivers/mxc/ipu3/ipu_regs.h b/drivers/mxc/ipu3/ipu_regs.h
+index f4b266a..46b6c11 100644
+--- a/drivers/mxc/ipu3/ipu_regs.h
++++ b/drivers/mxc/ipu3/ipu_regs.h
+@@ -294,6 +294,9 @@ extern u32 *ipu_vdi_reg;
+ #define DP_CSC_0(flow)		(ipu_dp_reg + 0x0054/4 + flow/4)
+ #define DP_CSC_1(flow)		(ipu_dp_reg + 0x0058/4 + flow/4)
+ 
++/* Software reset for ipu */
++#define SW_IPU_RST			8
++
+ enum {
+ 	IPU_CONF_CSI0_EN = 0x00000001,
+ 	IPU_CONF_CSI1_EN = 0x00000002,
+-- 
+1.5.4.4
+

@@ -1,0 +1,1001 @@
+From 670cff68ec195a1198845cc1398d1f3f3f315e24 Mon Sep 17 00:00:00 2001
+From: Zhou Jingyu <b02241@freescale.com>
+Date: Wed, 14 Apr 2010 16:32:30 +0800
+Subject: [PATCH] ENGR00117756: add mx28 standby mode
+
+add mx28 standby mode
+
+Signed-off-by: Zhou Jingyu <Jingyu.Zhou@freescale.com>
+---
+ arch/arm/mach-mx23/pm.c         |    3 +-
+ arch/arm/mach-mx23/sleep.S      |    3 +-
+ arch/arm/mach-mx23/sleep.h      |    3 +-
+ arch/arm/mach-mx28/Makefile     |    2 +-
+ arch/arm/mach-mx28/pm.c         |  329 ++++++++++++++++++++++++++++++
+ arch/arm/mach-mx28/sleep.S      |  420 +++++++++++++++++++++++++++++++++++++++
+ arch/arm/mach-mx28/sleep.h      |  125 ++++++++++++
+ arch/arm/plat-mxs/timer-match.c |   20 ++
+ 8 files changed, 901 insertions(+), 4 deletions(-)
+
+diff --git a/arch/arm/mach-mx23/pm.c b/arch/arm/mach-mx23/pm.c
+index e669841..efd24bc 100644
+--- a/arch/arm/mach-mx23/pm.c
++++ b/arch/arm/mach-mx23/pm.c
+@@ -1,5 +1,6 @@
+ /*
+- * Copyright (C) 2009-2010 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2009-2010 Freescale Semiconductor, Inc.
++ * Copyright 2008 Embedded Alley Solutions, Inc All Rights Reserved.
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+diff --git a/arch/arm/mach-mx23/sleep.S b/arch/arm/mach-mx23/sleep.S
+index 9cc9c9d..0e6b00f 100644
+--- a/arch/arm/mach-mx23/sleep.S
++++ b/arch/arm/mach-mx23/sleep.S
+@@ -1,5 +1,6 @@
+ /*
+- * Copyright (C) 2009-2010 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2009-2010 Freescale Semiconductor, Inc.
++ * Copyright 2008 Embedded Alley Solutions, Inc All Rights Reserved.
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+diff --git a/arch/arm/mach-mx23/sleep.h b/arch/arm/mach-mx23/sleep.h
+index de219ec..54695bc 100644
+--- a/arch/arm/mach-mx23/sleep.h
++++ b/arch/arm/mach-mx23/sleep.h
+@@ -1,5 +1,6 @@
+ /*
+- * Copyright (C) 2009-2010 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2009-2010 Freescale Semiconductor, Inc.
++ * Copyright 2008 Embedded Alley Solutions, Inc All Rights Reserved.
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+diff --git a/arch/arm/mach-mx28/Makefile b/arch/arm/mach-mx28/Makefile
+index 33a395e..23869ad 100644
+--- a/arch/arm/mach-mx28/Makefile
++++ b/arch/arm/mach-mx28/Makefile
+@@ -1,7 +1,7 @@
+ #
+ # Makefile for the linux kernel.
+ #
+-obj-y += pinctrl.o clock.o device.o serial.o power.o bus_freq.o
++obj-y += pinctrl.o clock.o device.o serial.o power.o bus_freq.o pm.o sleep.o
+ 
+ # Board select
+ obj-$(CONFIG_MACH_MX28EVK) += mx28evk.o mx28evk_pins.o
+diff --git a/arch/arm/mach-mx28/pm.c b/arch/arm/mach-mx28/pm.c
+new file mode 100644
+index 0000000..c26a495
+--- /dev/null
++++ b/arch/arm/mach-mx28/pm.c
+@@ -0,0 +1,329 @@
++/*
++ * Copyright (C) 2010 Freescale Semiconductor, Inc.
++ * Copyright 2008 Embedded Alley Solutions, Inc All Rights Reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License along
++ * with this program; if not, write to the Free Software Foundation, Inc.,
++ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
++ */
++
++
++#include <linux/suspend.h>
++#include <linux/rtc.h>
++#include <linux/pm.h>
++#include <linux/delay.h>
++#include <linux/clk.h>
++#include <linux/io.h>
++#include <linux/irq.h>
++#include <linux/kthread.h>
++
++#include <asm/cacheflush.h>
++#include <asm/mach-types.h>
++
++#include <asm/mach/time.h>
++
++#include <mach/hardware.h>
++#include <mach/dma.h>
++#include <mach/regs-rtc.h>
++#include "regs-clkctrl.h"
++#include "regs-pinctrl.h"
++#include <mach/regs-power.h>
++#include <mach/regs-pwm.h>
++#include <mach/regs-rtc.h>
++#include <mach/../../regs-icoll.h>
++#include "regs-dram.h"
++
++#include "sleep.h"
++
++#define PENDING_IRQ_RETRY 100
++static void *saved_sram;
++static int saved_sleep_state;
++
++#define WAIT_DC_OK_CYCLES 24000
++#define WAIT_CYCLE(n) for (i = 0; i < n; i++);
++#define LOWER_VDDIO 10
++#define LOWER_VDDA 9
++#define LOWER_VDDD 0xa
++#define MAX_POWEROFF_CODE_SIZE (6 * 1024)
++#define REGS_CLKCTRL_BASE IO_ADDRESS(CLKCTRL_PHYS_ADDR)
++#define dbgc(ch) __raw_writel(ch, IO_ADDRESS(0x80074000));
++inline void dbgnum(u32 num)
++{
++	dbgc((num / 1000) + '0');
++	dbgc(((num%1000) / 100) + '0');
++	dbgc(((num%100) / 10) + '0');
++	dbgc((num%10) + '0');
++	dbgc('\n');
++}
++
++static inline void do_standby(void)
++{
++	void (*mx28_cpu_standby_ptr) (void);
++	struct clk *cpu_clk;
++	struct clk *osc_clk;
++	struct clk *pll_clk;
++	struct clk *hbus_clk;
++	struct clk *cpu_parent = NULL;
++	int cpu_rate = 0;
++	int hbus_rate = 0;
++	u32 reg_clkctrl_clkseq, reg_clkctrl_xtal;
++	unsigned long iram_phy_addr;
++	void *iram_virtual_addr;
++
++	/*
++	 * 1) switch clock domains from PLL to 24MHz
++	 * 2) lower voltage (TODO)
++	 * 3) switch EMI to 24MHz and turn PLL off (done in sleep.S)
++	 */
++
++
++	/* make sure SRAM copy gets physically written into SDRAM.
++	 * SDRAM will be placed into self-refresh during power down
++	 */
++	flush_cache_all();
++	iram_virtual_addr = iram_alloc(MAX_POWEROFF_CODE_SIZE, &iram_phy_addr);
++	if (iram_virtual_addr == NULL) {
++		pr_info("can not get iram for suspend\n");
++		return;
++	}
++	/* copy suspend function into SRAM */
++	memcpy(iram_virtual_addr, mx28_cpu_standby, mx28_standby_alloc_sz);
++
++	/* now switch the CPU to ref_xtal */
++	cpu_clk = clk_get(NULL, "cpu");
++	osc_clk = clk_get(NULL, "ref_xtal");
++	pll_clk = clk_get(NULL, "pll.0");
++	hbus_clk = clk_get(NULL, "h");
++
++	if (!IS_ERR(cpu_clk) && !IS_ERR(osc_clk)) {
++		cpu_rate = clk_get_rate(cpu_clk);
++		cpu_parent = clk_get_parent(cpu_clk);
++		hbus_rate = clk_get_rate(hbus_clk);
++		clk_set_parent(cpu_clk, osc_clk);
++	}
++
++	local_fiq_disable();
++
++	__raw_writel(BM_POWER_CTRL_ENIRQ_PSWITCH,
++		REGS_POWER_BASE + HW_POWER_CTRL_SET);
++
++	reg_clkctrl_clkseq = __raw_readl(REGS_CLKCTRL_BASE +
++		HW_CLKCTRL_CLKSEQ);
++
++	reg_clkctrl_xtal = __raw_readl(REGS_CLKCTRL_BASE + HW_CLKCTRL_XTAL);
++
++	/* do suspend */
++	mx28_cpu_standby_ptr = iram_virtual_addr;
++
++	mx28_cpu_standby_ptr();
++
++
++	__raw_writel(reg_clkctrl_clkseq, REGS_CLKCTRL_BASE + HW_CLKCTRL_CLKSEQ);
++	__raw_writel(reg_clkctrl_xtal, REGS_CLKCTRL_BASE + HW_CLKCTRL_XTAL);
++
++	saved_sleep_state = 0;  /* waking from standby */
++	__raw_writel(BM_POWER_CTRL_PSWITCH_IRQ,
++		REGS_POWER_BASE + HW_POWER_CTRL_CLR);
++
++	local_fiq_enable();
++
++	if (cpu_parent) {
++		clk_set_parent(cpu_clk, cpu_parent);
++		clk_set_rate(cpu_clk, cpu_rate);
++		clk_set_rate(hbus_clk, hbus_rate);
++	}
++
++	clk_put(hbus_clk);
++	clk_put(pll_clk);
++	clk_put(osc_clk);
++	clk_put(cpu_clk);
++
++	iram_free(iram_phy_addr, MAX_POWEROFF_CODE_SIZE);
++}
++
++static noinline void do_mem(void)
++{
++	/* TODO */
++}
++
++static int mx28_pm_enter(suspend_state_t state)
++{
++	switch (state) {
++	case PM_SUSPEND_STANDBY:
++		do_standby();
++		break;
++	case PM_SUSPEND_MEM:
++		do_mem();
++		break;
++	}
++	return 0;
++}
++
++static int mx28_pm_valid(suspend_state_t state)
++{
++	return (state == PM_SUSPEND_STANDBY) ||
++	       (state == PM_SUSPEND_MEM);
++}
++
++static suspend_state_t saved_state;
++
++static int mx28_pm_begin(suspend_state_t state)
++{
++	saved_state = state;
++	return 0;
++}
++
++static void mx28_pm_end(void)
++{
++	/*XXX: Nothing to do */
++}
++
++suspend_state_t mx28_pm_get_target(void)
++{
++	return saved_state;
++}
++EXPORT_SYMBOL(mx28_pm_get_target);
++
++/**
++ * mx28_pm_get_sleep_state - get sleep state we waking from
++ *
++ * returns boolean: 0 if waking up from standby, 1 otherwise
++ */
++int mx28_pm_sleep_was_deep(void)
++{
++	return saved_sleep_state;
++}
++EXPORT_SYMBOL(mx28_pm_sleep_was_deep);
++
++static struct platform_suspend_ops mx28_suspend_ops = {
++	.enter	= mx28_pm_enter,
++	.valid	= mx28_pm_valid,
++	.begin	= mx28_pm_begin,
++	.end	= mx28_pm_end,
++};
++
++void mx28_pm_idle(void)
++{
++	local_irq_disable();
++	local_fiq_disable();
++	if (need_resched()) {
++		local_fiq_enable();
++		local_irq_enable();
++		return;
++	}
++
++	__raw_writel(BM_CLKCTRL_CPU_INTERRUPT_WAIT,
++		REGS_CLKCTRL_BASE + HW_CLKCTRL_CPU_SET);
++	__asm__ __volatile__ ("mcr	p15, 0, r0, c7, c0, 4");
++
++	local_fiq_enable();
++	local_irq_enable();
++}
++
++static void mx28_pm_power_off(void)
++{
++	__raw_writel(BF_POWER_RESET_UNLOCK(0x3e77) | BM_POWER_RESET_PWD,
++		REGS_POWER_BASE + HW_POWER_RESET);
++}
++
++struct mx28_pswitch_state {
++	int dev_running;
++};
++
++static DECLARE_COMPLETION(suspend_request);
++
++static int suspend_thread_fn(void *data)
++{
++	while (1) {
++		wait_for_completion_interruptible(&suspend_request);
++		pm_suspend(PM_SUSPEND_STANDBY);
++	}
++	return 0;
++}
++
++static struct mx28_pswitch_state pswitch_state = {
++	.dev_running = 0,
++};
++
++static irqreturn_t pswitch_interrupt(int irq, void *dev)
++{
++	int pin_value, i;
++
++	/* check if irq by pswitch */
++	if (!(__raw_readl(REGS_POWER_BASE + HW_POWER_CTRL) &
++		BM_POWER_CTRL_PSWITCH_IRQ))
++		return IRQ_HANDLED;
++	for (i = 0; i < 3000; i++) {
++		pin_value = __raw_readl(REGS_POWER_BASE + HW_POWER_STS) &
++			BF_POWER_STS_PSWITCH(0x1);
++		if (pin_value == 0)
++			break;
++		mdelay(1);
++	}
++	if (i < 3000) {
++		pr_info("pswitch goto suspend\n");
++		complete(&suspend_request);
++	} else {
++		pr_info("release pswitch to power down\n");
++		for (i = 0; i < 5000; i++) {
++			pin_value = __raw_readl(REGS_POWER_BASE + HW_POWER_STS)
++				& BF_POWER_STS_PSWITCH(0x1);
++			if (pin_value == 0)
++				break;
++			mdelay(1);
++		}
++		pr_info("pswitch power down\n");
++		mx28_pm_power_off();
++	}
++	__raw_writel(BM_POWER_CTRL_PSWITCH_IRQ,
++		REGS_POWER_BASE + HW_POWER_CTRL_CLR);
++	return IRQ_HANDLED;
++}
++
++static struct irqaction pswitch_irq = {
++	.name		= "pswitch",
++	.flags		= IRQF_DISABLED | IRQF_SHARED,
++	.handler	= pswitch_interrupt,
++	.dev_id		= &pswitch_state,
++};
++
++static void init_pswitch(void)
++{
++	kthread_run(suspend_thread_fn, NULL, "pswitch");
++	__raw_writel(BM_POWER_CTRL_PSWITCH_IRQ,
++		REGS_POWER_BASE + HW_POWER_CTRL_CLR);
++	__raw_writel(BM_POWER_CTRL_POLARITY_PSWITCH |
++		BM_POWER_CTRL_ENIRQ_PSWITCH,
++		REGS_POWER_BASE + HW_POWER_CTRL_SET);
++	__raw_writel(BM_POWER_CTRL_PSWITCH_IRQ,
++		REGS_POWER_BASE + HW_POWER_CTRL_CLR);
++	setup_irq(IRQ_VDD5V, &pswitch_irq);
++}
++
++static int __init mx28_pm_init(void)
++{
++	saved_sram = kmalloc(0x4000, GFP_ATOMIC);
++	if (!saved_sram) {
++		printk(KERN_ERR
++		 "PM Suspend: can't allocate memory to save portion of SRAM\n");
++		return -ENOMEM;
++	}
++
++	pm_power_off = mx28_pm_power_off;
++	pm_idle = mx28_pm_idle;
++	suspend_set_ops(&mx28_suspend_ops);
++	init_pswitch();
++	return 0;
++}
++
++late_initcall(mx28_pm_init);
+diff --git a/arch/arm/mach-mx28/sleep.S b/arch/arm/mach-mx28/sleep.S
+new file mode 100644
+index 0000000..438f588
+--- /dev/null
++++ b/arch/arm/mach-mx28/sleep.S
+@@ -0,0 +1,420 @@
++/*
++ * Copyright (C) 2010 Freescale Semiconductor, Inc.
++ * Copyright 2008 Embedded Alley Solutions, Inc All Rights Reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License along
++ * with this program; if not, write to the Free Software Foundation, Inc.,
++ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
++ */
++
++#include <linux/linkage.h>
++#include <asm/assembler.h>
++#include <mach/hardware.h>
++#include <asm/system.h>
++#include <asm/pgtable-hwdef.h>
++#include <mach/hardware.h>
++#include <mach/regs-power.h>
++#include <mach/regs-rtc.h>
++#include "regs-clkctrl.h"
++#include "regs-dram.h"
++#include "sleep.h"
++
++#define BM_DRAM_CTL17_SREFRESH	0x00000001
++#define HW_CLKCTRL_CPU_ADDR \
++	(MX28_SOC_IO_ADDRESS(CLKCTRL_PHYS_ADDR) + HW_CLKCTRL_CPU)
++#define HW_POWER_MINPWR_ADDR \
++	(MX28_SOC_IO_ADDRESS(POWER_PHYS_ADDR) + HW_POWER_MINPWR)
++#define HW_POWER_RESET_ADDR \
++	(MX28_SOC_IO_ADDRESS(POWER_PHYS_ADDR) + HW_POWER_RESET)
++
++#define HW_DRAM_CTL17_ADDR \
++	(MX28_SOC_IO_ADDRESS(DRAM_PHYS_ADDR) + HW_DRAM_CTL17)
++#define HW_RTC_PERSISTENT0_ADDR \
++	(MX28_SOC_IO_ADDRESS(RTC_PHYS_ADDR) + HW_RTC_PERSISTENT0)
++
++#define PHYS_RAM_START		0x40000000
++
++.global cpu_arm926_switch_mm
++
++		.text
++
++.align 8
++ENTRY(mx28_cpu_standby)
++	@ save registers on stack
++	stmfd	sp!, {r0 - r9, lr}
++
++	adr	r9, __mx28_temp_stack
++
++	@ clean cache
++	ldr	r1, __mx28_flush_cache_addr
++	mov	lr, pc
++	mov	pc, r1
++
++	@ put DRAM into self refresh
++	mov	r0, #(HW_DRAM_CTL17_ADDR & 0x000000FF)
++	orr	r0, r0, #(HW_DRAM_CTL17_ADDR & 0x0000FF00)
++	orr	r0, r0, #(HW_DRAM_CTL17_ADDR & 0x00FF0000)
++	orr	r0, r0, #(HW_DRAM_CTL17_ADDR & 0xFF000000)
++	ldr	r1, [r0]
++	orr	r1, r1, #(BM_DRAM_CTL17_SREFRESH)
++	str	r1, [r0]
++	@ wait for it to actually happen
++
++	@ do enter standby
++	mov	r0, #(HW_CLKCTRL_CPU_ADDR & 0x000000FF)
++	orr	r0, r0, #(HW_CLKCTRL_CPU_ADDR & 0x0000FF00)
++	orr	r0, r0, #(HW_CLKCTRL_CPU_ADDR & 0x00FF0000)
++	orr	r0, r0, #(HW_CLKCTRL_CPU_ADDR & 0xFF000000)
++	mov	r1, #(1<<12)
++	str	r1, [r0, #4]
++	mov	r2, #0
++	mcr	p15, 0, r2, c7, c0, 4
++	nop
++
++	@ sleeping now...
++
++	@ remove INTERRUPT_WAIT bit
++	str	r1, [r0, #8]
++	nop
++	nop
++	nop
++
++	@ restore normal DRAM mode
++	mov	r0, #(HW_DRAM_CTL17_ADDR & 0x000000FF)
++	orr	r0, r0, #(HW_DRAM_CTL17_ADDR & 0x0000FF00)
++	orr	r0, r0, #(HW_DRAM_CTL17_ADDR & 0x00FF0000)
++	orr	r0, r0, #(HW_DRAM_CTL17_ADDR & 0xFF000000)
++	ldr	r1, [r0]
++	bic	r1, r1, #BM_DRAM_CTL17_SREFRESH
++	str	r1, [r0]
++	@ wait for it to actually happen
++
++	nop
++	nop
++	nop
++
++	@ restore regs and return
++	ldmfd   sp!, {r0 - r9, pc}
++
++	.space	0x100
++__mx28_temp_stack:
++	.word	0
++
++#ifdef CONFIG_STMP378X_RAM_FREQ_SCALING
++#include "emi.inc"
++#endif
++
++__mx28_flush_cache_addr:
++	.word	arm926_flush_kern_cache_all
++
++ENTRY(mx28_standby_alloc_sz)
++	.word	. - mx28_cpu_standby
++
++ENTRY(mx28_cpu_suspend)
++	@ save registers on stack
++	stmfd	sp!, {r1 - r12, lr}
++
++	@ save context
++	mov	r0, #0xd3	@ SVC, Interrupts disabled
++	msr	cpsr, r0
++	mov	r1, #0xC0000000
++	ldr	r1, [r1]
++	mrc	p15, 0, r0, c1, c0, 0
++	str	r0, [r1, #MMUCTL_OFFS]
++	mrc	p15, 0, r0, c15, c1, 0
++	str	r0, [r1, #MMUCPACCESS_OFS]
++	mrc	p15, 0, r0, c2, c0, 0
++	str	r0, [r1, #MMUTTB_OFFS]
++	mrc	p15, 0, r0, c3, c0, 0
++	str	r0, [r1, #MMUDOMAIN_OFFS]
++	mrc	p15, 0, r0, c13, c0, 0
++	str	r0, [r1, #MMUPID_OFFS]
++
++	str	sp, [r1, #SVC_SP_OFFS]
++	mrs	r0, spsr
++	str	r0, [r1, #SVC_SPSR_OFFS]
++
++	add	r2, r1, #FIQ_SPSR_OFFS
++	mov	r0, #0xd1	@ FIQ, Interrupts disabled
++	msr	cpsr, r0
++	mrs	r3, spsr
++	stmia	r2!, {r3, r8-r12, sp, lr}
++
++	add	r2, r1, #ABT_SPSR_OFFS
++	mov	r0, #0xd7	@ ABT, Interrupts disabled
++	msr	cpsr, r0
++	mrs	r3, spsr
++	stmia	r2!, {r3, sp, lr}
++
++	add	r2, r1, #IRQ_SPSR_OFFS
++	mov	r0, #0xd2	@ IRQ, Interrupts disabled
++	msr	cpsr, r0
++	mrs	r3, spsr
++	stmia	r2!, {r3, sp, lr}
++
++	add	r2, r1, #UND_SPSR_OFFS
++	mov	r0, #0xdb	@ UND, Interrupts disabled
++	msr	cpsr, r0
++	mrs	r3, spsr
++	stmia	r2!, {r3, sp, lr}
++
++	add	r2, r1, #SYS_SP_OFFS
++	mov	r0, #0xdf	@ SYS, Interrupts disabled
++	msr	cpsr, r0
++	stmia	r2!, {sp, lr}
++
++	add	r2, r1, #SVC_R8_OFFS
++	mov	r0, #0xd3	@ Back to SVC, Interrupts disabled
++	msr	cpsr, r0
++
++	@ save entry point
++	sub	r1, r1, #(0xC0000000 - PHYS_RAM_START)
++	mov	r0, #0xC0000000
++	str	r1, [r0]
++	ldr	r1, __mx28_resume_point
++	sub	r1, r1, #(0xC0000000 - PHYS_RAM_START)
++	str	r1, [r0, #4]
++	mov	r0, #0
++
++	@ clean cache
++	ldr	r1, __mx28_flush_cache_addr2
++	mov	lr, pc
++	mov	pc, r1
++
++	@ enable internal xtal
++	mov	r2, #(HW_POWER_MINPWR_ADDR & 0x000000FF)
++	orr	r2, r2, #(HW_POWER_MINPWR_ADDR & 0x0000FF00)
++	orr	r2, r2, #(HW_POWER_MINPWR_ADDR & 0x00FF0000)
++	orr	r2, r2, #(HW_POWER_MINPWR_ADDR & 0xFF000000)
++	ldr	r1, [r2]
++	orr	r1, r1, #(1<<9)
++	str	r1, [r2]
++	orr	r1, r1, #(1<<8)
++	str	r1, [r2]
++
++	@ enable RTC/RAM clocks
++	mov	r0, #(HW_RTC_PERSISTENT0_ADDR & 0x000000FF)
++	orr	r0, r0, #(HW_RTC_PERSISTENT0_ADDR & 0x0000FF00)
++	orr	r0, r0, #(HW_RTC_PERSISTENT0_ADDR & 0x00FF0000)
++	orr	r0, r0, #(HW_RTC_PERSISTENT0_ADDR & 0xFF000000)
++	mov	r1, #((1<<4)|(1<<5)|1)
++	str	r1, [r0, #4]
++
++	@ put DRAM into self refresh
++	mov	r0, #(HW_DRAM_CTL17_ADDR & 0x000000FF)
++	orr	r0, r0, #(HW_DRAM_CTL17_ADDR & 0x0000FF00)
++	orr	r0, r0, #(HW_DRAM_CTL17_ADDR & 0x00FF0000)
++	orr	r0, r0, #(HW_DRAM_CTL17_ADDR & 0xFF000000)
++	ldr	r1, [r0]
++	orr	r1, r1, #(BM_DRAM_CTL17_SREFRESH)
++	str	r1, [r0]
++
++	@ wait for it to actually happen
++	nop
++	nop
++	nop
++	nop
++	nop
++	nop
++
++	@ power off RAM
++	mov	r0, #(HW_DRAM_CTL17_ADDR & 0x000000FF)
++	orr	r0, r0, #(HW_DRAM_CTL17_ADDR & 0x0000FF00)
++	orr	r0, r0, #(HW_DRAM_CTL17_ADDR & 0x00FF0000)
++	orr	r0, r0, #(HW_DRAM_CTL17_ADDR & 0xFF000000)
++	ldr	r1, [r0]
++	orr	r1, r1, #(1<<24)
++	str	r1, [r0]
++	nop
++	nop
++	nop
++	nop
++
++	@ do enter sleep
++	mov	r0, #(HW_POWER_RESET_ADDR & 0x000000FF)
++	orr	r0, r0, #(HW_POWER_RESET_ADDR & 0x0000FF00)
++	orr	r0, r0, #(HW_POWER_RESET_ADDR & 0x00FF0000)
++	orr	r0, r0, #(HW_POWER_RESET_ADDR & 0xFF000000)
++	mov	r1, #0xFF000000
++	orr	r1, r1, #0x00FF0000
++	str	r1, [r0, #8]
++	mov	r1, #0x3E000000
++	orr	r1, r1, #0x00770000
++	str	r1, [r0, #4]
++	mov	r1, #2
++	str	r1, [r0, #8]
++	mov	r1, #1
++	str	r1, [r0, #4]
++	nop
++	nop
++	nop
++	nop
++	nop
++	nop
++
++	@ sleeping now...
++
++__restore_context:
++	mov	r0, #0
++	mcr	p15, 0, r0, c7, c10, 4	@ Drain write buffer
++	mcr	p15, 0, r0, c8, c7, 0	@ Invalidate TLBs
++	mcr	p15, 0, r0, c7, c7, 0	@ Invalidate I & D cache
++	nop
++	nop
++
++	mov	r0, #0xd3
++	msr	cpsr, r0
++
++	bl	__create_temp_page_tables
++	mov	r3, r4
++
++	mov	r1, #PHYS_RAM_START
++	ldr	r1, [r1]
++	ldr	r2, [r1, #MMUDOMAIN_OFFS]
++	ldr	r4, [r1, #MMUCPACCESS_OFS]
++	ldr	r5, [r1, #MMUPID_OFFS]
++	ldr	r6, =__resume_after_mmu
++	ldr	r7, [r1, #MMUCTL_OFFS]
++	ldr	r8, [r1, #MMUTTB_OFFS]
++	add	r1, r1, #(0xC0000000 - PHYS_RAM_START)
++	mov	r0, #0
++@	mcr	p15, 0, r4, c15, c1, 0	@ cpaccess
++	mcr	p15, 0, r5, c13, c0, 0	@ pid
++	mcr	p15, 0, r2, c3, c0, 0	@ domain
++	mcr	p15, 0, r3, c2, c0, 0	@ ttb
++	b	1f
++	.align 5
++1:	mov	r0, r0
++	mcr     p15, 0, r7, c1, c0, 0	@ mmuctl
++	nop
++	mrc	p15, 0, r0, c3, c0, 0	@ read id
++	mov	r0, r0
++	mov	r0, r0
++	sub	pc, r6, r5, lsr #32
++	nop
++	nop
++	nop
++__resume_after_mmu:
++	mov	r0, #0
++	mcr	p15, 0, r0, c8, c7, 0	@ Invalidate TLBs
++	mcr	p15, 0, r0, c7, c7, 0	@ Invalidate I & D cache
++
++	mov	r0, r8
++	bl	cpu_arm926_switch_mm
++
++	mov	r0, #0xd1 @FIQ, Interrupts disabled
++	ldr	r2, [r1, #FIQ_SPSR_OFFS]
++	add	r3, r1, #FIQ_R8_OFFS
++	msr	cpsr, r0
++	msr	spsr, r2
++	ldmia	r3!, {r8-r12, sp, lr}
++
++	mov	r0, #0xd7 @ABT, Interrupts disabled
++	ldr	r2, [r1, #ABT_SPSR_OFFS]
++	add	r3, r1, #ABT_SP_OFFS
++	msr	cpsr, r0
++	msr	spsr, r2
++	ldmia	r3!, {sp, lr}
++
++	mov	r0, #0xd2 @IRQ, Interrupts disabled
++	ldr	r2, [r1, #IRQ_SPSR_OFFS]
++	add	r3, r1, #IRQ_SP_OFFS
++	msr	cpsr, r0
++	msr	spsr, r2
++	ldmia	r3!, {sp, lr}
++
++	mov	r0, #0xdb @UND, Interrupts disabled
++	ldr	r2, [r1, #UND_SPSR_OFFS]
++	add	r3, r1, #UND_SP_OFFS
++	msr	cpsr, r0
++	msr	spsr, r2
++	ldmia	r3!, {sp, lr}
++
++	mov	r0, #0xdf @SYS, Interrupts disabled
++	add	r3, r1, #SYS_SP_OFFS
++	msr	cpsr, r0
++	ldmia	r3!, {sp, lr}
++
++	mov	r0, #0xd3 @SVC, interrupts disabled
++	ldr	r2, [r1, #SVC_SPSR_OFFS]
++	ldr	r3, [r1, #SVC_SP_OFFS]
++	msr	cpsr, r0
++	msr	spsr, r2
++	mov	sp, r3
++
++#if 0
++	@ select CPU bypass, will be cleared afterwards
++	ldr	r0, =HW_CLKCTRL_CLKSEQ_ADDR
++	ldr	r2, =HW_CLKCTRL_HBUS_ADDR
++	ldr	r4, =HW_CLKCTRL_CPU_ADDR
++	mov	r1, #(1<<7)
++	ldr	r3, [r2]
++	bic	r3, r3, #BM_CLKCTRL_HBUS_DIV
++	orr	r3, r3, #1
++	ldr	r5, [r4]
++	bic	r5, r5, #BM_CLKCTRL_CPU_DIV_CPU
++	orr	r5, r5, #1
++	str	r1, [r0, #4]
++	str	r3, [r2]
++	str	r5, [r4]
++#endif
++	@ restore regs and return
++	ldmfd   sp!, {r1 - r12, lr}
++	mov	pc, lr
++
++__mx28_flush_cache_addr2:
++	.word	arm926_flush_kern_cache_all
++__mx28_resume_point:
++	.word	__restore_context
++ENTRY(mx28_s2ram_alloc_sz)
++	.word	. - mx28_cpu_suspend
++
++__create_temp_page_tables:
++	ldr	r4, =(__temp_ttb - 0xC0000000 + PHYS_RAM_START)
++
++	/*
++	 * Clear the 16K level 1 swapper page table
++	 */
++	mov	r0, r4
++	mov	r3, #0
++	add	r6, r0, #0x4000
++1:	str	r3, [r0], #4
++	str	r3, [r0], #4
++	str	r3, [r0], #4
++	str	r3, [r0], #4
++	teq	r0, r6
++	bne	1b
++
++	/*
++	 * Create identity mapping for the area close to where we are to
++	 * cater for the MMU enable.
++	 */
++	mov	r6, pc, lsr #20			@ kind of where we are
++	ldr	r7, =\
++	(PMD_TYPE_SECT | PMD_SECT_BUFFERABLE | PMD_SECT_CACHEABLE\
++	| PMD_BIT4 | PMD_SECT_AP_WRITE | PMD_SECT_AP_READ)
++
++	orr	r3, r7, r6, lsl #20		@ flags + kernel base
++	str	r3, [r4, r6, lsl #2]		@ identity mapping
++
++	mov	r6, r6, lsl #20
++	add	r6, r6, #(0xC0000000-PHYS_RAM_START)
++	str	r3, [r4, r6, lsr #18]
++
++	mov	pc, lr
++	.ltorg
++
++	.section ".sdata", "a"
++	.align 14
++__temp_ttb:
++	.space 0x8000
+diff --git a/arch/arm/mach-mx28/sleep.h b/arch/arm/mach-mx28/sleep.h
+new file mode 100644
+index 0000000..678d552
+--- /dev/null
++++ b/arch/arm/mach-mx28/sleep.h
+@@ -0,0 +1,125 @@
++/*
++ * Copyright (C) 2010 Freescale Semiconductor, Inc.
++ * Copyright 2008 Embedded Alley Solutions, Inc All Rights Reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License along
++ * with this program; if not, write to the Free Software Foundation, Inc.,
++ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
++ */
++
++
++#ifndef __PM_H__
++#define __PM_H__
++
++#include "regs-clkctrl.h"
++
++#define MMUTTB1_MASK		0x00003FE0
++#define MMUTTBC_MASK		0xFFFFFFFC
++
++#define LINK_OFFS	0x08
++#define MMUCTL_OFFS	0x0C
++#define MMUAUXCTL_OFFS	0x10
++#define MMUCPACCESS_OFS	0x14
++#define MMUTTB_OFFS	0x18
++#define MMUPID_OFFS	0x1C
++#define MMUDOMAIN_OFFS	0x20
++#define SVC_R8_OFFS	0x2C
++#define SVC_SP_OFFS	0x40
++#define SVC_SPSR_OFFS	0x44
++#define FIQ_SPSR_OFFS	0x48
++#define FIQ_R8_OFFS	0x4C
++#define FIQ_SP_OFFS	0x60
++#define ABT_R8_OFFS	0x68
++#define ABT_SPSR_OFFS	0x7C
++#define ABT_SP_OFFS	0x80
++#define IRQ_R8_OFFS	0x88
++#define IRQ_SPSR_OFFS	0x9C
++#define IRQ_SP_OFFS	0xA0
++#define UND_SPSR_OFFS	0xA8
++#define UND_SP_OFFS	0xAC
++#define SYS_SPSR_OFFS	0xB4
++#define SYS_SP_OFFS	0xB8
++
++#ifndef __ASSEMBLER__
++#define SLEEP_DATA_FINGERPRINT 0xdeadbeef
++struct sleep_data {
++	u32		fingerprint;
++	u32		wake_addr;
++	u32		link_addr;
++	u32		mmuctl;
++	u32		mmuauxctl;
++	u32		mmucpaccess;
++	u32		mmuttb;
++	u32		mmupid;
++	u32		mmudomain;
++	u32		svc_r6;
++	u32		svc_r7;
++	u32		svc_r8;
++	u32		svc_r9;
++	u32		svc_r10;
++	u32		svc_r11;
++	u32		svc_r12;
++	u32		svc_sp;
++	u32		svc_spsr;
++	u32		fiq_spsr;
++	u32		fiq_r8;
++	u32		fiq_r9;
++	u32		fiq_r10;
++	u32		fiq_r11;
++	u32		fiq_r12;
++	u32		fiq_sp;
++	u32		fiq_lr;
++	u32		abt_r8;
++	u32		abt_r9;
++	u32		abt_r10;
++	u32		abt_r11;
++	u32		abt_r12;
++	u32		abt_spsr;
++	u32		abt_sp;
++	u32		abt_lr;
++	u32		irq_r8;
++	u32		irq_r9;
++	u32		irq_r10;
++	u32		irq_r11;
++	u32		irq_r12;
++	u32		irq_spsr;
++	u32		irq_sp;
++	u32		irq_lr;
++	u32		und_spsr;
++	u32		und_sp;
++	u32		und_lr;
++	u32		sys_spsr;
++	u32		sys_sp;
++	u32		sys_lr;
++	u32		pinmux[0x100];
++	u32		icoll_ctrl;
++	union {
++		u32		prio[0x10];
++		u32		intr[0x80];
++	} icoll;
++	u32		clks[16];
++	u32		old_c00;
++	u32		old_c04;
++};
++
++extern int mx2_s2ram_alloc_sz;
++void mx28_cpu_suspend(void);
++extern int mx28_standby_alloc_sz;
++void mx28_cpu_standby(void);
++void mxs_suspend_timer(void);
++void mxs_resume_timer(void);
++
++void *iram_alloc(unsigned int size, unsigned long *dma_addr);
++void iram_free(unsigned long addr, unsigned int size);
++#endif /* __ASSEMBLER__ */
++#endif /* __PM_H__ */
+diff --git a/arch/arm/plat-mxs/timer-match.c b/arch/arm/plat-mxs/timer-match.c
+index 7d8f247..a24c44e 100644
+--- a/arch/arm/plat-mxs/timer-match.c
++++ b/arch/arm/plat-mxs/timer-match.c
+@@ -59,9 +59,27 @@ static int mxs_set_next_event(unsigned long delta,
+ 	    > 0 ? -ETIME : 0;
+ }
+ 
++
+ static void mxs_set_mode(enum clock_event_mode mode,
+ 			 struct clock_event_device *evt)
+ {
++	switch (mode) {
++	case CLOCK_EVT_MODE_SHUTDOWN:
++	__raw_writel(BM_TIMROT_TIMCTRLn_IRQ_EN | BM_TIMROT_TIMCTRLn_IRQ,
++			online_timer->base  + HW_TIMROT_TIMCTRLn_CLR(0));
++	break;
++	case CLOCK_EVT_MODE_RESUME:
++	case CLOCK_EVT_MODE_ONESHOT:
++	__raw_writel(BM_TIMROT_ROTCTRL_SFTRST | BM_TIMROT_ROTCTRL_CLKGATE,
++			online_timer->base  + HW_TIMROT_ROTCTRL_CLR);
++	__raw_writel(BF_TIMROT_TIMCTRLn_SELECT(online_timer->clk_sel) |
++		     BM_TIMROT_TIMCTRLn_IRQ_EN |
++		     BM_TIMROT_TIMCTRLn_MATCH_MODE,
++		     online_timer->base + HW_TIMROT_TIMCTRLn(online_timer->id));
++	break;
++	default:
++	break;
++	}
+ }
+ 
+ static struct clock_event_device mxs_clockevent = {
+@@ -142,3 +160,5 @@ void mxs_timer_init(struct mxs_sys_timer *timer)
+ 	mxs_clockevent_init(online_timer->clk);
+ 	setup_irq(online_timer->irq, &mxs_timer_irq);
+ }
++
++
+-- 
+1.5.4.4
+

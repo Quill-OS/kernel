@@ -1,0 +1,114 @@
+From 1129b0b78e88584d9beca5525e7e3bf36f4e2266 Mon Sep 17 00:00:00 2001
+From: Robby Cai <R63905@freescale.com>
+Date: Wed, 10 Mar 2010 21:29:36 +0800
+Subject: [PATCH] ENGR00121273-2 [MX23] Porting I2C driver to new MSL
+
+Add MSL-related codes for MX23 I2C adapter driver
+
+Signed-off-by: Robby Cai <R63905@freescale.com>
+---
+ arch/arm/mach-mx23/device.c       |   51 +++++++++++++++++++++++++++++++++++++
+ arch/arm/mach-mx23/mx23evk_pins.c |   12 ++++----
+ 2 files changed, 57 insertions(+), 6 deletions(-)
+
+diff --git a/arch/arm/mach-mx23/device.c b/arch/arm/mach-mx23/device.c
+index d74f870..da3ffe9 100644
+--- a/arch/arm/mach-mx23/device.c
++++ b/arch/arm/mach-mx23/device.c
+@@ -162,6 +162,56 @@ static void __init mx23_init_lcdif(void)
+ }
+ #endif
+ 
++#if defined(CONFIG_I2C_MXS) || \
++	defined(CONFIG_I2C_MXS_MODULE)
++static struct resource i2c_resource[] = {
++	{
++	 .flags = IORESOURCE_MEM,
++	 .start = I2C0_PHYS_ADDR,
++	 .end   = I2C0_PHYS_ADDR + 0x2000 - 1,
++	 },
++	{
++	 .flags = IORESOURCE_DMA,
++	 .start = MXS_DMA_CHANNEL_AHB_APBX_I2C0,
++	 .end   = MXS_DMA_CHANNEL_AHB_APBX_I2C0,
++	 },
++	{
++	 .flags = IORESOURCE_IRQ,
++	 .start = IRQ_I2C_ERROR,
++	 .end   = IRQ_I2C_ERROR,
++	 },
++	{
++	 .flags = IORESOURCE_IRQ,
++	 .start = IRQ_I2C_DMA,
++	 .end   = IRQ_I2C_DMA,
++	 },
++};
++
++static struct mxs_i2c_plat_data i2c_platdata = {
++#ifdef	CONFIG_I2C_MXS_SELECT0_PIOQUEUE_MODE
++	.pioqueue_mode = 0,
++#endif
++};
++
++static void __init mx23_init_i2c(void)
++{
++	struct platform_device *pdev;
++
++	pdev = mxs_get_device("mxs-i2c", 0);
++	if (pdev == NULL || IS_ERR(pdev))
++		return;
++
++	pdev->resource = i2c_resource;
++	pdev->num_resources = ARRAY_SIZE(i2c_resource);
++	pdev->dev.platform_data = &i2c_platdata;
++
++	mxs_add_device(pdev, 2);
++}
++#else
++static void __init mx23_init_i2c(void)
++{
++}
++#endif
+ 
+ #if defined(CONFIG_MXS_WATCHDOG) || defined(CONFIG_MXS_WATCHDOG_MODULE)
+ static struct resource mx23_wdt_res = {
+@@ -528,6 +578,7 @@ int __init mx23_device_init(void)
+ 	mx23_init_duart();
+ 	mx23_init_auart();
+ 	mx23_init_lradc();
++	mx23_init_i2c();
+ 	mx23_init_kbd();
+ 	mx23_init_wdt();
+ 	mx23_init_ts();
+diff --git a/arch/arm/mach-mx23/mx23evk_pins.c b/arch/arm/mach-mx23/mx23evk_pins.c
+index 06de538..06c005c 100644
+--- a/arch/arm/mach-mx23/mx23evk_pins.c
++++ b/arch/arm/mach-mx23/mx23evk_pins.c
+@@ -63,18 +63,18 @@ static struct pin_desc mx23evk_fixed_pins[] = {
+ #if defined(CONFIG_I2C_MXS) || \
+ 	defined(CONFIG_I2C_MXS_MODULE)
+ 	{
+-	 .name = "I2C0_SCL",
+-	 .id = PINID_I2C0_SCL,
++	 .name = "I2C_SCL",
++	 .id = PINID_I2C_SCL,
+ 	 .fun = PIN_FUN1,
+-	 .strength = PAD_8MA,
++	 .strength = PAD_4MA,
+ 	 .voltage = PAD_3_3V,
+ 	 .drive	= 1,
+ 	 },
+ 	{
+-	 .name = "I2C0_SDA",
+-	 .id = PINID_I2C0_SDA,
++	 .name = "I2C_SDA",
++	 .id = PINID_I2C_SDA,
+ 	 .fun = PIN_FUN1,
+-	 .strength = PAD_8MA,
++	 .strength = PAD_4MA,
+ 	 .voltage = PAD_3_3V,
+ 	 .drive	= 1,
+ 	 },
+-- 
+1.5.4.4
+

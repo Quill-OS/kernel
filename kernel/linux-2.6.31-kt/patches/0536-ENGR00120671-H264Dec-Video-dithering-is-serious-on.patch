@@ -1,0 +1,43 @@
+From 91063814ed0803df93d72bb3936519ac05f55f5c Mon Sep 17 00:00:00 2001
+From: Ran Ferderber <Ran.Ferderber@freescale.com>
+Date: Wed, 28 Apr 2010 07:52:49 +0300
+Subject: [PATCH] ENGR00120671 H264Dec: Video dithering is serious on the interlaced streams
+
+iMX53 was not in list of parts that include VDI, iMX53 was add.
+
+Signed-off-by: Ran Ferderber r53561@freescale.com
+---
+ drivers/media/video/mxc/output/mxc_v4l2_output.c |    9 +++++++--
+ 1 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/media/video/mxc/output/mxc_v4l2_output.c b/drivers/media/video/mxc/output/mxc_v4l2_output.c
+index a8beb77..6a91440 100644
+--- a/drivers/media/video/mxc/output/mxc_v4l2_output.c
++++ b/drivers/media/video/mxc/output/mxc_v4l2_output.c
+@@ -37,7 +37,8 @@
+ #include "mxc_v4l2_output.h"
+ 
+ vout_data *g_vout;
+-#define INTERLACED_CONTENT(vout) ((cpu_is_mx51_rev(CHIP_REV_2_0) >= 1) && \
++#define INTERLACED_CONTENT(vout) (((cpu_is_mx51_rev(CHIP_REV_2_0) >= 1) || \
++				   cpu_is_mx53()) &&			\
+ 				  (((vout)->field_fmt == V4L2_FIELD_INTERLACED_TB) || \
+ 				   ((vout)->field_fmt == V4L2_FIELD_INTERLACED_BT)))
+ #define LOAD_3FIELDS(vout) ((INTERLACED_CONTENT(vout)) && \
+@@ -1746,8 +1747,12 @@ static int mxc_v4l2out_s_fmt(vout_data * vout, struct v4l2_format *f)
+ 			"V4L2_FIELD_ALTERNATE field format not supported yet!\n");
+ 		break;
+ 	case V4L2_FIELD_INTERLACED_TB:
+-		if (cpu_is_mx51())
++		if (cpu_is_mx51() || cpu_is_mx53())
+ 			break;
++		dev_err(&vout->video_dev->dev,
++			"De-interlacing not supported in this device!\n");
++		vout->field_fmt = V4L2_FIELD_NONE;
++		break;
+ 	case V4L2_FIELD_INTERLACED_BT:
+ 		dev_err(&vout->video_dev->dev,
+ 			"V4L2_FIELD_INTERLACED_BT field format not supported yet!\n");
+-- 
+1.5.4.4
+

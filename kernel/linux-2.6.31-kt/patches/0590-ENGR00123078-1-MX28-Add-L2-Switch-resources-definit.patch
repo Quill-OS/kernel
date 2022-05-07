@@ -1,0 +1,198 @@
+From 41ff27f98b69be3fdd5766087df46611926e1228 Mon Sep 17 00:00:00 2001
+From: Niu Xule <b23300@freescale.com>
+Date: Wed, 12 May 2010 15:43:24 +0800
+Subject: [PATCH] ENGR00123078-1 MX28: Add L2 Switch resources definition
+
+L2 Switch resources definition for MX28
+
+Signed-off-by: Niu Xule <b23300@freescale.com>
+---
+ arch/arm/mach-mx28/device.c       |   54 +++++++++++++++++++++++++++++++++++++
+ arch/arm/mach-mx28/mx28evk.h      |    2 +
+ arch/arm/mach-mx28/mx28evk_pins.c |    6 +++-
+ arch/arm/plat-mxs/device.c        |   20 +++++++++++++
+ include/linux/fec.h               |   18 ++++++++++++
+ 5 files changed, 98 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm/mach-mx28/device.c b/arch/arm/mach-mx28/device.c
+index 996758b..cec30c0 100644
+--- a/arch/arm/mach-mx28/device.c
++++ b/arch/arm/mach-mx28/device.c
+@@ -44,6 +44,7 @@
+ 
+ #include "regs-digctl.h"
+ #include "device.h"
++#include "mx28evk.h"
+ #include "mx28_pins.h"
+ 
+ #if defined(CONFIG_SERIAL_MXS_DUART) || \
+@@ -787,6 +788,58 @@ static void __init mx28_init_fec(void)
+ 	;
+ }
+ #endif
++
++#if defined(CONFIG_FEC_L2SWITCH)
++static struct resource l2switch_resources[] = {
++	{
++		.start  = ENET_PHYS_ADDR,
++		.end    = ENET_PHYS_ADDR + 0x17FFC,
++		.flags  = IORESOURCE_MEM
++	},
++	{
++		.start  = IRQ_ENET_SWI,
++		.end    = IRQ_ENET_SWI,
++		.flags  = IORESOURCE_IRQ
++	},
++};
++
++/* Define the fixed address of the L2 Switch hardware. */
++static unsigned int switch_platform_hw[2] = {
++	(0x800F8000),
++	(0x800FC000),
++};
++
++static struct fec_platform_data fec_enet = {
++	.phy = PHY_INTERFACE_MODE_RMII,
++	.init = mx28evk_enet_gpio_init,
++};
++
++static struct switch_platform_data l2switch_data = {
++	.id 		= 0,
++	.fec_enet	= &fec_enet,
++	.hash_table	= 0,
++	.switch_hw	= switch_platform_hw,
++};
++
++static void __init mx28_init_l2switch(void)
++{
++	struct platform_device *pdev;
++	pdev = mxs_get_device("mxs-l2switch", 0);
++	if (pdev == NULL || IS_ERR(pdev))
++		return;
++
++	pdev->resource = l2switch_resources;
++	pdev->num_resources = ARRAY_SIZE(l2switch_resources);
++	pdev->dev.platform_data = &l2switch_data;
++	mxs_add_device(pdev, 2);
++}
++#else
++static void __init mx28_init_l2switch(void)
++{
++	;
++}
++#endif
++
+ #ifdef CONFIG_MXS_LRADC
+ struct mxs_lradc_plat_data mx28_lradc_data = {
+ 	.vddio_voltage = BV_LRADC_CTRL4_LRADC6SELECT__CHANNEL10,
+@@ -1266,6 +1319,7 @@ int __init mx28_device_init(void)
+ 	mx28_init_wdt();
+ 	mx28_init_rtc();
+ 	mx28_init_fec();
++	mx28_init_l2switch();
+ 	mx28_init_flexcan();
+ 	mx28_init_kbd();
+ 	mx28_init_ts();
+diff --git a/arch/arm/mach-mx28/mx28evk.h b/arch/arm/mach-mx28/mx28evk.h
+index c141749..5891027 100644
+--- a/arch/arm/mach-mx28/mx28evk.h
++++ b/arch/arm/mach-mx28/mx28evk.h
+@@ -20,4 +20,6 @@
+ #define __ASM_ARM_MACH_MX28EVK_H
+ 
+ extern void __init mx28evk_pins_init(void);
++extern int mx28evk_enet_gpio_init(void);
++
+ #endif /* __ASM_ARM_MACH_MX28EVK_H */
+diff --git a/arch/arm/mach-mx28/mx28evk_pins.c b/arch/arm/mach-mx28/mx28evk_pins.c
+index 1a859c9..a7c81b3 100644
+--- a/arch/arm/mach-mx28/mx28evk_pins.c
++++ b/arch/arm/mach-mx28/mx28evk_pins.c
+@@ -539,7 +539,8 @@ static struct pin_desc mx28evk_fixed_pins[] = {
+ 	 },
+ #endif
+ 
+-#if defined(CONFIG_FEC) || defined(CONFIG_FEC_MODULE)
++#if defined(CONFIG_FEC) || defined(CONFIG_FEC_MODULE)\
++	|| defined(CONFIG_FEC_L2SWITCH)
+ 	{
+ 	 .name = "ENET0_MDC",
+ 	 .id = PINID_ENET0_MDC,
+@@ -1070,7 +1071,8 @@ static struct pin_desc mx28evk_gpmi_pins[] = {
+ 	 },
+ };
+ 
+-#if defined(CONFIG_FEC) || defined(CONFIG_FEC_MODULE)
++#if defined(CONFIG_FEC) || defined(CONFIG_FEC_MODULE)\
++	|| defined(CONFIG_FEC_L2SWITCH)
+ int mx28evk_enet_gpio_init(void)
+ {
+ 	/* pwr */
+diff --git a/arch/arm/plat-mxs/device.c b/arch/arm/plat-mxs/device.c
+index d2dcae9..0274089 100644
+--- a/arch/arm/plat-mxs/device.c
++++ b/arch/arm/plat-mxs/device.c
+@@ -220,6 +220,18 @@ static struct platform_device mxs_fec[] = {
+ };
+ #endif
+ 
++#if defined(CONFIG_FEC_L2SWITCH)
++static struct platform_device mxs_l2switch[] = {
++	{
++	.name = "mxs-l2switch",
++	.id = 0,
++	.dev = {
++		.release = mxs_nop_release,
++		},
++	},
++};
++#endif
++
+ #if defined(CONFIG_FB_MXS) || defined(CONFIG_FB_MXS_MODULE)
+ static struct platform_device mxs_fb = {
+ 	.name	= "mxs-fb",
+@@ -595,6 +607,14 @@ static struct mxs_dev_lookup dev_lookup[] = {
+ 	},
+ #endif
+ 
++#if defined(CONFIG_FEC_L2SWITCH)
++	{
++	.name = "mxs-l2switch",
++	.size = ARRAY_SIZE(mxs_l2switch),
++	.pdev = mxs_l2switch,
++	},
++#endif
++
+ #ifdef CONFIG_MXS_LRADC
+ 	{
+ 	 .name = "mxs-lradc",
+diff --git a/include/linux/fec.h b/include/linux/fec.h
+index 2ad6131..5ebd1f4 100644
+--- a/include/linux/fec.h
++++ b/include/linux/fec.h
+@@ -22,4 +22,22 @@ struct fec_platform_data {
+ 	struct regulator *vddio_reg;
+ };
+ 
++struct switch_platform_data {
++	int	id;
++	int     hash_table;
++	unsigned int *switch_hw;
++	struct fec_platform_data *fec_enet;
++	void    (*request_intrs)(struct net_device *dev,
++		irqreturn_t (*)(int, void *),
++		void *irq_privatedata);
++	void    (*set_mii)(struct net_device *dev);
++	void    (*get_mac)(struct net_device *dev);
++	void    (*enable_phy_intr)(void);
++	void    (*disable_phy_intr)(void);
++	void    (*phy_ack_intr)(void);
++	void    (*localhw_setup)(void);
++	void    (*uncache)(unsigned long addr);
++	void    (*platform_flush_cache)(void);
++};
++
+ #endif
+-- 
+1.5.4.4
+

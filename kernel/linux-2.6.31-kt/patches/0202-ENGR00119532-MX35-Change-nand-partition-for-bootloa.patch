@@ -1,0 +1,28 @@
+From 1fe997d15dcdc088ec2a661b1f02a47bee536073 Mon Sep 17 00:00:00 2001
+From: Wallace Wang <r59996@freescale.com>
+Date: Mon, 21 Dec 2009 15:11:44 +0800
+Subject: [PATCH] ENGR00119532 MX35: Change nand partition for bootloader to 3M bytes
+
+Reserve 3M for bootloader since new nand block size is 512K byte.
+
+Signed-off-by: Wallace Wang <r59996@freescale.com>
+---
+ arch/arm/mach-mx35/mx35_3stack.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/arch/arm/mach-mx35/mx35_3stack.c b/arch/arm/mach-mx35/mx35_3stack.c
+index 306f2e8..1f766d0 100644
+--- a/arch/arm/mach-mx35/mx35_3stack.c
++++ b/arch/arm/mach-mx35/mx35_3stack.c
+@@ -152,7 +152,7 @@ static struct mtd_partition mxc_nand_partitions[] = {
+ 	{
+ 	 .name = "nand.bootloader",
+ 	 .offset = 0,
+-	 .size = 1024 * 1024},
++	 .size = 3 * 1024 * 1024},
+ 	{
+ 	 .name = "nand.kernel",
+ 	 .offset = MTDPART_OFS_APPEND,
+-- 
+1.5.4.4
+

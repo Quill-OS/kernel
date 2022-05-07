@@ -1,0 +1,28 @@
+From b0daafba070db051064389552afa9be906a1ec5d Mon Sep 17 00:00:00 2001
+From: Sam Yang <r52096@freescale.com>
+Date: Tue, 23 Mar 2010 17:26:40 +0800
+Subject: [PATCH] ENGR00121861 Remove mx28 keywork in description of CRYPTO_DEV_CP driver
+
+it's reused by other platforms.
+
+Signed-off-by: Sam Yang <r52096@freescale.com>
+---
+ drivers/crypto/Kconfig |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/drivers/crypto/Kconfig b/drivers/crypto/Kconfig
+index b5f307a..9c2919a 100644
+--- a/drivers/crypto/Kconfig
++++ b/drivers/crypto/Kconfig
+@@ -215,7 +215,7 @@ config CRYPTO_DEV_DCP
+ 	select CRYPTO_ALGAPI
+ 	select CRYPTO_BLKCIPHER
+ 	help
+-	  Say 'Y' here to use the MX28 DCP AES and SHA
++	  Say 'Y' here to use the DCP AES and SHA
+ 	  engine for the CryptoAPI algorithms.
+ 
+ 	  To compile this driver as a module, choose M here: the module
+-- 
+1.5.4.4
+

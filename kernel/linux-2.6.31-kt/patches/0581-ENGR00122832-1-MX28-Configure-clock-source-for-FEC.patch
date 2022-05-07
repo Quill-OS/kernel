@@ -1,0 +1,41 @@
+From 6fc4c3625f2adbc1a1b466e6427a5df346aa8435 Mon Sep 17 00:00:00 2001
+From: Xie Xiaobo <X.Xie@freescale.com>
+Date: Thu, 6 May 2010 19:02:11 +0800
+Subject: [PATCH] ENGR00122832-1 MX28: Configure clock source for FEC 1588 timer
+
+Select clock for Ethernet 1588 timer and set the divider.
+
+Signed-off-by: Xie Xiaobo <X.Xie@freescale.com>
+---
+ arch/arm/mach-mx28/clock.c        |    2 ++
+ arch/arm/mach-mx28/regs-clkctrl.h |    1 +
+ 2 files changed, 3 insertions(+), 0 deletions(-)
+
+diff --git a/arch/arm/mach-mx28/clock.c b/arch/arm/mach-mx28/clock.c
+index 3612290..40ad38d 100644
+--- a/arch/arm/mach-mx28/clock.c
++++ b/arch/arm/mach-mx28/clock.c
+@@ -1726,6 +1726,8 @@ void  mx28_enet_clk_hook(void)
+ 
+ 	reg &= ~BM_CLKCTRL_ENET_SLEEP;
+ 	reg |= BM_CLKCTRL_ENET_CLK_OUT_EN;
++	/* select clock for 1588 module */
++	reg |= BM_CLKCTRL_ENET_1588_40MHZ;
+ 
+ 	__raw_writel(reg, CLKCTRL_BASE_ADDR + HW_CLKCTRL_ENET);
+ }
+diff --git a/arch/arm/mach-mx28/regs-clkctrl.h b/arch/arm/mach-mx28/regs-clkctrl.h
+index 161860c..9de1927 100644
+--- a/arch/arm/mach-mx28/regs-clkctrl.h
++++ b/arch/arm/mach-mx28/regs-clkctrl.h
+@@ -478,6 +478,7 @@
+ #define BM_CLKCTRL_ENET_RSRVD0	0x0000FFFF
+ #define BF_CLKCTRL_ENET_RSRVD0(v)  \
+ 		(((v) << 0) & BM_CLKCTRL_ENET_RSRVD0)
++#define BM_CLKCTRL_ENET_1588_40MHZ	0x01880000
+ 
+ #define HW_CLKCTRL_HSADC	(0x00000150)
+ 
+-- 
+1.5.4.4
+

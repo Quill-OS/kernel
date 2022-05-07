@@ -1,0 +1,28 @@
+From e6ad31e065caa23be70a8adb591e166b82e93302 Mon Sep 17 00:00:00 2001
+From: Liu Ying <b17645@freescale.com>
+Date: Tue, 8 Dec 2009 16:07:07 -0500
+Subject: [PATCH] ENGR00119081 V4l2 capture:Support NV12 output pixel format for still capture
+
+Support NV12 output pixel format for still capture.
+
+Signed-off-by: Liu Ying <b17645@freescale.com>
+---
+ drivers/media/video/mxc/capture/ipu_still.c |    2 ++
+ 1 files changed, 2 insertions(+), 0 deletions(-)
+
+diff --git a/drivers/media/video/mxc/capture/ipu_still.c b/drivers/media/video/mxc/capture/ipu_still.c
+index 34cea86..c95e524 100644
+--- a/drivers/media/video/mxc/capture/ipu_still.c
++++ b/drivers/media/video/mxc/capture/ipu_still.c
+@@ -90,6 +90,8 @@ static int prp_still_start(void *private)
+ 
+ 	if (cam->v2f.fmt.pix.pixelformat == V4L2_PIX_FMT_YUV420)
+ 		pixel_fmt = IPU_PIX_FMT_YUV420P;
++	else if (cam->v2f.fmt.pix.pixelformat == V4L2_PIX_FMT_NV12)
++		pixel_fmt = IPU_PIX_FMT_NV12;
+ 	else if (cam->v2f.fmt.pix.pixelformat == V4L2_PIX_FMT_YUV422P)
+ 		pixel_fmt = IPU_PIX_FMT_YUV422P;
+ 	else if (cam->v2f.fmt.pix.pixelformat == V4L2_PIX_FMT_UYVY)
+-- 
+1.5.4.4
+

@@ -1,0 +1,46 @@
+From f4cd1a54c0c5f2dbd8d1c5a99bf8a9ef88ac683d Mon Sep 17 00:00:00 2001
+From: Frank Li <Frank.Li@freescale.com>
+Date: Mon, 12 Apr 2010 17:36:25 +0800
+Subject: [PATCH] ENGR00122467 iMX23/iMX28 Avoid write bit to read only register
+
+HW_APBH_CTRL2 and HW_APBX_CTRL2 high 16bit is ready only
+
+Signed-off-by: Frank Li <Frank.Li@freescale.com>
+---
+ arch/arm/plat-mxs/dma-apbh.c |    2 --
+ arch/arm/plat-mxs/dma-apbx.c |    2 --
+ 2 files changed, 0 insertions(+), 4 deletions(-)
+
+diff --git a/arch/arm/plat-mxs/dma-apbh.c b/arch/arm/plat-mxs/dma-apbh.c
+index d87172e..e7fb960 100644
+--- a/arch/arm/plat-mxs/dma-apbh.c
++++ b/arch/arm/plat-mxs/dma-apbh.c
+@@ -143,10 +143,8 @@ mxs_dma_apbh_enable_irq(struct mxs_dma_device *pdev,
+ {
+ 	if (enable) {
+ 		__raw_writel(1 << (chan + 16), pdev->base + HW_APBH_CTRL1_SET);
+-		__raw_writel(1 << (chan + 16), pdev->base + HW_APBH_CTRL2_SET);
+ 	} else {
+ 		__raw_writel(1 << (chan + 16), pdev->base + HW_APBH_CTRL1_CLR);
+-		__raw_writel(1 << (chan + 16), pdev->base + HW_APBH_CTRL2_CLR);
+ 	}
+ }
+ 
+diff --git a/arch/arm/plat-mxs/dma-apbx.c b/arch/arm/plat-mxs/dma-apbx.c
+index cb86538..c27414f 100644
+--- a/arch/arm/plat-mxs/dma-apbx.c
++++ b/arch/arm/plat-mxs/dma-apbx.c
+@@ -115,10 +115,8 @@ mxs_dma_apbx_enable_irq(struct mxs_dma_device *pdev,
+ {
+ 	if (enable) {
+ 		__raw_writel(1 << (chan + 16), pdev->base + HW_APBX_CTRL1_SET);
+-		__raw_writel(1 << (chan + 16), pdev->base + HW_APBX_CTRL2_SET);
+ 	} else {
+ 		__raw_writel(1 << (chan + 16), pdev->base + HW_APBX_CTRL1_CLR);
+-		__raw_writel(1 << (chan + 16), pdev->base + HW_APBX_CTRL2_CLR);
+ 	}
+ }
+ 
+-- 
+1.5.4.4
+

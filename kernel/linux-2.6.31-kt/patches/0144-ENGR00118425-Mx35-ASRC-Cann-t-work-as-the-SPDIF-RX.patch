@@ -1,0 +1,31 @@
+From 63b641d4af5c2612f5a20932593a131f3e5b9f2f Mon Sep 17 00:00:00 2001
+From: William Lai <b04597@freescale.com>
+Date: Thu, 26 Nov 2009 13:47:06 +0800
+Subject: [PATCH] ENGR00118425 Mx35 ASRC: Cann't work as the SPDIF RX as input
+
+The ASRC cann't work when the SPDIF RX is employed to drive the input
+part of the ASRC.
+The root cause is miswritting "reg |= 7 << AICPA;" as "reg | 7 <<
+AICPA;".
+
+Signed-off-by: William Lai <b04597@freescale.com>
+---
+ drivers/mxc/asrc/mxc_asrc.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/drivers/mxc/asrc/mxc_asrc.c b/drivers/mxc/asrc/mxc_asrc.c
+index e420740..14a5135 100644
+--- a/drivers/mxc/asrc/mxc_asrc.c
++++ b/drivers/mxc/asrc/mxc_asrc.c
+@@ -426,7 +426,7 @@ int asrc_config_pair(struct asrc_config *config)
+ 		reg &= 0xfc0fc0;
+ 		/* Input Part */
+ 		if ((config->inclk & 0x0f) == INCLK_SPDIF_RX)
+-			reg | 7 << AICPA;
++			reg |= 7 << AICPA;
+ 		else if ((config->inclk & 0x0f) == INCLK_SPDIF_TX)
+ 			reg |= 6 << AICPA;
+ 		else if ((config->inclk & 0x0f) == INCLK_ASRCK1_CLK) {
+-- 
+1.5.4.4
+
