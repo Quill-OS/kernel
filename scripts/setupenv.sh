@@ -16,6 +16,9 @@ else
 	pushd "${GITDIR}/toolchain/arm-kobo-linux-gnueabihf/bin"
 	export PATH="${PATH}:${PWD}"
 	popd
+	pushd "${GITDIR}/toolchain/gcc-4.4.1/bin"
+	export PATH="${PATH}:${PWD}"
+	popd
 
 	echo "Environment set up."
 fi

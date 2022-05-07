@@ -47,7 +47,7 @@ mount -t tmpfs tmpfs -o size=16M /tmp
 
 # Framebuffer
 if [ "${DEVICE}" == "kt" ]; then
-	unsquashfs -d /lib/modules /opt/modules.sqsh
+	unsquashfs -d /lib/modules /opt/modules.sqsh &>/dev/null
 	modprobe eink_fb_waveform
 	modprobe mxc_epdc_fb default_panel_hw_init=1 default_update_mode=1
 	fbink -k -f -w -q && fbink -k -f -w -q
