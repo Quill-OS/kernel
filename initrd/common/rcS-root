@@ -5,6 +5,8 @@ rotate_screen() {
 		FB_UR=3
 	elif [ "${DEVICE}" == "n873" ]; then
 		FB_UR=0
+	elif [ "${DEVICE}" == "kt" ]; then
+		FB_UR=1
 	else
 		FB_UR=3
 	fi
@@ -58,10 +60,12 @@ launch_dfl() {
 }
 
 setup_usbnet() {
-	mkdir -p /modules
-	mount /opt/modules.sqsh /modules
+	if [ "${DEVICE}" != "kt" ]; then
+		mkdir -p /modules
+		mount /opt/modules.sqsh /modules
+	fi
 	if [ "${DEVICE}" != "n873" ] && [ "${DEVICE}" != "n236" ] && [ "${DEVICE}" != "n437" ] && [ "${DEVICE}" != "n306" ] && [ "${DEVICE}" != "emu" ] && [ "${DEVICE}" != "bpi" ]; then
-		insmod /modules/arcotg_udc.ko
+		insmod "/modules/arcotg_udc.ko"
 	fi
 	if [ "${DEVICE}" == "n705" ] || [ "${DEVICE}" == "n905b" ] || [ "${DEVICE}" == "n905c" ] || [ "${DEVICE}" == "n613" ] || [ "${DEVICE}" == "n236" ] || [ "${DEVICE}" == "n437" ]; then
 		insmod "/modules/g_ether.ko"
@@ -74,6 +78,8 @@ setup_usbnet() {
 		insmod "/modules/drivers/usb/gadget/function/usb_f_ecm_subset.ko"
 		insmod "/modules/drivers/usb/gadget/function/usb_f_rndis.ko"
 		insmod "/modules/drivers/usb/gadget/legacy/g_ether.ko"
+	elif [ "${DEVICE}" == "kt" ]; then
+		modprobe g_ether
 	elif [ "${DEVICE}" == "emu" ]; then
 		:
 	else
@@ -118,9 +124,10 @@ mount -t tmpfs tmpfs -o size=16M /tmp
 
 # Framebuffer
 if [ "${DEVICE}" == "kt" ]; then
-	mount /opt/modules.sqsh /lib/modules
+	unsquashfs -d /lib/modules /opt/modules.sqsh
 	modprobe eink_fb_waveform
 	modprobe mxc_epdc_fb default_panel_hw_init=1 default_update_mode=1
+	fbink -k -f -w -q && fbink -k -f -w -q
 fi
 
 hostname inkbox
@@ -146,14 +153,14 @@ main() {
 	echo "Checking filesystems ..."
 	echo
 	/usr/bin/fsck.ext4 -y /dev/mmcblk0p1
-	if [ "$DEVICE" == "n705" ] || [ "$DEVICE" == "n905b" ] || [ "$DEVICE" == "n905c" ] || [ "$DEVICE" == "n613" ] || [ "$DEVICE" == "n236" ] || [ "$DEVICE" == "n437" ] || [ "$DEVICE" == "n306" ]; then
+	if [ "$DEVICE" == "n705" ] || [ "$DEVICE" == "n905b" ] || [ "$DEVICE" == "n905c" ] || [ "$DEVICE" == "n613" ] || [ "$DEVICE" == "n236" ] || [ "$DEVICE" == "n437" ] || [ "$DEVICE" == "n306" ] || [ "${DEVICE}" == "kt" ]; then
 		/usr/bin/fsck.ext4 -y /dev/mmcblk0p2
 	elif [ "$DEVICE" == "n873" ]; then
 		/usr/bin/fsck.ext4 -y /dev/mmcblk0p5
 	else
 		/usr/bin/fsck.ext4 -y /dev/mmcblk0p2
 	fi
-	if [ "$DEVICE" == "n705" ] || [ "$DEVICE" == "n905b" ] || [ "$DEVICE" == "n905c" ] || [ "$DEVICE" == "n613" ] || [ "$DEVICE" == "n236" ] || [ "$DEVICE" == "n437" ] || [ "$DEVICE" == "n306" ]; then
+	if [ "$DEVICE" == "n705" ] || [ "$DEVICE" == "n905b" ] || [ "$DEVICE" == "n905c" ] || [ "$DEVICE" == "n613" ] || [ "$DEVICE" == "n236" ] || [ "$DEVICE" == "n437" ] || [ "$DEVICE" == "n306" ] || [ "${DEVICE}" == "kt" ]; then
 		/usr/bin/fsck.ext4 -y /dev/mmcblk0p3
 	elif [ "$DEVICE" == "n873" ]; then
 		/usr/bin/fsck.fat -y /dev/mmcblk0p3
@@ -284,7 +291,7 @@ main() {
 					fi
 
 					# Wi-Fi connection
-					if [ "$DEVICE" == "n905b" ] || [ "$DEVICE" == "n873" ] || [ "$DEVICE" == "n236" ] || [ "$DEVICE" == "n437" ]; then
+					if [ "$DEVICE" == "n905b" ] || [ "$DEVICE" == "n873" ] || [ "$DEVICE" == "n236" ] || [ "$DEVICE" == "n437" ] || [ "$DEVICE" == "kt" ]; then
 						EXPRESS_VERIFICATION=1 /etc/init.d/overlay-mount recovery
 						if [ $? == 0 ]; then
 							mount_alpine_udev

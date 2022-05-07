@@ -39,7 +39,7 @@ print_progress() {
 	echo "true" > /run/print_busy
 
 	if [ ! -z ${2} ]; then
-		if [ "${DEVICE}" != "n236" ] && [ "${DEVICE}" != "n437" ] && [ "${DEVICE}" != "n306" ] && [ "${DEVICE}" != "n873" ]; then
+		if [ "${DEVICE}" != "n236" ] && [ "${DEVICE}" != "n437" ] && [ "${DEVICE}" != "n306" ] && [ "${DEVICE}" != "kt" ] && [ "${DEVICE}" != "n873" ]; then
 			LD_LIBRARY_PATH=/opt/fbink busybox chroot "${CHROOT_DIR}" /opt/fbink/fbink -s top=$(calculate ${viewHeight}/2+${viewHeight}/8),left=$(calculate ${viewWidth}/4),width=$(calculate ${viewWidth}/2),height=$(calculate ${HEIGHT_FACTOR}*100/${viewHeight}*100) -W GC16 -D ORDERED -w &>/dev/null
 			LD_LIBRARY_PATH=/opt/fbink busybox chroot "${CHROOT_DIR}" /opt/fbink/fbink -s top=$(calculate ${viewHeight}/2+${viewHeight}/8+2),left=$(calculate ${viewWidth}/4+2),width=$(calculate ${viewWidth}/2-4),height=$(calculate ${HEIGHT_FACTOR}*100/${viewHeight}*100-4) -W GC16 -D ORDERED -H -w &>/dev/null
 		else
@@ -48,7 +48,7 @@ print_progress() {
 		fi
 	fi
 
-	if [ "${DEVICE}" != "n236" ] && [ "${DEVICE}" != "n437" ] && [ "${DEVICE}" != "n306" ] && [ "${DEVICE}" != "n873" ]; then
+	if [ "${DEVICE}" != "n236" ] && [ "${DEVICE}" != "n437" ] && [ "${DEVICE}" != "n306" ] && [ "${DEVICE}" != "kt" ] && [ "${DEVICE}" != "n873" ]; then
 		LD_LIBRARY_PATH=/opt/fbink busybox chroot "${CHROOT_DIR}" /opt/fbink/fbink -s top=$(calculate ${viewHeight}/2+${viewHeight}/8),left=$(calculate ${viewWidth}/4),width=$(calculate ${viewWidth}/4/2*4*${PERCENTAGE}/100),height=$(calculate ${HEIGHT_FACTOR}*100/${viewHeight}*100) -W GC16 -D ORDERED -w &>/dev/null
 	else
 		LD_LIBRARY_PATH=/opt/fbink busybox chroot "${CHROOT_DIR}" /opt/fbink/fbink -s top=$(calculate ${viewHeight}/2+${viewHeight}/8),left=$(calculate ${viewWidth}/4),width=$(calculate ${viewWidth}/4/2*4*${PERCENTAGE}/100),height=$(calculate ${HEIGHT_FACTOR}*100/${viewHeight}*100) -W GC16 -D ORDERED -H -w &>/dev/null
@@ -74,7 +74,7 @@ print_qr() {
 	rm -f /splash/tmp/out.png &>/dev/null
 }
 
-if [ "${DEVICE}" == "n705" ] || [ "${DEVICE}" == "n905b" ] || [ "${DEVICE}" == "n905c" ]; then
+if [ "${DEVICE}" == "n705" ] || [ "${DEVICE}" == "n905b" ] || [ "${DEVICE}" == "n905c" ] || [ "${DEVICE}" == "kt" ]; then
         ROW=30
 	ALERT_ROW=18
 	HEIGHT_FACTOR=1.8
@@ -96,7 +96,7 @@ else
 	HEIGHT_FACTOR=1.8
 fi
 
-if [ "${DEVICE}" == "n905b" ] || [ "${DEVICE}" == "n905c" ] || [ "${DEVICE}" == "n613" ] || [ "${DEVICE}" == "n236" ] || [ "${DEVICE}" == "n437" ] || [ "${DEVICE}" == "n306" ]; then
+if [ "${DEVICE}" == "n905b" ] || [ "${DEVICE}" == "n905c" ] || [ "${DEVICE}" == "n613" ] || [ "${DEVICE}" == "n236" ] || [ "${DEVICE}" == "n437" ] || [ "${DEVICE}" == "n306" ] || [ "${DEVICE}" == "kt" ]; then
 	SIZE=70
 elif [ "${DEVICE}" == "n705" ]; then
 	SIZE=55
@@ -110,6 +110,8 @@ if [ "${DEVICE}" == "n705" ] || [ "${DEVICE}" == "n905b" ] || [ "${DEVICE}" == "
 	FB_UR=3
 elif [ "${DEVICE}" == "n873" ]; then
 	FB_UR=0
+elif [ "${DEVICE}" == "kt" ]; then
+	FB_UR=1
 else
 	FB_UR=3
 fi
