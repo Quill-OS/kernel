@@ -1,0 +1,28 @@
+From eae24091d0db5fafa2cea5b08fbc092c7e46ccc4 Mon Sep 17 00:00:00 2001
+From: Sammy He <r62914@freescale.com>
+Date: Sat, 19 Dec 2009 16:03:45 +0800
+Subject: [PATCH] ENGR00119504 MX25: Change nand partition for bootloader to 3M byte
+
+Reserve more size to bootloader since new nand block size is 512K byte.
+
+Signed-off-by: Sammy He <r62914@freescale.com>
+---
+ arch/arm/mach-mx25/mx25_3stack.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/arch/arm/mach-mx25/mx25_3stack.c b/arch/arm/mach-mx25/mx25_3stack.c
+index a956950..c866d90 100644
+--- a/arch/arm/mach-mx25/mx25_3stack.c
++++ b/arch/arm/mach-mx25/mx25_3stack.c
+@@ -142,7 +142,7 @@ static struct mtd_partition mxc_nand_partitions[] = {
+ 	{
+ 	 .name = "nand.bootloader",
+ 	 .offset = 0,
+-	 .size = 1024 * 1024},
++	 .size = 3 * 1024 * 1024},
+ 	{
+ 	 .name = "nand.kernel",
+ 	 .offset = MTDPART_OFS_APPEND,
+-- 
+1.5.4.4
+

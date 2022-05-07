@@ -1,0 +1,39 @@
+From e94da2e73ee7bdb59dc3bb7445220878d080a099 Mon Sep 17 00:00:00 2001
+From: Frank Li <Frank.Li@freescale.com>
+Date: Tue, 6 Apr 2010 17:07:14 +0800
+Subject: [PATCH] ENGR00122281 Fix MX23 build fail when disable usb
+
+Fix build fail when not chosen usb at config
+
+Signed-off-by: Frank Li <Frank.Li@freescale.com>
+---
+ arch/arm/plat-mxs/Makefile |    6 +++---
+ 1 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/arch/arm/plat-mxs/Makefile b/arch/arm/plat-mxs/Makefile
+index 07cf095..2c27128 100644
+--- a/arch/arm/plat-mxs/Makefile
++++ b/arch/arm/plat-mxs/Makefile
+@@ -2,7 +2,7 @@
+ # Makefile for the linux kernel.
+ #
+ # Object file lists.
+-obj-y += core.o clock.o pinctrl.o device.o timer-nomatch.o
++obj-y += core.o clock.o pinctrl.o device.o timer-nomatch.o usb_common.o
+ 
+ obj-$(CONFIG_MXS_TIMER_WITH_MACH) += timer-match.o
+ obj-$(CONFIG_IRAM_ALLOC) += iram.o
+@@ -11,8 +11,8 @@ obj-$(CONFIG_GENERIC_GPIO) += gpio.o
+ obj-$(CONFIG_MXS_ICOLL) += icoll.o
+ 
+ obj-$(CONFIG_MXS_DMA_ENGINE) += dmaengine.o dma-apbh.o dma-apbx.o
+-obj-$(CONFIG_ARCH_MXS) += utmixc.o
+-obj-$(CONFIG_ARCH_MXS) += usb_common.o
++
++obj-$(CONFIG_USB_SUPPORT) += utmixc.o
+ 
+ obj-$(CONFIG_MXS_LRADC) += lradc.o
+ # Power Management
+-- 
+1.5.4.4
+

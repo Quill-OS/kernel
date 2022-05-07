@@ -1,0 +1,40 @@
+From bed163942ae836b06b284c6c557dabc94a19031e Mon Sep 17 00:00:00 2001
+From: Robby Cai <r63905@freescale.com>
+Date: Thu, 15 Oct 2009 17:55:50 +0800
+Subject: [PATCH] ENGR00117324 Turn on MTD_NAND_GPMI and MTD_CONCAT options
+
+It's convenient to use NAND if they are turned on by default.
+
+Signed-off-by: Robby Cai <r63905@freescale.com>
+---
+ arch/arm/configs/imx233_defconfig |    7 ++++---
+ 1 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/arch/arm/configs/imx233_defconfig b/arch/arm/configs/imx233_defconfig
+index 66f8e76..e94c407 100644
+--- a/arch/arm/configs/imx233_defconfig
++++ b/arch/arm/configs/imx233_defconfig
+@@ -453,7 +453,7 @@ CONFIG_CONNECTOR=y
+ CONFIG_PROC_EVENTS=y
+ CONFIG_MTD=y
+ # CONFIG_MTD_DEBUG is not set
+-# CONFIG_MTD_CONCAT is not set
++CONFIG_MTD_CONCAT=y
+ CONFIG_MTD_PARTITIONS=y
+ # CONFIG_MTD_REDBOOT_PARTS is not set
+ CONFIG_MTD_CMDLINE_PARTS=y
+@@ -522,8 +522,9 @@ CONFIG_MTD_NAND=y
+ CONFIG_MTD_NAND_IDS=y
+ # CONFIG_MTD_NAND_DISKONCHIP is not set
+ # CONFIG_MTD_NAND_NANDSIM is not set
+-CONFIG_MTD_NAND_GPMI_LBA=m
+-CONFIG_MTD_NAND_GPMI=m
++# CONFIG_MTD_NAND_IMX_NFC is not set
++# CONFIG_MTD_NAND_GPMI_LBA is not set
++CONFIG_MTD_NAND_GPMI=y
+ CONFIG_MTD_NAND_GPMI_SYSFS_ENTRIES=y
+ CONFIG_MTD_NAND_GPMI_BCH=y
+ CONFIG_MTD_NAND_GPMI_TA1=y
+-- 
+1.5.4.4
+

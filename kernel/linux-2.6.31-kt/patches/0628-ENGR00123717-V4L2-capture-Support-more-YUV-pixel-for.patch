@@ -1,0 +1,83 @@
+From 8a74501d45c8ca6b85355b43239c621499a88973 Mon Sep 17 00:00:00 2001
+From: Liu Ying <b17645@freescale.com>
+Date: Mon, 24 May 2010 14:56:27 -0400
+Subject: [PATCH] ENGR00123717 V4L2 capture:Support more YUV pixel formats
+
+1) Support YUYV for CSI->MEM capture.
+2) Support YUYV and UYVY for CSI->PRP_ENC->MEM capture.
+3) Support YUYV for still capture.
+
+Signed-off-by: Liu Ying <b17645@freescale.com>
+---
+ drivers/media/video/mxc/capture/ipu_csi_enc.c      |    2 ++
+ drivers/media/video/mxc/capture/ipu_prp_enc.c      |    6 ++++++
+ drivers/media/video/mxc/capture/ipu_still.c        |    2 ++
+ drivers/media/video/mxc/capture/mxc_v4l2_capture.c |    2 ++
+ 4 files changed, 12 insertions(+), 0 deletions(-)
+
+diff --git a/drivers/media/video/mxc/capture/ipu_csi_enc.c b/drivers/media/video/mxc/capture/ipu_csi_enc.c
+index fd3f0c1..c0842f8 100644
+--- a/drivers/media/video/mxc/capture/ipu_csi_enc.c
++++ b/drivers/media/video/mxc/capture/ipu_csi_enc.c
+@@ -82,6 +82,8 @@ static int csi_enc_setup(cam_data *cam)
+ 		pixel_fmt = IPU_PIX_FMT_YUV422P;
+ 	else if (cam->v2f.fmt.pix.pixelformat == V4L2_PIX_FMT_UYVY)
+ 		pixel_fmt = IPU_PIX_FMT_UYVY;
++	else if (cam->v2f.fmt.pix.pixelformat == V4L2_PIX_FMT_YUYV)
++		pixel_fmt = IPU_PIX_FMT_YUYV;
+ 	else if (cam->v2f.fmt.pix.pixelformat == V4L2_PIX_FMT_NV12)
+ 		pixel_fmt = IPU_PIX_FMT_NV12;
+ 	else if (cam->v2f.fmt.pix.pixelformat == V4L2_PIX_FMT_BGR24)
+diff --git a/drivers/media/video/mxc/capture/ipu_prp_enc.c b/drivers/media/video/mxc/capture/ipu_prp_enc.c
+index 4b5426c..3a07bbf 100644
+--- a/drivers/media/video/mxc/capture/ipu_prp_enc.c
++++ b/drivers/media/video/mxc/capture/ipu_prp_enc.c
+@@ -94,6 +94,12 @@ static int prp_enc_setup(cam_data * cam)
+ 	} else if (cam->v2f.fmt.pix.pixelformat == V4L2_PIX_FMT_YUV422P) {
+ 		enc.csi_prp_enc_mem.out_pixel_fmt = IPU_PIX_FMT_YUV422P;
+ 		pr_info("YUV422P\n");
++	} else if (cam->v2f.fmt.pix.pixelformat == V4L2_PIX_FMT_YUYV) {
++		enc.csi_prp_enc_mem.out_pixel_fmt = IPU_PIX_FMT_YUYV;
++		pr_info("YUYV\n");
++	} else if (cam->v2f.fmt.pix.pixelformat == V4L2_PIX_FMT_UYVY) {
++		enc.csi_prp_enc_mem.out_pixel_fmt = IPU_PIX_FMT_UYVY;
++		pr_info("UYVY\n");
+ 	} else if (cam->v2f.fmt.pix.pixelformat == V4L2_PIX_FMT_NV12) {
+ 		enc.csi_prp_enc_mem.out_pixel_fmt = IPU_PIX_FMT_NV12;
+ 		pr_info("NV12\n");
+diff --git a/drivers/media/video/mxc/capture/ipu_still.c b/drivers/media/video/mxc/capture/ipu_still.c
+index 348bf2b..05d2a59 100644
+--- a/drivers/media/video/mxc/capture/ipu_still.c
++++ b/drivers/media/video/mxc/capture/ipu_still.c
+@@ -96,6 +96,8 @@ static int prp_still_start(void *private)
+ 		pixel_fmt = IPU_PIX_FMT_YUV422P;
+ 	else if (cam->v2f.fmt.pix.pixelformat == V4L2_PIX_FMT_UYVY)
+ 		pixel_fmt = IPU_PIX_FMT_UYVY;
++	else if (cam->v2f.fmt.pix.pixelformat == V4L2_PIX_FMT_YUYV)
++		pixel_fmt = IPU_PIX_FMT_YUYV;
+ 	else if (cam->v2f.fmt.pix.pixelformat == V4L2_PIX_FMT_BGR24)
+ 		pixel_fmt = IPU_PIX_FMT_BGR24;
+ 	else if (cam->v2f.fmt.pix.pixelformat == V4L2_PIX_FMT_RGB24)
+diff --git a/drivers/media/video/mxc/capture/mxc_v4l2_capture.c b/drivers/media/video/mxc/capture/mxc_v4l2_capture.c
+index 30ad533..7d1e483 100644
+--- a/drivers/media/video/mxc/capture/mxc_v4l2_capture.c
++++ b/drivers/media/video/mxc/capture/mxc_v4l2_capture.c
+@@ -316,6 +316,7 @@ static inline int valid_mode(u32 palette)
+ 		(palette == V4L2_PIX_FMT_RGB32) ||
+ 		(palette == V4L2_PIX_FMT_YUV422P) ||
+ 		(palette == V4L2_PIX_FMT_UYVY) ||
++		(palette == V4L2_PIX_FMT_YUYV) ||
+ 		(palette == V4L2_PIX_FMT_YUV420) ||
+ 		(palette == V4L2_PIX_FMT_NV12));
+ }
+@@ -774,6 +775,7 @@ static int mxc_v4l2_s_fmt(cam_data *cam, struct v4l2_format *f)
+ 			bytesperline = f->fmt.pix.width;
+ 			break;
+ 		case V4L2_PIX_FMT_UYVY:
++		case V4L2_PIX_FMT_YUYV:
+ 			size = f->fmt.pix.width * f->fmt.pix.height * 2;
+ 			bytesperline = f->fmt.pix.width * 2;
+ 			break;
+-- 
+1.5.4.4
+

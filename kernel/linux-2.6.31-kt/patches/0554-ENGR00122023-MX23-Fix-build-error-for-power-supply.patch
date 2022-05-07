@@ -1,0 +1,34 @@
+From 809c7346342d66ee006b6c951aa4319214844500 Mon Sep 17 00:00:00 2001
+From: Zhou Jingyu <b02241@freescale.com>
+Date: Wed, 5 May 2010 13:10:39 +0800
+Subject: [PATCH] ENGR00122023  MX23 Fix build error for power supply driver
+
+Fix build error debug options selected for power driver
+
+Signed-off-by: Zhou Jingyu <Jingyu.Zhou@freescale.com>
+---
+ drivers/power/mxs/ddi_bc_internal.h |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletions(-)
+
+diff --git a/drivers/power/mxs/ddi_bc_internal.h b/drivers/power/mxs/ddi_bc_internal.h
+index a8510d0..b5bceef 100644
+--- a/drivers/power/mxs/ddi_bc_internal.h
++++ b/drivers/power/mxs/ddi_bc_internal.h
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright (C) 2010 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2010 Freescale Semiconductor, Inc.
+  */
+ 
+ /*
+@@ -41,6 +41,7 @@
+ 
+ /* Externs */
+ 
++#include <linux/kernel.h>
+ 
+ extern bool g_ddi_bc_Configured;
+ extern ddi_bc_Cfg_t g_ddi_bc_Configuration;
+-- 
+1.5.4.4
+

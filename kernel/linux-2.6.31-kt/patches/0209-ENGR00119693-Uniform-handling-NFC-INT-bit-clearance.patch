@@ -1,0 +1,184 @@
+From e299a7fcd4e4a61f5c7f8c710dfae6a45c435708 Mon Sep 17 00:00:00 2001
+From: Jason <r64343@freescale.com>
+Date: Mon, 28 Dec 2009 17:29:00 +0800
+Subject: [PATCH] ENGR00119693 Uniform handling NFC INT bit clearance
+
+Uniform handling NFC INT bit clearance, the INT bit
+will be unformed cleared in the wait_op_done function
+after any NFC operation.
+
+Signed-off-by:Jason Liu <r64343@freescale.com>
+---
+ drivers/mtd/nand/mxc_nd2.c |   33 ++++++---------------------------
+ drivers/mtd/nand/mxc_nd2.h |   14 ++++----------
+ 2 files changed, 10 insertions(+), 37 deletions(-)
+
+diff --git a/drivers/mtd/nand/mxc_nd2.c b/drivers/mtd/nand/mxc_nd2.c
+index db431a4..3fb5cf3 100644
+--- a/drivers/mtd/nand/mxc_nd2.c
++++ b/drivers/mtd/nand/mxc_nd2.c
+@@ -28,7 +28,7 @@
+ #include "mxc_nd2.h"
+ #include "nand_device_info.h"
+ 
+-#define DVR_VER "2.5"
++#define DVR_VER "3.0"
+ 
+ /* Global address Variables */
+ static void __iomem *nfc_axi_base, *nfc_ip_base;
+@@ -187,12 +187,16 @@ static void wait_op_done(int maxRetries, bool useirq)
+ {
+ 	if (useirq) {
+ 		if ((raw_read(REG_NFC_OPS_STAT) & NFC_OPS_STAT) == 0) {
+-			/* Enable Interuupt */
++			/* enable interrupt */
+ 			raw_write(raw_read(REG_NFC_INTRRUPT) & ~NFC_INT_MSK,
+ 				  REG_NFC_INTRRUPT);
+ 			if (!wait_event_timeout(irq_waitq,
+ 				(raw_read(REG_NFC_OPS_STAT) & NFC_OPS_STAT),
+ 				msecs_to_jiffies(TROP_US_DELAY / 1000)) > 0) {
++				/* disable interrupt */
++				raw_write(raw_read(REG_NFC_INTRRUPT)
++				| NFC_INT_MSK, REG_NFC_INTRRUPT);
++
+ 				printk(KERN_WARNING "%s(%d): INT not set\n",
+ 						__func__, __LINE__);
+ 				return;
+@@ -224,9 +228,6 @@ static inline void send_atomic_cmd(u16 cmd, bool useirq)
+ 	/* fill command */
+ 	raw_write(cmd, REG_NFC_FLASH_CMD);
+ 
+-	/* clear status */
+-	ACK_OPS;
+-
+ 	/* send out command */
+ 	raw_write(NFC_CMD, REG_NFC_OPS);
+ 
+@@ -287,7 +288,6 @@ static void auto_cmd_interleave(struct mtd_info *mtd, u16 cmd)
+ 			obuf += olen;
+ 
+ 			NFC_SET_RBA(0);
+-			ACK_OPS;
+ 			raw_write(NFC_AUTO_PROG, REG_NFC_OPS);
+ 
+ 			/* wait auto_prog_done bit set */
+@@ -304,7 +304,6 @@ static void auto_cmd_interleave(struct mtd_info *mtd, u16 cmd)
+ 			mxc_do_addr_cycle(mtd, 0, page_addr++);
+ 
+ 			NFC_SET_RBA(0);
+-			ACK_OPS;
+ 			raw_write(NFC_AUTO_READ, REG_NFC_OPS);
+ 			wait_op_done(TROP_US_DELAY, true);
+ 
+@@ -323,7 +322,6 @@ static void auto_cmd_interleave(struct mtd_info *mtd, u16 cmd)
+ 	case NAND_CMD_ERASE2:
+ 		for (i = 0; i < j; i++) {
+ 			mxc_do_addr_cycle(mtd, -1, page_addr++);
+-			ACK_OPS;
+ 			raw_write(NFC_AUTO_ERASE, REG_NFC_OPS);
+ 			wait_op_done(TROP_US_DELAY, true);
+ 		}
+@@ -404,9 +402,6 @@ static void send_addr(u16 addr, bool useirq)
+ 	/* fill address */
+ 	raw_write((addr << NFC_FLASH_ADDR_SHIFT), REG_NFC_FLASH_ADDR);
+ 
+-	/* clear status */
+-	ACK_OPS;
+-
+ 	/* send out address */
+ 	raw_write(NFC_ADDR, REG_NFC_OPS);
+ 
+@@ -428,9 +423,6 @@ static void send_prog_page(u8 buf_id)
+ 	/* set ram buffer id */
+ 	NFC_SET_RBA(buf_id);
+ 
+-	/* clear status */
+-	ACK_OPS;
+-
+ 	/* transfer data from NFC ram to nand */
+ 	raw_write(NFC_INPUT, REG_NFC_OPS);
+ 
+@@ -453,9 +445,6 @@ static void send_read_page(u8 buf_id)
+ 	/* set ram buffer id */
+ 	NFC_SET_RBA(buf_id);
+ 
+-	/* clear status */
+-	ACK_OPS;
+-
+ 	/* transfer data from nand to NFC ram */
+ 	raw_write(NFC_OUTPUT, REG_NFC_OPS);
+ 
+@@ -473,9 +462,6 @@ static void send_read_id(void)
+ 	/* Set RBA bits for BUFFER0 */
+ 	NFC_SET_RBA(0);
+ 
+-	/* clear status */
+-	ACK_OPS;
+-
+ 	/* Read ID into main buffer */
+ 	raw_write(NFC_ID, REG_NFC_OPS);
+ 
+@@ -489,10 +475,6 @@ static inline void read_dev_status(u16 *status)
+ {
+ 	u32 mask = 0xFF << 16;
+ 
+-	/* clear status */
+-	ACK_OPS;
+-
+-
+ 	/* use atomic mode to read status instead
+ 	   of using auto mode,auto-mode has issues
+ 	   and the status is not correct.
+@@ -541,9 +523,6 @@ static u16 get_dev_status(void)
+ 	/* Set ram buffer id */
+ 	NFC_SET_RBA(val);
+ 
+-	/* clear status */
+-	ACK_OPS;
+-
+ 	/* Read status into main buffer */
+ 	raw_write(NFC_STATUS, REG_NFC_OPS);
+ 
+diff --git a/drivers/mtd/nand/mxc_nd2.h b/drivers/mtd/nand/mxc_nd2.h
+index c0c086e..7ada4fe 100644
+--- a/drivers/mtd/nand/mxc_nd2.h
++++ b/drivers/mtd/nand/mxc_nd2.h
+@@ -143,10 +143,11 @@ do { \
+ 
+ #define WRITE_NFC_IP_REG(val,reg) 			\
+ 	do {	 					\
+-		raw_write(NFC_IPC_CREQ, NFC_IPC);	\
+-		while (!((raw_read(NFC_IPC) & NFC_IPC_ACK)>>1));\
++		raw_write(raw_read(NFC_IPC) | NFC_IPC_CREQ, NFC_IPC);	\
++		while (!(raw_read(NFC_IPC) & NFC_IPC_ACK)) \
++			; \
+ 		raw_write(val, reg);			\
+-		raw_write(0, NFC_IPC);			\
++		raw_write(raw_read(NFC_IPC) & ~NFC_IPC_CREQ, NFC_IPC);	\
+ 	} while(0)
+ 
+ #else
+@@ -333,11 +334,6 @@ do { \
+ #define raw_write(v,a)		__raw_writel(v,a)
+ #define raw_read(a)		__raw_readl(a)
+ 
+-/* Explcit ack ops status (if any), before issue of any command  */
+-#define ACK_OPS	\
+-	raw_write((raw_read(REG_NFC_OPS_STAT) & ~NFC_OPS_STAT), \
+-	REG_NFC_OPS_STAT);
+-
+ /* Set RBA buffer id*/
+ #define NFC_SET_RBA(val)       \
+ 	raw_write((raw_read(REG_NFC_SET_RBA) & \
+@@ -668,8 +664,6 @@ do { \
+ #define NFC_GET_MAXCHIP_SP() 		1
+ #define NFC_SET_WPC(val)                val
+ 
+-/* NULL Definitions */
+-#define ACK_OPS
+ #define NFC_SET_RBA(val) raw_write(val, REG_NFC_SET_RBA);
+ 
+ #ifdef CONFIG_ARCH_MXC_HAS_NFC_V2_1
+-- 
+1.5.4.4
+

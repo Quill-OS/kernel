@@ -1,0 +1,30 @@
+From 37ddff2dce906378c370c7461e0c7d113f80363c Mon Sep 17 00:00:00 2001
+From: Rob Herring <r.herring@freescale.com>
+Date: Tue, 27 Apr 2010 17:15:07 -0500
+Subject: [PATCH] ENGR00122962 ipu: don't set axi id to 1 on mx53
+
+Setting the AXI ID on to 1 for sync display channels on MX53 causes
+display flickering when system is heavily loaded.
+
+Signed-off-by: Rob Herring <r.herring@freescale.com>
+(cherry picked from commit 30df5734fcea4146b60f35238aaf5368f3392b0d)
+---
+ drivers/mxc/ipu3/ipu_common.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/drivers/mxc/ipu3/ipu_common.c b/drivers/mxc/ipu3/ipu_common.c
+index f7c803d..c19a937 100644
+--- a/drivers/mxc/ipu3/ipu_common.c
++++ b/drivers/mxc/ipu3/ipu_common.c
+@@ -1076,7 +1076,7 @@ int32_t ipu_init_channel_buffer(ipu_channel_t channel, ipu_buffer_t type,
+ 		_ipu_smfc_set_burst_size(channel, burst_size-1);
+ 	}
+ 
+-	if (idma_is_set(IDMAC_CHA_PRI, dma_chan))
++	if (idma_is_set(IDMAC_CHA_PRI, dma_chan) && !cpu_is_mx53())
+ 		_ipu_ch_param_set_high_priority(dma_chan);
+ 
+ 	_ipu_ch_param_dump(dma_chan);
+-- 
+1.5.4.4
+

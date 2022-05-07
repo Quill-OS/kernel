@@ -1,0 +1,42 @@
+From 729aec86b479f47d43976ebf8900369c75681112 Mon Sep 17 00:00:00 2001
+From: Liu Ying <b17645@freescale.com>
+Date: Fri, 18 Dec 2009 09:46:23 -0500
+Subject: [PATCH] ENGR00119070 IPUv3 FB:Support DP local alpha in pixel
+
+Modify MXCFB_SET_LOC_ALPHA ioctrl to support DP local alpha with
+alpha value contained in pixel.
+
+Signed-off-by: Liu Ying <b17645@freescale.com>
+---
+ drivers/video/mxc/mxc_ipuv3_fb.c |    2 +-
+ include/linux/mxcfb.h            |    1 +
+ 2 files changed, 2 insertions(+), 1 deletions(-)
+
+diff --git a/drivers/video/mxc/mxc_ipuv3_fb.c b/drivers/video/mxc/mxc_ipuv3_fb.c
+index 39c9fdd..3aa04a7 100644
+--- a/drivers/video/mxc/mxc_ipuv3_fb.c
++++ b/drivers/video/mxc/mxc_ipuv3_fb.c
+@@ -739,7 +739,7 @@ static int mxcfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg)
+ 				break;
+ 			}
+ 
+-			if (la.enable) {
++			if (la.enable && !la.alpha_in_pixel) {
+ 				mxc_fbi->alpha_chan_en = true;
+ 
+ 				if (mxc_fbi->ipu_ch == MEM_FG_SYNC)
+diff --git a/include/linux/mxcfb.h b/include/linux/mxcfb.h
+index f7d60a3..f0ea365 100644
+--- a/include/linux/mxcfb.h
++++ b/include/linux/mxcfb.h
+@@ -37,6 +37,7 @@ struct mxcfb_gbl_alpha {
+ 
+ struct mxcfb_loc_alpha {
+ 	int enable;
++	int alpha_in_pixel;
+ 	unsigned long alpha_phy_addr0;
+ 	unsigned long alpha_phy_addr1;
+ };
+-- 
+1.5.4.4
+

@@ -1,0 +1,33 @@
+From b59d453bd7307db80673613b14f9d2f5fdb1cdd5 Mon Sep 17 00:00:00 2001
+From: Jeremy.Yao <r65161@freescale.com>
+Date: Tue, 18 May 2010 15:46:29 +0800
+Subject: [PATCH] ENGR00123389: iMX23 system fail to detect sd remove
+
+Fix the problem the card is still connected while status shows it's removed
+
+Signed-off-by: Jeremy Yao <r65161@freescale.com>
+---
+ drivers/mmc/host/mxs-mmc.c |    7 +++++++
+ 1 files changed, 7 insertions(+), 0 deletions(-)
+
+diff --git a/drivers/mmc/host/mxs-mmc.c b/drivers/mmc/host/mxs-mmc.c
+index 7e53e71..48cdc76 100644
+--- a/drivers/mmc/host/mxs-mmc.c
++++ b/drivers/mmc/host/mxs-mmc.c
+@@ -698,6 +698,13 @@ static void mxs_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
+ 	struct mxs_mmc_host *host = mmc_priv(mmc);
+ 
+ 	dev_dbg(host->dev, "MMC request\n");
++
++	if (!host->present) {
++		mrq->cmd->error = -ETIMEDOUT;
++		mmc_request_done(mmc, mrq);
++		return;
++	}
++
+ 	BUG_ON(host->mrq != NULL);
+ 	host->mrq = mrq;
+ 
+-- 
+1.5.4.4
+

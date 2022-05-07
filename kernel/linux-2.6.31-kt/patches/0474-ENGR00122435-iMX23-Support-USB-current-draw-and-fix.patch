@@ -1,0 +1,53 @@
+From 91a7bf710223571e141b424a34ee3cb77ed7e4b1 Mon Sep 17 00:00:00 2001
+From: Frank Li <Frank.Li@freescale.com>
+Date: Mon, 12 Apr 2010 12:24:18 +0800
+Subject: [PATCH] ENGR00122435 iMX23 Support USB current draw and fix power switch issue
+
+Support USB current draw on mx23 and fix power switch issue.
+
+Signed-off-by: Frank Li <Frank.Li@freescale.com>
+---
+ arch/arm/mach-mx23/usb_dr.c |    7 +++++--
+ drivers/power/mxs/linux.c   |    4 ++--
+ 2 files changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/arch/arm/mach-mx23/usb_dr.c b/arch/arm/mach-mx23/usb_dr.c
+index 1a196e7..13f9a29 100644
+--- a/arch/arm/mach-mx23/usb_dr.c
++++ b/arch/arm/mach-mx23/usb_dr.c
+@@ -164,5 +164,8 @@ void fsl_phy_set_power(struct fsl_xcvr_ops *this,
+ 	gpio_free(USB_POWER_ENABLE);
+ }
+ 
+-module_init(usb_dr_init);
+-
++#ifdef CONFIG_MXS_VBUS_CURRENT_DRAW
++	fs_initcall(usb_dr_init);
++#else
++	module_init(usb_dr_init);
++#endif
+diff --git a/drivers/power/mxs/linux.c b/drivers/power/mxs/linux.c
+index 4c80c36..6a31724 100644
+--- a/drivers/power/mxs/linux.c
++++ b/drivers/power/mxs/linux.c
+@@ -752,6 +752,8 @@ static int mxs_bat_probe(struct platform_device *pdev)
+ 	int ret = 0;
+ 
+ 
++	/* enable usb device presence detection */
++	fsl_enable_usb_plugindetect();
+ 
+ 	ret = ddi_power_init_battery();
+ 	if (ret) {
+@@ -941,8 +943,6 @@ static int mxs_bat_probe(struct platform_device *pdev)
+ 	 */
+ 	init_protection(info);
+ 
+-	/* enable usb device presence detection */
+-	fsl_enable_usb_plugindetect();
+ 
+ 	return 0;
+ 
+-- 
+1.5.4.4
+

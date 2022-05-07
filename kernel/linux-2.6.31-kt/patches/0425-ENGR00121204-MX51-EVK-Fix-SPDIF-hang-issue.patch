@@ -1,0 +1,29 @@
+From 1bc3d9cd0ef1706e22c9bf6eddb36f435b426938 Mon Sep 17 00:00:00 2001
+From: Lily Zhang <r58066@freescale.com>
+Date: Tue, 23 Mar 2010 19:03:19 +0800
+Subject: [PATCH] ENGR00121204 MX51 EVK: Fix SPDIF hang issue
+
+This change is used to pass SPDIF clock information to
+the driver so that the driver can enable clock
+
+Signed-off-by: Lily Zhang <r58066@freescale.com>
+---
+ arch/arm/mach-mx5/mx51_babbage.c |    2 ++
+ 1 files changed, 2 insertions(+), 0 deletions(-)
+
+diff --git a/arch/arm/mach-mx5/mx51_babbage.c b/arch/arm/mach-mx5/mx51_babbage.c
+index 3e32e88..9922f55 100644
+--- a/arch/arm/mach-mx5/mx51_babbage.c
++++ b/arch/arm/mach-mx5/mx51_babbage.c
+@@ -880,6 +880,8 @@ static void __init mxc_board_init(void)
+ 	mxc_ipu_data.di_clk[0] = clk_get(NULL, "ipu_di0_clk");
+ 	mxc_ipu_data.di_clk[1] = clk_get(NULL, "ipu_di1_clk");
+ 
++	mxc_spdif_data.spdif_core_clk = clk_get(NULL, "spdif_xtal_clk");
++	clk_put(mxc_spdif_data.spdif_core_clk);
+ 	/* SD card detect irqs */
+ 	mxcsdhc2_device.resource[2].start = IOMUX_TO_IRQ(MX51_PIN_GPIO1_6);
+ 	mxcsdhc2_device.resource[2].end = IOMUX_TO_IRQ(MX51_PIN_GPIO1_6);
+-- 
+1.5.4.4
+

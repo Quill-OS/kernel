@@ -1,0 +1,27 @@
+From fb649265fc067ad0439cc5f42235f7b8590c4e92 Mon Sep 17 00:00:00 2001
+From: Frank Li <Frank.Li@freescale.com>
+Date: Wed, 7 Apr 2010 17:01:50 +0800
+Subject: [PATCH] ENGR00122309  iMX23 fix usb function break by 100mA patch
+
+Miss "break" at set configuration
+
+Signed-off-by: Frank Li <Frank.Li@freescale.com>
+---
+ drivers/usb/gadget/arcotg_udc.c |    1 +
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+
+diff --git a/drivers/usb/gadget/arcotg_udc.c b/drivers/usb/gadget/arcotg_udc.c
+index 58bb833..b8beeb5 100644
+--- a/drivers/usb/gadget/arcotg_udc.c
++++ b/drivers/usb/gadget/arcotg_udc.c
+@@ -1553,6 +1553,7 @@ static void setup_received_irq(struct fsl_udc *udc,
+ 		return;
+ 	case USB_REQ_SET_CONFIGURATION:
+ 		fsl_vbus_draw(gadget, mA);
++	     break;
+ 	case USB_REQ_CLEAR_FEATURE:
+ 	case USB_REQ_SET_FEATURE:
+ 		/* Status phase from udc */
+-- 
+1.5.4.4
+

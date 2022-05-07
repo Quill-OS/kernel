@@ -1,0 +1,57 @@
+From 98ac907bee4b48dc3391bc3b8568a3945fb65676 Mon Sep 17 00:00:00 2001
+From: Sammy He <r62914@freescale.com>
+Date: Tue, 9 Feb 2010 13:35:19 +0800
+Subject: [PATCH] ENGR00120880-2 MX25: Disable/Enable HSYNC bit per LCD power status
+
+Disable/Enable HSYNC bit per LCD power status
+
+Signed-off-by: Sammy He <r62914@freescale.com>
+---
+ arch/arm/mach-mx25/board-mx25_3stack.h |    3 ++-
+ arch/arm/mach-mx25/mx25_3stack.c       |    9 +++++++--
+ 2 files changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/arch/arm/mach-mx25/board-mx25_3stack.h b/arch/arm/mach-mx25/board-mx25_3stack.h
+index 73fc7b1..36938af 100644
+--- a/arch/arm/mach-mx25/board-mx25_3stack.h
++++ b/arch/arm/mach-mx25/board-mx25_3stack.h
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -168,6 +168,7 @@ extern void gpio_can_inactive(int id);
+ extern struct flexcan_platform_data flexcan_data[];
+ extern void mx2fb_set_brightness(uint8_t);
+ extern int __init mx25_3stack_init_mc34704(void);
++extern void imx_adc_set_hsync(int on);
+ 
+ #endif				/* CONFIG_MACH_MX25_3DS */
+ #endif				/* __ASM_ARCH_MXC_BOARD_MX25_3STACK_H__ */
+diff --git a/arch/arm/mach-mx25/mx25_3stack.c b/arch/arm/mach-mx25/mx25_3stack.c
+index 5319c1f..314a6f6 100644
+--- a/arch/arm/mach-mx25/mx25_3stack.c
++++ b/arch/arm/mach-mx25/mx25_3stack.c
+@@ -209,10 +209,15 @@ static struct platform_device mxc_fb_device = {
+  */
+ void board_power_lcd(int on)
+ {
+-	if (on)
++	if (on) {
++		/* Enable HSYNC bit of touch screen */
++		imx_adc_set_hsync(1);
+ 		mx2fb_set_brightness(MXC_DEFAULT_INTENSITY);
+-	else
++	} else {
++		/* disable HSYNC bit of touchscreen */
++		imx_adc_set_hsync(0);
+ 		mx2fb_set_brightness(MXC_INTENSITY_OFF);
++	}
+ }
+ EXPORT_SYMBOL_GPL(board_power_lcd);
+ 
+-- 
+1.5.4.4
+

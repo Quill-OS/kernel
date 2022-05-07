@@ -1,0 +1,113 @@
+From c1330280e3f80676713b4720e813d306cc0eb77c Mon Sep 17 00:00:00 2001
+From: Jason Chen <b02280@freescale.com>
+Date: Thu, 11 Feb 2010 10:45:34 +0800
+Subject: [PATCH] ENGR00120903 ipuv3 fb: make hdtv as primary display
+
+1. Add "hdtv=2' to boot cmdline. HDTV should be primary display device.
+2. Color key need be convert to YUV format when output is YUV, to
+correct the convertion function, negative coefficents of RGB2YUV CSC
+matrix could not use complement number.
+
+Signed-off-by: Jason Chen <b02280@freescale.com>
+---
+ drivers/mxc/ipu3/ipu_disp.c      |    6 +++---
+ drivers/video/mxc/mxc_ipuv3_fb.c |    2 ++
+ drivers/video/mxc/tve.c          |   22 ++++++++++++++++++++--
+ 3 files changed, 25 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/mxc/ipu3/ipu_disp.c b/drivers/mxc/ipu3/ipu_disp.c
+index d7cc210..ba3221b 100644
+--- a/drivers/mxc/ipu3/ipu_disp.c
++++ b/drivers/mxc/ipu3/ipu_disp.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2005-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2005-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -303,8 +303,8 @@ static void _ipu_dc_link_event(int chan, int event, int addr, int priority)
+        V = R *  2.000 + G * -1.672 + B * -.328 + 512.250.;*/
+ static const int rgb2ycbcr_coeff[5][3] = {
+ 	{0x4D, 0x96, 0x1D},
+-	{0x3D5, 0x3AB, 0x80},
+-	{0x80, 0x395, 0x3EB},
++	{-0x2B, -0x55, 0x80},
++	{0x80, -0x6B, -0x15},
+ 	{0x0000, 0x0200, 0x0200},	/* B0, B1, B2 */
+ 	{0x2, 0x2, 0x2},	/* S0, S1, S2 */
+ };
+diff --git a/drivers/video/mxc/mxc_ipuv3_fb.c b/drivers/video/mxc/mxc_ipuv3_fb.c
+index 32c775b..0a63f49 100644
+--- a/drivers/video/mxc/mxc_ipuv3_fb.c
++++ b/drivers/video/mxc/mxc_ipuv3_fb.c
+@@ -510,12 +510,14 @@ static int swap_channels(struct fb_info *fbi)
+ 			mxc_fbi_from->ipu_ch_irq);
+ 		return -EBUSY;
+ 	}
++	ipu_disable_irq(mxc_fbi_from->ipu_ch_irq);
+ 	if (ipu_request_irq(mxc_fbi_to->ipu_ch_irq, mxcfb_irq_handler, 0,
+ 		MXCFB_NAME, fbi_to) != 0) {
+ 		dev_err(fbi_to->device, "Error registering irq %d\n",
+ 			mxc_fbi_to->ipu_ch_irq);
+ 		return -EBUSY;
+ 	}
++	ipu_disable_irq(mxc_fbi_to->ipu_ch_irq);
+ 
+ 	return 0;
+ }
+diff --git a/drivers/video/mxc/tve.c b/drivers/video/mxc/tve.c
+index 58738da..37bba3a 100644
+--- a/drivers/video/mxc/tve.c
++++ b/drivers/video/mxc/tve.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -649,7 +649,7 @@ static int _tve_get_revision(void)
+ extern int g_di1_tvout;
+ static int tve_probe(struct platform_device *pdev)
+ {
+-	int ret, i;
++	int ret, i, primary = 0;
+ 	struct resource *res;
+ 	struct tve_platform_data *plat_data = pdev->dev.platform_data;
+ 	u32 conf_reg;
+@@ -683,6 +683,12 @@ static int tve_probe(struct platform_device *pdev)
+ 	for (i = 0; i < num_registered_fb; i++) {
+ 		if (strcmp(registered_fb[i]->fix.id, "DISP3 BG - DI1") == 0) {
+ 			tve_fbi = registered_fb[i];
++			if (i == 0) {
++				primary = 1;
++				acquire_console_sem();
++				fb_blank(tve_fbi, FB_BLANK_POWERDOWN);
++				release_console_sem();
++			}
+ 			break;
+ 		}
+ 	}
+@@ -749,6 +755,18 @@ static int tve_probe(struct platform_device *pdev)
+ 
+ 	clk_disable(tve.clk);
+ 
++	/* is primary display? */
++	if (primary) {
++		struct fb_event event;
++
++		event.info = tve_fbi;
++		tve_fb_event(NULL, FB_EVENT_MODE_CHANGE, &event);
++		acquire_console_sem();
++		fb_blank(tve_fbi, FB_BLANK_UNBLANK);
++		release_console_sem();
++		fb_show_logo(tve_fbi, 0);
++	}
++
+ 	ret = fb_register_client(&nb);
+ 	if (ret < 0)
+ 		goto err2;
+-- 
+1.5.4.4
+

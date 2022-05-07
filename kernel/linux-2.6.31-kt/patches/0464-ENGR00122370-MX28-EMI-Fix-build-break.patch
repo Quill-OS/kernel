@@ -1,0 +1,92 @@
+From 09335a4c934dbc240d420cecb193fbb9946649a7 Mon Sep 17 00:00:00 2001
+From: Nancy Chen <Nancy.Chen@freescale.com>
+Date: Thu, 8 Apr 2010 10:23:32 -0500
+Subject: [PATCH] ENGR00122370 MX28 EMI: Fix build break
+
+Fix build break
+
+Signed-off-by: Nancy Chen <Nancy.Chen@freescale.com>
+---
+ arch/arm/mach-mx28/clock.c             |    4 ++--
+ arch/arm/mach-mx28/emi_settings.c      |    5 +++--
+ arch/arm/mach-mx28/emi_settings.h      |    8 --------
+ arch/arm/plat-mxs/include/mach/clock.h |    4 ++--
+ 4 files changed, 7 insertions(+), 14 deletions(-)
+
+diff --git a/arch/arm/mach-mx28/clock.c b/arch/arm/mach-mx28/clock.c
+index 9e342fd..2439fbf 100644
+--- a/arch/arm/mach-mx28/clock.c
++++ b/arch/arm/mach-mx28/clock.c
+@@ -820,8 +820,8 @@ static unsigned long emi_round_rate(struct clk *clk, unsigned long rate)
+ static int emi_set_rate(struct clk *clk, unsigned long rate)
+ {
+ 	int i;
+-	struct emi_change emi;
+-	void (*f) (struct emi_change *, unsigned int *);
++	struct mxs_emi_scaling_data emi;
++	void (*f) (struct mxs_emi_scaling_data *, unsigned int *);
+ 	f = (void *)MX28_OCRAM_BASE;
+ 	memcpy(f, mxs_ram_freq_scale,
+ 	       (unsigned int)mxs_ram_freq_scale_end -
+diff --git a/arch/arm/mach-mx28/emi_settings.c b/arch/arm/mach-mx28/emi_settings.c
+index c70687d..7dd62b9 100644
+--- a/arch/arm/mach-mx28/emi_settings.c
++++ b/arch/arm/mach-mx28/emi_settings.c
+@@ -32,6 +32,7 @@
+ #include <asm/mach/map.h>
+ 
+ #include <mach/mx28.h>
++#include <mach/clock.h>
+ #include "emi_settings.h"
+ 
+ static unsigned int DRAM_REG[MX28_DRAMCTRLREGNUM];
+@@ -42,8 +43,8 @@ unsigned int *get_current_emidata()
+ 
+ void test_emi_change()
+ {
+-	struct emi_change emi;
+-	void (*f) (struct emi_change *, unsigned int *);
++	struct mxs_emi_scaling_data emi;
++	void (*f) (struct mxs_emi_scaling_data *, unsigned int *);
+ 	f = (void *)MX28_OCRAM_BASE;
+ 	memcpy(f, mxs_ram_freq_scale,
+ 	       (unsigned int)mxs_ram_freq_scale_end -
+diff --git a/arch/arm/mach-mx28/emi_settings.h b/arch/arm/mach-mx28/emi_settings.h
+index b7cb0e2..745bf5d 100644
+--- a/arch/arm/mach-mx28/emi_settings.h
++++ b/arch/arm/mach-mx28/emi_settings.h
+@@ -27,14 +27,6 @@
+ #define SCALING_DATA_NEW_FREQ_OFFSET    12
+ 
+ #ifndef __ASSEMBLER__
+-struct emi_change {
+-	unsigned int emi_div;
+-	unsigned int frac_div;
+-	unsigned cur_freq;
+-	unsigned new_freq;
+-};
+-
+-int mxs_ram_freq_scale(struct emi_change *emi);
+ void mxs_ram_freq_scale_end();
+ void DDR2EmiController_EDE1116_133MHz();
+ void DDR2EmiController_EDE1116_166MHz();
+diff --git a/arch/arm/plat-mxs/include/mach/clock.h b/arch/arm/plat-mxs/include/mach/clock.h
+index 19917e9..82fd708 100644
+--- a/arch/arm/plat-mxs/include/mach/clock.h
++++ b/arch/arm/plat-mxs/include/mach/clock.h
+@@ -90,10 +90,10 @@ struct mxs_emi_scaling_data {
+ };
+ 
+ #ifdef CONFIG_MXS_RAM_FREQ_SCALING
+-extern void mxs_ram_freq_scale(struct mxs_emi_scaling_data *);
++extern int mxs_ram_freq_scale(struct mxs_emi_scaling_data *);
+ extern u32 mxs_ram_funcs_sz;
+ #else
+-static inline void mxs_ram_freq_scale(struct mxs_emi_scaling_data *p)
++static inline int mxs_ram_freq_scale(struct mxs_emi_scaling_data *p)
+ {
+ }
+ static u32 mxs_ram_funcs_sz;
+-- 
+1.5.4.4
+

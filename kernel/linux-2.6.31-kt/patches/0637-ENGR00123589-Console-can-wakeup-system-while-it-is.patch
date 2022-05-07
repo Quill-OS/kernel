@@ -1,0 +1,82 @@
+From 7c078ddc0d45e4dfce1da0d3eba18cd803aee188 Mon Sep 17 00:00:00 2001
+From: Jeremy.Yao <r65161@freescale.com>
+Date: Tue, 1 Jun 2010 16:44:21 +0800
+Subject: [PATCH] ENGR00123589: Console can wakeup system while it is not wakeup source
+
+Add debug-uart pm function
+
+Signed-off-by: Jeremy Yao <r65161@freescale.com>
+---
+ arch/arm/plat-mxs/icoll.c  |    6 ++++++
+ drivers/serial/mxs-duart.c |   31 +++++++++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+), 0 deletions(-)
+
+diff --git a/arch/arm/plat-mxs/icoll.c b/arch/arm/plat-mxs/icoll.c
+index bb4e4c1..1e0b55b 100644
+--- a/arch/arm/plat-mxs/icoll.c
++++ b/arch/arm/plat-mxs/icoll.c
+@@ -56,10 +56,16 @@ static void icoll_unmask_irq(unsigned int irq)
+ 		     g_icoll_base + HW_ICOLL_INTERRUPTn_SET(irq));
+ }
+ 
++static int icoll_set_wake_irq(unsigned int irq, unsigned int enabled)
++{
++	return 0;
++}
++
+ static struct irq_chip icoll_chip = {
+ 	.ack = icoll_ack_irq,
+ 	.mask = icoll_mask_irq,
+ 	.unmask = icoll_unmask_irq,
++	.set_wake = icoll_set_wake_irq,
+ };
+ 
+ void __init avic_init_irq(void __iomem *base, int nr_irqs)
+diff --git a/drivers/serial/mxs-duart.c b/drivers/serial/mxs-duart.c
+index 5d006f3..171b862 100644
+--- a/drivers/serial/mxs-duart.c
++++ b/drivers/serial/mxs-duart.c
+@@ -735,9 +735,40 @@ static int __devexit duart_remove(struct platform_device *pdev)
+ 	return 0;
+ }
+ 
++#ifdef CONFIG_PM
++static int duart_suspend(struct platform_device *pdev,
++		pm_message_t state)
++{
++	int ret = 0;
++	if (!duart_port.suspended) {
++		ret = uart_suspend_port(&duart_drv, &duart_port.port);
++		if (!ret)
++			duart_port.suspended = 1;
++	}
++	return ret;
++}
++
++static int duart_resume(struct platform_device *pdev,
++		pm_message_t state)
++{
++	int ret = 0;
++	if (duart_port.suspended) {
++		ret = uart_resume_port(&duart_drv, &duart_port.port);
++		if (!ret)
++			duart_port.suspended = 0;
++	}
++	return ret;
++}
++#else
++#define	duart_suspend	NULL
++#define	duart_resume	NULL
++#endif
++
+ static struct platform_driver duart_driver = {
+ 	.probe = duart_probe,
+ 	.remove = __devexit_p(duart_remove),
++	.suspend = duart_suspend,
++	.resume = duart_resume,
+ 	.driver = {
+ 		   .name = "mxs-duart",
+ 		   .owner = THIS_MODULE,
+-- 
+1.5.4.4
+

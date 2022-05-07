@@ -1,0 +1,76 @@
+From 9fe6fe897caaf71f7e28083f394ed639e7fa11e2 Mon Sep 17 00:00:00 2001
+From: Robby Cai <R63905@freescale.com>
+Date: Wed, 17 Mar 2010 19:33:11 +0800
+Subject: [PATCH] ENGR00119644-2 [MXS] Change name to eliminate the confusion
+
+change rgbbuf to outbuf, etc. to eliminate confusion for MX28
+
+Signed-off-by: Robby Cai <R63905@freescale.com>
+---
+ drivers/media/video/mxs_pxp.c |   12 ++++++------
+ drivers/media/video/mxs_pxp.h |    6 +++---
+ 2 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/drivers/media/video/mxs_pxp.c b/drivers/media/video/mxs_pxp.c
+index 189dbeb..44afef4 100644
+--- a/drivers/media/video/mxs_pxp.c
++++ b/drivers/media/video/mxs_pxp.c
+@@ -190,16 +190,16 @@ static void pxp_set_ctrl(struct pxps *pxp)
+ 	pxp->regs_virt->ctrl = ctrl;
+ }
+ 
+-static void pxp_set_rgbbuf(struct pxps *pxp)
++static void pxp_set_outbuf(struct pxps *pxp)
+ {
+-	pxp->regs_virt->rgbbuf = pxp->outb_phys;
++	pxp->regs_virt->outbuf = pxp->outb_phys;
+ 	/* Always equal to the FB size */
+ 	if (pxp->rotate % 180)
+-		pxp->regs_virt->rgbsize =
++		pxp->regs_virt->outsize =
+ 		    BF_PXP_OUTSIZE_WIDTH(pxp->fb.fmt.height) |
+ 		    BF_PXP_OUTSIZE_HEIGHT(pxp->fb.fmt.width);
+ 	else
+-		pxp->regs_virt->rgbsize =
++		pxp->regs_virt->outsize =
+ 		    BF_PXP_OUTSIZE_WIDTH(pxp->fb.fmt.width) |
+ 		    BF_PXP_OUTSIZE_HEIGHT(pxp->fb.fmt.height);
+ }
+@@ -459,7 +459,7 @@ static int pxp_s_output(struct file *file, void *fh, unsigned int i)
+ 		       fmt->width * fmt->height * bpp, DMA_TO_DEVICE);
+ 
+ out:
+-	pxp_set_rgbbuf(pxp);
++	pxp_set_outbuf(pxp);
+ 
+ 	return 0;
+ }
+@@ -665,7 +665,7 @@ static int pxp_streamon(struct file *file, void *priv, enum v4l2_buf_type t)
+ 	if ((t != V4L2_BUF_TYPE_VIDEO_OUTPUT))
+ 		return -EINVAL;
+ 
+-	pxp_set_rgbbuf(pxp);
++	pxp_set_outbuf(pxp);
+ 	ret = videobuf_streamon(&pxp->s0_vbq);
+ 
+ 	if (!ret && (pxp->output == 0))
+diff --git a/drivers/media/video/mxs_pxp.h b/drivers/media/video/mxs_pxp.h
+index d302102..d027c35 100644
+--- a/drivers/media/video/mxs_pxp.h
++++ b/drivers/media/video/mxs_pxp.h
+@@ -51,9 +51,9 @@ struct pxp_overlay_registers {
+ /* Registers feed for PXP_NEXT */
+ struct pxp_registers {
+ 	u32 ctrl;
+-	u32 rgbbuf;
+-	u32 rgbbuf2;
+-	u32 rgbsize;
++	u32 outbuf;
++	u32 outbuf2;
++	u32 outsize;
+ 	u32 s0buf;
+ 	u32 s0ubuf;
+ 	u32 s0vbuf;
+-- 
+1.5.4.4
+

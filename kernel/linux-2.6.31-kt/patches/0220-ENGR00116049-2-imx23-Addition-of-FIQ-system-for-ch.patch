@@ -1,0 +1,32 @@
+From acc76772d80119ca00e7f6ce40b589e43b6176c6 Mon Sep 17 00:00:00 2001
+From: Robert Lee <robert.lee@freescale.com>
+Date: Mon, 18 Jan 2010 10:31:38 +0800
+Subject: [PATCH] ENGR00116049-2 [imx23] Addition of FIQ system for chip errata/bo's
+
+[imx23] Addition of FIQ system for chip errata and bo's
+
+Signed-off-by: Robert Lee <robert.lee@freescale.com>
+---
+ arch/arm/mm/mmu.c |    5 +++++
+ 1 files changed, 5 insertions(+), 0 deletions(-)
+
+diff --git a/arch/arm/mm/mmu.c b/arch/arm/mm/mmu.c
+index 4426ee6..3d44113 100644
+--- a/arch/arm/mm/mmu.c
++++ b/arch/arm/mm/mmu.c
+@@ -936,7 +936,12 @@ static void __init devicemaps_init(struct machine_desc *mdesc)
+ 	 * location (0xffff0000).  If we aren't using high-vectors, also
+ 	 * create a mapping at the low-vectors virtual address.
+ 	 */
++#ifdef CONFIG_VECTORS_PHY_ADDR
++	/* use OCRAM as vector for CQ116049 */
++	map.pfn = CONFIG_VECTORS_PHY_ADDR ;
++#else
+ 	map.pfn = __phys_to_pfn(virt_to_phys(vectors));
++#endif
+ 	map.virtual = 0xffff0000;
+ 	map.length = PAGE_SIZE;
+ 	map.type = MT_HIGH_VECTORS;
+-- 
+1.5.4.4
+

@@ -1,0 +1,54 @@
+From 54b9fd5ab6d24adacd79b95f541a9255ffbee4dd Mon Sep 17 00:00:00 2001
+From: Alan Tull <r80115@freescale.com>
+Date: Wed, 7 Jul 2010 13:57:01 -0500
+Subject: [PATCH] Revert "ENGR00124852 sgtl5000: support nonstandard sample rates"
+
+This reverts commit 33391f8b0a2ccda3a27d95dfe67846d5c60666f7.
+
+Signed-off-by: Alan Tull <r80115@freescale.com>
+---
+ sound/soc/codecs/sgtl5000.c |    7 +------
+ sound/soc/imx/imx-ssi.c     |    2 +-
+ 2 files changed, 2 insertions(+), 7 deletions(-)
+
+diff --git a/sound/soc/codecs/sgtl5000.c b/sound/soc/codecs/sgtl5000.c
+index a780670..1016c4b 100644
+--- a/sound/soc/codecs/sgtl5000.c
++++ b/sound/soc/codecs/sgtl5000.c
+@@ -596,10 +596,6 @@ static int sgtl5000_pcm_hw_params(struct snd_pcm_substream *substream,
+ 	case 22050:
+ 		sys_fs = 44100;
+ 		break;
+-	case 12000:
+-	case 24000:
+-		sys_fs = 48000;
+-		break;
+ 	default:
+ 		sys_fs = sgtl5000->lrclk;
+ 		break;
+@@ -850,8 +846,7 @@ static int sgtl5000_set_bias_level(struct snd_soc_codec *codec,
+ 		      SNDRV_PCM_RATE_32000 |\
+ 		      SNDRV_PCM_RATE_44100 |\
+ 		      SNDRV_PCM_RATE_48000 |\
+-		      SNDRV_PCM_RATE_96000 |\
+-		      SNDRV_PCM_RATE_KNOT)
++		      SNDRV_PCM_RATE_96000)
+ 
+ #define SGTL5000_FORMATS (SNDRV_PCM_FMTBIT_S16_LE |\
+ 			SNDRV_PCM_FMTBIT_S20_3LE |\
+diff --git a/sound/soc/imx/imx-ssi.c b/sound/soc/imx/imx-ssi.c
+index 0ab30fd..027e32d 100644
+--- a/sound/soc/imx/imx-ssi.c
++++ b/sound/soc/imx/imx-ssi.c
+@@ -627,7 +627,7 @@ static void imx_ssi_remove(struct platform_device *pdev,
+ 	SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_22050 | \
+ 	SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 | \
+ 	SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 | \
+-	SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_KNOT)
++	SNDRV_PCM_RATE_96000)
+ 
+ #define IMX_SSI_FORMATS \
+ 	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
+-- 
+1.5.4.4
+

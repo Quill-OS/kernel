@@ -1,0 +1,427 @@
+From 9414713564d26ca40c1fa669c20a7121f3f2af4d Mon Sep 17 00:00:00 2001
+From: Ranjani Vaidyanathan-RA5478 <Ranjani.Vaidyanathan@freescale.com>
+Date: Thu, 10 Dec 2009 14:43:56 -0600
+Subject: [PATCH] ENGR00119202: Fix DVFS-PER related bugs.
+
+DVFS-PER needs to make sure that the pixel clock divider is an
+even integer.
+Added support for pixel clock being sourced from an external clock (PLL3)
+
+Signed-off-by: Ranjani Vaidyanathan-RA5478 <Ranjani.Vaidyanathan@freescale.com>
+---
+ arch/arm/mach-mx51/clock.c                |   12 ++++++
+ arch/arm/mach-mx51/devices.c              |    1 +
+ arch/arm/plat-mxc/dvfs_per.c              |   55 ++++++++++++++++++++++++++---
+ arch/arm/plat-mxc/include/mach/mxc_dvfs.h |    4 +-
+ drivers/mxc/ipu3/ipu_common.c             |   39 ++++++++++----------
+ drivers/mxc/ipu3/ipu_disp.c               |   49 +++++++++++++++++++------
+ drivers/video/mxc/mxc_ipuv3_fb.c          |   10 +++++-
+ drivers/video/mxc/tve.c                   |    8 ++++
+ 8 files changed, 138 insertions(+), 40 deletions(-)
+
+diff --git a/arch/arm/mach-mx51/clock.c b/arch/arm/mach-mx51/clock.c
+index 3600b64..5b053fc 100644
+--- a/arch/arm/mach-mx51/clock.c
++++ b/arch/arm/mach-mx51/clock.c
+@@ -358,6 +358,18 @@ static int _clk_pll_set_rate(struct clk *clk, unsigned long rate)
+ 		__raw_writel(mfn, pllbase + MXC_PLL_DP_HFS_MFN);
+ 	}
+ 
++	/* If auto restart is disabled, restart the PLL and
++	  * wait for it to lock.
++	  */
++	reg = __raw_readl(pllbase + MXC_PLL_DP_CONFIG);
++	if (!reg & MXC_PLL_DP_CONFIG_AREN) {
++		reg = __raw_readl(pllbase + MXC_PLL_DP_CTL);
++		reg |= MXC_PLL_DP_CTL_RST;
++		__raw_writel(reg, pllbase + MXC_PLL_DP_CTL);
++	}
++	while (!(__raw_readl(pllbase + MXC_PLL_DP_CTL) & MXC_PLL_DP_CTL_LRF))
++		;
++
+ 	clk->rate = rate;
+ 	return 0;
+ }
+diff --git a/arch/arm/mach-mx51/devices.c b/arch/arm/mach-mx51/devices.c
+index 1219a2a..70c8658 100644
+--- a/arch/arm/mach-mx51/devices.c
++++ b/arch/arm/mach-mx51/devices.c
+@@ -310,6 +310,7 @@ static void mxc_init_ipu(void)
+ 	if (cpu_is_mx51_rev(CHIP_REV_2_0) > 0)
+ 		mxc_ipu_data.rev = 2;
+ 
++	mxc_ipu_data.di_clk[0] = clk_get(NULL, "ipu_di0_clk");
+ 	mxc_ipu_data.di_clk[1] = clk_get(NULL, "ipu_di1_clk");
+ 	/* Temporarily setup MIPI module to legacy mode */
+ 	clk = clk_get(NULL, "mipi_hsp_clk");
+diff --git a/arch/arm/plat-mxc/dvfs_per.c b/arch/arm/plat-mxc/dvfs_per.c
+index 1c00e2f..3460f4f 100644
+--- a/arch/arm/plat-mxc/dvfs_per.c
++++ b/arch/arm/plat-mxc/dvfs_per.c
+@@ -45,6 +45,7 @@
+ #include <mach/hardware.h>
+ #include <mach/mxc_dvfs.h>
+ #include <mach/sdram_autogating.h>
++#include <mach/clock.h>
+ #if defined(CONFIG_ARCH_MX37)
+ #include <mach/mxc_dptc.h>
+ #endif
+@@ -82,7 +83,7 @@ int start_dvfs_per(void);
+ void stop_dvfs_per(void);
+ int dvfs_per_active(void);
+ int dvfs_per_divider_active(void);
+-int dvfs_per_pixel_clk_limit(int pix_clk);
++int dvfs_per_pixel_clk_limit();
+ 
+ extern int low_bus_freq_mode;
+ extern int bus_freq_scaling_is_active;
+@@ -500,12 +501,15 @@ static int start(void)
+ 		return 0;
+ 
+ 	if (bus_freq_scaling_is_active) {
++		dvfs_per_is_paused = 1;
+ 		printk(KERN_INFO "Cannot start DVFS-PER since bus_freq_scaling is active\n");
+ 		return 0;
+ 	}
+ 
+-	if (!ipu_freq_scaled) {
+-		printk(KERN_INFO "Cannot start DVFS-PER since pixel clock is above 60MHz\n");
++	if (!dvfs_per_pixel_clk_limit()) {
++		dvfs_per_is_paused = 1;
++		printk(KERN_INFO "Cannot start DVFS-PER since pixel clock is\
++			above 60MHz or divider is not even\n");
+ 		return 0;
+ 	}
+ 
+@@ -613,12 +617,52 @@ int dvfs_per_divider_active()
+ 	return dvfs_per_low_freq;
+ }
+ 
+-int dvfs_per_pixel_clk_limit(int pix_clk)
++int dvfs_per_pixel_clk_limit()
+ {
+-	if (pix_clk < DVFS_MAX_PIX_CLK && (!ipu_freq_scaled))
++	struct clk *disp0_pixel_clk;
++	struct clk *disp1_pixel_clk;
++	int disp0_rate = 0;
++	int disp1_rate = 0;
++	int div1 = 0;
++	int div2 = 0;
++	int even_div1 = 1;
++	int even_div2  = 1;
++
++	disp0_pixel_clk = clk_get(NULL, "pixel_clk.0");
++	disp1_pixel_clk = clk_get(NULL, "pixel_clk.1");
++
++	if (disp0_pixel_clk != NULL)
++		disp0_rate = clk_get_rate(disp0_pixel_clk);
++
++	if (disp1_pixel_clk != NULL)
++		disp1_rate = clk_get_rate(disp1_pixel_clk);
++
++	/* DVFS-PER will not work if pixel clock divider is odd */
++	if (disp0_rate != 0)
++		div1  = (clk_get_rate(
++			clk_get_parent(disp0_pixel_clk)) * 10) / disp0_rate;
++
++	if ((div1 % 2) || ((div1 / 10) % 2))
++		even_div1 = 0;
++
++	if ((div2 % 2) || ((div2 / 10) % 2))
++		even_div2 = 0;
++
++	if (disp1_rate != 0)
++		div2  = (clk_get_rate(
++			clk_get_parent(disp1_pixel_clk)) * 10) / disp1_rate;
++
++	if (((disp0_rate < DVFS_MAX_PIX_CLK && even_div1) ||
++		!clk_get_usecount(disp0_pixel_clk)) &&
++		((disp1_rate < DVFS_MAX_PIX_CLK && even_div2) ||
++		!clk_get_usecount(disp1_pixel_clk)))
+ 		ipu_freq_scaled = 1;
+ 	else
+ 		ipu_freq_scaled = 0;
++
++	clk_put(disp0_pixel_clk);
++	clk_put(disp1_pixel_clk);
++
+ 	return ipu_freq_scaled;
+ }
+ 
+@@ -747,6 +791,7 @@ static int __devinit mxc_dvfsper_probe(struct platform_device *pdev)
+ 	cpu_clk = clk_get(NULL, "cpu_clk");
+ 	ahb_clk = clk_get(NULL, "ahb_clk");
+ 	axi_b_clk = clk_get(NULL, "axi_b_clk");
++
+ 	if (cpu_is_mx51())
+ 		ddr_hf_clk = clk_get(NULL, "ddr_hf_clk");
+ 
+diff --git a/arch/arm/plat-mxc/include/mach/mxc_dvfs.h b/arch/arm/plat-mxc/include/mach/mxc_dvfs.h
+index 86b55cf..bc8904c 100644
+--- a/arch/arm/plat-mxc/include/mach/mxc_dvfs.h
++++ b/arch/arm/plat-mxc/include/mach/mxc_dvfs.h
+@@ -224,7 +224,7 @@ extern int start_dvfs_per(void);
+ extern void stop_dvfs_per(void);
+ extern int dvfs_per_active(void);
+ extern int dvfs_per_divider_active(void);
+-extern int dvfs_per_pixel_clk_limit(int pix_clk);
++extern int dvfs_per_pixel_clk_limit();
+ #else
+ static inline int start_dvfs_per(void)
+ {
+@@ -245,7 +245,7 @@ static inline int dvfs_per_divider_active(void)
+ 	return 0;
+ }
+ 
+-static inline int dvfs_per_pixel_clk_limit(int pix_clk)
++static inline int dvfs_per_pixel_clk_limit(void)
+ {
+ 	return 0;
+ }
+diff --git a/drivers/mxc/ipu3/ipu_common.c b/drivers/mxc/ipu3/ipu_common.c
+index c0bf870..5d90d47 100644
+--- a/drivers/mxc/ipu3/ipu_common.c
++++ b/drivers/mxc/ipu3/ipu_common.c
+@@ -151,27 +151,27 @@ static void _ipu_pixel_clk_recalc(struct clk *clk)
+ 
+ static unsigned long _ipu_pixel_clk_round_rate(struct clk *clk, unsigned long rate)
+ {
+-	u32 div;
+-	int ipu_freq_scaling_enabled = dvfs_per_pixel_clk_limit(rate);
+-
++	u32 div, div1;
++	u32 tmp;
+ 	/*
+ 	 * Calculate divider
+ 	 * Fractional part is 4 bits,
+ 	 * so simply multiply by 2^4 to get fractional part.
+ 	 */
+-	div = (clk->parent->rate * 16) / rate;
++	tmp = (clk->parent->rate * 16);
++	div = tmp / rate;
++
+ 	if (div < 0x10)            /* Min DI disp clock divider is 1 */
+ 		div = 0x10;
+-	/* Need an even integer divder for DVFS-PER to work */
+-	if (ipu_freq_scaling_enabled) {
+-		if (div & 0x10)
+-			div += 0x10;
+-		/* Fractional part is rounded off to 0. */
+-		div &= 0xFF0;
+-	} else
+-		/* Only MSB fractional bit is supported. */
++	if (div & ~0xFEF)
+ 		div &= 0xFF8;
+-
++	else {
++		div1 = div & 0xFE0;
++		if ((tmp/div1 - tmp/div) < rate / 4)
++			div = div1;
++		else
++			div &= 0xFF8;
++	}
+ 	return (clk->parent->rate * 16) / div;
+ }
+ 
+@@ -196,6 +196,8 @@ static int _ipu_pixel_clk_enable(struct clk *clk)
+ 	disp_gen |= clk->id ? DI1_COUNTER_RELEASE : DI0_COUNTER_RELEASE;
+ 	__raw_writel(disp_gen, IPU_DISP_GEN);
+ 
++	start_dvfs_per();
++
+ 	return 0;
+ }
+ 
+@@ -204,11 +206,13 @@ static void _ipu_pixel_clk_disable(struct clk *clk)
+ 	u32 disp_gen = __raw_readl(IPU_DISP_GEN);
+ 	disp_gen &= clk->id ? ~DI1_COUNTER_RELEASE : ~DI0_COUNTER_RELEASE;
+ 	__raw_writel(disp_gen, IPU_DISP_GEN);
++
++	start_dvfs_per();
+ }
+ 
+ static int _ipu_pixel_clk_set_parent(struct clk *clk, struct clk *parent)
+ {
+-	u32 di_gen = __raw_readl(DI_GENERAL(clk->id));
++	u32 di_gen = 0;/*__raw_readl(DI_GENERAL(clk->id));*/
+ 
+ 	if (parent == g_ipu_clk)
+ 		di_gen &= ~DI_GEN_DI_CLK_EXT;
+@@ -383,12 +387,6 @@ static int ipu_probe(struct platform_device *pdev)
+ 	/* Set MCU_T to divide MCU access window into 2 */
+ 	__raw_writel(0x00400000L | (IPU_MCU_T_DEFAULT << 18), IPU_DISP_GEN);
+ 
+-	/* Enable for a divide by 2 clock change. */
+-	reg = __raw_readl(IPU_PM);
+-	reg &= ~(0x7f << 7);
+-	reg |= 0x20 << 7;
+-	__raw_writel(reg, IPU_PM);
+-
+ 	clk_disable(g_ipu_clk);
+ 
+ 	register_ipu_device();
+@@ -491,6 +489,7 @@ int32_t ipu_init_channel(ipu_channel_t channel, ipu_channel_params_t *params)
+ 	__raw_writel(0xFFFFFFFF, IPU_INT_CTRL(10));
+ 
+ 	if (g_ipu_clk_enabled == false) {
++		stop_dvfs_per();
+ 		g_ipu_clk_enabled = true;
+ 		clk_enable(g_ipu_clk);
+ 	}
+diff --git a/drivers/mxc/ipu3/ipu_disp.c b/drivers/mxc/ipu3/ipu_disp.c
+index 14e014e..1135fcb 100644
+--- a/drivers/mxc/ipu3/ipu_disp.c
++++ b/drivers/mxc/ipu3/ipu_disp.c
+@@ -24,8 +24,10 @@
+ #include <linux/spinlock.h>
+ #include <linux/io.h>
+ #include <linux/ipu.h>
++#include <linux/clk.h>
+ #include <asm/atomic.h>
+ #include <mach/mxc_dvfs.h>
++#include <mach/clock.h>
+ #include "ipu_prv.h"
+ #include "ipu_regs.h"
+ #include "ipu_param_mem.h"
+@@ -845,7 +847,8 @@ int32_t ipu_init_sync_panel(int disp, uint32_t pixel_clk,
+ 	uint32_t div, rounded_pixel_clk;
+ 	uint32_t h_total, v_total;
+ 	int map;
+-	int ipu_freq_scaling_enabled;
++	int ipu_freq_scaling_enabled = 0;
++	struct clk *di_parent;
+ 
+ 	dev_dbg(g_ipu_dev, "panel size = %d x %d\n", width, height);
+ 
+@@ -858,21 +861,45 @@ int32_t ipu_init_sync_panel(int disp, uint32_t pixel_clk,
+ 	/* Init clocking */
+ 	dev_dbg(g_ipu_dev, "pixel clk = %d\n", pixel_clk);
+ 
+-	if (sig.ext_clk)
++	if (sig.ext_clk) {
++		/* Set the  PLL to be an even multiple of the pixel clock. */
++		if ((clk_get_usecount(g_pixel_clk[0]) == 0) &&
++			(clk_get_usecount(g_pixel_clk[1]) == 0)) {
++			di_parent = clk_get_parent(g_di_clk[disp]);
++			rounded_pixel_clk =
++				clk_round_rate(g_pixel_clk[disp], pixel_clk);
++			div  = clk_get_rate(di_parent) / rounded_pixel_clk;
++			if (div % 2)
++				div++;
++
++		if (clk_get_rate(di_parent) != div * rounded_pixel_clk)
++			clk_set_rate(di_parent, div * rounded_pixel_clk);
++		msleep(10);
++		clk_set_rate(g_di_clk[disp], 2 * rounded_pixel_clk);
++		msleep(10);
++		}
+ 		clk_set_parent(g_pixel_clk[disp], g_di_clk[disp]);
+-	else
+-		clk_set_parent(g_pixel_clk[disp], g_ipu_clk);
+-
+-	stop_dvfs_per();
+-
++	} else {
++		if (clk_get_usecount(g_pixel_clk[disp]) != 0)
++			clk_set_parent(g_pixel_clk[disp], g_ipu_clk);
++	}
+ 	rounded_pixel_clk = clk_round_rate(g_pixel_clk[disp], pixel_clk);
+ 	clk_set_rate(g_pixel_clk[disp], rounded_pixel_clk);
+-
+-	ipu_freq_scaling_enabled = dvfs_per_pixel_clk_limit(rounded_pixel_clk);
+-
++	msleep(5);
+ 	/* Get integer portion of divider */
+ 	div = clk_get_rate(clk_get_parent(g_pixel_clk[disp])) / rounded_pixel_clk;
+ 
++	ipu_freq_scaling_enabled = dvfs_per_pixel_clk_limit();
++
++	if (ipu_freq_scaling_enabled) {
++		/* Enable for a divide by 2 clock change. */
++		reg = __raw_readl(IPU_PM);
++		reg &= ~(0x7f << 7);
++		reg |= 0x20 << 7;
++		reg &= ~(0x7f << 23);
++		reg |= 0x20 << 23;
++		__raw_writel(reg, IPU_PM);
++	}
+ 	spin_lock_irqsave(&ipu_lock, lock_flags);
+ 
+ 	_ipu_di_data_wave_config(disp, SYNC_WAVE, div - 1, div - 1);
+@@ -1236,8 +1263,6 @@ int32_t ipu_init_sync_panel(int disp, uint32_t pixel_clk,
+ 
+ 	spin_unlock_irqrestore(&ipu_lock, lock_flags);
+ 
+-	start_dvfs_per();
+-
+ 	return 0;
+ }
+ EXPORT_SYMBOL(ipu_init_sync_panel);
+diff --git a/drivers/video/mxc/mxc_ipuv3_fb.c b/drivers/video/mxc/mxc_ipuv3_fb.c
+index 279b952..f9b8f6b 100644
+--- a/drivers/video/mxc/mxc_ipuv3_fb.c
++++ b/drivers/video/mxc/mxc_ipuv3_fb.c
+@@ -97,6 +97,7 @@ static unsigned long default_bpp = 16;
+ static bool g_dp_in_use;
+ LIST_HEAD(fb_alloc_list);
+ static struct fb_info *mxcfb_info[3];
++static int ext_clk_used;
+ 
+ static uint32_t bpp_to_pixfmt(struct fb_info *fbi)
+ {
+@@ -328,7 +329,7 @@ static int mxcfb_set_par(struct fb_info *fbi)
+ 		}
+ 		if (fbi->var.vmode & FB_VMODE_ODD_FLD_FIRST) /* PAL */
+ 			sig_cfg.odd_field_first = true;
+-		if (fbi->var.sync & FB_SYNC_EXT)
++		if ((fbi->var.sync & FB_SYNC_EXT) || ext_clk_used)
+ 			sig_cfg.ext_clk = true;
+ 		if (fbi->var.sync & FB_SYNC_HOR_HIGH_ACT)
+ 			sig_cfg.Hsync_pol = true;
+@@ -1621,10 +1622,17 @@ int mxcfb_setup(char *options)
+ 	while ((opt = strsep(&options, ",")) != NULL) {
+ 		if (!*opt)
+ 			continue;
++		if (!strncmp(opt, "ext_clk", 7)) {
++			ext_clk_used = true;
++			continue;
++		} else
++			ext_clk_used = false;
++
+ 		if (!strncmp(opt, "bpp=", 4))
+ 			default_bpp = simple_strtoul(opt + 4, NULL, 0);
+ 		else
+ 			fb_mode = opt;
++
+ 	}
+ 	return 0;
+ }
+diff --git a/drivers/video/mxc/tve.c b/drivers/video/mxc/tve.c
+index b32110c..061d65a 100644
+--- a/drivers/video/mxc/tve.c
++++ b/drivers/video/mxc/tve.c
+@@ -222,6 +222,7 @@ static int tve_setup(int mode)
+ 	u32 reg;
+ 	struct clk *pll3_clk;
+ 	unsigned long pll3_clock_rate = 216000000;
++	struct clk *ipu_di0_clk;
+ 
+ 	if (tve.cur_mode == mode)
+ 		return 0;
+@@ -241,6 +242,13 @@ static int tve_setup(int mode)
+ 		clk_disable(tve.clk);
+ 
+ 	pll3_clk = clk_get(NULL, "pll3");
++	ipu_di0_clk = clk_get(NULL, "ipu_di0_clk");
++	if ((clk_get_parent(ipu_di0_clk) == pll3_clk) &&
++		(clk_get_rate(pll3_clk) != pll3_clock_rate)) {
++		printk(KERN_INFO "Cannot setup TV since display is using PLL3\n");
++		return -EINVAL;
++	}
++
+ 	clk_disable(pll3_clk);
+ 	clk_set_rate(pll3_clk, pll3_clock_rate);
+ 	clk_enable(pll3_clk);
+-- 
+1.5.4.4
+

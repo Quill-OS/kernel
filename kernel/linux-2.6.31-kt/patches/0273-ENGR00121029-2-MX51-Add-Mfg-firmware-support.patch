@@ -1,0 +1,66 @@
+From 6e47740e606cc9af02c05dc5fed0a96e226eb1c0 Mon Sep 17 00:00:00 2001
+From: Frank Li <Frank.Li@freescale.com>
+Date: Wed, 23 Dec 2009 09:40:17 +0800
+Subject: [PATCH] ENGR00121029-2 MX51 Add Mfg firmware support
+
+Add Mfg Firmware configuration, change CONFIG_STMP_UTP to
+CONFIG_FSL_UTP
+
+Signed-off-by: Frank Li <Frank.Li@freescale.com>
+---
+ arch/arm/configs/imx233_defconfig         |    2 +-
+ arch/arm/configs/imx233_updater_defconfig |    2 +-
+ arch/arm/plat-stmp3xxx/cpufreq.c          |    4 ++--
+ 3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/arch/arm/configs/imx233_defconfig b/arch/arm/configs/imx233_defconfig
+index b6a474f..e055b80 100644
+--- a/arch/arm/configs/imx233_defconfig
++++ b/arch/arm/configs/imx233_defconfig
+@@ -1330,7 +1330,7 @@ CONFIG_USB_ETH=m
+ CONFIG_USB_ETH_RNDIS=y
+ # CONFIG_USB_GADGETFS is not set
+ CONFIG_USB_FILE_STORAGE=m
+-# CONFIG_STMP_UTP is not set
++# CONFIG_FSL_UTP is not set
+ # CONFIG_USB_FILE_STORAGE_TEST is not set
+ CONFIG_USB_G_SERIAL=m
+ # CONFIG_USB_MIDI_GADGET is not set
+diff --git a/arch/arm/configs/imx233_updater_defconfig b/arch/arm/configs/imx233_updater_defconfig
+index df22038..4337e03 100644
+--- a/arch/arm/configs/imx233_updater_defconfig
++++ b/arch/arm/configs/imx233_updater_defconfig
+@@ -771,7 +771,7 @@ CONFIG_USB_GADGET_FSL_UTMI=y
+ # CONFIG_USB_ETH is not set
+ # CONFIG_USB_GADGETFS is not set
+ CONFIG_USB_FILE_STORAGE=y
+-CONFIG_STMP_UTP=y
++CONFIG_FSL_UTP=y
+ # CONFIG_USB_FILE_STORAGE_TEST is not set
+ # CONFIG_USB_G_SERIAL is not set
+ # CONFIG_USB_MIDI_GADGET is not set
+diff --git a/arch/arm/plat-stmp3xxx/cpufreq.c b/arch/arm/plat-stmp3xxx/cpufreq.c
+index 0d16b97..d47e061 100644
+--- a/arch/arm/plat-stmp3xxx/cpufreq.c
++++ b/arch/arm/plat-stmp3xxx/cpufreq.c
+@@ -3,7 +3,7 @@
+  *
+  *  Author: Vitaly Wool <vital@embeddedalley.com>
+  *
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2008-2010 Freescale Semiconductor, Inc.
+  * Copyright 2008 Embedded Alley Solutions, Inc All Rights Reserved.
+  */
+ 
+@@ -167,7 +167,7 @@ static int set_op(unsigned int target_freq)
+ 	freqs.cpu = 0;
+ 
+ /* work around usb problem when in updater firmare  mode*/
+-#ifdef CONFIG_STMP_UTP
++#ifdef CONFIG_FSL_UTP
+ 	return 0;
+ #endif
+ 	for (i = cur_freq_table_size - 1; i > 0; i--) {
+-- 
+1.5.4.4
+

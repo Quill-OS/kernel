@@ -1,0 +1,333 @@
+From ee991fa2b73c9877485485b1ad307718ba524e71 Mon Sep 17 00:00:00 2001
+From: Liu Ying <b17645@freescale.com>
+Date: Wed, 10 Feb 2010 10:36:44 -0500
+Subject: [PATCH] ENGR00120807 V4L2 capture:Change the mechanism for CSI->MEM capture
+
+As CSI->MEM channel keeps on writing the buffer which is set to
+ready latestly and raising up end of frame interrupts, the current
+v4l2 capture realization mechanism is not appropriate for this channel.
+This patch will update the idmac buffer to a dummy buffer whenever
+there is no buffers queued by the user.
+
+Signed-off-by: Liu Ying <b17645@freescale.com>
+---
+ drivers/media/video/mxc/capture/ipu_csi_enc.c      |   27 +++-
+ drivers/media/video/mxc/capture/mxc_v4l2_capture.c |  166 +++++++++++++++-----
+ drivers/media/video/mxc/capture/mxc_v4l2_capture.h |    1 +
+ drivers/mxc/ipu3/ipu_common.c                      |    4 +-
+ 4 files changed, 154 insertions(+), 44 deletions(-)
+
+diff --git a/drivers/media/video/mxc/capture/ipu_csi_enc.c b/drivers/media/video/mxc/capture/ipu_csi_enc.c
+index 5818707..fd3f0c1 100644
+--- a/drivers/media/video/mxc/capture/ipu_csi_enc.c
++++ b/drivers/media/video/mxc/capture/ipu_csi_enc.c
+@@ -12,7 +12,7 @@
+  */
+ 
+ /*!
+- * @file csi_enc.c
++ * @file ipu_csi_enc.c
+  *
+  * @brief CSI Use case for video capture
+  *
+@@ -65,7 +65,7 @@ static int csi_enc_setup(cam_data *cam)
+ 	ipu_channel_params_t params;
+ 	u32 pixel_fmt;
+ 	int err = 0;
+-	dma_addr_t dummy = 0xdeadbeaf;
++	dma_addr_t dummy = cam->dummy_frame.buffer.m.offset;
+ 
+ 	CAMERA_TRACE("In csi_enc_setup\n");
+ 	if (!cam) {
+@@ -143,6 +143,8 @@ static int csi_enc_eba_update(dma_addr_t eba, int *buffer_num)
+ 	err = ipu_update_channel_buffer(CSI_MEM, IPU_OUTPUT_BUFFER,
+ 					*buffer_num, eba);
+ 	if (err != 0) {
++		ipu_clear_buffer_ready(CSI_MEM, IPU_OUTPUT_BUFFER,
++				       *buffer_num);
+ 		printk(KERN_ERR "err %d buffer_num %d\n", err, *buffer_num);
+ 		return err;
+ 	}
+@@ -166,6 +168,21 @@ static int csi_enc_enabling_tasks(void *private)
+ 	int err = 0;
+ 	CAMERA_TRACE("IPU:In csi_enc_enabling_tasks\n");
+ 
++	cam->dummy_frame.vaddress = dma_alloc_coherent(0,
++			       PAGE_ALIGN(cam->v2f.fmt.pix.sizeimage),
++			       &cam->dummy_frame.paddress,
++			       GFP_DMA | GFP_KERNEL);
++	if (cam->dummy_frame.vaddress == 0) {
++		pr_err("ERROR: v4l2 capture: Allocate dummy frame "
++		       "failed.\n");
++		return -ENOBUFS;
++	}
++	cam->dummy_frame.buffer.type = V4L2_BUF_TYPE_PRIVATE;
++	cam->dummy_frame.buffer.length =
++	    PAGE_ALIGN(cam->v2f.fmt.pix.sizeimage);
++	cam->dummy_frame.buffer.m.offset = cam->dummy_frame.paddress;
++
++	ipu_clear_irq(IPU_IRQ_CSI0_OUT_EOF);
+ 	err = ipu_request_irq(IPU_IRQ_CSI0_OUT_EOF,
+ 			      csi_enc_callback, 0, "Mxc Camera", cam);
+ 	if (err != 0) {
+@@ -199,6 +216,12 @@ static int csi_enc_disabling_tasks(void *private)
+ 
+ 	ipu_uninit_channel(CSI_MEM);
+ 
++	if (cam->dummy_frame.vaddress != 0) {
++		dma_free_coherent(0, cam->dummy_frame.buffer.length,
++				  cam->dummy_frame.vaddress,
++				  cam->dummy_frame.paddress);
++		cam->dummy_frame.vaddress = 0;
++	}
+ 	ipu_csi_enable_mclk_if(CSI_MCLK_ENC, cam->csi, false, false);
+ 
+ 	return err;
+diff --git a/drivers/media/video/mxc/capture/mxc_v4l2_capture.c b/drivers/media/video/mxc/capture/mxc_v4l2_capture.c
+index dd78b15..30ad533 100644
+--- a/drivers/media/video/mxc/capture/mxc_v4l2_capture.c
++++ b/drivers/media/video/mxc/capture/mxc_v4l2_capture.c
+@@ -339,6 +339,12 @@ static int mxc_streamon(cam_data *cam)
+ 		return -1;
+ 	}
+ 
++	if (cam->capture_on) {
++		pr_err("ERROR: v4l2 capture: Capture stream has been turned "
++		       " on\n");
++		return -1;
++	}
++
+ 	if (list_empty(&cam->ready_q)) {
+ 		pr_err("ERROR: v4l2 capture: mxc_streamon buffer has not been "
+ 			"queued yet\n");
+@@ -1330,13 +1336,13 @@ static int mxc_v4l_dqueue(cam_data *cam, struct v4l2_buffer *buf)
+ 		retval = -EINVAL;
+ 	}
+ 
+-	spin_unlock_irqrestore(&cam->dqueue_int_lock, lock_flags);
+-
+ 	buf->bytesused = cam->v2f.fmt.pix.sizeimage;
+ 	buf->index = frame->index;
+ 	buf->flags = frame->buffer.flags;
+ 	buf->m = cam->frame[frame->index].buffer.m;
++	buf->timestamp = cam->frame[frame->index].buffer.timestamp;
+ 
++	spin_unlock_irqrestore(&cam->dqueue_int_lock, lock_flags);
+ 	return retval;
+ }
+ 
+@@ -1764,17 +1770,26 @@ static long mxc_v4l_do_ioctl(struct file *file,
+ 		    V4L2_BUF_FLAG_MAPPED) {
+ 			cam->frame[index].buffer.flags |=
+ 			    V4L2_BUF_FLAG_QUEUED;
+-			if (cam->skip_frame > 0) {
+-				list_add_tail(&cam->frame[index].queue,
+-					      &cam->working_q);
+-				retval =
+-				    cam->enc_update_eba(cam->
+-							frame[index].
+-							buffer.m.offset,
+-							&cam->
+-							ping_pong_csi);
+-				cam->skip_frame = 0;
+-			} else {
++			if (strcmp(mxc_capture_inputs[cam->current_input].name,
++				"CSI IC MEM") == 0) {
++				if (cam->skip_frame > 0) {
++					list_add_tail(&cam->frame[index].queue,
++						      &cam->working_q);
++
++					retval =
++					   cam->enc_update_eba(cam->
++							       frame[index].
++							       buffer.m.offset,
++							       &cam->
++							       ping_pong_csi);
++
++					cam->skip_frame = 0;
++				} else
++					list_add_tail(&cam->frame[index].queue,
++						      &cam->ready_q);
++			} else if (strcmp(
++					mxc_capture_inputs[cam->current_input].
++					name, "CSI MEM") == 0) {
+ 				list_add_tail(&cam->frame[index].queue,
+ 					      &cam->ready_q);
+ 			}
+@@ -2242,6 +2257,7 @@ static void camera_callback(u32 mask, void *dev)
+ {
+ 	struct mxc_v4l_frame *done_frame;
+ 	struct mxc_v4l_frame *ready_frame;
++	struct timeval cur_time;
+ 
+ 	cam_data *cam = (cam_data *) dev;
+ 	if (cam == NULL)
+@@ -2249,41 +2265,111 @@ static void camera_callback(u32 mask, void *dev)
+ 
+ 	pr_debug("In MVC:camera_callback\n");
+ 
+-	if (list_empty(&cam->working_q)) {
+-		pr_err("ERROR: v4l2 capture: camera_callback: "
+-			"working queue empty\n");
+-		return;
+-	}
++	if (strcmp(mxc_capture_inputs[cam->current_input].name, "CSI IC MEM")
++	    == 0) {
++		if (list_empty(&cam->working_q)) {
++			pr_err("ERROR: v4l2 capture: camera_callback: "
++				"working queue empty\n");
++			return;
++		}
++		do_gettimeofday(&cur_time);
++
++		done_frame = list_entry(cam->working_q.next,
++					struct mxc_v4l_frame,
++					queue);
++
++		/*
++		 * Set the current time to done frame buffer's timestamp.
++		 * Users can use this information to judge the frame's usage.
++		 */
++		done_frame->buffer.timestamp = cur_time;
++		if (done_frame->buffer.flags & V4L2_BUF_FLAG_QUEUED) {
++			done_frame->buffer.flags |= V4L2_BUF_FLAG_DONE;
++			done_frame->buffer.flags &= ~V4L2_BUF_FLAG_QUEUED;
+ 
+-	done_frame =
+-		list_entry(cam->working_q.next, struct mxc_v4l_frame, queue);
+-	if (done_frame->buffer.flags & V4L2_BUF_FLAG_QUEUED) {
+-		done_frame->buffer.flags |= V4L2_BUF_FLAG_DONE;
+-		done_frame->buffer.flags &= ~V4L2_BUF_FLAG_QUEUED;
++			/* Added to the done queue */
++			list_del(cam->working_q.next);
++			list_add_tail(&done_frame->queue, &cam->done_q);
+ 
+-		if (list_empty(&cam->ready_q)) {
+-			cam->skip_frame++;
++			/* Wake up the queue */
++			cam->enc_counter++;
++			wake_up_interruptible(&cam->enc_queue);
++
++			if (list_empty(&cam->ready_q)) {
++				cam->skip_frame++;
++			} else {
++				ready_frame = list_entry(cam->ready_q.next,
++							 struct mxc_v4l_frame,
++							 queue);
++
++				if (cam->enc_update_eba(
++						ready_frame->buffer.m.offset,
++						&cam->ping_pong_csi) == 0) {
++					list_del(cam->ready_q.next);
++					list_add_tail(&ready_frame->queue,
++						      &cam->working_q);
++				} else
++					return;
++			}
+ 		} else {
++			pr_err("ERROR: v4l2 capture: camera_callback: "
++				"buffer not queued\n");
++		}
++	} else if (strcmp(mxc_capture_inputs[cam->current_input].name,
++		   "CSI MEM") == 0) {
++		if (!list_empty(&cam->working_q)) {
++			do_gettimeofday(&cur_time);
++
++			done_frame = list_entry(cam->working_q.next,
++						struct mxc_v4l_frame,
++						queue);
++
++			/*
++			 * Set the current time to done frame buffer's
++			 * timestamp. Users can use this information to judge
++			 * the frame's usage.
++			 */
++			done_frame->buffer.timestamp = cur_time;
++
++			if (done_frame->buffer.flags & V4L2_BUF_FLAG_QUEUED) {
++				done_frame->buffer.flags |=
++							V4L2_BUF_FLAG_DONE;
++				done_frame->buffer.flags &=
++							~V4L2_BUF_FLAG_QUEUED;
++
++				/* Added to the done queue */
++				list_del(cam->working_q.next);
++				list_add_tail(&done_frame->queue, &cam->done_q);
++
++				/* Wake up the queue */
++				cam->enc_counter++;
++				wake_up_interruptible(&cam->enc_queue);
++			} else {
++				pr_err("ERROR: v4l2 capture: camera_callback: "
++					"buffer not queued\n");
++			}
++		}
++
++		if (!list_empty(&cam->ready_q)) {
+ 			ready_frame = list_entry(cam->ready_q.next,
+ 						 struct mxc_v4l_frame,
+ 						 queue);
+-			list_del(cam->ready_q.next);
+-			list_add_tail(&ready_frame->queue, &cam->working_q);
+-			cam->enc_update_eba(ready_frame->buffer.m.offset,
+-					    &cam->ping_pong_csi);
++			if (cam->enc_update_eba(ready_frame->buffer.m.offset,
++						&cam->ping_pong_csi) == 0) {
++				list_del(cam->ready_q.next);
++				list_add_tail(&ready_frame->queue,
++					      &cam->working_q);
++			} else
++				return;
++		} else {
++			if (cam->enc_update_eba(
++				cam->dummy_frame.buffer.m.offset,
++				&cam->ping_pong_csi) == -EACCES)
++				return;
+ 		}
+-
+-		/* Added to the done queue */
+-		list_del(cam->working_q.next);
+-		list_add_tail(&done_frame->queue, &cam->done_q);
+-
+-		/* Wake up the queue */
+-		cam->enc_counter++;
+-		wake_up_interruptible(&cam->enc_queue);
+-	} else {
+-		pr_err("ERROR: v4l2 capture: camera_callback: "
+-			"buffer not queued\n");
+ 	}
++
++	return;
+ }
+ 
+ /*!
+diff --git a/drivers/media/video/mxc/capture/mxc_v4l2_capture.h b/drivers/media/video/mxc/capture/mxc_v4l2_capture.h
+index e5fd2e8..45a211a 100644
+--- a/drivers/media/video/mxc/capture/mxc_v4l2_capture.h
++++ b/drivers/media/video/mxc/capture/mxc_v4l2_capture.h
+@@ -111,6 +111,7 @@ typedef struct _cam_data {
+ 	spinlock_t queue_int_lock;
+ 	spinlock_t dqueue_int_lock;
+ 	struct mxc_v4l_frame frame[FRAME_NUM];
++	struct mxc_v4l_frame dummy_frame;
+ 	int skip_frame;
+ 	wait_queue_head_t enc_queue;
+ 	int enc_counter;
+diff --git a/drivers/mxc/ipu3/ipu_common.c b/drivers/mxc/ipu3/ipu_common.c
+index 0cb367b..fedd980 100644
+--- a/drivers/mxc/ipu3/ipu_common.c
++++ b/drivers/mxc/ipu3/ipu_common.c
+@@ -380,8 +380,8 @@ static int ipu_probe(struct platform_device *pdev)
+ 	/* DMFC Init */
+ 	_ipu_dmfc_init(DMFC_NORMAL, 1);
+ 
+-	/* Set sync refresh channels as high priority */
+-	__raw_writel(0x18800000L, IDMAC_CHA_PRI(0));
++	/* Set sync refresh channels and CSI->mem channel as high priority */
++	__raw_writel(0x18800001L, IDMAC_CHA_PRI(0));
+ 
+ 	/* Set MCU_T to divide MCU access window into 2 */
+ 	__raw_writel(0x00400000L | (IPU_MCU_T_DEFAULT << 18), IPU_DISP_GEN);
+-- 
+1.5.4.4
+

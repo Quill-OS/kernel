@@ -1,0 +1,680 @@
+From 77e3d6e4430166ee5cdcb1352aa7b13fd32ac095 Mon Sep 17 00:00:00 2001
+From: Patrick Turley <patrick.turley@freescale.com>
+Date: Thu, 11 Mar 2010 14:00:59 -0600
+Subject: [PATCH] ENGR00117735-1 MX28: SLC/MLC NAND
+
+Port the i.MX23 NAND Flash driver to i.MX28.
+
+Signed-off-by: Patrick Turley <patrick.turley@freescale.com>
+---
+ arch/arm/mach-mx28/device.c                |   71 +++++
+ arch/arm/mach-mx28/mx28evk_pins.c          |  424 ++++++++++++++++++++--------
+ arch/arm/plat-mxs/device.c                 |   22 ++
+ arch/arm/plat-mxs/include/mach/device.h    |   51 ++++
+ arch/arm/plat-mxs/include/mach/dmaengine.h |    3 +-
+ 5 files changed, 456 insertions(+), 115 deletions(-)
+
+diff --git a/arch/arm/mach-mx28/device.c b/arch/arm/mach-mx28/device.c
+index d8cbba1..d63055a 100644
+--- a/arch/arm/mach-mx28/device.c
++++ b/arch/arm/mach-mx28/device.c
+@@ -295,6 +295,76 @@ static void __init mx28_init_i2c(void)
+ }
+ #endif
+ 
++
++#if defined(CONFIG_MTD_NAND_GPMI1)
++
++extern int enable_gpmi;
++
++static int gpmi_pinmux_handler(void)
++{
++	return !enable_gpmi;
++}
++
++static const char *gpmi_partition_source_types[] = { "cmdlinepart", 0 };
++
++static struct gpmi_platform_data  gpmi_platform_data = {
++	.io_uA                   = 70000,
++	.min_prop_delay_in_ns    = 5,
++	.max_prop_delay_in_ns    = 9,
++	.pinmux_handler          = gpmi_pinmux_handler,
++	.boot_area_size_in_bytes = 20 * SZ_1M,
++	.partitions              = 0,
++	.partition_count         = 0,
++	.partition_source_types  = gpmi_partition_source_types,
++};
++
++static struct resource gpmi_resources[] = {
++	{
++	 .flags = IORESOURCE_MEM,
++	 .start = GPMI_PHYS_ADDR,
++	 .end   = GPMI_PHYS_ADDR + SZ_8K - 1,
++	 },
++	{
++	 .flags = IORESOURCE_IRQ,
++	 .start = IRQ_GPMI_DMA,
++	 .end   = IRQ_GPMI_DMA,
++	 },
++	{
++	 .flags = IORESOURCE_DMA,
++	 .start	= MXS_DMA_CHANNEL_AHB_APBH_GPMI0,
++	 .end	= MXS_DMA_CHANNEL_AHB_APBH_GPMI7,
++	 },
++	{
++	 .flags = IORESOURCE_MEM,
++	 .start = BCH_PHYS_ADDR,
++	 .end   = BCH_PHYS_ADDR + SZ_8K - 1,
++	 },
++	{
++	 .flags = IORESOURCE_IRQ,
++	 .start = IRQ_BCH,
++	 .end   = IRQ_BCH,
++	 },
++};
++
++static void __init mx28_init_gpmi(void)
++{
++	struct platform_device  *pdev;
++
++	pdev = mxs_get_device("gpmi", 0);
++	if (pdev == NULL || IS_ERR(pdev))
++		return;
++	pdev->dev.platform_data = &gpmi_platform_data;
++	pdev->resource          = gpmi_resources;
++	pdev->num_resources     = ARRAY_SIZE(gpmi_resources);
++	mxs_add_device(pdev, 1);
++}
++#else
++static void mx28_init_gpmi(void)
++{
++}
++#endif
++
++
+ #if defined(CONFIG_MMC_MXS) || defined(CONFIG_MMC_MXS_MODULE)
+ #if defined(CONFIG_MACH_MX28EVK)
+ #define MMC0_POWER	MXS_PIN_TO_GPIO(PINID_PWM3)
+@@ -1102,6 +1172,7 @@ int __init mx28_device_init(void)
+ 	mx28_init_lradc();
+ 	mx28_init_auart();
+ 	mx28_init_mmc();
++	mx28_init_gpmi();
+ 	mx28_init_wdt();
+ 	mx28_init_rtc();
+ 	mx28_init_fec();
+diff --git a/arch/arm/mach-mx28/mx28evk_pins.c b/arch/arm/mach-mx28/mx28evk_pins.c
+index e8ac2d2..2bb8c58 100644
+--- a/arch/arm/mach-mx28/mx28evk_pins.c
++++ b/arch/arm/mach-mx28/mx28evk_pins.c
+@@ -521,117 +521,6 @@ static struct pin_desc mx28evk_fixed_pins[] = {
+ 	 .drive 	= 1,
+ 	 .pull 		= 0,
+ 	 },
+-	/* Configurations of SSP1 SD/MMC port pins */
+-	{
+-	 .name	= "SSP1_DATA0",
+-	 .id	= PINID_GPMI_D00,
+-	 .fun	= PIN_FUN2,
+-	 .strength	= PAD_8MA,
+-	 .voltage	= PAD_3_3V,
+-	 .pullup	= 1,
+-	 .drive 	= 1,
+-	 .pull 		= 1,
+-	 },
+-	{
+-	 .name	= "SSP1_DATA1",
+-	 .id	= PINID_GPMI_D01,
+-	 .fun	= PIN_FUN2,
+-	 .strength	= PAD_8MA,
+-	 .voltage	= PAD_3_3V,
+-	 .pullup	= 1,
+-	 .drive 	= 1,
+-	 .pull 		= 1,
+-	 },
+-	{
+-	 .name	= "SSP1_DATA2",
+-	 .id	= PINID_GPMI_D02,
+-	 .fun	= PIN_FUN2,
+-	 .strength	= PAD_8MA,
+-	 .voltage	= PAD_3_3V,
+-	 .pullup	= 1,
+-	 .drive 	= 1,
+-	 .pull 		= 1,
+-	 },
+-	{
+-	 .name	= "SSP1_DATA3",
+-	 .id	= PINID_GPMI_D03,
+-	 .fun	= PIN_FUN2,
+-	 .strength	= PAD_8MA,
+-	 .voltage	= PAD_3_3V,
+-	 .pullup	= 1,
+-	 .drive 	= 1,
+-	 .pull 		= 1,
+-	 },
+-	{
+-	 .name	= "SSP1_DATA4",
+-	 .id	= PINID_GPMI_D04,
+-	 .fun	= PIN_FUN2,
+-	 .strength	= PAD_8MA,
+-	 .voltage	= PAD_3_3V,
+-	 .pullup	= 1,
+-	 .drive 	= 1,
+-	 .pull 		= 1,
+-	 },
+-	{
+-	 .name	= "SSP1_DATA5",
+-	 .id	= PINID_GPMI_D05,
+-	 .fun	= PIN_FUN2,
+-	 .strength	= PAD_8MA,
+-	 .voltage	= PAD_3_3V,
+-	 .pullup	= 1,
+-	 .drive 	= 1,
+-	 .pull 		= 1,
+-	 },
+-	{
+-	 .name	= "SSP1_DATA6",
+-	 .id	= PINID_GPMI_D06,
+-	 .fun	= PIN_FUN2,
+-	 .strength	= PAD_8MA,
+-	 .voltage	= PAD_3_3V,
+-	 .pullup	= 1,
+-	 .drive 	= 1,
+-	 .pull 		= 1,
+-	 },
+-	{
+-	 .name	= "SSP1_DATA7",
+-	 .id	= PINID_GPMI_D07,
+-	 .fun	= PIN_FUN2,
+-	 .strength	= PAD_8MA,
+-	 .voltage	= PAD_3_3V,
+-	 .pullup	= 1,
+-	 .drive 	= 1,
+-	 .pull 		= 1,
+-	 },
+-	{
+-	 .name	= "SSP1_CMD",
+-	 .id	= PINID_GPMI_RDY1,
+-	 .fun	= PIN_FUN2,
+-	 .strength	= PAD_8MA,
+-	 .voltage	= PAD_3_3V,
+-	 .pullup	= 1,
+-	 .drive 	= 1,
+-	 .pull 		= 1,
+-	 },
+-	{
+-	 .name	= "SSP1_DETECT",
+-	 .id	= PINID_GPMI_RDY0,
+-	 .fun	= PIN_FUN1,
+-	 .strength	= PAD_8MA,
+-	 .voltage	= PAD_3_3V,
+-	 .pullup	= 0,
+-	 .drive 	= 1,
+-	 .pull 		= 0,
+-	 },
+-	{
+-	 .name	= "SSP1_SCK",
+-	 .id	= PINID_GPMI_WRN,
+-	 .fun	= PIN_FUN2,
+-	 .strength	= PAD_8MA,
+-	 .voltage	= PAD_3_3V,
+-	 .pullup	= 0,
+-	 .drive 	= 1,
+-	 .pull 		= 0,
+-	 },
+ #endif
+ 
+ #if defined(CONFIG_FEC) || defined(CONFIG_FEC_MODULE)
+@@ -806,6 +695,295 @@ static struct pin_desc mx28evk_fixed_pins[] = {
+ #endif
+ };
+ 
++
++static int __initdata enable_ssp1 = { 0 };
++static int __init ssp1_setup(char *__unused)
++{
++	enable_ssp1 = 1;
++	return 1;
++}
++
++__setup("ssp1", ssp1_setup);
++
++static struct pin_desc mx28evk_ssp1_pins[] = {
++	{
++	 .name	= "SSP1_DATA0",
++	 .id	= PINID_GPMI_D00,
++	 .fun	= PIN_FUN2,
++	 .strength	= PAD_8MA,
++	 .voltage	= PAD_3_3V,
++	 .pullup	= 1,
++	 .drive 	= 1,
++	 .pull 		= 1,
++	 },
++	{
++	 .name	= "SSP1_DATA1",
++	 .id	= PINID_GPMI_D01,
++	 .fun	= PIN_FUN2,
++	 .strength	= PAD_8MA,
++	 .voltage	= PAD_3_3V,
++	 .pullup	= 1,
++	 .drive 	= 1,
++	 .pull 		= 1,
++	 },
++	{
++	 .name	= "SSP1_DATA2",
++	 .id	= PINID_GPMI_D02,
++	 .fun	= PIN_FUN2,
++	 .strength	= PAD_8MA,
++	 .voltage	= PAD_3_3V,
++	 .pullup	= 1,
++	 .drive 	= 1,
++	 .pull 		= 1,
++	 },
++	{
++	 .name	= "SSP1_DATA3",
++	 .id	= PINID_GPMI_D03,
++	 .fun	= PIN_FUN2,
++	 .strength	= PAD_8MA,
++	 .voltage	= PAD_3_3V,
++	 .pullup	= 1,
++	 .drive 	= 1,
++	 .pull 		= 1,
++	 },
++	{
++	 .name	= "SSP1_DATA4",
++	 .id	= PINID_GPMI_D04,
++	 .fun	= PIN_FUN2,
++	 .strength	= PAD_8MA,
++	 .voltage	= PAD_3_3V,
++	 .pullup	= 1,
++	 .drive 	= 1,
++	 .pull 		= 1,
++	 },
++	{
++	 .name	= "SSP1_DATA5",
++	 .id	= PINID_GPMI_D05,
++	 .fun	= PIN_FUN2,
++	 .strength	= PAD_8MA,
++	 .voltage	= PAD_3_3V,
++	 .pullup	= 1,
++	 .drive 	= 1,
++	 .pull 		= 1,
++	 },
++	{
++	 .name	= "SSP1_DATA6",
++	 .id	= PINID_GPMI_D06,
++	 .fun	= PIN_FUN2,
++	 .strength	= PAD_8MA,
++	 .voltage	= PAD_3_3V,
++	 .pullup	= 1,
++	 .drive 	= 1,
++	 .pull 		= 1,
++	 },
++	{
++	 .name	= "SSP1_DATA7",
++	 .id	= PINID_GPMI_D07,
++	 .fun	= PIN_FUN2,
++	 .strength	= PAD_8MA,
++	 .voltage	= PAD_3_3V,
++	 .pullup	= 1,
++	 .drive 	= 1,
++	 .pull 		= 1,
++	 },
++	{
++	 .name	= "SSP1_CMD",
++	 .id	= PINID_GPMI_RDY1,
++	 .fun	= PIN_FUN2,
++	 .strength	= PAD_8MA,
++	 .voltage	= PAD_3_3V,
++	 .pullup	= 1,
++	 .drive 	= 1,
++	 .pull 		= 1,
++	 },
++	{
++	 .name	= "SSP1_DETECT",
++	 .id	= PINID_GPMI_RDY0,
++	 .fun	= PIN_FUN1,
++	 .strength	= PAD_8MA,
++	 .voltage	= PAD_3_3V,
++	 .pullup	= 0,
++	 .drive 	= 1,
++	 .pull 		= 0,
++	 },
++	{
++	 .name	= "SSP1_SCK",
++	 .id	= PINID_GPMI_WRN,
++	 .fun	= PIN_FUN2,
++	 .strength	= PAD_8MA,
++	 .voltage	= PAD_3_3V,
++	 .pullup	= 0,
++	 .drive 	= 1,
++	 .pull 		= 0,
++	 },
++};
++
++
++int __initdata enable_gpmi = { 0 };
++static int __init gpmi_setup(char *__unused)
++{
++	enable_gpmi = 1;
++	return 1;
++}
++
++__setup("gpmi", gpmi_setup);
++
++static struct pin_desc mx28evk_gpmi_pins[] = {
++	{
++	 .name     = "GPMI D0",
++	 .id       = PINID_GPMI_D00,
++	 .fun      = PIN_FUN1,
++	 .strength = PAD_4MA,
++	 .voltage  = PAD_3_3V,
++	 .pullup   = 0,
++	 .drive    = !0
++	 },
++	{
++	.name     = "GPMI D1",
++	.id       = PINID_GPMI_D01,
++	.fun      = PIN_FUN1,
++	.strength = PAD_4MA,
++	.voltage  = PAD_3_3V,
++	.pullup   = 0,
++	.drive    = !0
++	 },
++	{
++	 .name     = "GPMI D2",
++	 .id       = PINID_GPMI_D02,
++	 .fun      = PIN_FUN1,
++	 .strength = PAD_4MA,
++	 .voltage  = PAD_3_3V,
++	 .pullup   = 0,
++	 .drive    = !0
++	 },
++	{
++	 .name     = "GPMI D3",
++	 .id       = PINID_GPMI_D03,
++	 .fun      = PIN_FUN1,
++	 .strength = PAD_4MA,
++	 .voltage  = PAD_3_3V,
++	 .pullup   = 0,
++	 .drive    = !0
++	 },
++	{
++	 .name     = "GPMI D4",
++	 .id       = PINID_GPMI_D04,
++	 .fun      = PIN_FUN1,
++	 .strength = PAD_4MA,
++	 .voltage  = PAD_3_3V,
++	 .pullup   = 0,
++	 .drive    = !0
++	 },
++	{
++	 .name     = "GPMI D5",
++	 .id       = PINID_GPMI_D05,
++	 .fun      = PIN_FUN1,
++	 .strength = PAD_4MA,
++	 .voltage  = PAD_3_3V,
++	 .pullup   = 0,
++	 .drive    = !0
++	 },
++	{
++	 .name     = "GPMI D6",
++	 .id       = PINID_GPMI_D06,
++	 .fun      = PIN_FUN1,
++	 .strength = PAD_4MA,
++	 .voltage  = PAD_3_3V,
++	 .pullup   = 0,
++	 .drive    = !0
++	 },
++	{
++	 .name     = "GPMI D7",
++	 .id       = PINID_GPMI_D07,
++	 .fun      = PIN_FUN1,
++	 .strength = PAD_4MA,
++	 .voltage  = PAD_3_3V,
++	 .pullup   = 0,
++	 .drive    = !0
++	 },
++	{
++	 .name     = "GPMI CE0-",
++	 .id       = PINID_GPMI_CE0N,
++	 .fun      = PIN_FUN1,
++	 .strength = PAD_4MA,
++	 .voltage  = PAD_3_3V,
++	 .pullup   = 0,
++	 .drive    = !0
++	 },
++	{
++	 .name     = "GPMI CE1-",
++	 .id       = PINID_GPMI_CE1N,
++	 .fun      = PIN_FUN1,
++	 .strength = PAD_4MA,
++	 .voltage  = PAD_3_3V,
++	 .pullup   = 0,
++	 .drive    = !0
++	 },
++	{
++	 .name     = "GPMI RDY0",
++	 .id       = PINID_GPMI_RDY0,
++	 .fun      = PIN_FUN1,
++	 .strength = PAD_4MA,
++	 .voltage  = PAD_3_3V,
++	 .pullup   = 0,
++	 .drive    = !0
++	 },
++	{
++	 .name     = "GPMI RDY1",
++	 .id       = PINID_GPMI_RDY1,
++	 .fun      = PIN_FUN1,
++	 .strength = PAD_4MA,
++	 .voltage  = PAD_3_3V,
++	 .pullup   = 0,
++	 .drive    = !0
++	 },
++	{
++	 .name     = "GPMI RD-",
++	 .id       = PINID_GPMI_RDN,
++	 .fun      = PIN_FUN1,
++	 .strength = PAD_12MA,
++	 .voltage  = PAD_3_3V,
++	 .pullup   = 0,
++	 .drive    = !0
++	 },
++	{
++	 .name     = "GPMI WR-",
++	 .id       = PINID_GPMI_WRN,
++	 .fun      = PIN_FUN1,
++	 .strength = PAD_12MA,
++	 .voltage  = PAD_3_3V,
++	 .pullup   = 0,
++	 .drive    = !0
++	 },
++	{
++	 .name     = "GPMI ALE",
++	 .id       = PINID_GPMI_ALE,
++	 .fun      = PIN_FUN1,
++	 .strength = PAD_4MA,
++	 .voltage  = PAD_3_3V,
++	 .pullup   = 0,
++	 .drive    = !0
++	 },
++	{
++	 .name     = "GPMI CLE",
++	 .id       = PINID_GPMI_CLE,
++	 .fun      = PIN_FUN1,
++	 .strength = PAD_4MA,
++	 .voltage  = PAD_3_3V,
++	 .pullup   = 0,
++	 .drive    = !0
++	 },
++	{
++	 .name     = "GPMI RST-",
++	 .id       = PINID_GPMI_RESETN,
++	 .fun      = PIN_FUN1,
++	 .strength = PAD_12MA,
++	 .voltage  = PAD_3_3V,
++	 .pullup   = 0,
++	 .drive    = !0
++	 },
++};
++
+ #if defined(CONFIG_FEC) || defined(CONFIG_FEC_MODULE)
+ int mx28evk_enet_gpio_init(void)
+ {
+@@ -827,12 +1005,12 @@ int mx28evk_enet_gpio_init(void)
+ }
+ #endif
+ 
+-void __init mx28evk_pins_init(void)
++void __init mx28evk_init_pin_group(struct pin_desc *pins, unsigned count)
+ {
+ 	int i;
+ 	struct pin_desc *pin;
+-	for (i = 0; i < ARRAY_SIZE(mx28evk_fixed_pins); i++) {
+-		pin = &mx28evk_fixed_pins[i];
++	for (i = 0; i < count; i++) {
++		pin = pins + i;
+ 		if (pin->fun == PIN_GPIO)
+ 			gpio_request(MXS_PIN_TO_GPIO(pin->id), pin->name);
+ 		else
+@@ -852,3 +1030,21 @@ void __init mx28evk_pins_init(void)
+ 		}
+ 	}
+ }
++
++void __init mx28evk_pins_init(void)
++{
++
++	mx28evk_init_pin_group(mx28evk_fixed_pins,
++						ARRAY_SIZE(mx28evk_fixed_pins));
++
++	if (enable_ssp1) {
++		pr_info("Initializing SSP1 pins\n");
++		mx28evk_init_pin_group(mx28evk_ssp1_pins,
++						ARRAY_SIZE(mx28evk_ssp1_pins));
++	} else if (enable_gpmi) {
++		pr_info("Initializing GPMI pins\n");
++		mx28evk_init_pin_group(mx28evk_gpmi_pins,
++						ARRAY_SIZE(mx28evk_gpmi_pins));
++	}
++
++}
+diff --git a/arch/arm/plat-mxs/device.c b/arch/arm/plat-mxs/device.c
+index 62d144a..4b7b5d5 100644
+--- a/arch/arm/plat-mxs/device.c
++++ b/arch/arm/plat-mxs/device.c
+@@ -138,6 +138,19 @@ static struct platform_device mxs_i2c[] = {
+ };
+ #endif
+ 
++#if defined(CONFIG_MTD_NAND_GPMI1) || \
++	defined(CONFIG_MTD_NAND_GPMI1_MODULE)
++static struct platform_device mxs_gpmi = {
++	.name = "gpmi",
++	.id = 0,
++	.dev = {
++		.dma_mask          = &common_dmamask,
++		.coherent_dma_mask = DMA_BIT_MASK(32),
++		.release           = mxs_nop_release,
++		},
++};
++#endif
++
+ #if defined(CONFIG_MMC_MXS) || \
+ 	defined(CONFIG_MMC_MXS_MODULE)
+ static struct platform_device mxs_mmc[] = {
+@@ -425,6 +438,15 @@ static struct mxs_dev_lookup dev_lookup[] = {
+ 	 },
+ #endif
+ 
++#if defined(CONFIG_MTD_NAND_GPMI1) || \
++	defined(CONFIG_MTD_NAND_GPMI1_MODULE)
++	{
++	.name = "gpmi",
++	.size = 1,
++	.pdev = &mxs_gpmi,
++	},
++#endif
++
+ #if defined(CONFIG_MMC_MXS) || \
+ 	defined(CONFIG_MMC_MXS_MODULE)
+ 	{
+diff --git a/arch/arm/plat-mxs/include/mach/device.h b/arch/arm/plat-mxs/include/mach/device.h
+index e6a5baa..c5a5e34 100644
+--- a/arch/arm/plat-mxs/include/mach/device.h
++++ b/arch/arm/plat-mxs/include/mach/device.h
+@@ -162,6 +162,57 @@ struct mxs_audio_platform_data {
+ 	void *priv;		/* used by board specific functions */
+ };
+ 
++/**
++ * struct gpmi_platform_data - GPMI driver platform data.
++ *
++ * This structure communicates platform-specific information to the GPMI driver
++ * that can't be expressed as resources.
++ *
++ * @io_uA:                   The current limit, in uA.
++ * @min_prop_delay_in_ns:    Minimum propagation delay of GPMI signals to and
++ *                           from the NAND Flash device, in nanoseconds.
++ * @max_prop_delay_in_ns:    Maximum propagation delay of GPMI signals to and
++ *                           from the NAND Flash device, in nanoseconds.
++ * @pinmux_handler:          A pointer to a function the driver will call to
++ *                           request the pins it needs.
++ * @boot_area_size_in_bytes: The amount of space reserved for use by the boot
++ *                           ROM on the first and second chips. If this value is
++ *                           zero, it indicates we're not reserving any space
++ *                           for the boot area.
++ * @partition_source_types:  An array of strings that name sources of
++ *                           partitioning information (e.g., the boot loader,
++ *                           the kernel command line, etc.). The function
++ *                           parse_mtd_partitions() recognizes these names and
++ *                           applies the appropriate "plugins" to discover
++ *                           partitioning information. If any is found, it will
++ *                           be applied to the "general use" MTD (it will NOT
++ *                           override the boot area protection mechanism).
++ * @partitions:              An optional pointer to an array of partition
++ *                           descriptions. If the driver finds no partitioning
++ *                           information elsewhere, it will apply these to the
++ *                           "general use" MTD (they do NOT override the boot
++ *                           area protection mechanism).
++ * @partition_count:         The number of elements in the partitions array.
++ */
++
++struct gpmi_platform_data {
++
++	int                   io_uA;
++
++	unsigned              min_prop_delay_in_ns;
++	unsigned              max_prop_delay_in_ns;
++
++	int                   (*pinmux_handler)(void);
++
++	uint32_t              boot_area_size_in_bytes;
++
++	const char            **partition_source_types;
++
++	struct mtd_partition  *partitions;
++	unsigned              partition_count;
++
++};
++
+ extern void mxs_timer_init(struct mxs_sys_timer *timer);
+ extern void mxs_nomatch_timer_init(struct mxs_sys_timer *timer);
+ 
+diff --git a/arch/arm/plat-mxs/include/mach/dmaengine.h b/arch/arm/plat-mxs/include/mach/dmaengine.h
+index 4bbbcb4..eecd260 100644
+--- a/arch/arm/plat-mxs/include/mach/dmaengine.h
++++ b/arch/arm/plat-mxs/include/mach/dmaengine.h
+@@ -43,7 +43,8 @@ struct mxs_dma_cmd_bits {
+ 
+ 	unsigned int chain:1;
+ 	unsigned int irq:1;
+-	unsigned int resv:2;
++	unsigned int nand_lock:1;
++	unsigned int nand_wait_4_ready:1;
+ 	unsigned int dec_sem:1;
+ 	unsigned int wait4end:1;
+ 	unsigned int halt_on_terminate:1;
+-- 
+1.5.4.4
+

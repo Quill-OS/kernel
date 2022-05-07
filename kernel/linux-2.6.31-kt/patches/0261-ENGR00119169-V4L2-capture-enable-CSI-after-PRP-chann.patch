@@ -1,0 +1,603 @@
+From 571b93e07d14e58d3e653f7950459da30fdff050 Mon Sep 17 00:00:00 2001
+From: Liu Ying <b17645@freescale.com>
+Date: Wed, 10 Feb 2010 09:07:24 -0500
+Subject: [PATCH] ENGR00119169 V4L2 capture:enable CSI after PRP channels are setup
+
+To preview with V4L2 overlay and capture at the same time may fail.
+This patch implements workaround for this issue by enabling CSI after
+PRP channels are setup.
+
+Signed-off-by: Liu Ying <b17645@freescale.com>
+---
+ drivers/media/video/mxc/capture/ipu_csi_enc.c      |   32 +++++++-
+ drivers/media/video/mxc/capture/ipu_prp_enc.c      |   32 +++++++-
+ drivers/media/video/mxc/capture/ipu_prp_vf_sdc.c   |   30 +++++++
+ .../media/video/mxc/capture/ipu_prp_vf_sdc_bg.c    |   32 +++++++-
+ drivers/media/video/mxc/capture/ipu_still.c        |    4 +-
+ drivers/media/video/mxc/capture/mxc_v4l2_capture.c |   36 ++++++++-
+ drivers/media/video/mxc/capture/mxc_v4l2_capture.h |    4 +
+ drivers/mxc/ipu/ipu_common.c                       |   13 +++
+ drivers/mxc/ipu3/ipu_common.c                      |   83 ++++++++++++++++----
+ include/linux/ipu.h                                |    3 +
+ 10 files changed, 245 insertions(+), 24 deletions(-)
+
+diff --git a/drivers/media/video/mxc/capture/ipu_csi_enc.c b/drivers/media/video/mxc/capture/ipu_csi_enc.c
+index fb3d0d7..5818707 100644
+--- a/drivers/media/video/mxc/capture/ipu_csi_enc.c
++++ b/drivers/media/video/mxc/capture/ipu_csi_enc.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2009-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -205,6 +205,32 @@ static int csi_enc_disabling_tasks(void *private)
+ }
+ 
+ /*!
++ * Enable csi
++ * @param private       struct cam_data * mxc capture instance
++ *
++ * @return  status
++ */
++static int csi_enc_enable_csi(void *private)
++{
++	cam_data *cam = (cam_data *) private;
++
++	return ipu_enable_csi(cam->csi);
++}
++
++/*!
++ * Disable csi
++ * @param private       struct cam_data * mxc capture instance
++ *
++ * @return  status
++ */
++static int csi_enc_disable_csi(void *private)
++{
++	cam_data *cam = (cam_data *) private;
++
++	return ipu_disable_csi(cam->csi);
++}
++
++/*!
+  * function to select CSI ENC as the working path
+  *
+  * @param private       struct cam_data * mxc capture instance
+@@ -220,6 +246,8 @@ int csi_enc_select(void *private)
+ 		cam->enc_update_eba = csi_enc_eba_update;
+ 		cam->enc_enable = csi_enc_enabling_tasks;
+ 		cam->enc_disable = csi_enc_disabling_tasks;
++		cam->enc_enable_csi = csi_enc_enable_csi;
++		cam->enc_disable_csi = csi_enc_disable_csi;
+ 	} else {
+ 		err = -EIO;
+ 	}
+@@ -243,6 +271,8 @@ int csi_enc_deselect(void *private)
+ 		cam->enc_update_eba = NULL;
+ 		cam->enc_enable = NULL;
+ 		cam->enc_disable = NULL;
++		cam->enc_enable_csi = NULL;
++		cam->enc_disable_csi = NULL;
+ 	}
+ 
+ 	return err;
+diff --git a/drivers/media/video/mxc/capture/ipu_prp_enc.c b/drivers/media/video/mxc/capture/ipu_prp_enc.c
+index 79eb8a6..4b5426c 100644
+--- a/drivers/media/video/mxc/capture/ipu_prp_enc.c
++++ b/drivers/media/video/mxc/capture/ipu_prp_enc.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2004-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2004-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -367,6 +367,32 @@ static int prp_enc_disabling_tasks(void *private)
+ }
+ 
+ /*!
++ * Enable csi
++ * @param private       struct cam_data * mxc capture instance
++ *
++ * @return  status
++ */
++static int prp_enc_enable_csi(void *private)
++{
++	cam_data *cam = (cam_data *) private;
++
++	return ipu_enable_csi(cam->csi);
++}
++
++/*!
++ * Disable csi
++ * @param private       struct cam_data * mxc capture instance
++ *
++ * @return  status
++ */
++static int prp_enc_disable_csi(void *private)
++{
++	cam_data *cam = (cam_data *) private;
++
++	return ipu_disable_csi(cam->csi);
++}
++
++/*!
+  * function to select PRP-ENC as the working path
+  *
+  * @param private       struct cam_data * mxc capture instance
+@@ -382,6 +408,8 @@ int prp_enc_select(void *private)
+ 		cam->enc_update_eba = prp_enc_eba_update;
+ 		cam->enc_enable = prp_enc_enabling_tasks;
+ 		cam->enc_disable = prp_enc_disabling_tasks;
++		cam->enc_enable_csi = prp_enc_enable_csi;
++		cam->enc_disable_csi = prp_enc_disable_csi;
+ 	} else {
+ 		err = -EIO;
+ 	}
+@@ -407,6 +435,8 @@ int prp_enc_deselect(void *private)
+ 		cam->enc_update_eba = NULL;
+ 		cam->enc_enable = NULL;
+ 		cam->enc_disable = NULL;
++		cam->enc_enable_csi = NULL;
++		cam->enc_disable_csi = NULL;
+ 		if (cam->rot_enc_bufs_vaddr[0]) {
+ 			dma_free_coherent(0, cam->rot_enc_buf_size[0],
+ 					  cam->rot_enc_bufs_vaddr[0],
+diff --git a/drivers/media/video/mxc/capture/ipu_prp_vf_sdc.c b/drivers/media/video/mxc/capture/ipu_prp_vf_sdc.c
+index 9994012..882bacf 100644
+--- a/drivers/media/video/mxc/capture/ipu_prp_vf_sdc.c
++++ b/drivers/media/video/mxc/capture/ipu_prp_vf_sdc.c
+@@ -365,6 +365,32 @@ static int prpvf_stop(void *private)
+ }
+ 
+ /*!
++ * Enable csi
++ * @param private       struct cam_data * mxc capture instance
++ *
++ * @return  status
++ */
++static int prp_vf_enable_csi(void *private)
++{
++	cam_data *cam = (cam_data *) private;
++
++	return ipu_enable_csi(cam->csi);
++}
++
++/*!
++ * Disable csi
++ * @param private       struct cam_data * mxc capture instance
++ *
++ * @return  status
++ */
++static int prp_vf_disable_csi(void *private)
++{
++	cam_data *cam = (cam_data *) private;
++
++	return ipu_disable_csi(cam->csi);
++}
++
++/*!
+  * function to select PRP-VF as the working path
+  *
+  * @param private    cam_data * mxc v4l2 main structure
+@@ -379,6 +405,8 @@ int prp_vf_sdc_select(void *private)
+ 		cam = (cam_data *) private;
+ 		cam->vf_start_sdc = prpvf_start;
+ 		cam->vf_stop_sdc = prpvf_stop;
++		cam->vf_enable_csi = prp_vf_enable_csi;
++		cam->vf_disable_csi = prp_vf_disable_csi;
+ 		cam->overlay_active = false;
+ 	} else
+ 		err = -EIO;
+@@ -403,6 +431,8 @@ int prp_vf_sdc_deselect(void *private)
+ 		cam = (cam_data *) private;
+ 		cam->vf_start_sdc = NULL;
+ 		cam->vf_stop_sdc = NULL;
++		cam->vf_enable_csi = NULL;
++		cam->vf_disable_csi = NULL;
+ 	}
+ 	return err;
+ }
+diff --git a/drivers/media/video/mxc/capture/ipu_prp_vf_sdc_bg.c b/drivers/media/video/mxc/capture/ipu_prp_vf_sdc_bg.c
+index 4035c76..7f0984c 100644
+--- a/drivers/media/video/mxc/capture/ipu_prp_vf_sdc_bg.c
++++ b/drivers/media/video/mxc/capture/ipu_prp_vf_sdc_bg.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2004-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2004-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -344,6 +344,32 @@ static int prpvf_stop(void *private)
+ }
+ 
+ /*!
++ * Enable csi
++ * @param private       struct cam_data * mxc capture instance
++ *
++ * @return  status
++ */
++static int prp_vf_enable_csi(void *private)
++{
++	cam_data *cam = (cam_data *) private;
++
++	return ipu_enable_csi(cam->csi);
++}
++
++/*!
++ * Disable csi
++ * @param private       struct cam_data * mxc capture instance
++ *
++ * @return  status
++ */
++static int prp_vf_disable_csi(void *private)
++{
++	cam_data *cam = (cam_data *) private;
++
++	return ipu_disable_csi(cam->csi);
++}
++
++/*!
+  * function to select PRP-VF as the working path
+  *
+  * @param private    cam_data * mxc v4l2 main structure
+@@ -357,6 +383,8 @@ int prp_vf_sdc_select_bg(void *private)
+ 	if (cam) {
+ 		cam->vf_start_sdc = prpvf_start;
+ 		cam->vf_stop_sdc = prpvf_stop;
++		cam->vf_enable_csi = prp_vf_enable_csi;
++		cam->vf_disable_csi = prp_vf_disable_csi;
+ 		cam->overlay_active = false;
+ 	}
+ 
+@@ -379,6 +407,8 @@ int prp_vf_sdc_deselect_bg(void *private)
+ 	if (cam) {
+ 		cam->vf_start_sdc = NULL;
+ 		cam->vf_stop_sdc = NULL;
++		cam->vf_enable_csi = NULL;
++		cam->vf_disable_csi = NULL;
+ 	}
+ 	return err;
+ }
+diff --git a/drivers/media/video/mxc/capture/ipu_still.c b/drivers/media/video/mxc/capture/ipu_still.c
+index c95e524..348bf2b 100644
+--- a/drivers/media/video/mxc/capture/ipu_still.c
++++ b/drivers/media/video/mxc/capture/ipu_still.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2004-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2004-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -154,6 +154,7 @@ static int prp_still_start(void *private)
+ 
+ 	ipu_select_buffer(CSI_MEM, IPU_OUTPUT_BUFFER, 0);
+ 	ipu_enable_channel(CSI_MEM);
++	ipu_enable_csi(cam->csi);
+ #endif
+ 
+ 	return err;
+@@ -177,6 +178,7 @@ static int prp_still_stop(void *private)
+ 	ipu_free_irq(IPU_IRQ_CSI0_OUT_EOF, cam);
+ #endif
+ 
++	ipu_disable_csi(cam->csi);
+ 	ipu_disable_channel(CSI_MEM, true);
+ 	ipu_uninit_channel(CSI_MEM);
+ 	ipu_csi_enable_mclk_if(CSI_MCLK_RAW, cam->csi, false, false);
+diff --git a/drivers/media/video/mxc/capture/mxc_v4l2_capture.c b/drivers/media/video/mxc/capture/mxc_v4l2_capture.c
+index 62c190d..dd78b15 100644
+--- a/drivers/media/video/mxc/capture/mxc_v4l2_capture.c
++++ b/drivers/media/video/mxc/capture/mxc_v4l2_capture.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2004-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2004-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -163,6 +163,8 @@ static video_fmt_idx video_index = TV_NOT_LOCKED;
+ static int mxc_v4l2_master_attach(struct v4l2_int_device *slave);
+ static void mxc_v4l2_master_detach(struct v4l2_int_device *slave);
+ static u8 camera_power(cam_data *cam, bool cameraOn);
++static int start_preview(cam_data *cam);
++static int stop_preview(cam_data *cam);
+ 
+ /*! Information about this driver. */
+ static struct v4l2_int_master mxc_v4l2_master = {
+@@ -345,6 +347,9 @@ static int mxc_streamon(cam_data *cam)
+ 
+ 	cam->capture_pid = current->pid;
+ 
++	if (cam->overlay_on == true)
++		stop_preview(cam);
++
+ 	if (cam->enc_enable) {
+ 		err = cam->enc_enable(cam);
+ 		if (err != 0) {
+@@ -371,6 +376,15 @@ static int mxc_streamon(cam_data *cam)
+ 		return -EINVAL;
+ 	}
+ 
++	if (cam->overlay_on == true)
++		start_preview(cam);
++
++	if (cam->enc_enable_csi) {
++		err = cam->enc_enable_csi(cam);
++		if (err != 0)
++			return err;
++	}
++
+ 	cam->capture_on = true;
+ 
+ 	return err;
+@@ -392,9 +406,14 @@ static int mxc_streamoff(cam_data *cam)
+ 	if (cam->capture_on == false)
+ 		return 0;
+ 
+-	if (cam->enc_disable) {
+-		err = cam->enc_disable(cam);
++	if (cam->enc_disable_csi) {
++		err = cam->enc_disable_csi(cam);
++		if (err != 0)
++			return err;
+ 	}
++	if (cam->enc_disable)
++		err = cam->enc_disable(cam);
++
+ 	mxc_free_frames(cam);
+ 	mxc_capture_inputs[cam->current_input].status |= V4L2_IN_ST_NO_POWER;
+ 	cam->capture_on = false;
+@@ -531,6 +550,11 @@ static int start_preview(cam_data *cam)
+ 			return err;
+ 
+ 		err = cam->vf_start_sdc(cam);
++		if (err != 0)
++			return err;
++
++		if (cam->vf_enable_csi)
++			err = cam->vf_enable_csi(cam);
+ 	}
+ #endif
+ 
+@@ -581,6 +605,12 @@ static int stop_preview(cam_data *cam)
+ #endif
+ 
+ #if defined(CONFIG_MXC_IPU_PRP_VF_SDC) || defined(CONFIG_MXC_IPU_PRP_VF_SDC_MODULE)
++	if (cam->vf_disable_csi) {
++		err = cam->vf_disable_csi(cam);
++		if (err != 0)
++			return err;
++	}
++
+ 	if (cam->output == 0 || cam->output == 2) {
+ 		if (cam->v4l2_fb.flags == V4L2_FBUF_FLAG_OVERLAY)
+ 			err = prp_vf_sdc_deselect(cam);
+diff --git a/drivers/media/video/mxc/capture/mxc_v4l2_capture.h b/drivers/media/video/mxc/capture/mxc_v4l2_capture.h
+index f12be97..e5fd2e8 100644
+--- a/drivers/media/video/mxc/capture/mxc_v4l2_capture.h
++++ b/drivers/media/video/mxc/capture/mxc_v4l2_capture.h
+@@ -168,11 +168,15 @@ typedef struct _cam_data {
+ 	int (*enc_update_eba) (dma_addr_t eba, int *bufferNum);
+ 	int (*enc_enable) (void *private);
+ 	int (*enc_disable) (void *private);
++	int (*enc_enable_csi) (void *private);
++	int (*enc_disable_csi) (void *private);
+ 	void (*enc_callback) (u32 mask, void *dev);
+ 	int (*vf_start_adc) (void *private);
+ 	int (*vf_stop_adc) (void *private);
+ 	int (*vf_start_sdc) (void *private);
+ 	int (*vf_stop_sdc) (void *private);
++	int (*vf_enable_csi) (void *private);
++	int (*vf_disable_csi) (void *private);
+ 	int (*csi_start) (void *private);
+ 	int (*csi_stop) (void *private);
+ 
+diff --git a/drivers/mxc/ipu/ipu_common.c b/drivers/mxc/ipu/ipu_common.c
+index c748a33..43ba100 100644
+--- a/drivers/mxc/ipu/ipu_common.c
++++ b/drivers/mxc/ipu/ipu_common.c
+@@ -1332,6 +1332,17 @@ int32_t ipu_disable_channel(ipu_channel_t channel, bool wait_for_stop)
+ 	return 0;
+ }
+ 
++int32_t ipu_enable_csi(uint32_t csi)
++{
++	return 0;
++}
++
++
++int32_t ipu_disable_csi(uint32_t csi)
++{
++	return 0;
++}
++
+ static
+ irqreturn_t ipu_irq_handler(int irq, void *desc)
+ {
+@@ -1915,6 +1926,8 @@ EXPORT_SYMBOL(ipu_select_buffer);
+ EXPORT_SYMBOL(ipu_link_channels);
+ EXPORT_SYMBOL(ipu_enable_channel);
+ EXPORT_SYMBOL(ipu_disable_channel);
++EXPORT_SYMBOL(ipu_enable_csi);
++EXPORT_SYMBOL(ipu_disable_csi);
+ EXPORT_SYMBOL(ipu_enable_irq);
+ EXPORT_SYMBOL(ipu_disable_irq);
+ EXPORT_SYMBOL(ipu_clear_irq);
+diff --git a/drivers/mxc/ipu3/ipu_common.c b/drivers/mxc/ipu3/ipu_common.c
+index f53a047..0cb367b 100644
+--- a/drivers/mxc/ipu3/ipu_common.c
++++ b/drivers/mxc/ipu3/ipu_common.c
+@@ -513,7 +513,6 @@ int32_t ipu_init_channel(ipu_channel_t channel, ipu_channel_params_t *params)
+ 		}
+ 
+ 		ipu_smfc_use_count++;
+-		ipu_csi_use_count[params->csi_mem.csi]++;
+ 		g_ipu_csi_channel[params->csi_mem.csi] = channel;
+ 
+ 		/*SMFC setting*/
+@@ -543,7 +542,6 @@ int32_t ipu_init_channel(ipu_channel_t channel, ipu_channel_params_t *params)
+ 		using_ic_dirct_ch = CSI_PRP_ENC_MEM;
+ 
+ 		ipu_ic_use_count++;
+-		ipu_csi_use_count[params->csi_prp_enc_mem.csi]++;
+ 		g_ipu_csi_channel[params->csi_prp_enc_mem.csi] = channel;
+ 
+ 		/*Without SMFC, CSI only support parallel data source*/
+@@ -577,7 +575,6 @@ int32_t ipu_init_channel(ipu_channel_t channel, ipu_channel_params_t *params)
+ 		using_ic_dirct_ch = CSI_PRP_VF_MEM;
+ 
+ 		ipu_ic_use_count++;
+-		ipu_csi_use_count[params->csi_prp_vf_mem.csi]++;
+ 		g_ipu_csi_channel[params->csi_prp_vf_mem.csi] = channel;
+ 
+ 		/*Without SMFC, CSI only support parallel data source*/
+@@ -758,10 +755,6 @@ int32_t ipu_init_channel(ipu_channel_t channel, ipu_channel_params_t *params)
+ 	}
+ 	if (ipu_smfc_use_count == 1)
+ 		ipu_conf |= IPU_CONF_SMFC_EN;
+-	if (ipu_csi_use_count[0] == 1)
+-		ipu_conf |= IPU_CONF_CSI0_EN;
+-	if (ipu_csi_use_count[1] == 1)
+-		ipu_conf |= IPU_CONF_CSI1_EN;
+ 
+ 	__raw_writel(ipu_conf, IPU_CONF);
+ 
+@@ -823,10 +816,8 @@ void ipu_uninit_channel(ipu_channel_t channel)
+ 		ipu_smfc_use_count--;
+ 		if (g_ipu_csi_channel[0] == channel) {
+ 			g_ipu_csi_channel[0] = CHAN_NONE;
+-			ipu_csi_use_count[0]--;
+ 		} else if (g_ipu_csi_channel[1] == channel) {
+ 			g_ipu_csi_channel[1] = CHAN_NONE;
+-			ipu_csi_use_count[1]--;
+ 		}
+ 		break;
+ 	case CSI_PRP_ENC_MEM:
+@@ -836,10 +827,8 @@ void ipu_uninit_channel(ipu_channel_t channel)
+ 		_ipu_ic_uninit_prpenc();
+ 		if (g_ipu_csi_channel[0] == channel) {
+ 			g_ipu_csi_channel[0] = CHAN_NONE;
+-			ipu_csi_use_count[0]--;
+ 		} else if (g_ipu_csi_channel[1] == channel) {
+ 			g_ipu_csi_channel[1] = CHAN_NONE;
+-			ipu_csi_use_count[1]--;
+ 		}
+ 		break;
+ 	case CSI_PRP_VF_MEM:
+@@ -849,10 +838,8 @@ void ipu_uninit_channel(ipu_channel_t channel)
+ 		_ipu_ic_uninit_prpvf();
+ 		if (g_ipu_csi_channel[0] == channel) {
+ 			g_ipu_csi_channel[0] = CHAN_NONE;
+-			ipu_csi_use_count[0]--;
+ 		} else if (g_ipu_csi_channel[1] == channel) {
+ 			g_ipu_csi_channel[1] = CHAN_NONE;
+-			ipu_csi_use_count[1]--;
+ 		}
+ 		break;
+ 	case MEM_PRP_VF_MEM:
+@@ -954,10 +941,6 @@ void ipu_uninit_channel(ipu_channel_t channel)
+ 	}
+ 	if (ipu_smfc_use_count == 0)
+ 		ipu_conf &= ~IPU_CONF_SMFC_EN;
+-	if (ipu_csi_use_count[0] == 0)
+-		ipu_conf &= ~IPU_CONF_CSI0_EN;
+-	if (ipu_csi_use_count[1] == 0)
+-		ipu_conf &= ~IPU_CONF_CSI1_EN;
+ 
+ 	__raw_writel(ipu_conf, IPU_CONF);
+ 
+@@ -1947,6 +1930,72 @@ int32_t ipu_disable_channel(ipu_channel_t channel, bool wait_for_stop)
+ }
+ EXPORT_SYMBOL(ipu_disable_channel);
+ 
++/*!
++ * This function enables CSI.
++ *
++ * @param       csi	csi num 0 or 1
++ *
++ * @return      This function returns 0 on success or negative error code on
++ *              fail.
++ */
++int32_t ipu_enable_csi(uint32_t csi)
++{
++	uint32_t reg;
++	unsigned long lock_flags;
++
++	if (csi > 1) {
++		dev_err(g_ipu_dev, "Wrong csi num_%d\n", csi);
++		return -EINVAL;
++	}
++
++	spin_lock_irqsave(&ipu_lock, lock_flags);
++	ipu_csi_use_count[csi]++;
++
++	if (ipu_csi_use_count[csi] == 1) {
++		reg = __raw_readl(IPU_CONF);
++		if (csi == 0)
++			__raw_writel(reg | IPU_CONF_CSI0_EN, IPU_CONF);
++		else
++			__raw_writel(reg | IPU_CONF_CSI1_EN, IPU_CONF);
++	}
++	spin_unlock_irqrestore(&ipu_lock, lock_flags);
++	return 0;
++}
++EXPORT_SYMBOL(ipu_enable_csi);
++
++/*!
++ * This function disables CSI.
++ *
++ * @param       csi	csi num 0 or 1
++ *
++ * @return      This function returns 0 on success or negative error code on
++ *              fail.
++ */
++int32_t ipu_disable_csi(uint32_t csi)
++{
++	uint32_t reg;
++	unsigned long lock_flags;
++
++	if (csi > 1) {
++		dev_err(g_ipu_dev, "Wrong csi num_%d\n", csi);
++		return -EINVAL;
++	}
++
++	spin_lock_irqsave(&ipu_lock, lock_flags);
++	ipu_csi_use_count[csi]--;
++
++	if (ipu_csi_use_count[csi] == 0) {
++		reg = __raw_readl(IPU_CONF);
++		if (csi == 0)
++			__raw_writel(reg & ~IPU_CONF_CSI0_EN, IPU_CONF);
++		else
++			__raw_writel(reg & ~IPU_CONF_CSI1_EN, IPU_CONF);
++	}
++	spin_unlock_irqrestore(&ipu_lock, lock_flags);
++	return 0;
++}
++EXPORT_SYMBOL(ipu_disable_csi);
++
+ static irqreturn_t ipu_irq_handler(int irq, void *desc)
+ {
+ 	int i;
+diff --git a/include/linux/ipu.h b/include/linux/ipu.h
+index fdb50eb..5a03856 100644
+--- a/include/linux/ipu.h
++++ b/include/linux/ipu.h
+@@ -902,6 +902,9 @@ int32_t ipu_enable_channel(ipu_channel_t channel);
+ int32_t ipu_disable_channel(ipu_channel_t channel, bool wait_for_stop);
+ int32_t ipu_swap_channel(ipu_channel_t from_ch, ipu_channel_t to_ch);
+ 
++int32_t ipu_enable_csi(uint32_t csi);
++int32_t ipu_disable_csi(uint32_t csi);
++
+ int ipu_lowpwr_display_enable(void);
+ int ipu_lowpwr_display_disable(void);
+ 
+-- 
+1.5.4.4
+

@@ -1,0 +1,47 @@
+From 9200758c19af2eaaadedcc224f2dfe1b9df88ebb Mon Sep 17 00:00:00 2001
+From: Sammy He <r62914@freescale.com>
+Date: Wed, 4 Nov 2009 16:48:17 +0800
+Subject: [PATCH] ENGR00118035 MX51: Fix the wrong register set for vpu software reset
+
+Fix vpu software reset register setting wrong on MX51.
+
+Signed-off-by: Sammy He <r62914@freescale.com>
+---
+ drivers/mxc/vpu/mxc_vpu.c |   15 +++++++++++++--
+ 1 files changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/mxc/vpu/mxc_vpu.c b/drivers/mxc/vpu/mxc_vpu.c
+index ffc31b5..24224dc 100644
+--- a/drivers/mxc/vpu/mxc_vpu.c
++++ b/drivers/mxc/vpu/mxc_vpu.c
+@@ -457,14 +457,25 @@ static int vpu_ioctl(struct inode *inode, struct file *filp, u_int cmd,
+ 		}
+ 	case VPU_IOC_SYS_SW_RESET:
+ 		{
+-			if (cpu_is_mx37() || cpu_is_mx51()) {
+-				u32 reg;
++			u32 reg;
+ 
++			if (cpu_is_mx37()) {
+ 				reg = __raw_readl(src_base_addr);
+ 				reg |= 0x02;	/* SW_VPU_RST_BIT */
+ 				__raw_writel(reg, src_base_addr);
+ 				while (__raw_readl(src_base_addr) & 0x02)
+ 					;
++			} else if (cpu_is_mx51()) {
++				/* mask interrupt due to vpu passed reset */
++				reg = __raw_readl(src_base_addr + 5);
++				reg |= 0x02;
++				__raw_writel(reg, src_base_addr + 5);
++
++				reg = __raw_readl(src_base_addr);
++				reg |= 0x5;    /* warm reset vpu */
++				__raw_writel(reg, src_base_addr);
++				while (__raw_readl(src_base_addr) & 0x04)
++					;
+ 			}
+ 			break;
+ 		}
+-- 
+1.5.4.4
+

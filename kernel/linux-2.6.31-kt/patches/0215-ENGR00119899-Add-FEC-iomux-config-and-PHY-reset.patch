@@ -1,0 +1,154 @@
+From 47ea36de9cd9796ec58da4cdb0eff0b597554287 Mon Sep 17 00:00:00 2001
+From: Jun Li <r65092@freescale.com>
+Date: Mon, 11 Jan 2010 15:38:44 +0800
+Subject: [PATCH] ENGR00119899 Add FEC iomux config and PHY reset.
+
+FEC driver of 2.6.31 kernel remove pin iomux config and PHY reset,
+which is in fec_gpio_active() needed for i.MX25 and i.MX35.
+
+Signed-off-by: Li Jun <r65092@freescale.com>
+---
+ arch/arm/mach-mx35/mx35_3stack.c     |   37 +++++++++++++++++++++++++++++++++-
+ arch/arm/plat-mxc/include/mach/mxc.h |    8 ++++++-
+ drivers/net/fec.c                    |    9 ++++++++
+ 3 files changed, 52 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm/mach-mx35/mx35_3stack.c b/arch/arm/mach-mx35/mx35_3stack.c
+index 1f766d0..9b4efdb 100644
+--- a/arch/arm/mach-mx35/mx35_3stack.c
++++ b/arch/arm/mach-mx35/mx35_3stack.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -516,6 +516,10 @@ static inline void mxc_init_enet(void)
+ #endif
+ 
+ #if defined(CONFIG_FEC) || defined(CONFIG_FEC_MODULE)
++extern void gpio_fec_active(void);
++extern void gpio_fec_inactive(void);
++static int fec_enable(void);
++static int fec_disable(void);
+ static struct resource mxc_fec_resources[] = {
+ 	{
+ 		.start	= MXC_FEC_BASE_ADDR,
+@@ -528,13 +532,44 @@ static struct resource mxc_fec_resources[] = {
+ 	},
+ };
+ 
++static struct fec_platform_data mxc_fec_data = {
++	.init = fec_enable,
++	.uninit = fec_disable,
++};
++
+ struct platform_device mxc_fec_device = {
+ 	.name = "fec",
+ 	.id = 0,
++	.dev = {
++		.release = mxc_nop_release,
++		.platform_data = &mxc_fec_data,
++	},
+ 	.num_resources = ARRAY_SIZE(mxc_fec_resources),
+ 	.resource = mxc_fec_resources,
+ };
+ 
++static int fec_enable(void)
++{
++	mxc_fec_data.vddio_reg = regulator_get(&mxc_fec_device.dev, "VGEN1");
++
++	if (IS_ERR(mxc_fec_data.vddio_reg))
++		return -EINVAL;
++	regulator_enable(mxc_fec_data.vddio_reg);
++	gpio_fec_active();
++	return 0;
++}
++
++static int fec_disable(void)
++{
++	if (IS_ERR(mxc_fec_data.vddio_reg))
++		return -EINVAL;
++
++	gpio_fec_inactive();
++	regulator_disable(mxc_fec_data.vddio_reg);
++	regulator_put(mxc_fec_data.vddio_reg);
++	return 0;
++}
++
+ static __init int mxc_init_fec(void)
+ {
+ 	return platform_device_register(&mxc_fec_device);
+diff --git a/arch/arm/plat-mxc/include/mach/mxc.h b/arch/arm/plat-mxc/include/mach/mxc.h
+index 0fadd53..b6afe38 100644
+--- a/arch/arm/plat-mxc/include/mach/mxc.h
++++ b/arch/arm/plat-mxc/include/mach/mxc.h
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2004-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2004-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  * Copyright (C) 2008 Juergen Beisert (kernel@pengutronix.de)
+  *
+  * This program is free software; you can redistribute it and/or
+@@ -421,6 +421,12 @@ struct tve_platform_data {
+ 	char *dig_reg;
+ };
+ 
++struct fec_platform_data {
++	int (*init) (void);
++	int (*uninit) (void);
++	struct regulator *vddio_reg;
++};
++
+ /* The name that links the i.MX NAND Flash Controller driver to its devices. */
+ 
+ #define IMX_NFC_DRIVER_NAME  ("imx_nfc")
+diff --git a/drivers/net/fec.c b/drivers/net/fec.c
+index b3b2921..aae190d 100644
+--- a/drivers/net/fec.c
++++ b/drivers/net/fec.c
+@@ -1917,6 +1917,7 @@ fec_probe(struct platform_device *pdev)
+ 	struct net_device *ndev;
+ 	int i, irq, ret = 0;
+ 	struct resource *r;
++	struct fec_platform_data *pdata = pdev->dev.platform_data;
+ 
+ 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+ 	if (!r)
+@@ -1962,6 +1963,10 @@ fec_probe(struct platform_device *pdev)
+ 		}
+ 	}
+ 
++	if (pdata && pdata->init)
++		if (pdata->init())
++			goto failed_platform_init;
++
+ 	fep->clk = clk_get(&pdev->dev, "fec_clk");
+ 	if (IS_ERR(fep->clk)) {
+ 		ret = PTR_ERR(fep->clk);
+@@ -1985,6 +1990,7 @@ failed_init:
+ 	clk_disable(fep->clk);
+ 	clk_put(fep->clk);
+ failed_clk:
++failed_platform_init:
+ 	for (i = 0; i < 3; i++) {
+ 		irq = platform_get_irq(pdev, i);
+ 		if (irq > 0)
+@@ -2003,10 +2009,13 @@ fec_drv_remove(struct platform_device *pdev)
+ {
+ 	struct net_device *ndev = platform_get_drvdata(pdev);
+ 	struct fec_enet_private *fep = netdev_priv(ndev);
++	struct fec_platform_data *pdata = pdev->dev.platform_data;
+ 
+ 	platform_set_drvdata(pdev, NULL);
+ 
+ 	fec_stop(ndev);
++	if (pdata && pdata->uninit)
++		pdata->uninit();
+ 	clk_disable(fep->clk);
+ 	clk_put(fep->clk);
+ 	iounmap((void __iomem *)ndev->base_addr);
+-- 
+1.5.4.4
+

@@ -1,0 +1,201 @@
+From 8208d7659775dadb7cb259069c797a7c1dd620b4 Mon Sep 17 00:00:00 2001
+From: Frank Li <Frank.Li@freescale.com>
+Date: Wed, 7 Apr 2010 13:33:17 +0800
+Subject: [PATCH] ENGR00122416 Add mma7455 driver and fix I2C DMA channel issue
+
+Add mma7455 driver of I2C interface and fix I2C DMA issue.
+using common hwmon driver mxc_mma7450 framework.
+
+Signed-off-by: Frank Li <Frank.Li@freescale.com>
+---
+ arch/arm/configs/imx23evk_defconfig     |    3 ++-
+ arch/arm/mach-mx23/include/mach/mx23.h  |   13 +++++++++++++
+ arch/arm/mach-mx23/mx23evk.c            |   27 +++++++++++++++++++++++++++
+ arch/arm/mach-mx23/mx23evk.h            |    5 ++++-
+ arch/arm/mach-mx23/mx23evk_pins.c       |   25 +++++++++++++++++++++++++
+ arch/arm/plat-mxs/include/mach/device.h |    9 +++++++++
+ drivers/hwmon/Kconfig                   |    2 +-
+ 7 files changed, 81 insertions(+), 3 deletions(-)
+
+diff --git a/arch/arm/configs/imx23evk_defconfig b/arch/arm/configs/imx23evk_defconfig
+index 8fc2938..683855e 100644
+--- a/arch/arm/configs/imx23evk_defconfig
++++ b/arch/arm/configs/imx23evk_defconfig
+@@ -780,9 +780,10 @@ CONFIG_POWER_SUPPLY=y
+ # CONFIG_BATTERY_BQ27x00 is not set
+ # CONFIG_BATTERY_MAX17040 is not set
+ CONFIG_BATTERY_MXS=y
+-# CONFIG_HWMON is not set
++CONFIG_HWMON=y
+ # CONFIG_THERMAL is not set
+ # CONFIG_THERMAL_HWMON is not set
++CONFIG_MXC_MMA7450=m
+ CONFIG_WATCHDOG=y
+ # CONFIG_WATCHDOG_NOWAYOUT is not set
+ 
+diff --git a/arch/arm/mach-mx23/include/mach/mx23.h b/arch/arm/mach-mx23/include/mach/mx23.h
+index f5df35f..0926952 100644
+--- a/arch/arm/mach-mx23/include/mach/mx23.h
++++ b/arch/arm/mach-mx23/include/mach/mx23.h
+@@ -89,4 +89,17 @@
+ #define MXS_LL_UART_VADDR MX23_SOC_IO_ADDRESS(DUART_PHYS_ADDR)
+ #endif
+ 
++#ifndef __ASSEMBLY__
++/* for using the mma7450.c file ,we
++need to define this struct */
++struct mxc_mma7450_platform_data {
++	char *reg_dvdd_io;
++	char *reg_avdd;
++	void (*gpio_pin_get) (void);
++	void (*gpio_pin_put) (void);
++	int int1;
++	int int2;
++};
++#endif
++
+ #endif /* __ASM_ARCH_MACH_MX23_H__ */
+diff --git a/arch/arm/mach-mx23/mx23evk.c b/arch/arm/mach-mx23/mx23evk.c
+index edc75c1..53f9587 100644
+--- a/arch/arm/mach-mx23/mx23evk.c
++++ b/arch/arm/mach-mx23/mx23evk.c
+@@ -21,6 +21,7 @@
+ #include <linux/io.h>
+ #include <linux/clk.h>
+ #include <linux/platform_device.h>
++#include <linux/i2c.h>
+ 
+ #include <asm/setup.h>
+ #include <asm/mach-types.h>
+@@ -32,6 +33,30 @@
+ 
+ #include "device.h"
+ #include "mx23evk.h"
++#include "mx23_pins.h"
++
++static struct mxs_mma7450_platform_data mma7450_platdata = {
++	.reg_dvdd_io = "vddio",
++	.reg_avdd = "vdda",
++	.gpio_pin_get = mx23evk_mma7450_pin_init,
++	.gpio_pin_put = mx23evk_mma7450_pin_release,
++	/* int1 and int2 will be initialized in
++	i2c_device_init */
++	.int1 = 0,
++	.int2 = 0,
++};
++
++static struct i2c_board_info __initdata mma7450_i2c_device = {
++	I2C_BOARD_INFO("mma7450", 0x3A),
++	.platform_data = (void *)&mma7450_platdata,
++};
++
++static void i2c_device_init(void)
++{
++	mma7450_platdata.int1 = gpio_to_irq(MXS_PIN_TO_GPIO(PINID_GPMI_D14));
++	mma7450_platdata.int2 = gpio_to_irq(MXS_PIN_TO_GPIO(PINID_GPMI_D15));
++	i2c_register_board_info(0, &mma7450_i2c_device, 1);
++}
+ 
+ static void __init fixup_board(struct machine_desc *desc, struct tag *tags,
+ 			       char **cmdline, struct meminfo *mi)
+@@ -59,6 +84,7 @@ static void __init mx23evk_init_adc(void)
+ static void __init mx23evk_device_init(void)
+ {
+ 	/* Add mx23evk special code */
++	i2c_device_init();
+ 	mx23evk_init_adc();
+ }
+ 
+@@ -72,6 +98,7 @@ static void __init mx23evk_init_machine(void)
+ 
+ 	mx23_gpio_init();
+ 	mx23evk_pins_init();
++	mx23evk_mma7450_pin_init();
+ 	mx23_device_init();
+ 	mx23evk_device_init();
+ }
+diff --git a/arch/arm/mach-mx23/mx23evk.h b/arch/arm/mach-mx23/mx23evk.h
+index 619ade4..afe7bcf 100644
+--- a/arch/arm/mach-mx23/mx23evk.h
++++ b/arch/arm/mach-mx23/mx23evk.h
+@@ -20,4 +20,7 @@
+ #define __ASM_ARM_MACH_MX23EVK_H
+ 
+ extern void __init mx23evk_pins_init(void);
+-#endif /* __ASM_ARM_MACH_MX28EVK_H */
++extern void  mx23evk_mma7450_pin_init(void);
++extern int mx23evk_mma7450_pin_release(void);
++
++#endif /* __ASM_ARM_MACH_MX23EVK_H */
+diff --git a/arch/arm/mach-mx23/mx23evk_pins.c b/arch/arm/mach-mx23/mx23evk_pins.c
+index 8c8198c..5e60a2b 100644
+--- a/arch/arm/mach-mx23/mx23evk_pins.c
++++ b/arch/arm/mach-mx23/mx23evk_pins.c
+@@ -512,6 +512,31 @@ static struct pin_desc mx23evk_fixed_pins[] = {
+ #endif
+ };
+ 
++#if defined(CONFIG_MXC_MMA7450) || defined(CONFIG_MXC_MMA7450_MODULE)
++int mx23evk_mma7450_pin_init(void)
++{
++	/* intr */
++	gpio_request(MXS_PIN_TO_GPIO(PINID_GPMI_D14), "MMA7450_INTR1");
++	gpio_direction_input(MXS_PIN_TO_GPIO(PINID_GPMI_D14));
++	gpio_request(MXS_PIN_TO_GPIO(PINID_GPMI_D15), "MMA7450_INTR2");
++	gpio_direction_input(MXS_PIN_TO_GPIO(PINID_GPMI_D15));
++	return 0;
++}
++int mx23evk_mma7450_pin_release(void)
++{
++	return 0;
++}
++#else
++int mx23evk_mma7450_pin_init(void)
++{
++	return 0;
++}
++int mx23evk_mma7450_pin_release(void)
++{
++	return 0;
++}
++#endif
++
+ #if defined(CONFIG_FEC) || defined(CONFIG_FEC_MODULE)
+ int mx23evk_enet_gpio_init(void)
+ {
+diff --git a/arch/arm/plat-mxs/include/mach/device.h b/arch/arm/plat-mxs/include/mach/device.h
+index d0844f5..3f9280f 100644
+--- a/arch/arm/plat-mxs/include/mach/device.h
++++ b/arch/arm/plat-mxs/include/mach/device.h
+@@ -110,6 +110,15 @@ struct mxs_pwm_leds_plat_data {
+ 	struct mxs_pwm_led *leds;
+ };
+ 
++struct mxs_mma7450_platform_data {
++	char *reg_dvdd_io;
++	char *reg_avdd;
++	void (*gpio_pin_get) (void);
++	void (*gpio_pin_put) (void);
++	int int1;
++	int int2;
++};
++
+ struct flexcan_platform_data {
+ 	char *core_reg;
+ 	char *io_reg;
+diff --git a/drivers/hwmon/Kconfig b/drivers/hwmon/Kconfig
+index cacaa13..3477e68 100644
+--- a/drivers/hwmon/Kconfig
++++ b/drivers/hwmon/Kconfig
+@@ -1028,7 +1028,7 @@ config HWMON_DEBUG_CHIP
+ 
+ config MXC_MMA7450
+ 	tristate "MMA7450 device driver"
+-	depends on MACH_MX31_3DS
++	depends on MACH_MX31_3DS || MACH_MX23EVK
+ 	default n
+ 
+ config SENSORS_ISL29003
+-- 
+1.5.4.4
+

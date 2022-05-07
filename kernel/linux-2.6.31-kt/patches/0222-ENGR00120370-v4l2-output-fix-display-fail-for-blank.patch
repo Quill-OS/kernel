@@ -1,0 +1,284 @@
+From cc4fe714041805997b601fe8e5dd585d8a99297f Mon Sep 17 00:00:00 2001
+From: Jason Chen <b02280@freescale.com>
+Date: Mon, 25 Jan 2010 10:38:07 +0800
+Subject: [PATCH] ENGR00120370 v4l2 output: fix display fail for blank fb during video play
+
+1. Blank BG during video play on FG:
+./mxc_v4l2_output.out -iw 320 -ih 240 -ow 1024 -oh 768 -d 3 qvga.yuv
+echo 1 > /sys/class/graphics/fb0/blank
+echo 0 > /sys/class/graphics/fb0/blank
+
+2. The same input and output (ic_bypass):
+./mxc_v4l2_output.out -iw 320 -ih 240 -ow 320 -oh 240 -d 3 qvga.yuv
+echo 1 > /sys/class/graphics/fb0/blank
+echo 0 > /sys/class/graphics/fb0/blank
+
+Signed-off-by: Jason Chen <b02280@freescale.com>
+---
+ drivers/media/video/mxc/output/mxc_v4l2_output.c |   13 +++-
+ drivers/mxc/ipu/ipu_common.c                     |   19 +++++-
+ drivers/mxc/ipu3/ipu_common.c                    |   90 ++++++++++++---------
+ drivers/video/mxc/mxc_ipuv3_fb.c                 |   21 +++++-
+ include/linux/ipu.h                              |    4 +-
+ 5 files changed, 101 insertions(+), 46 deletions(-)
+
+diff --git a/drivers/media/video/mxc/output/mxc_v4l2_output.c b/drivers/media/video/mxc/output/mxc_v4l2_output.c
+index 320deeb..521275c 100644
+--- a/drivers/media/video/mxc/output/mxc_v4l2_output.c
++++ b/drivers/media/video/mxc/output/mxc_v4l2_output.c
+@@ -273,19 +273,22 @@ static void setup_next_buf_timer(vout_data *vout, int index)
+ 			"timer handler next schedule: %lu\n", timeout);
+ }
+ 
+-static void wait_for_disp_vsync(vout_data *vout)
++static int wait_for_disp_vsync(vout_data *vout)
+ {
+ 	struct fb_info *fbi =
+ 		registered_fb[vout->output_fb_num[vout->cur_disp_output]];
+ 	mm_segment_t old_fs;
++	int ret = 0;
+ 
+ 	/* wait for display frame finish */
+ 	if (fbi->fbops->fb_ioctl) {
+ 		old_fs = get_fs();
+ 		set_fs(KERNEL_DS);
+-		fbi->fbops->fb_ioctl(fbi, MXCFB_WAIT_FOR_VSYNC, (unsigned int)NULL);
++		ret = fbi->fbops->fb_ioctl(fbi, MXCFB_WAIT_FOR_VSYNC,
++			(unsigned int)NULL);
+ 		set_fs(old_fs);
+ 	}
++	return ret;
+ }
+ 
+ static void timer_work_func(struct work_struct *work)
+@@ -323,7 +326,11 @@ static void timer_work_func(struct work_struct *work)
+ 		return;
+ 	}
+ 
+-	wait_for_disp_vsync(vout);
++	if (wait_for_disp_vsync(vout) < 0) {
++		/* ic_bypass need clear display buffer ready for next update*/
++		ipu_clear_buffer_ready(vout->display_ch, IPU_INPUT_BUFFER,
++			!vout->next_done_ipu_buf);
++	}
+ 
+ 	spin_lock_irqsave(&g_lock, lock_flags);
+ 
+diff --git a/drivers/mxc/ipu/ipu_common.c b/drivers/mxc/ipu/ipu_common.c
+index 1a73bd7..634dea6 100644
+--- a/drivers/mxc/ipu/ipu_common.c
++++ b/drivers/mxc/ipu/ipu_common.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2005-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2005-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -1189,6 +1189,23 @@ int32_t ipu_enable_channel(ipu_channel_t channel)
+ }
+ 
+ /*!
++ * This function clear buffer ready for a logical channel.
++ *
++ * @param       channel         Input parameter for the logical channel ID.
++ *
++ * @param       type            Input parameter which buffer to clear.
++ *
++ * @param       bufNum          Input parameter for which buffer number clear
++ * 				ready state.
++ *
++ */
++void ipu_clear_buffer_ready(ipu_channel_t channel, ipu_buffer_t type,
++		uint32_t bufNum)
++{
++	/*TODO*/
++}
++
++/*!
+  * This function disables a logical channel.
+  *
+  * @param       channel         Input parameter for the logical channel ID.
+diff --git a/drivers/mxc/ipu3/ipu_common.c b/drivers/mxc/ipu3/ipu_common.c
+index 8065145..5b51fe2 100644
+--- a/drivers/mxc/ipu3/ipu_common.c
++++ b/drivers/mxc/ipu3/ipu_common.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2005-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2005-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -1751,6 +1751,44 @@ int32_t ipu_enable_channel(ipu_channel_t channel)
+ }
+ EXPORT_SYMBOL(ipu_enable_channel);
+ 
++/*!
++ * This function clear buffer ready for a logical channel.
++ *
++ * @param       channel         Input parameter for the logical channel ID.
++ *
++ * @param       type            Input parameter which buffer to clear.
++ *
++ * @param       bufNum          Input parameter for which buffer number clear
++ * 				ready state.
++ *
++ */
++void ipu_clear_buffer_ready(ipu_channel_t channel, ipu_buffer_t type,
++		uint32_t bufNum)
++{
++	unsigned long lock_flags;
++	uint32_t dma_ch = channel_2_dma(channel, type);
++
++	if (!idma_is_valid(dma_ch))
++		return;
++
++	spin_lock_irqsave(&ipu_lock, lock_flags);
++
++	__raw_writel(0xF0000000, IPU_GPR); /* write one to clear */
++	if (bufNum == 0) {
++		if (idma_is_set(IPU_CHA_BUF0_RDY, dma_ch)) {
++			__raw_writel(idma_mask(dma_ch),
++					IPU_CHA_BUF0_RDY(dma_ch));
++		}
++	} else {
++		if (idma_is_set(IPU_CHA_BUF1_RDY, dma_ch)) {
++			__raw_writel(idma_mask(dma_ch),
++					IPU_CHA_BUF1_RDY(dma_ch));
++		}
++	}
++	__raw_writel(0x0, IPU_GPR); /* write one to set */
++	spin_unlock_irqrestore(&ipu_lock, lock_flags);
++}
++
+ static irqreturn_t disable_chan_irq_handler(int irq, void *dev_id)
+ {
+ 	struct completion *comp = dev_id;
+@@ -1882,53 +1920,27 @@ int32_t ipu_disable_channel(ipu_channel_t channel, bool wait_for_stop)
+ 		__raw_writel(idma_mask(thrd_dma), IPU_CHA_CUR_BUF(thrd_dma));
+ 	}
+ 
++	g_channel_enable_mask &= ~(1L << IPU_CHAN_ID(channel));
++
++	spin_unlock_irqrestore(&ipu_lock, lock_flags);
++
+ 	/* Set channel buffers NOT to be ready */
+-	__raw_writel(0xF0000000, IPU_GPR); /* write one to clear */
+ 	if (idma_is_valid(in_dma)) {
+-		if (idma_is_set(IPU_CHA_BUF0_RDY, in_dma)) {
+-			__raw_writel(idma_mask(in_dma),
+-				     IPU_CHA_BUF0_RDY(in_dma));
+-		}
+-		if (idma_is_set(IPU_CHA_BUF1_RDY, in_dma)) {
+-			__raw_writel(idma_mask(in_dma),
+-				     IPU_CHA_BUF1_RDY(in_dma));
+-		}
++		ipu_clear_buffer_ready(channel, IPU_VIDEO_IN_BUFFER, 0);
++		ipu_clear_buffer_ready(channel, IPU_VIDEO_IN_BUFFER, 1);
+ 	}
+ 	if (idma_is_valid(out_dma)) {
+-		if (idma_is_set(IPU_CHA_BUF0_RDY, out_dma)) {
+-			__raw_writel(idma_mask(out_dma),
+-				     IPU_CHA_BUF0_RDY(out_dma));
+-		}
+-		if (idma_is_set(IPU_CHA_BUF1_RDY, out_dma)) {
+-			__raw_writel(idma_mask(out_dma),
+-				     IPU_CHA_BUF1_RDY(out_dma));
+-		}
++		ipu_clear_buffer_ready(channel, IPU_OUTPUT_BUFFER, 0);
++		ipu_clear_buffer_ready(channel, IPU_OUTPUT_BUFFER, 1);
+ 	}
+ 	if (g_sec_chan_en[IPU_CHAN_ID(channel)] && idma_is_valid(sec_dma)) {
+-		if (idma_is_set(IPU_CHA_BUF0_RDY, sec_dma)) {
+-			__raw_writel(idma_mask(sec_dma),
+-				     IPU_CHA_BUF0_RDY(sec_dma));
+-		}
+-		if (idma_is_set(IPU_CHA_BUF1_RDY, sec_dma)) {
+-			__raw_writel(idma_mask(sec_dma),
+-				     IPU_CHA_BUF1_RDY(sec_dma));
+-		}
++		ipu_clear_buffer_ready(channel, IPU_GRAPH_IN_BUFFER, 0);
++		ipu_clear_buffer_ready(channel, IPU_GRAPH_IN_BUFFER, 1);
+ 	}
+ 	if (g_thrd_chan_en[IPU_CHAN_ID(channel)] && idma_is_valid(thrd_dma)) {
+-		if (idma_is_set(IPU_CHA_BUF0_RDY, thrd_dma)) {
+-			__raw_writel(idma_mask(thrd_dma),
+-				     IPU_CHA_BUF0_RDY(thrd_dma));
+-		}
+-		if (idma_is_set(IPU_CHA_BUF1_RDY, thrd_dma)) {
+-			__raw_writel(idma_mask(thrd_dma),
+-				     IPU_CHA_BUF1_RDY(thrd_dma));
+-		}
++		ipu_clear_buffer_ready(channel, IPU_ALPHA_IN_BUFFER, 0);
++		ipu_clear_buffer_ready(channel, IPU_ALPHA_IN_BUFFER, 1);
+ 	}
+-	__raw_writel(0x0, IPU_GPR); /* write one to set */
+-
+-	g_channel_enable_mask &= ~(1L << IPU_CHAN_ID(channel));
+-
+-	spin_unlock_irqrestore(&ipu_lock, lock_flags);
+ 
+ 	return 0;
+ }
+diff --git a/drivers/video/mxc/mxc_ipuv3_fb.c b/drivers/video/mxc/mxc_ipuv3_fb.c
+index 3aa04a7..3c8ad7e 100644
+--- a/drivers/video/mxc/mxc_ipuv3_fb.c
++++ b/drivers/video/mxc/mxc_ipuv3_fb.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2004-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2004-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -855,8 +855,25 @@ static int mxcfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg)
+ 		}
+ 	case MXCFB_WAIT_FOR_VSYNC:
+ 		{
+-			if (mxc_fbi->blank != FB_BLANK_UNBLANK)
++			if (mxc_fbi->ipu_ch == MEM_FG_SYNC) {
++				struct mxcfb_info *bg_mxcfbi = NULL;
++				int i;
++				for (i = 0; i < num_registered_fb; i++) {
++					bg_mxcfbi =
++					((struct mxcfb_info *)(registered_fb[i]->par));
++
++					if (bg_mxcfbi->ipu_ch == MEM_BG_SYNC)
++						break;
++				}
++				if (bg_mxcfbi->blank != FB_BLANK_UNBLANK) {
++					retval = -EINVAL;
++					break;
++				}
++			}
++			if (mxc_fbi->blank != FB_BLANK_UNBLANK) {
++				retval = -EINVAL;
+ 				break;
++			}
+ 
+ 			down(&mxc_fbi->flip_sem);
+ 			init_completion(&mxc_fbi->vsync_complete);
+diff --git a/include/linux/ipu.h b/include/linux/ipu.h
+index c940328..499435a 100644
+--- a/include/linux/ipu.h
++++ b/include/linux/ipu.h
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2005-2009 Freescale Semiconductor, Inc.
++ * Copyright 2005-2010 Freescale Semiconductor, Inc.
+  */
+ 
+ /*
+@@ -895,6 +895,8 @@ int32_t ipu_link_channels(ipu_channel_t src_ch, ipu_channel_t dest_ch);
+ int32_t ipu_unlink_channels(ipu_channel_t src_ch, ipu_channel_t dest_ch);
+ 
+ int32_t ipu_is_channel_busy(ipu_channel_t channel);
++void ipu_clear_buffer_ready(ipu_channel_t channel, ipu_buffer_t type,
++		uint32_t bufNum);
+ int32_t ipu_enable_channel(ipu_channel_t channel);
+ int32_t ipu_disable_channel(ipu_channel_t channel, bool wait_for_stop);
+ int32_t ipu_swap_channel(ipu_channel_t from_ch, ipu_channel_t to_ch);
+-- 
+1.5.4.4
+

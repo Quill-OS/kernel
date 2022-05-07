@@ -1,0 +1,130 @@
+From 5c36e08cf6b27c2ef7a6cae284e885fe23603964 Mon Sep 17 00:00:00 2001
+From: Lionel Xu <r63889@freescale.com>
+Date: Wed, 31 Mar 2010 19:27:07 +0800
+Subject: [PATCH] ENGR00122136 MX28 ALSA: Fail to playback wavfiles with sample rate over 48 khz
+
+To resolve the problem of playing back wavfile with sample rate over 48khz.
+
+Signed-off-by: Lionel Xu <r63889@freescale.com>
+(cherry picked from commit f1af83a27357d7da1a89d79f8ed2d74fbfb7dc34)
+---
+ sound/soc/mxs/mxs-dai.c  |   63 ++++++++++++++++++++++++++++++++++++++++++++++
+ sound/soc/mxs/mxs-dai.h  |    3 +-
+ sound/soc/mxs/mxs-devb.c |    4 ++-
+ 3 files changed, 68 insertions(+), 2 deletions(-)
+
+diff --git a/sound/soc/mxs/mxs-dai.c b/sound/soc/mxs/mxs-dai.c
+index 6250eb1..a548b99 100644
+--- a/sound/soc/mxs/mxs-dai.c
++++ b/sound/soc/mxs/mxs-dai.c
+@@ -209,6 +209,7 @@ static int mxs_saif_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
+ 				  int clk_id, unsigned int freq, int dir)
+ {
+ 	struct clk *saif_clk;
++	u32 scr;
+ 	struct mxs_saif *saif_select = (struct mxs_saif *)cpu_dai->private_data;
+ 
+ 	switch (clk_id) {
+@@ -234,6 +235,68 @@ static int mxs_saif_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
+ static int mxs_saif_set_dai_clkdiv(struct snd_soc_dai *cpu_dai,
+ 				  int div_id, int div)
+ {
++	u32 scr;
++	struct mxs_saif *saif_select = (struct mxs_saif *)cpu_dai->private_data;
++
++	if (saif_select->saif_en == SAIF0)
++		scr = __raw_readl(SAIF0_CTRL);
++	else
++		scr = __raw_readl(SAIF1_CTRL);
++
++	scr &= ~BM_SAIF_CTRL_BITCLK_MULT_RATE;
++	scr &= ~BM_SAIF_CTRL_BITCLK_BASE_RATE;
++
++	switch (div_id) {
++	case IMX_SSP_SYS_MCLK:
++		switch (div) {
++		case 32:
++			scr |= BF_SAIF_CTRL_BITCLK_MULT_RATE(4);
++			scr &= ~BM_SAIF_CTRL_BITCLK_BASE_RATE;
++			break;
++		case 64:
++			scr |= BF_SAIF_CTRL_BITCLK_MULT_RATE(3);
++			scr &= ~BM_SAIF_CTRL_BITCLK_BASE_RATE;
++			break;
++		case 128:
++			scr |= BF_SAIF_CTRL_BITCLK_MULT_RATE(2);
++			scr &= ~BM_SAIF_CTRL_BITCLK_BASE_RATE;
++			break;
++		case 256:
++			scr |= BF_SAIF_CTRL_BITCLK_MULT_RATE(1);
++			scr &= ~BM_SAIF_CTRL_BITCLK_BASE_RATE;
++			break;
++		case 512:
++			scr |= BF_SAIF_CTRL_BITCLK_MULT_RATE(0);
++			scr &= ~BM_SAIF_CTRL_BITCLK_BASE_RATE;
++			break;
++		case 48:
++			scr |= BF_SAIF_CTRL_BITCLK_MULT_RATE(3);
++			scr |= BM_SAIF_CTRL_BITCLK_BASE_RATE;
++			break;
++		case 96:
++			scr |= BF_SAIF_CTRL_BITCLK_MULT_RATE(2);
++			scr |= BM_SAIF_CTRL_BITCLK_BASE_RATE;
++			break;
++		case 192:
++			scr |= BF_SAIF_CTRL_BITCLK_MULT_RATE(1);
++			scr |= BM_SAIF_CTRL_BITCLK_BASE_RATE;
++			break;
++		case 384:
++			scr |= BF_SAIF_CTRL_BITCLK_MULT_RATE(0);
++			scr |= BM_SAIF_CTRL_BITCLK_BASE_RATE;
++			break;
++		default:
++			return -EINVAL;
++		}
++	default:
++		return -EINVAL;
++	}
++
++	if (saif_select->saif_en == SAIF0)
++		__raw_writel(scr, SAIF0_CTRL);
++	else
++		__raw_writel(scr, SAIF1_CTRL);
++
+ 	return 0;
+ }
+ 
+diff --git a/sound/soc/mxs/mxs-dai.h b/sound/soc/mxs/mxs-dai.h
+index d9538b1..c75fa09 100644
+--- a/sound/soc/mxs/mxs-dai.h
++++ b/sound/soc/mxs/mxs-dai.h
+@@ -21,8 +21,9 @@
+ 
+ #include <mach/hardware.h>
+ 
+-/* SSI clock sources */
++/* SAIF clock sources */
+ #define IMX_SSP_SYS_CLK			0
++#define IMX_SSP_SYS_MCLK		1
+ 
+ #define SAIF0 0
+ #define SAIF1 1
+diff --git a/sound/soc/mxs/mxs-devb.c b/sound/soc/mxs/mxs-devb.c
+index a56955d..1c73d72 100644
+--- a/sound/soc/mxs/mxs-devb.c
++++ b/sound/soc/mxs/mxs-devb.c
+@@ -69,8 +69,10 @@ static int mxs_evk_audio_hw_params(struct snd_pcm_substream *substream,
+ 	priv->hw = 1;
+ 	priv->sysclk = 512 * rate;
+ 
+-	snd_soc_dai_set_sysclk(codec_dai, SGTL5000_SYSCLK, priv->sysclk, 0);
++	snd_soc_dai_set_sysclk(codec_dai, SGTL5000_SYSCLK, (priv->sysclk)/2, 0);
+ 	snd_soc_dai_set_sysclk(codec_dai, SGTL5000_LRCLK, rate, 0);
++
++	snd_soc_dai_set_clkdiv(cpu_dai, IMX_SSP_SYS_MCLK, 256);
+ 	/* set codec to slave mode */
+ 	dai_format = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+ 	    SND_SOC_DAIFMT_CBS_CFS;
+-- 
+1.5.4.4
+

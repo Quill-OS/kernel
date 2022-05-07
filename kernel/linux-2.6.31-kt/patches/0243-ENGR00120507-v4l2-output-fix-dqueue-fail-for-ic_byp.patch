@@ -1,0 +1,27 @@
+From 7f3ea80f43f219a8114b9b99684fbfa898993194 Mon Sep 17 00:00:00 2001
+From: Jason Chen <b02280@freescale.com>
+Date: Wed, 3 Feb 2010 13:31:43 +0800
+Subject: [PATCH] ENGR00120507 v4l2 output: fix dqueue fail for ic_bypass mode
+
+if dqueue buffer before the third frame queue, dqueue will failed.
+
+Signed-off-by: Jason Chen <b02280@freescale.com>
+---
+ drivers/media/video/mxc/output/mxc_v4l2_output.c |    1 +
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+
+diff --git a/drivers/media/video/mxc/output/mxc_v4l2_output.c b/drivers/media/video/mxc/output/mxc_v4l2_output.c
+index 47c4bd1..91205be 100644
+--- a/drivers/media/video/mxc/output/mxc_v4l2_output.c
++++ b/drivers/media/video/mxc/output/mxc_v4l2_output.c
+@@ -329,6 +329,7 @@ static void timer_work_func(struct work_struct *work)
+ 		queue_buf(&vout->done_q, last_buf);
+ 		vout->ipu_buf[1] = -1;
+ 		g_buf_output_cnt = 2;
++		wake_up_interruptible(&vout->v4l_bufq);
+ 		if (vout->state == STATE_STREAM_PAUSED) {
+ 			index = peek_next_buf(&vout->ready_q);
+ 			if (index != -1) {
+-- 
+1.5.4.4
+

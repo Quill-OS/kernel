@@ -1,0 +1,53 @@
+From 35a8b700beafcdc106b9f3f0df8137e0bc234203 Mon Sep 17 00:00:00 2001
+From: Frank Li <Frank.Li@freescale.com>
+Date: Fri, 23 Oct 2009 12:30:47 +0800
+Subject: [PATCH] ENGR00117558 iMX233 Updater defconfig need updated to define onchip usb phy
+
+Updater defconfig need updated to define onchip usb phy to fix build error
+
+Signed-off-by: Frank Li <Frank.Li@freescale.com>
+(cherry picked from commit 6c729447d71efc157443bcc077e0543d71ed17b8)
+---
+ arch/arm/configs/imx233_updater_defconfig |    9 +++++----
+ 1 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/arch/arm/configs/imx233_updater_defconfig b/arch/arm/configs/imx233_updater_defconfig
+index ab64c7f..2064ee1 100644
+--- a/arch/arm/configs/imx233_updater_defconfig
++++ b/arch/arm/configs/imx233_updater_defconfig
+@@ -1,7 +1,7 @@
+ #
+ # Automatically generated make config: don't edit
+ # Linux kernel version: 2.6.28
+-# Mon Aug 24 17:11:35 2009
++# Fri Oct 23 09:29:11 2009
+ #
+ CONFIG_ARM=y
+ CONFIG_SYS_SUPPORTS_APM_EMULATION=y
+@@ -164,6 +164,7 @@ CONFIG_ARCH_STMP3XXX=y
+ # Power management
+ #
+ CONFIG_DMA_ZONE_SIZE=12
++CONFIG_UTMI_MXC=y
+ 
+ #
+ # SigmaTel STMP3xxx implementations
+@@ -705,12 +706,12 @@ CONFIG_USB_GADGET_SELECTED=y
+ CONFIG_USB_GADGET_ARC=y
+ CONFIG_USB_ARC=y
+ # CONFIG_USB_GADGET_DUMMY_HCD is not set
+-# CONFIG_USB_GADGET_DUALSPEED is not set
++CONFIG_USB_GADGET_DUALSPEED=y
+ CONFIG_USB_GADGET_ARC_OTG=y
+-CONFIG_USB_GADGET_FSL_MC13783=y
++# CONFIG_USB_GADGET_FSL_MC13783 is not set
+ # CONFIG_USB_GADGET_FSL_1301 is not set
+ # CONFIG_USB_GADGET_FSL_1504 is not set
+-# CONFIG_USB_GADGET_FSL_UTMI is not set
++CONFIG_USB_GADGET_FSL_UTMI=y
+ # CONFIG_USB_ZERO is not set
+ # CONFIG_USB_ETH is not set
+ # CONFIG_USB_GADGETFS is not set
+-- 
+1.5.4.4
+

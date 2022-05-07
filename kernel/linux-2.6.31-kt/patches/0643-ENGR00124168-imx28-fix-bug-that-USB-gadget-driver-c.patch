@@ -1,0 +1,87 @@
+From 6170a0479e86df731216bc61449db448527b4621 Mon Sep 17 00:00:00 2001
+From: Peter Chen <b29397@freescale.com>
+Date: Tue, 8 Jun 2010 11:28:56 +0800
+Subject: [PATCH] ENGR00124168 imx28: fix bug that USB gadget driver can't work
+
+1. USB gadget driver can't work if we insmod usb host module first,
+At default, we should not define CONFIG_USB_EHCI_ARC_OTG
+(Taking the first usb port as host), otherwise the usb gadget driver
+will can't work due to its resource have already claimed by usb0 host.
+2. Fixes some warnings and error format for Kconfig
+and defconfig
+
+Signed-off-by: Peter Chen <b29397@freescale.com>
+---
+ arch/arm/configs/imx28evk_defconfig |   10 ++++------
+ arch/arm/mach-mx28/Kconfig          |    8 ++++----
+ 2 files changed, 8 insertions(+), 10 deletions(-)
+
+diff --git a/arch/arm/configs/imx28evk_defconfig b/arch/arm/configs/imx28evk_defconfig
+index 89cd273..40c35b6 100644
+--- a/arch/arm/configs/imx28evk_defconfig
++++ b/arch/arm/configs/imx28evk_defconfig
+@@ -1,6 +1,7 @@
+ #
+ # Automatically generated make config: don't edit
+ # Linux kernel version: 2.6.31
++# Tue Jun  8 11:22:27 2010
+ #
+ CONFIG_ARM=y
+ CONFIG_SYS_SUPPORTS_APM_EMULATION=y
+@@ -568,7 +569,7 @@ CONFIG_MTD_UBI_BLOCK=y
+ CONFIG_BLK_DEV=y
+ # CONFIG_BLK_DEV_COW_COMMON is not set
+ CONFIG_BLK_DEV_LOOP=y
+-# CONFIG_BLK_DEV_LOOP is not set
++# CONFIG_BLK_DEV_CRYPTOLOOP is not set
+ # CONFIG_BLK_DEV_NBD is not set
+ # CONFIG_BLK_DEV_UB is not set
+ CONFIG_BLK_DEV_RAM=y
+@@ -684,6 +685,7 @@ CONFIG_MII=y
+ # CONFIG_B44 is not set
+ # CONFIG_KS8842 is not set
+ CONFIG_FEC=y
++# CONFIG_FEC_1588 is not set
+ # CONFIG_FEC2 is not set
+ # CONFIG_NETDEV_1000 is not set
+ # CONFIG_NETDEV_10000 is not set
+@@ -1274,12 +1276,8 @@ CONFIG_USB_DYNAMIC_MINORS=y
+ CONFIG_USB_EHCI_HCD=m
+ CONFIG_USB_EHCI_ARC=y
+ CONFIG_USB_EHCI_ARC_H1=y
+-CONFIG_USB_EHCI_ARC_OTG=y
++# CONFIG_USB_EHCI_ARC_OTG is not set
+ # CONFIG_USB_STATIC_IRAM is not set
+-# CONFIG_USB_EHCI_FSL_MC13783 is not set
+-# CONFIG_USB_EHCI_FSL_1301 is not set
+-# CONFIG_USB_EHCI_FSL_1504 is not set
+-CONFIG_USB_EHCI_FSL_UTMI=y
+ CONFIG_USB_EHCI_ROOT_HUB_TT=y
+ # CONFIG_USB_EHCI_TT_NEWSCHED is not set
+ # CONFIG_USB_OXU210HP_HCD is not set
+diff --git a/arch/arm/mach-mx28/Kconfig b/arch/arm/mach-mx28/Kconfig
+index 8cbcb85..f099ca3 100644
+--- a/arch/arm/mach-mx28/Kconfig
++++ b/arch/arm/mach-mx28/Kconfig
+@@ -6,10 +6,6 @@ config MACH_MX28EVK
+ 	depends on ARCH_MX28
+ 	select USB_ARCH_HAS_EHCI
+ 
+-config MXS_TIMER_WITH_MACH
+-	bool
+-	default y
+-
+ endchoice
+ 
+ config VECTORS_PHY_ADDR
+@@ -18,3 +14,7 @@ config VECTORS_PHY_ADDR
+ 	help
+ 	  This config set vectors table is located which physical address
+ 
++config MXS_TIMER_WITH_MACH
++	bool "System Timer support Compare Match interrupt"
++	default y
++
+-- 
+1.5.4.4
+

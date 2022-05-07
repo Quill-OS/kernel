@@ -1,0 +1,2190 @@
+From f2c1da9854814027459e778c67e25553db1150ee Mon Sep 17 00:00:00 2001
+From: Patrick Turley <patrick.turley@freescale.com>
+Date: Fri, 7 May 2010 17:50:18 -0500
+Subject: [PATCH] ENGR00123828 Improved timing for the i.MX23/i.MX28 NAND Flash driver
+
+Added improved timing calculations to the driver, and various other
+support work.
+
+Signed-off-by: Patrick Turley <patrick.turley@freescale.com>
+---
+ arch/arm/mach-mx23/clock.c                        |   29 +
+ drivers/mtd/nand/gpmi-nfc/gpmi-nfc-gpmi-regs-v1.h |    1 +
+ drivers/mtd/nand/gpmi-nfc/gpmi-nfc-hal-common.c   |  515 ++++++++++++++++++
+ drivers/mtd/nand/gpmi-nfc/gpmi-nfc-hal-v0.c       |  181 ++++++-
+ drivers/mtd/nand/gpmi-nfc/gpmi-nfc-hal-v1.c       |  129 ++++-
+ drivers/mtd/nand/gpmi-nfc/gpmi-nfc-main.c         |  586 +++++++++++++++++++--
+ drivers/mtd/nand/gpmi-nfc/gpmi-nfc-mil.c          |   54 +-
+ drivers/mtd/nand/gpmi-nfc/gpmi-nfc-rom-v0.c       |    1 -
+ drivers/mtd/nand/gpmi-nfc/gpmi-nfc.h              |  236 +++++----
+ drivers/mtd/nand/nand_device_info.c               |    8 +-
+ 10 files changed, 1520 insertions(+), 220 deletions(-)
+
+diff --git a/arch/arm/mach-mx23/clock.c b/arch/arm/mach-mx23/clock.c
+index a4de6d5..9e18dbc 100644
+--- a/arch/arm/mach-mx23/clock.c
++++ b/arch/arm/mach-mx23/clock.c
+@@ -1259,6 +1259,9 @@ static int gpmi_set_rate(struct clk *clk, unsigned long rate)
+ 	int ret = -EINVAL;
+ 	u32 reg, div;
+ 
++	/* Make absolutely certain the clock is enabled. */
++	local_clk_enable(clk);
++
+ 	/* if the desired clock can be sourced from ref_xtal,
+ 	 * use ref_xtal to save power
+ 	 */
+@@ -1284,6 +1287,10 @@ static int gpmi_set_rate(struct clk *clk, unsigned long rate)
+ 	ret = clk_busy_wait(clk);
+ 
+ out:
++
++	/* Undo the enable above. */
++	local_clk_disable(clk);
++
+ 	if (ret != 0)
+ 		printk(KERN_ERR "%s: error %d\n", __func__, ret);
+ 	return ret;
+@@ -1309,11 +1316,33 @@ static int gpmi_set_parent(struct clk *clk, struct clk *parent)
+ 	return ret;
+ }
+ 
++/* handle peripheral clocks whose optimal parent dependent on
++ * system parameters such as cpu_clk rate.  For now, this optimization
++ * only occurs to the peripheral clock when it's not in use to avoid
++ * handling more complex system clock coordination issues.
++ */
++static int gpmi_set_sys_dependent_parent(struct clk *clk)
++{
++
++	if ((clk->ref & CLK_EN_MASK) == 0) {
++		if (clk_get_rate(&cpu_clk) > ref_xtal_get_rate(&ref_xtal_clk)) {
++			clk_set_parent(clk, &ref_io_clk);
++			clk_set_rate(clk, PLL_ENABLED_MAX_CLK_GPMI);
++		} else {
++			clk_set_parent(clk, &ref_xtal_clk);
++			clk_set_rate(clk, ref_xtal_get_rate(&ref_xtal_clk));
++		}
++	}
++
++	return 0;
++}
++
+ static struct clk gpmi_clk = {
+ 	.parent		= &ref_io_clk,
+ 	.secondary      = 0,
+ 	.flags          = 0,
+ 	.set_parent     = gpmi_set_parent,
++	.set_sys_dependent_parent = gpmi_set_sys_dependent_parent,
+ 
+ 	.enable_reg     = CLKCTRL_BASE_ADDR + HW_CLKCTRL_GPMI,
+ 	.enable_bits    = BM_CLKCTRL_GPMI_CLKGATE,
+diff --git a/drivers/mtd/nand/gpmi-nfc/gpmi-nfc-gpmi-regs-v1.h b/drivers/mtd/nand/gpmi-nfc/gpmi-nfc-gpmi-regs-v1.h
+index 8c1bc7b..dcb3b7d 100644
+--- a/drivers/mtd/nand/gpmi-nfc/gpmi-nfc-gpmi-regs-v1.h
++++ b/drivers/mtd/nand/gpmi-nfc/gpmi-nfc-gpmi-regs-v1.h
+@@ -183,6 +183,7 @@
+ #define BM_GPMI_CTRL1_TIMEOUT_IRQ_EN	0x00100000
+ #define BM_GPMI_CTRL1_GANGED_RDYBUSY	0x00080000
+ #define BM_GPMI_CTRL1_BCH_MODE	0x00040000
++#define BP_GPMI_CTRL1_DLL_ENABLE	17
+ #define BM_GPMI_CTRL1_DLL_ENABLE	0x00020000
+ #define BP_GPMI_CTRL1_HALF_PERIOD	16
+ #define BM_GPMI_CTRL1_HALF_PERIOD	0x00010000
+diff --git a/drivers/mtd/nand/gpmi-nfc/gpmi-nfc-hal-common.c b/drivers/mtd/nand/gpmi-nfc/gpmi-nfc-hal-common.c
+index c210203..b38d653 100644
+--- a/drivers/mtd/nand/gpmi-nfc/gpmi-nfc-hal-common.c
++++ b/drivers/mtd/nand/gpmi-nfc/gpmi-nfc-hal-common.c
+@@ -520,3 +520,518 @@ int gpmi_nfc_dma_go(struct gpmi_nfc_data *this, int  dma_channel)
+ 	return error;
+ 
+ }
++
++/**
++ * ns_to_cycles - Converts time in nanoseconds to cycles.
++ *
++ * @ntime:   The time, in nanoseconds.
++ * @period:  The cycle period, in nanoseconds.
++ * @min:     The minimum allowable number of cycles.
++ */
++static unsigned int ns_to_cycles(unsigned int time,
++					unsigned int period, unsigned int min)
++{
++	unsigned int k;
++
++	/*
++	 * Compute the minimum number of cycles that entirely contain the
++	 * given time.
++	 */
++
++	k = (time + period - 1) / period;
++
++	return max(k, min);
++
++}
++
++/**
++ * gpmi_compute_hardware_timing - Apply timing to current hardware conditions.
++ *
++ * @this:             Per-device data.
++ * @hardware_timing:  A pointer to a hardware timing structure that will receive
++ *                    the results of our calculations.
++ */
++int gpmi_nfc_compute_hardware_timing(struct gpmi_nfc_data *this,
++					struct gpmi_nfc_hardware_timing *hw)
++{
++	struct gpmi_nfc_platform_data  *pdata    =  this->pdata;
++	struct physical_geometry       *physical = &this->physical_geometry;
++	struct nfc_hal                 *nfc      =  this->nfc;
++	struct gpmi_nfc_timing         target    = nfc->timing;
++	bool           improved_timing_is_available;
++	unsigned long  clock_frequency_in_hz;
++	unsigned int   clock_period_in_ns;
++	bool           dll_use_half_periods;
++	unsigned int   dll_delay_shift;
++	unsigned int   max_sample_delay_in_ns;
++	unsigned int   address_setup_in_cycles;
++	unsigned int   data_setup_in_ns;
++	unsigned int   data_setup_in_cycles;
++	unsigned int   data_hold_in_cycles;
++	int            ideal_sample_delay_in_ns;
++	unsigned int   sample_delay_factor;
++	int            tEYE;
++	unsigned int   min_prop_delay_in_ns = pdata->min_prop_delay_in_ns;
++	unsigned int   max_prop_delay_in_ns = pdata->max_prop_delay_in_ns;
++
++	/*
++	 * If there are multiple chips, we need to relax the timings to allow
++	 * for signal distortion due to higher capacitance.
++	 */
++
++	if (physical->chip_count > 2) {
++		target.data_setup_in_ns    += 10;
++		target.data_hold_in_ns     += 10;
++		target.address_setup_in_ns += 10;
++	} else if (physical->chip_count > 1) {
++		target.data_setup_in_ns    += 5;
++		target.data_hold_in_ns     += 5;
++		target.address_setup_in_ns += 5;
++	}
++
++	/* Check if improved timing information is available. */
++
++	improved_timing_is_available =
++		(target.tREA_in_ns  >= 0) &&
++		(target.tRLOH_in_ns >= 0) &&
++		(target.tRHOH_in_ns >= 0) ;
++
++	/* Inspect the clock. */
++
++	clock_frequency_in_hz = nfc->clock_frequency_in_hz;
++	clock_period_in_ns    = 1000000000 / clock_frequency_in_hz;
++
++	/*
++	 * The NFC quantizes setup and hold parameters in terms of clock cycles.
++	 * Here, we quantize the setup and hold timing parameters to the
++	 * next-highest clock period to make sure we apply at least the
++	 * specified times.
++	 *
++	 * For data setup and data hold, the hardware interprets a value of zero
++	 * as the largest possible delay. This is not what's intended by a zero
++	 * in the input parameter, so we impose a minimum of one cycle.
++	 */
++
++	data_setup_in_cycles    = ns_to_cycles(target.data_setup_in_ns,
++							clock_period_in_ns, 1);
++	data_hold_in_cycles     = ns_to_cycles(target.data_hold_in_ns,
++							clock_period_in_ns, 1);
++	address_setup_in_cycles = ns_to_cycles(target.address_setup_in_ns,
++							clock_period_in_ns, 0);
++
++	/*
++	 * The clock's period affects the sample delay in a number of ways:
++	 *
++	 * (1) The NFC HAL tells us the maximum clock period the sample delay
++	 *     DLL can tolerate. If the clock period is greater than half that
++	 *     maximum, we must configure the DLL to be driven by half periods.
++	 *
++	 * (2) We need to convert from an ideal sample delay, in ns, to a
++	 *     "sample delay factor," which the NFC uses. This factor depends on
++	 *     whether we're driving the DLL with full or half periods.
++	 *     Paraphrasing the reference manual:
++	 *
++	 *         AD = SDF x 0.125 x RP
++	 *
++	 * where:
++	 *
++	 *     AD   is the applied delay, in ns.
++	 *     SDF  is the sample delay factor, which is dimensionless.
++	 *     RP   is the reference period, in ns, which is a full clock period
++	 *          if the DLL is being driven by full periods, or half that if
++	 *          the DLL is being driven by half periods.
++	 *
++	 * Let's re-arrange this in a way that's more useful to us:
++	 *
++	 *                        8
++	 *         SDF  =  AD x ----
++	 *                       RP
++	 *
++	 * The reference period is either the clock period or half that, so this
++	 * is:
++	 *
++	 *                        8       AD x DDF
++	 *         SDF  =  AD x -----  =  --------
++	 *                      f x P        P
++	 *
++	 * where:
++	 *
++	 *       f  is 1 or 1/2, depending on how we're driving the DLL.
++	 *       P  is the clock period.
++	 *     DDF  is the DLL Delay Factor, a dimensionless value that
++	 *          incorporates all the constants in the conversion.
++	 *
++	 * DDF will be either 8 or 16, both of which are powers of two. We can
++	 * reduce the cost of this conversion by using bit shifts instead of
++	 * multiplication or division. Thus:
++	 *
++	 *                 AD << DDS
++	 *         SDF  =  ---------
++	 *                     P
++	 *
++	 *     or
++	 *
++	 *         AD  =  (SDF >> DDS) x P
++	 *
++	 * where:
++	 *
++	 *     DDS  is the DLL Delay Shift, the logarithm to base 2 of the DDF.
++	 */
++
++	if (clock_period_in_ns > (nfc->max_dll_clock_period_in_ns >> 1)) {
++		dll_use_half_periods = true;
++		dll_delay_shift      = 3 + 1;
++	} else {
++		dll_use_half_periods = false;
++		dll_delay_shift      = 3;
++	}
++
++	/*
++	 * Compute the maximum sample delay the NFC allows, under current
++	 * conditions. If the clock is running too slowly, no sample delay is
++	 * possible.
++	 */
++
++	if (clock_period_in_ns > nfc->max_dll_clock_period_in_ns)
++		max_sample_delay_in_ns = 0;
++	else {
++
++		/*
++		 * Compute the delay implied by the largest sample delay factor
++		 * the NFC allows.
++		 */
++
++		max_sample_delay_in_ns =
++			(nfc->max_sample_delay_factor * clock_period_in_ns) >>
++								dll_delay_shift;
++
++		/*
++		 * Check if the implied sample delay larger than the NFC
++		 * actually allows.
++		 */
++
++		if (max_sample_delay_in_ns > nfc->max_dll_delay_in_ns)
++			max_sample_delay_in_ns = nfc->max_dll_delay_in_ns;
++
++	}
++
++	/*
++	 * Check if improved timing information is available. If not, we have to
++	 * use a less-sophisticated algorithm.
++	 */
++
++	if (!improved_timing_is_available) {
++
++		/*
++		 * Fold the read setup time required by the NFC into the ideal
++		 * sample delay.
++		 */
++
++		ideal_sample_delay_in_ns = target.gpmi_sample_delay_in_ns +
++						nfc->internal_data_setup_in_ns;
++
++		/*
++		 * The ideal sample delay may be greater than the maximum
++		 * allowed by the NFC. If so, we can trade off sample delay time
++		 * for more data setup time.
++		 *
++		 * In each iteration of the following loop, we add a cycle to
++		 * the data setup time and subtract a corresponding amount from
++		 * the sample delay until we've satisified the constraints or
++		 * can't do any better.
++		 */
++
++		while ((ideal_sample_delay_in_ns > max_sample_delay_in_ns) &&
++			(data_setup_in_cycles < nfc->max_data_setup_cycles)) {
++
++			data_setup_in_cycles++;
++			ideal_sample_delay_in_ns -= clock_period_in_ns;
++
++			if (ideal_sample_delay_in_ns < 0)
++				ideal_sample_delay_in_ns = 0;
++
++		}
++
++		/*
++		 * Compute the sample delay factor that corresponds most closely
++		 * to the ideal sample delay. If the result is too large for the
++		 * NFC, use the maximum value.
++		 *
++		 * Notice that we use the ns_to_cycles function to compute the
++		 * sample delay factor. We do this because the form of the
++		 * computation is the same as that for calculating cycles.
++		 */
++
++		sample_delay_factor =
++			ns_to_cycles(
++				ideal_sample_delay_in_ns << dll_delay_shift,
++							clock_period_in_ns, 0);
++
++		if (sample_delay_factor > nfc->max_sample_delay_factor)
++			sample_delay_factor = nfc->max_sample_delay_factor;
++
++		/* Skip to the part where we return our results. */
++
++		goto return_results;
++
++	}
++
++	/*
++	 * If control arrives here, we have more detailed timing information,
++	 * so we can use a better algorithm.
++	 */
++
++	/*
++	 * Fold the read setup time required by the NFC into the maximum
++	 * propagation delay.
++	 */
++
++	max_prop_delay_in_ns += nfc->internal_data_setup_in_ns;
++
++	/*
++	 * Earlier, we computed the number of clock cycles required to satisfy
++	 * the data setup time. Now, we need to know the actual nanoseconds.
++	 */
++
++	data_setup_in_ns = clock_period_in_ns * data_setup_in_cycles;
++
++	/*
++	 * Compute tEYE, the width of the data eye when reading from the NAND
++	 * Flash. The eye width is fundamentally determined by the data setup
++	 * time, perturbed by propagation delays and some characteristics of the
++	 * NAND Flash device.
++	 *
++	 * start of the eye = max_prop_delay + tREA
++	 * end of the eye   = min_prop_delay + tRHOH + data_setup
++	 */
++
++	tEYE = (int)min_prop_delay_in_ns + (int)target.tRHOH_in_ns +
++							(int)data_setup_in_ns;
++
++	tEYE -= (int)max_prop_delay_in_ns + (int)target.tREA_in_ns;
++
++	/*
++	 * The eye must be open. If it's not, we can try to open it by
++	 * increasing its main forcer, the data setup time.
++	 *
++	 * In each iteration of the following loop, we increase the data setup
++	 * time by a single clock cycle. We do this until either the eye is
++	 * open or we run into NFC limits.
++	 */
++
++	while ((tEYE <= 0) &&
++			(data_setup_in_cycles < nfc->max_data_setup_cycles)) {
++		/* Give a cycle to data setup. */
++		data_setup_in_cycles++;
++		/* Synchronize the data setup time with the cycles. */
++		data_setup_in_ns += clock_period_in_ns;
++		/* Adjust tEYE accordingly. */
++		tEYE += clock_period_in_ns;
++	}
++
++	/*
++	 * When control arrives here, the eye is open. The ideal time to sample
++	 * the data is in the center of the eye:
++	 *
++	 *     end of the eye + start of the eye
++	 *     ---------------------------------  -  data_setup
++	 *                    2
++	 *
++	 * After some algebra, this simplifies to the code immediately below.
++	 */
++
++	ideal_sample_delay_in_ns =
++		((int)max_prop_delay_in_ns +
++			(int)target.tREA_in_ns +
++				(int)min_prop_delay_in_ns +
++					(int)target.tRHOH_in_ns -
++						(int)data_setup_in_ns) >> 1;
++
++	/*
++	 * The following figure illustrates some aspects of a NAND Flash read:
++	 *
++	 *
++	 *           __                   _____________________________________
++	 * RDN         \_________________/
++	 *
++	 *                                         <---- tEYE ----->
++	 *                                        /-----------------\
++	 * Read Data ----------------------------<                   >---------
++	 *                                        \-----------------/
++	 *             ^                 ^                 ^              ^
++	 *             |                 |                 |              |
++	 *             |<--Data Setup -->|<--Delay Time -->|              |
++	 *             |                 |                 |              |
++	 *             |                 |                                |
++	 *             |                 |<--   Quantized Delay Time   -->|
++	 *             |                 |                                |
++	 *
++	 *
++	 * We have some issues we must now address:
++	 *
++	 * (1) The *ideal* sample delay time must not be negative. If it is, we
++	 *     jam it to zero.
++	 *
++	 * (2) The *ideal* sample delay time must not be greater than that
++	 *     allowed by the NFC. If it is, we can increase the data setup
++	 *     time, which will reduce the delay between the end of the data
++	 *     setup and the center of the eye. It will also make the eye
++	 *     larger, which might help with the next issue...
++	 *
++	 * (3) The *quantized* sample delay time must not fall either before the
++	 *     eye opens or after it closes (the latter is the problem
++	 *     illustrated in the above figure).
++	 */
++
++	/* Jam a negative ideal sample delay to zero. */
++
++	if (ideal_sample_delay_in_ns < 0)
++		ideal_sample_delay_in_ns = 0;
++
++	/*
++	 * Extend the data setup as needed to reduce the ideal sample delay
++	 * below the maximum permitted by the NFC.
++	 */
++
++	while ((ideal_sample_delay_in_ns > max_sample_delay_in_ns) &&
++			(data_setup_in_cycles < nfc->max_data_setup_cycles)) {
++
++		/* Give a cycle to data setup. */
++		data_setup_in_cycles++;
++		/* Synchronize the data setup time with the cycles. */
++		data_setup_in_ns += clock_period_in_ns;
++		/* Adjust tEYE accordingly. */
++		tEYE += clock_period_in_ns;
++
++		/*
++		 * Decrease the ideal sample delay by one half cycle, to keep it
++		 * in the middle of the eye.
++		 */
++		ideal_sample_delay_in_ns -= (clock_period_in_ns >> 1);
++
++		/* Jam a negative ideal sample delay to zero. */
++		if (ideal_sample_delay_in_ns < 0)
++			ideal_sample_delay_in_ns = 0;
++
++	}
++
++	/*
++	 * Compute the sample delay factor that corresponds to the ideal sample
++	 * delay. If the result is too large, then use the maximum allowed
++	 * value.
++	 *
++	 * Notice that we use the ns_to_cycles function to compute the sample
++	 * delay factor. We do this because the form of the computation is the
++	 * same as that for calculating cycles.
++	 */
++
++	sample_delay_factor =
++		ns_to_cycles(ideal_sample_delay_in_ns << dll_delay_shift,
++							clock_period_in_ns, 0);
++
++	if (sample_delay_factor > nfc->max_sample_delay_factor)
++		sample_delay_factor = nfc->max_sample_delay_factor;
++
++	/*
++	 * These macros conveniently encapsulate a computation we'll use to
++	 * continuously evaluate whether or not the data sample delay is inside
++	 * the eye.
++	 */
++
++	#define IDEAL_DELAY  ((int) ideal_sample_delay_in_ns)
++
++	#define QUANTIZED_DELAY  \
++		((int) ((sample_delay_factor * clock_period_in_ns) >> \
++							dll_delay_shift))
++
++	#define DELAY_ERROR  (abs(QUANTIZED_DELAY - IDEAL_DELAY))
++
++	#define SAMPLE_IS_NOT_WITHIN_THE_EYE  (DELAY_ERROR > (tEYE >> 1))
++
++	/*
++	 * While the quantized sample time falls outside the eye, reduce the
++	 * sample delay or extend the data setup to move the sampling point back
++	 * toward the eye. Do not allow the number of data setup cycles to
++	 * exceed the maximum allowed by the NFC.
++	 */
++
++	while (SAMPLE_IS_NOT_WITHIN_THE_EYE &&
++			(data_setup_in_cycles < nfc->max_data_setup_cycles)) {
++
++		/*
++		 * If control arrives here, the quantized sample delay falls
++		 * outside the eye. Check if it's before the eye opens, or after
++		 * the eye closes.
++		 */
++
++		if (QUANTIZED_DELAY > IDEAL_DELAY) {
++
++			/*
++			 * If control arrives here, the quantized sample delay
++			 * falls after the eye closes. Decrease the quantized
++			 * delay time and then go back to re-evaluate.
++			 */
++
++			if (sample_delay_factor != 0)
++				sample_delay_factor--;
++
++			continue;
++
++		}
++
++		/*
++		 * If control arrives here, the quantized sample delay falls
++		 * before the eye opens. Shift the sample point by increasing
++		 * data setup time. This will also make the eye larger.
++		 */
++
++		/* Give a cycle to data setup. */
++		data_setup_in_cycles++;
++		/* Synchronize the data setup time with the cycles. */
++		data_setup_in_ns += clock_period_in_ns;
++		/* Adjust tEYE accordingly. */
++		tEYE += clock_period_in_ns;
++
++		/*
++		 * Decrease the ideal sample delay by one half cycle, to keep it
++		 * in the middle of the eye.
++		 */
++		ideal_sample_delay_in_ns -= (clock_period_in_ns >> 1);
++
++		/* ...and one less period for the delay time. */
++		ideal_sample_delay_in_ns -= clock_period_in_ns;
++
++		/* Jam a negative ideal sample delay to zero. */
++		if (ideal_sample_delay_in_ns < 0)
++			ideal_sample_delay_in_ns = 0;
++
++		/*
++		 * We have a new ideal sample delay, so re-compute the quantized
++		 * delay.
++		 */
++
++		sample_delay_factor =
++			ns_to_cycles(
++				ideal_sample_delay_in_ns << dll_delay_shift,
++							clock_period_in_ns, 0);
++
++		if (sample_delay_factor > nfc->max_sample_delay_factor)
++			sample_delay_factor = nfc->max_sample_delay_factor;
++
++	}
++
++	/* Control arrives here when we're ready to return our results. */
++
++return_results:
++
++	hw->data_setup_in_cycles    = data_setup_in_cycles;
++	hw->data_hold_in_cycles     = data_hold_in_cycles;
++	hw->address_setup_in_cycles = address_setup_in_cycles;
++	hw->use_half_periods        = dll_use_half_periods;
++	hw->sample_delay_factor     = sample_delay_factor;
++
++	/* Return success. */
++
++	return 0;
++
++}
+diff --git a/drivers/mtd/nand/gpmi-nfc/gpmi-nfc-hal-v0.c b/drivers/mtd/nand/gpmi-nfc/gpmi-nfc-hal-v0.c
+index f80e1c9..294bb94 100644
+--- a/drivers/mtd/nand/gpmi-nfc/gpmi-nfc-hal-v0.c
++++ b/drivers/mtd/nand/gpmi-nfc/gpmi-nfc-hal-v0.c
+@@ -151,7 +151,7 @@ static int set_geometry(struct gpmi_nfc_data *this)
+ }
+ 
+ /**
+- * set_set_timing() - Configures the NFC timing.
++ * set_timing() - Configures the NFC timing.
+  *
+  * @this:    Per-device data.
+  * @timing:  The timing of interest.
+@@ -172,6 +172,69 @@ static int set_timing(struct gpmi_nfc_data *this,
+ }
+ 
+ /**
++ * get_timing() - Retrieves the NFC hardware timing.
++ *
++ * @this:                    Per-device data.
++ * @clock_frequency_in_hz:   The clock frequency, in Hz, during the current
++ *                           I/O transaction. If no I/O transaction is in
++ *                           progress, this is the clock frequency during the
++ *                           most recent I/O transaction.
++ * @hardware_timing:         The hardware timing configuration in effect during
++ *                           the current I/O transaction. If no I/O transaction
++ *                           is in progress, this is the hardware timing
++ *                           configuration during the most recent I/O
++ *                           transaction.
++ */
++static void get_timing(struct gpmi_nfc_data *this,
++			unsigned long *clock_frequency_in_hz,
++			struct gpmi_nfc_hardware_timing *hardware_timing)
++{
++	struct resources                 *resources = &this->resources;
++	struct nfc_hal                   *nfc       =  this->nfc;
++	unsigned char                    *gpmi_regs = resources->gpmi_regs;
++	uint32_t                         register_image;
++
++	/* Return the clock frequency. */
++
++	*clock_frequency_in_hz = nfc->clock_frequency_in_hz;
++
++	/* We'll be reading the hardware, so let's enable the clock. */
++
++	clk_enable(resources->clock);
++
++	/* Retrieve the hardware timing. */
++
++	register_image = __raw_readl(gpmi_regs + HW_GPMI_TIMING0);
++
++	hardware_timing->data_setup_in_cycles =
++		(register_image & BM_GPMI_TIMING0_DATA_SETUP) >>
++						BP_GPMI_TIMING0_DATA_SETUP;
++
++	hardware_timing->data_hold_in_cycles =
++		(register_image & BM_GPMI_TIMING0_DATA_HOLD) >>
++						BP_GPMI_TIMING0_DATA_HOLD;
++
++	hardware_timing->address_setup_in_cycles =
++		(register_image & BM_GPMI_TIMING0_ADDRESS_SETUP) >>
++						BP_GPMI_TIMING0_ADDRESS_SETUP;
++
++	register_image = __raw_readl(gpmi_regs + HW_GPMI_CTRL1);
++
++	hardware_timing->use_half_periods =
++		(register_image & BM_GPMI_CTRL1_HALF_PERIOD) >>
++						BP_GPMI_CTRL1_HALF_PERIOD;
++
++	hardware_timing->sample_delay_factor =
++		(register_image & BM_GPMI_CTRL1_RDN_DELAY) >>
++						BP_GPMI_CTRL1_RDN_DELAY;
++
++	/* We're done reading the hardware, so disable the clock. */
++
++	clk_disable(resources->clock);
++
++}
++
++/**
+  * exit() - Shuts down the NFC hardware.
+  *
+  * @this:  Per-device data.
+@@ -188,12 +251,83 @@ static void exit(struct gpmi_nfc_data *this)
+  */
+ static void begin(struct gpmi_nfc_data *this)
+ {
+-	struct resources  *resources = &this->resources;
++	struct resources                 *resources = &this->resources;
++	struct nfc_hal                   *nfc       =  this->nfc;
++	struct gpmi_nfc_hardware_timing  hw;
++	unsigned char                    *gpmi_regs = resources->gpmi_regs;
++	unsigned int                     clock_period_in_ns;
++	uint32_t                         register_image;
++	unsigned int                     dll_wait_time_in_us;
+ 
+ 	/* Enable the clock. */
+ 
+ 	clk_enable(resources->clock);
+ 
++	/* Get the timing information we need. */
++
++	nfc->clock_frequency_in_hz = clk_get_rate(resources->clock);
++	clock_period_in_ns = 1000000000 / nfc->clock_frequency_in_hz;
++
++	gpmi_nfc_compute_hardware_timing(this, &hw);
++
++	/* Set up all the simple timing parameters. */
++
++	register_image =
++		BF_GPMI_TIMING0_ADDRESS_SETUP(hw.address_setup_in_cycles) |
++		BF_GPMI_TIMING0_DATA_HOLD(hw.data_hold_in_cycles)         |
++		BF_GPMI_TIMING0_DATA_SETUP(hw.data_setup_in_cycles)       ;
++
++	__raw_writel(register_image, gpmi_regs + HW_GPMI_TIMING0);
++
++	/*
++	 * HEY - PAY ATTENTION!
++	 *
++	 * DLL_ENABLE must be set to zero when setting RDN_DELAY or HALF_PERIOD.
++	 */
++
++	__raw_writel(BM_GPMI_CTRL1_DLL_ENABLE, gpmi_regs + HW_GPMI_CTRL1_CLR);
++
++	/* Clear out the DLL control fields. */
++
++	__raw_writel(BM_GPMI_CTRL1_RDN_DELAY,   gpmi_regs + HW_GPMI_CTRL1_CLR);
++	__raw_writel(BM_GPMI_CTRL1_HALF_PERIOD, gpmi_regs + HW_GPMI_CTRL1_CLR);
++
++	/* If no sample delay is called for, return immediately. */
++
++	if (!hw.sample_delay_factor)
++		return;
++
++	/* Configure the HALF_PERIOD flag. */
++
++	if (hw.use_half_periods)
++		__raw_writel(BM_GPMI_CTRL1_HALF_PERIOD,
++						gpmi_regs + HW_GPMI_CTRL1_SET);
++
++	/* Set the delay factor. */
++
++	__raw_writel(BF_GPMI_CTRL1_RDN_DELAY(hw.sample_delay_factor),
++						gpmi_regs + HW_GPMI_CTRL1_SET);
++
++	/* Enable the DLL. */
++
++	__raw_writel(BM_GPMI_CTRL1_DLL_ENABLE, gpmi_regs + HW_GPMI_CTRL1_SET);
++
++	/*
++	 * After we enable the GPMI DLL, we have to wait 64 clock cycles before
++	 * we can use the GPMI.
++	 *
++	 * Calculate the amount of time we need to wait, in microseconds.
++	 */
++
++	dll_wait_time_in_us = (clock_period_in_ns * 64) / 1000;
++
++	if (!dll_wait_time_in_us)
++		dll_wait_time_in_us = 1;
++
++	/* Wait for the DLL to settle. */
++
++	udelay(dll_wait_time_in_us);
++
+ }
+ 
+ /**
+@@ -676,7 +810,7 @@ static int read_page(struct gpmi_nfc_data *this, unsigned chip,
+ 
+ 	(*d)->cmd.pio_words[1] = 0;
+ 	(*d)->cmd.pio_words[2] =
+-		BM_GPMI_ECCCTRL_ENABLE_ECC 	            |
++		BM_GPMI_ECCCTRL_ENABLE_ECC 	         |
+ 		BF_GPMI_ECCCTRL_ECC_CMD(ecc_command)     |
+ 		BF_GPMI_ECCCTRL_BUFFER_MASK(buffer_mask) ;
+ 	(*d)->cmd.pio_words[3] = nfc_geo->page_size_in_bytes;
+@@ -763,25 +897,28 @@ static int read_page(struct gpmi_nfc_data *this, unsigned chip,
+ /* This structure represents the NFC HAL for this version of the hardware. */
+ 
+ struct nfc_hal  gpmi_nfc_hal_v0 = {
+-	.version                      = 0,
+-	.description                  = "4-chip GPMI and BCH",
+-	.max_chip_count               = 4,
+-	.max_data_setup_cycles        = (BM_GPMI_TIMING0_DATA_SETUP >>
++	.version                     = 0,
++	.description                 = "4-chip GPMI and BCH",
++	.max_chip_count              = 4,
++	.max_data_setup_cycles       = (BM_GPMI_TIMING0_DATA_SETUP >>
+ 						BP_GPMI_TIMING0_DATA_SETUP),
+-	.max_data_sample_delay_cycles = (BM_GPMI_CTRL1_RDN_DELAY >>
++	.internal_data_setup_in_ns   = 0,
++	.max_sample_delay_factor     = (BM_GPMI_CTRL1_RDN_DELAY >>
+ 						BP_GPMI_CTRL1_RDN_DELAY),
+-	.max_dll_clock_period_in_ns   = 32,
+-	.init                         = init,
+-	.set_geometry                 = set_geometry,
+-	.set_timing                   = set_timing,
+-	.exit                         = exit,
+-	.begin                        = begin,
+-	.end                          = end,
+-	.clear_bch                    = clear_bch,
+-	.is_ready                     = is_ready,
+-	.send_command                 = send_command,
+-	.send_data                    = send_data,
+-	.read_data                    = read_data,
+-	.send_page                    = send_page,
+-	.read_page                    = read_page,
++	.max_dll_clock_period_in_ns  = 32,
++	.max_dll_delay_in_ns         = 16,
++	.init                        = init,
++	.set_geometry                = set_geometry,
++	.set_timing                  = set_timing,
++	.get_timing                  = get_timing,
++	.exit                        = exit,
++	.begin                       = begin,
++	.end                         = end,
++	.clear_bch                   = clear_bch,
++	.is_ready                    = is_ready,
++	.send_command                = send_command,
++	.send_data                   = send_data,
++	.read_data                   = read_data,
++	.send_page                   = send_page,
++	.read_page                   = read_page,
+ };
+diff --git a/drivers/mtd/nand/gpmi-nfc/gpmi-nfc-hal-v1.c b/drivers/mtd/nand/gpmi-nfc/gpmi-nfc-hal-v1.c
+index 545fbbc..962efe6 100644
+--- a/drivers/mtd/nand/gpmi-nfc/gpmi-nfc-hal-v1.c
++++ b/drivers/mtd/nand/gpmi-nfc/gpmi-nfc-hal-v1.c
+@@ -153,7 +153,7 @@ static int set_geometry(struct gpmi_nfc_data *this)
+ }
+ 
+ /**
+- * set_set_timing() - Configures the NFC timing.
++ * set_timing() - Configures the NFC timing.
+  *
+  * @this:    Per-device data.
+  * @timing:  The timing of interest.
+@@ -174,6 +174,69 @@ static int set_timing(struct gpmi_nfc_data *this,
+ }
+ 
+ /**
++ * get_timing() - Retrieves the NFC hardware timing.
++ *
++ * @this:                    Per-device data.
++ * @clock_frequency_in_hz:   The clock frequency, in Hz, during the current
++ *                           I/O transaction. If no I/O transaction is in
++ *                           progress, this is the clock frequency during the
++ *                           most recent I/O transaction.
++ * @hardware_timing:         The hardware timing configuration in effect during
++ *                           the current I/O transaction. If no I/O transaction
++ *                           is in progress, this is the hardware timing
++ *                           configuration during the most recent I/O
++ *                           transaction.
++ */
++static void get_timing(struct gpmi_nfc_data *this,
++			unsigned long *clock_frequency_in_hz,
++			struct gpmi_nfc_hardware_timing *hardware_timing)
++{
++	struct resources                 *resources = &this->resources;
++	struct nfc_hal                   *nfc       =  this->nfc;
++	unsigned char                    *gpmi_regs = resources->gpmi_regs;
++	uint32_t                         register_image;
++
++	/* Return the clock frequency. */
++
++	*clock_frequency_in_hz = nfc->clock_frequency_in_hz;
++
++	/* We'll be reading the hardware, so let's enable the clock. */
++
++	clk_enable(resources->clock);
++
++	/* Retrieve the hardware timing. */
++
++	register_image = __raw_readl(gpmi_regs + HW_GPMI_TIMING0);
++
++	hardware_timing->data_setup_in_cycles =
++		(register_image & BM_GPMI_TIMING0_DATA_SETUP) >>
++						BP_GPMI_TIMING0_DATA_SETUP;
++
++	hardware_timing->data_hold_in_cycles =
++		(register_image & BM_GPMI_TIMING0_DATA_HOLD) >>
++						BP_GPMI_TIMING0_DATA_HOLD;
++
++	hardware_timing->address_setup_in_cycles =
++		(register_image & BM_GPMI_TIMING0_ADDRESS_SETUP) >>
++						BP_GPMI_TIMING0_ADDRESS_SETUP;
++
++	register_image = __raw_readl(gpmi_regs + HW_GPMI_CTRL1);
++
++	hardware_timing->use_half_periods =
++		(register_image & BM_GPMI_CTRL1_HALF_PERIOD) >>
++						BP_GPMI_CTRL1_HALF_PERIOD;
++
++	hardware_timing->sample_delay_factor =
++		(register_image & BM_GPMI_CTRL1_RDN_DELAY) >>
++						BP_GPMI_CTRL1_RDN_DELAY;
++
++	/* We're done reading the hardware, so disable the clock. */
++
++	clk_disable(resources->clock);
++
++}
++
++/**
+  * exit() - Shuts down the NFC hardware.
+  *
+  * @this:  Per-device data.
+@@ -190,12 +253,23 @@ static void exit(struct gpmi_nfc_data *this)
+  */
+ static void begin(struct gpmi_nfc_data *this)
+ {
+-	struct resources  *resources = &this->resources;
++	struct resources                 *resources = &this->resources;
++	struct nfc_hal                   *nfc       =  this->nfc;
++	struct gpmi_nfc_hardware_timing  hw;
+ 
+ 	/* Enable the clock. */
+ 
+ 	clk_enable(resources->clock);
+ 
++	/* Get the timing information we need. */
++
++	nfc->clock_frequency_in_hz = clk_get_rate(resources->clock);
++	gpmi_nfc_compute_hardware_timing(this, &hw);
++
++	/* Apply the hardware timing. */
++
++	/* Coming soon - the clock handling code isn't ready yet. */
++
+ }
+ 
+ /**
+@@ -294,7 +368,6 @@ static int send_command(struct gpmi_nfc_data *this, unsigned chip,
+ 	(*d)->cmd.address = buffer;
+ 
+ 	(*d)->cmd.pio_words[0] =
+-		BM_GPMI_CTRL0_LOCK_CS                    |
+ 		BF_GPMI_CTRL0_COMMAND_MODE(command_mode) |
+ 		BM_GPMI_CTRL0_WORD_LENGTH                |
+ 		BF_GPMI_CTRL0_CS(chip)                   |
+@@ -366,7 +439,6 @@ static int send_data(struct gpmi_nfc_data *this, unsigned chip,
+ 	(*d)->cmd.address = buffer;
+ 
+ 	(*d)->cmd.pio_words[0] =
+-		BM_GPMI_CTRL0_LOCK_CS                    |
+ 		BF_GPMI_CTRL0_COMMAND_MODE(command_mode) |
+ 		BM_GPMI_CTRL0_WORD_LENGTH                |
+ 		BF_GPMI_CTRL0_CS(chip)                   |
+@@ -437,7 +509,6 @@ static int read_data(struct gpmi_nfc_data *this, unsigned chip,
+ 	(*d)->cmd.address = buffer;
+ 
+ 	(*d)->cmd.pio_words[0] =
+-		BM_GPMI_CTRL0_LOCK_CS                    |
+ 		BF_GPMI_CTRL0_COMMAND_MODE(command_mode) |
+ 		BM_GPMI_CTRL0_WORD_LENGTH                |
+ 		BF_GPMI_CTRL0_CS(chip)                   |
+@@ -476,7 +547,6 @@ static int read_data(struct gpmi_nfc_data *this, unsigned chip,
+ 
+ 	(*d)->cmd.pio_words[0] =
+ 		BF_GPMI_CTRL0_COMMAND_MODE(command_mode) |
+-		BM_GPMI_CTRL0_LOCK_CS                    |
+ 		BM_GPMI_CTRL0_WORD_LENGTH                |
+ 		BF_GPMI_CTRL0_CS(chip)                   |
+ 		BF_GPMI_CTRL0_ADDRESS(address)           |
+@@ -552,7 +622,6 @@ static int send_page(struct gpmi_nfc_data *this, unsigned chip,
+ 	(*d)->cmd.address = 0;
+ 
+ 	(*d)->cmd.pio_words[0] =
+-		BM_GPMI_CTRL0_LOCK_CS                    |
+ 		BF_GPMI_CTRL0_COMMAND_MODE(command_mode) |
+ 		BM_GPMI_CTRL0_WORD_LENGTH                |
+ 		BF_GPMI_CTRL0_CS(chip)                   |
+@@ -643,7 +712,6 @@ static int read_page(struct gpmi_nfc_data *this, unsigned chip,
+ 
+ 	(*d)->cmd.pio_words[0] =
+ 		BF_GPMI_CTRL0_COMMAND_MODE(command_mode) |
+-		BM_GPMI_CTRL0_LOCK_CS                    |
+ 		BM_GPMI_CTRL0_WORD_LENGTH                |
+ 		BF_GPMI_CTRL0_CS(chip)                   |
+ 		BF_GPMI_CTRL0_ADDRESS(address)           |
+@@ -676,7 +744,6 @@ static int read_page(struct gpmi_nfc_data *this, unsigned chip,
+ 	(*d)->cmd.address = 0;
+ 
+ 	(*d)->cmd.pio_words[0] =
+-		BM_GPMI_CTRL0_LOCK_CS                                 |
+ 		BF_GPMI_CTRL0_COMMAND_MODE(command_mode)              |
+ 		BM_GPMI_CTRL0_WORD_LENGTH                             |
+ 		BF_GPMI_CTRL0_CS(chip)                                |
+@@ -685,7 +752,7 @@ static int read_page(struct gpmi_nfc_data *this, unsigned chip,
+ 
+ 	(*d)->cmd.pio_words[1] = 0;
+ 	(*d)->cmd.pio_words[2] =
+-		BM_GPMI_ECCCTRL_ENABLE_ECC 	            |
++		BM_GPMI_ECCCTRL_ENABLE_ECC 	         |
+ 		BF_GPMI_ECCCTRL_ECC_CMD(ecc_command)     |
+ 		BF_GPMI_ECCCTRL_BUFFER_MASK(buffer_mask) ;
+ 	(*d)->cmd.pio_words[3] = nfc_geo->page_size_in_bytes;
+@@ -717,7 +784,6 @@ static int read_page(struct gpmi_nfc_data *this, unsigned chip,
+ 
+ 	(*d)->cmd.pio_words[0] =
+ 		BF_GPMI_CTRL0_COMMAND_MODE(command_mode)              |
+-		BM_GPMI_CTRL0_LOCK_CS                                 |
+ 		BM_GPMI_CTRL0_WORD_LENGTH                             |
+ 		BF_GPMI_CTRL0_CS(chip)                                |
+ 		BF_GPMI_CTRL0_ADDRESS(address)                        |
+@@ -773,25 +839,28 @@ static int read_page(struct gpmi_nfc_data *this, unsigned chip,
+ /* This structure represents the NFC HAL for this version of the hardware. */
+ 
+ struct nfc_hal  gpmi_nfc_hal_v1 = {
+-	.version                      = 1,
+-	.description                  = "8-chip GPMI and BCH",
+-	.max_chip_count               = 8,
+-	.max_data_setup_cycles        = (BM_GPMI_TIMING0_DATA_SETUP >>
++	.version                     = 1,
++	.description                 = "8-chip GPMI and BCH",
++	.max_chip_count              = 8,
++	.max_data_setup_cycles       = (BM_GPMI_TIMING0_DATA_SETUP >>
+ 						BP_GPMI_TIMING0_DATA_SETUP),
+-	.max_data_sample_delay_cycles = (BM_GPMI_CTRL1_RDN_DELAY >>
++	.internal_data_setup_in_ns   = 0,
++	.max_sample_delay_factor     = (BM_GPMI_CTRL1_RDN_DELAY >>
+ 						BP_GPMI_CTRL1_RDN_DELAY),
+-	.max_dll_clock_period_in_ns   = 32,
+-	.init                         = init,
+-	.set_geometry                 = set_geometry,
+-	.set_timing                   = set_timing,
+-	.exit                         = exit,
+-	.begin                        = begin,
+-	.end                          = end,
+-	.clear_bch                    = clear_bch,
+-	.is_ready                     = is_ready,
+-	.send_command                 = send_command,
+-	.send_data                    = send_data,
+-	.read_data                    = read_data,
+-	.send_page                    = send_page,
+-	.read_page                    = read_page,
++	.max_dll_clock_period_in_ns  = 32,
++	.max_dll_delay_in_ns         = 16,
++	.init                        = init,
++	.set_geometry                = set_geometry,
++	.set_timing                  = set_timing,
++	.get_timing                  = get_timing,
++	.exit                        = exit,
++	.begin                       = begin,
++	.end                         = end,
++	.clear_bch                   = clear_bch,
++	.is_ready                    = is_ready,
++	.send_command                = send_command,
++	.send_data                   = send_data,
++	.read_data                   = read_data,
++	.send_page                   = send_page,
++	.read_page                   = read_page,
+ };
+diff --git a/drivers/mtd/nand/gpmi-nfc/gpmi-nfc-main.c b/drivers/mtd/nand/gpmi-nfc/gpmi-nfc-main.c
+index d882152..0143f1c 100644
+--- a/drivers/mtd/nand/gpmi-nfc/gpmi-nfc-main.c
++++ b/drivers/mtd/nand/gpmi-nfc/gpmi-nfc-main.c
+@@ -58,6 +58,54 @@ static struct boot_rom_helper  *(boot_rom_helpers[]) = {
+ };
+ 
+ /**
++ * show_device_report() - Contains a shell script that creates a handy report.
++ *
++ * @d:     The device of interest.
++ * @attr:  The attribute of interest.
++ * @buf:   A buffer that will receive a representation of the attribute.
++ */
++static ssize_t show_device_report(struct device *dev,
++				struct device_attribute *attr, char *buf)
++{
++
++	static const char *script =
++		"GPMISysDirectory=/sys/bus/platform/devices/gpmi-nfc.0\n"
++		"\n"
++		"NodeList='\n"
++		"physical_geometry\n"
++		"nfc_info\n"
++		"nfc_geometry\n"
++		"timing\n"
++		"timing_diagram\n"
++		"rom_geometry\n"
++		"mtd_nand_info\n"
++		"mtd_info\n"
++		"'\n"
++		"\n"
++		"cd ${GPMISysDirectory}\n"
++		"\n"
++		"printf '\\n'\n"
++		"\n"
++		"for NodeName in ${NodeList}\n"
++		"do\n"
++		"\n"
++		"    printf '--------------------------------------------\\n'\n"
++		"    printf '%s\\n' ${NodeName}\n"
++		"    printf '--------------------------------------------\\n'\n"
++		"    printf '\\n'\n"
++		"\n"
++		"    cat ${NodeName}\n"
++		"\n"
++		"    printf '\\n'\n"
++		"\n"
++		"done\n"
++		;
++
++	return sprintf(buf, "%s", script);
++
++}
++
++/**
+  * show_device_numchips() - Shows the number of physical chips.
+  *
+  * This node is made obsolete by the physical_geometry node, but we keep it for
+@@ -88,15 +136,18 @@ static ssize_t show_device_physical_geometry(struct device *dev,
+ 				struct device_attribute *attr, char *buf)
+ {
+ 	struct gpmi_nfc_data      *this     = dev_get_drvdata(dev);
++	struct nand_device_info   *info     = &this->device_info;
+ 	struct physical_geometry  *physical = &this->physical_geometry;
+ 
+ 	return sprintf(buf,
++		"Description            : %s\n"
+ 		"Chip Count             : %u\n"
+ 		"Chip Size in Bytes     : %llu\n"
+ 		"Block Size in Bytes    : %u\n"
+ 		"Page Data Size in Bytes: %u\n"
+ 		"Page OOB Size in Bytes : %u\n"
+ 		,
++		info->description,
+ 		physical->chip_count,
+ 		physical->chip_size_in_bytes,
+ 		physical->block_size_in_bytes,
+@@ -116,47 +167,27 @@ static ssize_t show_device_physical_geometry(struct device *dev,
+ static ssize_t show_device_nfc_info(struct device *dev,
+ 				struct device_attribute *attr, char *buf)
+ {
+-	struct gpmi_nfc_data  *this      = dev_get_drvdata(dev);
+-	struct resources      *resources = &this->resources;
+-	struct nfc_hal        *nfc       =  this->nfc;
+-	struct clk            *parent_clock;
+-	unsigned long         parent_clock_rate_in_hz;
+-	unsigned long         clock_rate_in_hz;
+-	int                   clock_use_count;
+-
+-	parent_clock            = clk_get_parent(resources->clock);
+-	parent_clock_rate_in_hz = clk_get_rate(parent_clock);
+-	clock_rate_in_hz        = clk_get_rate(resources->clock);
+-	clock_use_count         = clk_get_usecount(resources->clock);
++	struct gpmi_nfc_data  *this = dev_get_drvdata(dev);
++	struct nfc_hal        *nfc  =  this->nfc;
+ 
+ 	return sprintf(buf,
+-		"Version                : %u\n"
+-		"Description            : %s\n"
+-		"Max Chip Count         : %u\n"
+-		"Parent Clock Rate in Hz: %lu\n"
+-		"Clock Rate in Hz       : %lu\n"
+-		"Clock Use Count        : %u\n"
+-		"Data Setup in ns       : %d\n"
+-		"Data Hold in ns        : %d\n"
+-		"Address Setup in ns    : %d\n"
+-		"Sample Delay in ns     : %d\n"
+-		"tREA in ns             : %d\n"
+-		"tRLOH in ns            : %d\n"
+-		"tRHOH in ns            : %d\n"
++		"Version                   : %u\n"
++		"Description               : %s\n"
++		"Max Chip Count            : %u\n"
++		"Max Data Setup Cycles     : 0x%x\n"
++		"Internal Data Setup in ns : %u\n"
++		"Max Sample Delay Factor   : 0x%x\n"
++		"Max DLL Clock Period in ns: %u\n"
++		"Max DLL Delay in ns       : %u\n"
+ 		,
+ 		nfc->version,
+ 		nfc->description,
+ 		nfc->max_chip_count,
+-		parent_clock_rate_in_hz,
+-		clock_rate_in_hz,
+-		clock_use_count,
+-		nfc->timing.data_setup_in_ns,
+-		nfc->timing.data_hold_in_ns,
+-		nfc->timing.address_setup_in_ns,
+-		nfc->timing.gpmi_sample_delay_in_ns,
+-		nfc->timing.tREA_in_ns,
+-		nfc->timing.tRLOH_in_ns,
+-		nfc->timing.tRHOH_in_ns
++		nfc->max_data_setup_cycles,
++		nfc->internal_data_setup_in_ns,
++		nfc->max_sample_delay_factor,
++		nfc->max_dll_clock_period_in_ns,
++		nfc->max_dll_delay_in_ns
+ 	);
+ 
+ }
+@@ -422,6 +453,288 @@ static ssize_t show_device_mtd_info(struct device *dev,
+ }
+ 
+ /**
++  * show_device_timing_diagram() - Shows a timing diagram.
++ *
++ * @dev:   The device of interest.
++ * @attr:  The attribute of interest.
++ * @buf:   A buffer that will receive a representation of the attribute.
++ */
++static ssize_t show_device_timing_diagram(struct device *dev,
++				struct device_attribute *attr, char *buf)
++{
++	struct gpmi_nfc_data             *this      = dev_get_drvdata(dev);
++	struct gpmi_nfc_platform_data    *pdata     =  this->pdata;
++	struct nfc_hal                   *nfc       = this->nfc;
++	struct gpmi_nfc_timing           timing     = nfc->timing;
++	struct gpmi_nfc_hardware_timing  hardware_timing;
++	unsigned long                    clock_frequency_in_hz;
++	unsigned long                    clock_period_in_ns;
++	unsigned int                     data_setup_in_ns;
++	unsigned int                     dll_delay_shift;
++	unsigned int                     sample_delay_in_ns;
++	unsigned int                     tDS_in_ns;
++	unsigned int                     tOPEN_in_ns;
++	unsigned int                     tCLOSE_in_ns;
++	unsigned int                     tEYE_in_ns;
++	unsigned int                     tDELAY_in_ns;
++	unsigned int                     tDS;
++	unsigned int                     tOPEN;
++	unsigned int                     tCLOSE;
++	unsigned int                     tEYE;
++	unsigned int                     tDELAY;
++	const unsigned int               diagram_width_in_chars = 55;
++	unsigned int                     diagram_width_in_ns;
++	int                              o = 0;
++	unsigned int                     i;
++
++	/*
++	 * If there are any timing characteristics we need, but don't know, we
++	 * pretend they're zero.
++	 */
++
++	if (timing.tREA_in_ns < 0)
++		timing.tREA_in_ns = 0;
++
++	if (timing.tRHOH_in_ns < 0)
++		timing.tRHOH_in_ns = 0;
++
++	/* Get information about the current/last I/O transaction. */
++
++	nfc->get_timing(this, &clock_frequency_in_hz, &hardware_timing);
++
++	clock_period_in_ns = 1000000000 / clock_frequency_in_hz;
++
++	/* Compute basic timing facts. */
++
++	data_setup_in_ns =
++		hardware_timing.data_setup_in_cycles * clock_period_in_ns;
++
++	/* Compute data sample delay facts. */
++
++	dll_delay_shift = 3;
++
++	if (hardware_timing.use_half_periods)
++		dll_delay_shift++;
++
++	sample_delay_in_ns =
++		(hardware_timing.sample_delay_factor * clock_period_in_ns) >>
++								dll_delay_shift;
++
++	/* Compute the basic metrics in the diagram, in nanoseconds. */
++
++	tDS_in_ns    = data_setup_in_ns;
++	tOPEN_in_ns  = pdata->max_prop_delay_in_ns + timing.tREA_in_ns;
++	tCLOSE_in_ns = pdata->min_prop_delay_in_ns + timing.tRHOH_in_ns;
++	tEYE_in_ns   = tDS_in_ns + tCLOSE_in_ns - tOPEN_in_ns;
++	tDELAY_in_ns = sample_delay_in_ns;
++
++	/*
++	 * We need to translate nanosecond timings into character widths in the
++	 * diagram. The first step is to discover how "wide" the diagram is in
++	 * nanoseconds. That depends on which happens latest: the sample point
++	 * or the close of the eye.
++	 */
++
++	if (tCLOSE_in_ns >= tDELAY_in_ns)
++		diagram_width_in_ns = tDS_in_ns + tCLOSE_in_ns;
++	else
++		diagram_width_in_ns = tDS_in_ns + tDELAY_in_ns;
++
++	/* Convert the metrics that appear in the diagram. */
++
++	tDS    = (tDS_in_ns    * diagram_width_in_chars) / diagram_width_in_ns;
++	tOPEN  = (tOPEN_in_ns  * diagram_width_in_chars) / diagram_width_in_ns;
++	tCLOSE = (tCLOSE_in_ns * diagram_width_in_chars) / diagram_width_in_ns;
++	tEYE   = (tEYE_in_ns   * diagram_width_in_chars) / diagram_width_in_ns;
++	tDELAY = (tDELAY_in_ns * diagram_width_in_chars) / diagram_width_in_ns;
++
++	/*
++	 * Show the results.
++	 *
++	 * This code is really ugly, but it draws a pretty picture :)
++	 */
++
++	o += sprintf(buf + o, "\n");
++
++
++	o += sprintf(buf + o, "Sample ______");
++	for (i = 0; i < tDS; i++)
++		o += sprintf(buf + o, "_");
++	if (tDELAY > 0)
++		for (i = 0; i < (tDELAY - 1); i++)
++			o += sprintf(buf + o, "_");
++	o += sprintf(buf + o, "|");
++	for (i = 0; i < (diagram_width_in_chars - (tDS + tDELAY)); i++)
++		o += sprintf(buf + o, "_");
++	o += sprintf(buf + o, "\n");
++
++
++	o += sprintf(buf + o, "Strobe       ");
++	for (i = 0; i < tDS; i++)
++		o += sprintf(buf + o, " ");
++	o += sprintf(buf + o, "|");
++	if (tDELAY > 1) {
++		for (i = 2; i < tDELAY; i++)
++			o += sprintf(buf + o, "-");
++		o += sprintf(buf + o, "|");
++	}
++	o += sprintf(buf + o, " tDELAY\n");
++
++
++	o += sprintf(buf + o, "\n");
++
++
++	o += sprintf(buf + o, "         tDS ");
++	o += sprintf(buf + o, "|");
++	if (tDS > 1) {
++		for (i = 2; i < tDS; i++)
++			o += sprintf(buf + o, "-");
++		o += sprintf(buf + o, "|");
++	}
++	o += sprintf(buf + o, "\n");
++
++
++	o += sprintf(buf + o, "       ______");
++	for (i = 0; i < tDS; i++)
++		o += sprintf(buf + o, " ");
++	for (i = 0; i < (diagram_width_in_chars - tDS); i++)
++		o += sprintf(buf + o, "_");
++	o += sprintf(buf + o, "\n");
++
++
++	o += sprintf(buf + o, "RDN          ");
++	if (tDS > 0) {
++		if (tDS == 1)
++			o += sprintf(buf + o, "V");
++		else {
++			o += sprintf(buf + o, "\\");
++			for (i = 2; i < tDS; i++)
++				o += sprintf(buf + o, "_");
++			o += sprintf(buf + o, "/");
++		}
++	}
++	o += sprintf(buf + o, "\n");
++
++
++	o += sprintf(buf + o, "\n");
++
++
++	o += sprintf(buf + o, "       tOPEN ");
++	o += sprintf(buf + o, "|");
++	if (tOPEN > 1) {
++		for (i = 2; i < tOPEN; i++)
++			o += sprintf(buf + o, "-");
++		o += sprintf(buf + o, "|");
++	}
++	o += sprintf(buf + o, "\n");
++
++
++	o += sprintf(buf + o, "             ");
++	for (i = 0; i < tDS; i++)
++		o += sprintf(buf + o, " ");
++	o += sprintf(buf + o, "|");
++	if (tCLOSE > 1) {
++		for (i = 2; i < tCLOSE; i++)
++			o += sprintf(buf + o, "-");
++		o += sprintf(buf + o, "|");
++	}
++	o += sprintf(buf + o, " tCLOSE\n");
++
++
++	o += sprintf(buf + o, "             ");
++	for (i = 0; i < tOPEN; i++)
++		o += sprintf(buf + o, " ");
++	if (tEYE > 2) {
++		o += sprintf(buf + o, " ");
++		for (i = 2; i < tEYE; i++)
++			o += sprintf(buf + o, "_");
++	}
++	o += sprintf(buf + o, "\n");
++
++
++	o += sprintf(buf + o, "Data   ______");
++	for (i = 0; i < tOPEN; i++)
++		o += sprintf(buf + o, "_");
++	if (tEYE > 0) {
++		if (tEYE == 1)
++			o += sprintf(buf + o, "|");
++		else {
++			o += sprintf(buf + o, "/");
++			for (i = 2; i < tEYE; i++)
++				o += sprintf(buf + o, " ");
++			o += sprintf(buf + o, "\\");
++		}
++	}
++	for (i = 0; i < (diagram_width_in_chars - (tOPEN + tEYE)); i++)
++		o += sprintf(buf + o, "_");
++	o += sprintf(buf + o, "\n");
++
++
++	o += sprintf(buf + o, "             ");
++	for (i = 0; i < tOPEN; i++)
++		o += sprintf(buf + o, " ");
++	if (tEYE > 0) {
++		if (tEYE == 1)
++			o += sprintf(buf + o, "|");
++		else {
++			o += sprintf(buf + o, "\\");
++			for (i = 2; i < tEYE; i++)
++				o += sprintf(buf + o, "_");
++			o += sprintf(buf + o, "/");
++		}
++	}
++	o += sprintf(buf + o, "\n");
++
++
++	o += sprintf(buf + o, "             ");
++	for (i = 0; i < tOPEN; i++)
++		o += sprintf(buf + o, " ");
++	o += sprintf(buf + o, "|");
++	if (tEYE > 1) {
++		for (i = 2; i < tEYE; i++)
++			o += sprintf(buf + o, "-");
++		o += sprintf(buf + o, "|");
++	}
++	o += sprintf(buf + o, " tEYE\n");
++
++
++	o += sprintf(buf + o, "\n");
++	o += sprintf(buf + o, "tDS   : %u ns\n", tDS_in_ns);
++	o += sprintf(buf + o, "tOPEN : %u ns\n", tOPEN_in_ns);
++	o += sprintf(buf + o, "tCLOSE: %u ns\n", tCLOSE_in_ns);
++	o += sprintf(buf + o, "tEYE  : %u ns\n", tEYE_in_ns);
++	o += sprintf(buf + o, "tDELAY: %u ns\n", tDELAY_in_ns);
++	o += sprintf(buf + o, "\n");
++
++
++	return o;
++
++}
++
++/**
++ * store_device_invalidate_page_cache() - Invalidates the device's page cache.
++ *
++ * @dev:   The device of interest.
++ * @attr:  The attribute of interest.
++ * @buf:   A buffer containing a new attribute value.
++ * @size:  The size of the buffer.
++ */
++static ssize_t store_device_invalidate_page_cache(struct device *dev,
++		struct device_attribute *attr, const char *buf, size_t size)
++{
++	struct gpmi_nfc_data  *this = dev_get_drvdata(dev);
++
++	/* Invalidate the page cache. */
++
++	this->mil.nand.pagebuf = -1;
++
++	/* Return success. */
++
++	return size;
++
++}
++
++/**
+  * store_device_mark_block_bad() - Marks a block as bad.
+  *
+  * @dev:   The device of interest.
+@@ -600,21 +913,198 @@ static ssize_t store_device_inject_ecc_error(struct device *dev,
+ }
+ 
+ /**
+- * store_device_invalidate_page_cache() - Invalidates the device's page cache.
++ * show_device_timing_help() - Show help for setting timing.
++ *
++ * @d:     The device of interest.
++ * @attr:  The attribute of interest.
++ * @buf:   A buffer that will receive a representation of the attribute.
++ */
++static ssize_t show_device_timing_help(struct device *dev,
++				struct device_attribute *attr, char *buf)
++{
++
++	static const char *help =
++		"<Data Setup>,<Data Hold>,<Address Setup>,<Sample Delay>,"
++						"<tREA>,<tRLOH>,<tRHOH>\n";
++
++	return sprintf(buf, "%s", help);
++
++}
++
++/**
++ * show_device_timing() - Shows the current timing.
++ *
++ * @d:     The device of interest.
++ * @attr:  The attribute of interest.
++ * @buf:   A buffer that will receive a representation of the attribute.
++ */
++static ssize_t show_device_timing(struct device *dev,
++				struct device_attribute *attr, char *buf)
++{
++	struct gpmi_nfc_data             *this      = dev_get_drvdata(dev);
++	struct gpmi_nfc_platform_data    *pdata     = this->pdata;
++	struct nfc_hal                   *nfc       = this->nfc;
++	struct gpmi_nfc_timing           *recorded  = &nfc->timing;
++	unsigned long                    clock_frequency_in_hz;
++	unsigned long                    clock_period_in_ns;
++	struct gpmi_nfc_hardware_timing  hardware;
++	unsigned int                     effective_data_setup_in_ns;
++	unsigned int                     effective_data_hold_in_ns;
++	unsigned int                     effective_address_setup_in_ns;
++	unsigned int                     dll_delay_shift;
++	unsigned int                     effective_sample_delay_in_ns;
++
++	/* Get information about the current/last I/O transaction. */
++
++	nfc->get_timing(this, &clock_frequency_in_hz, &hardware);
++
++	clock_period_in_ns = 1000000000 / clock_frequency_in_hz;
++
++	/* Compute basic timing facts. */
++
++	effective_data_setup_in_ns    =
++			hardware.data_setup_in_cycles    * clock_period_in_ns;
++	effective_data_hold_in_ns     =
++			hardware.data_hold_in_cycles     * clock_period_in_ns;
++	effective_address_setup_in_ns =
++			hardware.address_setup_in_cycles * clock_period_in_ns;
++
++	/* Compute data sample delay facts. */
++
++	dll_delay_shift = 3;
++
++	if (hardware.use_half_periods)
++		dll_delay_shift++;
++
++	effective_sample_delay_in_ns =
++		(hardware.sample_delay_factor * clock_period_in_ns) >>
++								dll_delay_shift;
++
++	/* Show the results. */
++
++	return sprintf(buf,
++		"Minimum Propagation Delay in ns  : %u\n"
++		"Maximum Propagation Delay in ns  : %u\n"
++		"Clock Frequency in Hz            : %lu\n"
++		"Clock Period in ns               : %lu\n"
++		"Recorded  Data Setup in ns       : %d\n"
++		"Hardware  Data Setup in cycles   : %u\n"
++		"Effective Data Setup in ns       : %u\n"
++		"Recorded  Data Hold in ns        : %d\n"
++		"Hardware  Data Hold in cycles    : %u\n"
++		"Effective Data Hold in ns        : %u\n"
++		"Recorded  Address Setup in ns    : %d\n"
++		"Hardware  Address Setup in cycles: %u\n"
++		"Effective Address Setup in ns    : %u\n"
++		"Using Half Period                : %s\n"
++		"Recorded  Sample Delay in ns     : %d\n"
++		"Hardware  Sample Delay Factor    : %u\n"
++		"Effective Sample Delay in ns     : %u\n"
++		"Recorded  tREA in ns             : %d\n"
++		"Recorded  tRLOH in ns            : %d\n"
++		"Recorded  tRHOH in ns            : %d\n"
++		,
++		pdata->min_prop_delay_in_ns,
++		pdata->max_prop_delay_in_ns,
++		clock_frequency_in_hz,
++		clock_period_in_ns,
++		recorded->data_setup_in_ns,
++		hardware .data_setup_in_cycles,
++		effective_data_setup_in_ns,
++		recorded->data_hold_in_ns,
++		hardware .data_hold_in_cycles,
++		effective_data_hold_in_ns,
++		recorded->address_setup_in_ns,
++		hardware .address_setup_in_cycles,
++		effective_address_setup_in_ns,
++		hardware .use_half_periods ? "Yes" : "No",
++		recorded->gpmi_sample_delay_in_ns,
++		hardware .sample_delay_factor,
++		effective_sample_delay_in_ns,
++		recorded->tREA_in_ns,
++		recorded->tRLOH_in_ns,
++		recorded->tRHOH_in_ns);
++
++}
++
++/**
++ * store_device_timing() - Sets the current timing.
+  *
+  * @dev:   The device of interest.
+  * @attr:  The attribute of interest.
+  * @buf:   A buffer containing a new attribute value.
+  * @size:  The size of the buffer.
+  */
+-static ssize_t store_device_invalidate_page_cache(struct device *dev,
++static ssize_t store_device_timing(struct device *dev,
+ 		struct device_attribute *attr, const char *buf, size_t size)
+ {
+-	struct gpmi_nfc_data  *this = dev_get_drvdata(dev);
++	struct gpmi_nfc_data    *this = dev_get_drvdata(dev);
++	struct nfc_hal          *nfc  = this->nfc;
++	const char              *p    = buf;
++	const char              *q;
++	char                    tmps[20];
++	long                    t;
++	struct gpmi_nfc_timing  new;
++
++	int8_t *field_pointers[] = {
++		&new.data_setup_in_ns,
++		&new.data_hold_in_ns,
++		&new.address_setup_in_ns,
++		&new.gpmi_sample_delay_in_ns,
++		&new.tREA_in_ns,
++		&new.tRLOH_in_ns,
++		&new.tRHOH_in_ns,
++		NULL,
++	};
++
++	int8_t **field_pointer = field_pointers;
+ 
+-	/* Invalidate the page cache. */
++	/*
++	 * Loop over comma-separated timing values in the incoming buffer,
++	 * assigning them to fields in the timing structure as we go along.
++	 */
+ 
+-	this->mil.nand.pagebuf = -1;
++	while (*field_pointer != NULL) {
++
++		/* Clear out the temporary buffer. */
++
++		memset(tmps, 0, sizeof(tmps));
++
++		/* Copy the timing value into the temporary buffer. */
++
++		q = strchr(p, ',');
++		if (q)
++			strncpy(tmps, p, min_t(int, sizeof(tmps) - 1, q - p));
++		else
++			strncpy(tmps, p, sizeof(tmps) - 1);
++
++		/* Attempt to convert the current timing value. */
++
++		if (strict_strtol(tmps, 0, &t) < 0)
++			return -EINVAL;
++
++		if ((t > 127) || (t < -128))
++			return -EINVAL;
++
++		/* Assign this value to the current field. */
++
++		**field_pointer = (int8_t) t;
++		field_pointer++;
++
++		/* Check if we ran out of input too soon. */
++
++		if (!q && *field_pointer)
++			return -EINVAL;
++
++		/* Move past the comma to the next timing value. */
++
++		p = q + 1;
++
++	}
++
++	/* Hand over the timing to the NFC. */
++
++	nfc->set_timing(this, &new);
+ 
+ 	/* Return success. */
+ 
+@@ -624,6 +1114,7 @@ static ssize_t store_device_invalidate_page_cache(struct device *dev,
+ 
+ /* Device attributes that appear in sysfs. */
+ 
++static DEVICE_ATTR(report           , 0555, show_device_report           , 0);
+ static DEVICE_ATTR(numchips         , 0444, show_device_numchips         , 0);
+ static DEVICE_ATTR(physical_geometry, 0444, show_device_physical_geometry, 0);
+ static DEVICE_ATTR(nfc_info         , 0444, show_device_nfc_info         , 0);
+@@ -631,6 +1122,11 @@ static DEVICE_ATTR(nfc_geometry     , 0444, show_device_nfc_geometry     , 0);
+ static DEVICE_ATTR(rom_geometry     , 0444, show_device_rom_geometry     , 0);
+ static DEVICE_ATTR(mtd_nand_info    , 0444, show_device_mtd_nand_info    , 0);
+ static DEVICE_ATTR(mtd_info         , 0444, show_device_mtd_info         , 0);
++static DEVICE_ATTR(timing_diagram   , 0444, show_device_timing_diagram   , 0);
++static DEVICE_ATTR(timing_help      , 0444, show_device_timing_help      , 0);
++
++static DEVICE_ATTR(invalidate_page_cache, 0644,
++	0, store_device_invalidate_page_cache);
+ 
+ static DEVICE_ATTR(mark_block_bad, 0200,
+ 	0, store_device_mark_block_bad);
+@@ -641,10 +1137,11 @@ static DEVICE_ATTR(ignorebad, 0644,
+ static DEVICE_ATTR(inject_ecc_error, 0644,
+ 	show_device_inject_ecc_error, store_device_inject_ecc_error);
+ 
+-static DEVICE_ATTR(invalidate_page_cache, 0644,
+-	0, store_device_invalidate_page_cache);
++static DEVICE_ATTR(timing, 0644,
++	show_device_timing, store_device_timing);
+ 
+ static struct device_attribute *device_attributes[] = {
++	&dev_attr_report,
+ 	&dev_attr_numchips,
+ 	&dev_attr_physical_geometry,
+ 	&dev_attr_nfc_info,
+@@ -652,10 +1149,13 @@ static struct device_attribute *device_attributes[] = {
+ 	&dev_attr_rom_geometry,
+ 	&dev_attr_mtd_nand_info,
+ 	&dev_attr_mtd_info,
++	&dev_attr_invalidate_page_cache,
+ 	&dev_attr_mark_block_bad,
+ 	&dev_attr_ignorebad,
+ 	&dev_attr_inject_ecc_error,
+-	&dev_attr_invalidate_page_cache,
++	&dev_attr_timing,
++	&dev_attr_timing_help,
++	&dev_attr_timing_diagram,
+ };
+ 
+ /**
+diff --git a/drivers/mtd/nand/gpmi-nfc/gpmi-nfc-mil.c b/drivers/mtd/nand/gpmi-nfc/gpmi-nfc-mil.c
+index 85d5a12..34505b8 100644
+--- a/drivers/mtd/nand/gpmi-nfc/gpmi-nfc-mil.c
++++ b/drivers/mtd/nand/gpmi-nfc/gpmi-nfc-mil.c
+@@ -1682,12 +1682,10 @@ static int mil_scan_bbt(struct mtd_info *mtd)
+ 	/*
+ 	 * Copy the device info into the per-device data. We can't just keep
+ 	 * the pointer because that storage is reclaimed after initialization.
+-	 * Notice that we null out the pointer to the device description, which
+-	 * will also be reclaimed.
+ 	 */
+ 
+ 	this->device_info = *info;
+-	this->device_info.description = 0;
++	this->device_info.description = kstrdup(info->description, GFP_KERNEL);
+ 
+ 	/* Set up geometry. */
+ 
+@@ -1845,8 +1843,8 @@ static int mil_boot_areas_init(struct gpmi_nfc_data *this)
+ 	 *
+ 	 * The code that handles "more than one" boot area actually only handles
+ 	 * two. We *could* write the general case, but that would take a lot of
+-	 * time to both write and test -- and, at this writing, we don't have a
+-	 * chip that cares.
++	 * time to both write and test -- and, right now, we don't have a chip
++	 * that cares.
+ 	 */
+ 
+ 	/* Check if a boot area is larger than a single chip. */
+@@ -1889,13 +1887,25 @@ static int mil_boot_areas_init(struct gpmi_nfc_data *this)
+ 		/* Find the general use MTD. */
+ 
+ 		for (i = 0; i < MAX_MTD_DEVICES; i++) {
++
++			/* Get the current MTD so we can examine it. */
++
+ 			search_mtd = get_mtd_device(0, i);
+-			if (!search_mtd)
+-				continue;
+-			if (search_mtd == ERR_PTR(-ENODEV))
++
++			/* Check if we got nonsense. */
++
++			if ((!search_mtd) || (search_mtd == ERR_PTR(-ENODEV)))
+ 				continue;
++
++			/* Check if the current MTD is one of our remainders. */
++
+ 			if (search_mtd->name == general_use_name)
+ 				mil->general_use_mtd = search_mtd;
++
++			/* Put the MTD back. We only wanted a quick look. */
++
++			put_mtd_device(search_mtd);
++
+ 		}
+ 
+ 		if (!mil->general_use_mtd) {
+@@ -1910,8 +1920,9 @@ static int mil_boot_areas_init(struct gpmi_nfc_data *this)
+ #if defined(CONFIG_MTD_PARTITIONS) && defined(CONFIG_MTD_CONCAT)
+ 
+ 		/*
+-		 * If control arrives here, there is more than one chip. We
+-		 * partition the medium and concatenate the remainders like so:
++		 * If control arrives here, there is more than one boot area.
++		 * We partition the medium and concatenate the remainders like
++		 * so:
+ 		 *
+ 		 *  --- Chip 0 ---   --- Chip 1 --- ... ------- Chip N -------
+ 		 * /              \ /                                         \
+@@ -1924,29 +1935,18 @@ static int mil_boot_areas_init(struct gpmi_nfc_data *this)
+ 		 *      |          |/                                      /
+ 		 *      +----------+----------- ... ----------------------+
+ 		 *      |                   General Use                   |
+-		 *      +----------+----------- ... ----------------------+
++		 *      +---------------------- ... ----------------------+
+ 		 *
+ 		 * Notice that the results we leave in the master MTD table
+-		 * are a little bit goofy:
++		 * look like this:
+ 		 *
+ 		 *    * Chip 0 Boot Area
+ 		 *    * Chip 1 Boot Area
+-		 *    * Chip 0 Remainder
+-		 *    * Medium Remainder
+-		 *
+-		 * There are two reasons:
+-		 *
+-		 * 1) Since the remainder partitions aren't very useful, we'd
+-		 *    actually prefer to "hide" (create them but not register
+-		 *    them). This was possible before 2.6.31, but now the
+-		 *    partitioning code automatically registers anything it
+-		 *    creates (thanks :(). It might be possible to "unregister"
+-		 *    these MTDs after the fact, but I don't have time to look
+-		 *    into the other effects that might have.
++		 *    * General Use
+ 		 *
+-		 * 2) Some user space programs expect the boot partitions to
+-		 *    appear first. This is naive, but let's try not to cause
+-		 *    any trouble, where we can avoid it.
++		 * Some user space programs expect the boot partitions to
++		 * appear first. This is naive, but let's try not to cause
++		 * any trouble, where we can avoid it.
+ 		 */
+ 
+ 		/* Chip 0 Boot */
+diff --git a/drivers/mtd/nand/gpmi-nfc/gpmi-nfc-rom-v0.c b/drivers/mtd/nand/gpmi-nfc/gpmi-nfc-rom-v0.c
+index a2a4598..35321cc 100644
+--- a/drivers/mtd/nand/gpmi-nfc/gpmi-nfc-rom-v0.c
++++ b/drivers/mtd/nand/gpmi-nfc/gpmi-nfc-rom-v0.c
+@@ -88,7 +88,6 @@ static int set_geometry(struct gpmi_nfc_data *this)
+ static int check_transcription_stamp(struct gpmi_nfc_data *this)
+ {
+ 	struct physical_geometry  *physical = &this->physical_geometry;
+-	struct nfc_geometry       *nfc_geo  = &this->nfc_geometry;
+ 	struct boot_rom_geometry  *rom_geo  = &this->rom_geometry;
+ 	struct mil                *mil      = &this->mil;
+ 	struct mtd_info           *mtd      = &mil->mtd;
+diff --git a/drivers/mtd/nand/gpmi-nfc/gpmi-nfc.h b/drivers/mtd/nand/gpmi-nfc/gpmi-nfc.h
+index 08afbcf..6f14b73 100644
+--- a/drivers/mtd/nand/gpmi-nfc/gpmi-nfc.h
++++ b/drivers/mtd/nand/gpmi-nfc/gpmi-nfc.h
+@@ -30,6 +30,7 @@
+ #include <linux/io.h>
+ #include <linux/interrupt.h>
+ #include <linux/clk.h>
++#include <linux/delay.h>
+ #include <linux/platform_device.h>
+ #include <linux/dma-mapping.h>
+ #include <linux/mtd/mtd.h>
+@@ -362,36 +363,58 @@ struct gpmi_nfc_data {
+  * This structure contains the fundamental timing attributes for the NAND Flash
+  * bus and the GPMI NFC hardware.
+  *
+- * @data_setup_in_ns:          The data setup time, in nanoseconds. Usually the
+- *                             maximum of tDS and tWP. A negative value
+- *                             indicates this characteristic isn't known.
+- * @data_hold_in_ns:           The data hold time, in nanoseconds. Usually the
+- *                             maximum of tDH, tWH and tREH. A negative value
+- *                             indicates this characteristic isn't known.
+- * @address_setup_in_ns:       The address setup time, in nanoseconds. Usually
+- *                             the maximum of tCLS, tCS and tALS. A negative
+- *                             value indicates this characteristic isn't known.
+- * @gpmi_sample_time_in_ns:    A GPMI-specific timing parameter. A negative
+- *                             value indicates this characteristic isn't known.
+- * @tREA_in_ns:                tREA, in nanoseconds, from the data sheet. A
+- *                             negative value indicates this characteristic
+- *                             isn't known.
+- * @tRLOH_in_ns:               tRLOH, in nanoseconds, from the data sheet. A
+- *                             negative value indicates this characteristic
+- *                             isn't known.
+- * @tRHOH_in_ns:               tRHOH, in nanoseconds, from the data sheet. A
+- *                             negative value indicates this characteristic
+- *                             isn't known.
++ * @data_setup_in_ns:         The data setup time, in nanoseconds. Usually the
++ *                            maximum of tDS and tWP. A negative value
++ *                            indicates this characteristic isn't known.
++ * @data_hold_in_ns:          The data hold time, in nanoseconds. Usually the
++ *                            maximum of tDH, tWH and tREH. A negative value
++ *                            indicates this characteristic isn't known.
++ * @address_setup_in_ns:      The address setup time, in nanoseconds. Usually
++ *                            the maximum of tCLS, tCS and tALS. A negative
++ *                            value indicates this characteristic isn't known.
++ * @gpmi_sample_delay_in_ns:  A GPMI-specific timing parameter. A negative value
++ *                            indicates this characteristic isn't known.
++ * @tREA_in_ns:               tREA, in nanoseconds, from the data sheet. A
++ *                            negative value indicates this characteristic isn't
++ *                            known.
++ * @tRLOH_in_ns:              tRLOH, in nanoseconds, from the data sheet. A
++ *                            negative value indicates this characteristic isn't
++ *                            known.
++ * @tRHOH_in_ns:              tRHOH, in nanoseconds, from the data sheet. A
++ *                            negative value indicates this characteristic isn't
++ *                            known.
+  */
+ 
+ struct gpmi_nfc_timing {
+-	int8_t    data_setup_in_ns;
+-	int8_t    data_hold_in_ns;
+-	int8_t    address_setup_in_ns;
+-	int8_t    gpmi_sample_delay_in_ns;
+-	int8_t    tREA_in_ns;
+-	int8_t    tRLOH_in_ns;
+-	int8_t    tRHOH_in_ns;
++	int8_t  data_setup_in_ns;
++	int8_t  data_hold_in_ns;
++	int8_t  address_setup_in_ns;
++	int8_t  gpmi_sample_delay_in_ns;
++	int8_t  tREA_in_ns;
++	int8_t  tRLOH_in_ns;
++	int8_t  tRHOH_in_ns;
++};
++
++/**
++ * struct gpmi_nfc_hardware_timing - GPMI NFC hardware timing parameters.
++ *
++ * This structure contains timing information expressed in a form directly
++ * usable by the GPMI NFC hardware.
++ *
++ * @data_setup_in_cycles:      The data setup time, in cycles.
++ * @data_hold_in_cycles:       The data hold time, in cycles.
++ * @address_setup_in_cycles:   The address setup time, in cycles.
++ * @use_half_periods:          Indicates the clock is running slowly, so the
++ *                             NFC DLL should use half-periods.
++ * @sample_delay_factor:       The sample delay factor.
++ */
++
++struct gpmi_nfc_hardware_timing {
++	uint8_t  data_setup_in_cycles;
++	uint8_t  data_hold_in_cycles;
++	uint8_t  address_setup_in_cycles;
++	bool     use_half_periods;
++	uint8_t  sample_delay_factor;
+ };
+ 
+ /**
+@@ -399,70 +422,89 @@ struct gpmi_nfc_timing {
+  *
+  * This structure embodies an abstract interface to the underlying NFC hardware.
+  *
+- * @version:                       The NFC hardware version.
+- * @description:                   A pointer to a human-readable description of
+- *                                 the NFC hardware.
+- * @max_chip_count:                The maximum number of chips the NFC can
+- *                                 possibly support (this value is a constant
+- *                                 for each NFC version). This may *not* be the
+- *                                 actual number of chips connected.
+- * @max_data_setup_cycles:         The maximum number of data setup cycles
+- *                                 that can be expressed in the hardware.
+- * @max_data_sample_delay_cycles:  The maximum number of data sample delay
+- *                                 cycles that can be expressed in the hardware.
+- * @max_dll_clock_period_in_ns:    The maximum period of the GPMI clock that the
+- *                                 sample delay DLL hardware can possibly work
+- *                                 with (the DLL is unusable with longer
+- *                                 periods). At HALF this value, the DLL must be
+- *                                 configured to use half-periods.
+- * @dma_descriptors:               A pool of DMA descriptors.
+- * @isr_dma_channel:               The DMA channel with which the NFC HAL is
+- *                                 working. We record this here so the ISR knows
+- *                                 which DMA channel to acknowledge.
+- * @dma_done:                      The completion structure used for DMA
+- *                                 interrupts.
+- * @bch_done:                      The completion structure used for BCH
+- *                                 interrupts.
+- * @timing:                        The current timing configuration.
+- * @init:                          Initializes the NFC hardware and data
+- *                                 structures. This function will be called
+- *                                 after everything has been set up for
+- *                                 communication with the NFC itself, but before
+- *                                 the platform has set up off-chip
+- *                                 communication. Thus, this function must not
+- *                                 attempt to communicate with the NAND Flash
+- *                                 hardware.
+- * @set_geometry:                  Configures the NFC hardware and data
+- *                                 structures to match the physical NAND Flash
+- *                                 geometry.
+- * @set_geometry:                  Configures the NFC hardware and data
+- *                                 structures to match the physical NAND Flash
+- *                                 geometry.
+- * @exit:                          Shuts down the NFC hardware and data
+- *                                 structures. This function will be called
+- *                                 after the platform has shut down off-chip
+- *                                 communication but while communication with
+- *                                 the NFC itself still works.
+- * @clear_bch:                     Clears a BCH interrupt (intended to be called
+- *                                 by a more general interrupt handler to do
+- *                                 device-specific clearing).
+- * @is_ready:                      Returns true if the given chip is ready.
+- * @begin:                         Begins an interaction with the NFC. This
+- *                                 function must be called before *any* of the
+- *                                 following functions so the NFC can prepare
+- *                                 itself.
+- * @end:                           Ends interaction with the NFC. This function
+- *                                 should be called to give the NFC a chance to,
+- *                                 among other things, enter a lower-power
+- *                                 state.
+- * @send_command:                  Sends the given buffer of command bytes.
+- * @send_data:                     Sends the given buffer of data bytes.
+- * @read_data:                     Reads data bytes into the given buffer.
+- * @send_page:                     Sends the given given data and OOB bytes,
+- *                                 using the ECC engine.
+- * @read_page:                     Reads a page through the ECC engine and
+- *                                 delivers the data and OOB bytes to the given
+- *                                 buffers.
++ * @version:                     The NFC hardware version.
++ * @description:                 A pointer to a human-readable description of
++ *                               the NFC hardware.
++ * @max_chip_count:              The maximum number of chips the NFC can
++ *                               possibly support (this value is a constant for
++ *                               each NFC version). This may *not* be the actual
++ *                               number of chips connected.
++ * @max_data_setup_cycles:       The maximum number of data setup cycles that
++ *                               can be expressed in the hardware.
++ * @internal_data_setup_in_ns:   The time, in ns, that the NFC hardware requires
++ *                               for data read internal setup. In the Reference
++ *                               Manual, see the chapter "High-Speed NAND
++ *                               Timing" for more details.
++ * @max_sample_delay_factor:     The maximum sample delay factor that can be
++ *                               expressed in the hardware.
++ * @max_dll_clock_period_in_ns:  The maximum period of the GPMI clock that the
++ *                               sample delay DLL hardware can possibly work
++ *                               with (the DLL is unusable with longer periods).
++ *                               If the full-cycle period is greater than HALF
++ *                               this value, the DLL must be configured to use
++ *                               half-periods.
++ * @max_dll_delay_in_ns:         The maximum amount of delay, in ns, that the
++ *                               DLL can implement.
++ * @dma_descriptors:             A pool of DMA descriptors.
++ * @isr_dma_channel:             The DMA channel with which the NFC HAL is
++ *                               working. We record this here so the ISR knows
++ *                               which DMA channel to acknowledge.
++ * @dma_done:                    The completion structure used for DMA
++ *                               interrupts.
++ * @bch_done:                    The completion structure used for BCH
++ *                               interrupts.
++ * @timing:                      The current timing configuration.
++ * @clock_frequency_in_hz:       The clock frequency, in Hz, during the current
++ *                               I/O transaction. If no I/O transaction is in
++ *                               progress, this is the clock frequency during
++ *                               the most recent I/O transaction.
++ * @hardware_timing:             The hardware timing configuration in effect
++ *                               during the current I/O transaction. If no I/O
++ *                               transaction is in progress, this is the
++ *                               hardware timing configuration during the most
++ *                               recent I/O transaction.
++ * @init:                        Initializes the NFC hardware and data
++ *                               structures. This function will be called after
++ *                               everything has been set up for communication
++ *                               with the NFC itself, but before the platform
++ *                               has set up off-chip communication. Thus, this
++ *                               function must not attempt to communicate with
++ *                               the NAND Flash hardware.
++ * @set_geometry:                Configures the NFC hardware and data structures
++ *                               to match the physical NAND Flash geometry.
++ * @set_geometry:                Configures the NFC hardware and data structures
++ *                               to match the physical NAND Flash geometry.
++ * @set_timing:                  Configures the NFC hardware and data structures
++ *                               to match the given NAND Flash bus timing.
++ * @get_timing:                  Returns the the clock frequency, in Hz, and
++ *                               the hardware timing configuration during the
++ *                               current I/O transaction. If no I/O transaction
++ *                               is in progress, this is the timing state during
++ *                               the most recent I/O transaction.
++ * @exit:                        Shuts down the NFC hardware and data
++ *                               structures. This function will be called after
++ *                               the platform has shut down off-chip
++ *                               communication but while communication with the
++ *                               NFC itself still works.
++ * @clear_bch:                   Clears a BCH interrupt (intended to be called
++ *                               by a more general interrupt handler to do
++ *                               device-specific clearing).
++ * @is_ready:                    Returns true if the given chip is ready.
++ * @begin:                       Begins an interaction with the NFC. This
++ *                               function must be called before *any* of the
++ *                               following functions so the NFC can prepare
++ *                               itself.
++ * @end:                         Ends interaction with the NFC. This function
++ *                               should be called to give the NFC a chance to,
++ *                               among other things, enter a lower-power state.
++ * @send_command:                Sends the given buffer of command bytes.
++ * @send_data:                   Sends the given buffer of data bytes.
++ * @read_data:                   Reads data bytes into the given buffer.
++ * @send_page:                   Sends the given given data and OOB bytes,
++ *                               using the ECC engine.
++ * @read_page:                   Reads a page through the ECC engine and
++ *                               delivers the data and OOB bytes to the given
++ *                               buffers.
+  */
+ 
+ #define  NFC_DMA_DESCRIPTOR_COUNT  (4)
+@@ -475,8 +517,10 @@ struct nfc_hal {
+ 	const char              *description;
+ 	const unsigned int      max_chip_count;
+ 	const unsigned int      max_data_setup_cycles;
+-	const unsigned int      max_data_sample_delay_cycles;
++	const unsigned int      internal_data_setup_in_ns;
++	const unsigned int      max_sample_delay_factor;
+ 	const unsigned int      max_dll_clock_period_in_ns;
++	const unsigned int      max_dll_delay_in_ns;
+ 
+ 	/* Working variables. */
+ 
+@@ -485,13 +529,17 @@ struct nfc_hal {
+ 	struct completion       dma_done;
+ 	struct completion       bch_done;
+ 	struct gpmi_nfc_timing  timing;
++	unsigned long           clock_frequency_in_hz;
+ 
+ 	/* Configuration functions. */
+ 
+ 	int   (*init)        (struct gpmi_nfc_data *);
+ 	int   (*set_geometry)(struct gpmi_nfc_data *);
+ 	int   (*set_timing)  (struct gpmi_nfc_data *,
+-						const struct gpmi_nfc_timing *);
++					const struct gpmi_nfc_timing *);
++	void  (*get_timing)  (struct gpmi_nfc_data *,
++					unsigned long *clock_frequency_in_hz,
++					struct gpmi_nfc_hardware_timing *);
+ 	void  (*exit)        (struct gpmi_nfc_data *);
+ 
+ 	/* Call these functions to begin and end I/O. */
+@@ -570,6 +618,8 @@ extern int gpmi_nfc_dma_init(struct gpmi_nfc_data *this);
+ extern void gpmi_nfc_dma_exit(struct gpmi_nfc_data *this);
+ extern int gpmi_nfc_set_geometry(struct gpmi_nfc_data *this);
+ extern int gpmi_nfc_dma_go(struct gpmi_nfc_data *this, int  dma_channel);
++extern int gpmi_nfc_compute_hardware_timing(struct gpmi_nfc_data *this,
++					struct gpmi_nfc_hardware_timing *hw);
+ 
+ /* NFC HAL Structures */
+ 
+diff --git a/drivers/mtd/nand/nand_device_info.c b/drivers/mtd/nand/nand_device_info.c
+index ecd5b21..1ab1d1d 100644
+--- a/drivers/mtd/nand/nand_device_info.c
++++ b/drivers/mtd/nand/nand_device_info.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2009-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -1284,9 +1284,9 @@ static struct nand_device_info nand_device_info_table_type_9[] __initdata =
+ 	.data_hold_in_ns          = 10,
+ 	.address_setup_in_ns      = 25,
+ 	.gpmi_sample_delay_in_ns  = 6,
+-	.tREA_in_ns               = -1,
+-	.tRLOH_in_ns              = -1,
+-	.tRHOH_in_ns              = -1,
++	.tREA_in_ns               = 20,
++	.tRLOH_in_ns              = 5,
++	.tRHOH_in_ns              = 15,
+ 	"K9LBG08U0D",
+ 	},
+ 	{
+-- 
+1.5.4.4
+

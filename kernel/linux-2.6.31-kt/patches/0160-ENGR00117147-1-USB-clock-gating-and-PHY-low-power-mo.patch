@@ -1,0 +1,206 @@
+From 9a3dd2536ccf1bb0aa5610b18a897d687d2ef3ac Mon Sep 17 00:00:00 2001
+From: Jun Li <r65092@freescale.com>
+Date: Tue, 1 Dec 2009 21:13:48 +0800
+Subject: [PATCH] ENGR00117147-1 USB clock gating and PHY low power mode.
+
+If there is no usb devices connectted or all connectted usb
+devices are in suspend state, usb host can suspend its whole bus,
+then put the PHY into low power mode and close all usb clocks.
+(The patch is splitted 2 patches, this is common code part.)
+
+Signed-off-by: Li Jun <r65092@freescale.com>
+---
+ drivers/usb/core/generic.c   |   38 ++++++++++++++++++++++++++++++++++----
+ drivers/usb/core/hcd.c       |   10 ++++++++--
+ drivers/usb/core/hub.c       |    7 ++-----
+ drivers/usb/host/ehci-hub.c  |    9 ++++++---
+ include/linux/usb/ehci_def.h |    3 ++-
+ 5 files changed, 52 insertions(+), 15 deletions(-)
+
+diff --git a/drivers/usb/core/generic.c b/drivers/usb/core/generic.c
+index 30ecac3..66e8a42 100644
+--- a/drivers/usb/core/generic.c
++++ b/drivers/usb/core/generic.c
+@@ -20,6 +20,8 @@
+ #include <linux/usb.h>
+ #include "usb.h"
+ #include "hcd.h"
++#include <linux/io.h>
++#include <linux/fsl_devices.h>
+ 
+ static inline const char *plural(int n)
+ {
+@@ -190,20 +192,40 @@ static void generic_disconnect(struct usb_device *udev)
+ 
+ #ifdef	CONFIG_PM
+ 
++extern void usb_host_set_wakeup(struct device *wkup_dev, bool para);
+ static int generic_suspend(struct usb_device *udev, pm_message_t msg)
+ {
+ 	int rc;
++	u32 temp;
+ 
+ 	/* Normal USB devices suspend through their upstream port.
+ 	 * Root hubs don't have upstream ports to suspend,
+ 	 * so we have to shut down their downstream HC-to-USB
+ 	 * interfaces manually by doing a bus (or "global") suspend.
+ 	 */
+-	if (!udev->parent)
++	if (!udev->parent) {
++		struct usb_hcd  *hcd =
++			container_of(udev->bus, struct usb_hcd, self);
++		struct fsl_usb2_platform_data *pdata;
++		pdata = hcd->self.controller->platform_data;
++
+ 		rc = hcd_bus_suspend(udev, msg);
+ 
++		if (device_may_wakeup(hcd->self.controller)) {
++			clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
++			/* enable remote wake up irq */
++			usb_host_set_wakeup(hcd->self.controller, true);
++
++			/* Put PHY into low power mode */
++			temp = readl(hcd->regs + 0x184);
++			writel(temp | (1 << 23), (hcd->regs + 0x184));
++
++			if (pdata->usb_clock_for_pm)
++				pdata->usb_clock_for_pm(false);
++		}
+ 	/* Non-root devices don't need to do anything for FREEZE or PRETHAW */
+-	else if (msg.event == PM_EVENT_FREEZE || msg.event == PM_EVENT_PRETHAW)
++	} else if (msg.event == PM_EVENT_FREEZE ||
++			msg.event == PM_EVENT_PRETHAW)
+ 		rc = 0;
+ 	else
+ 		rc = usb_port_suspend(udev, msg);
+@@ -214,15 +236,23 @@ static int generic_suspend(struct usb_device *udev, pm_message_t msg)
+ static int generic_resume(struct usb_device *udev, pm_message_t msg)
+ {
+ 	int rc;
++	u32 temp;
+ 
+ 	/* Normal USB devices resume/reset through their upstream port.
+ 	 * Root hubs don't have upstream ports to resume or reset,
+ 	 * so we have to start up their downstream HC-to-USB
+ 	 * interfaces manually by doing a bus (or "global") resume.
+ 	 */
+-	if (!udev->parent)
++	if (!udev->parent) {
++		struct usb_hcd  *hcd =
++			container_of(udev->bus, struct usb_hcd, self);
++
++		if (device_may_wakeup(hcd->self.controller)) {
++			temp = readl(hcd->regs + 0x184);
++			writel(temp & (~(1 << 23)), (hcd->regs + 0x184));
++		}
+ 		rc = hcd_bus_resume(udev, msg);
+-	else
++	} else
+ 		rc = usb_port_resume(udev, msg);
+ 	return rc;
+ }
+diff --git a/drivers/usb/core/hcd.c b/drivers/usb/core/hcd.c
+index d622f70..d27ad10 100644
+--- a/drivers/usb/core/hcd.c
++++ b/drivers/usb/core/hcd.c
+@@ -40,6 +40,7 @@
+ #include <linux/workqueue.h>
+ 
+ #include <linux/usb.h>
++#include <linux/fsl_devices.h>
+ 
+ #include "usb.h"
+ #include "hcd.h"
+@@ -117,10 +118,8 @@ static inline int is_root_hub(struct usb_device *udev)
+ 	return (udev->parent == NULL);
+ }
+ 
+-#if CONFIG_PM
+ extern int usb_host_wakeup_irq(struct device *wkup_dev);
+ extern void usb_host_set_wakeup(struct device *wkup_dev, bool para);
+-#endif
+ /*-------------------------------------------------------------------------*/
+ 
+ /*
+@@ -1877,6 +1876,7 @@ EXPORT_SYMBOL_GPL(usb_bus_start_enum);
+ irqreturn_t usb_hcd_irq (int irq, void *__hcd)
+ {
+ 	struct usb_hcd		*hcd = __hcd;
++	struct fsl_usb2_platform_data *pdata;
+ 	unsigned long		flags;
+ 	irqreturn_t		rc;
+ 
+@@ -1887,10 +1887,16 @@ irqreturn_t usb_hcd_irq (int irq, void *__hcd)
+ 	local_irq_save(flags);
+ 
+ 	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags)) {
++		/* Need open clock for register access */
++		pdata = hcd->self.controller->platform_data;
++		if (pdata->usb_clock_for_pm)
++			pdata->usb_clock_for_pm(true);
++
+ 		/* if receive a remote wakeup interrrupt after suspend */
+ 		if (usb_host_wakeup_irq(hcd->self.controller)) {
+ 			/* disable remote wake up irq */
+ 			usb_host_set_wakeup(hcd->self.controller, false);
++
+ 			set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
+ 			hcd->driver->irq(hcd);
+ 			rc = IRQ_HANDLED;
+diff --git a/drivers/usb/core/hub.c b/drivers/usb/core/hub.c
+index b3f934a..64ad4fe 100644
+--- a/drivers/usb/core/hub.c
++++ b/drivers/usb/core/hub.c
+@@ -1170,13 +1170,10 @@ static int hub_probe(struct usb_interface *intf, const struct usb_device_id *id)
+ 		return -E2BIG;
+ 	}
+ 
+-	/* With OTG enabled, suspending root hub results in gadget not
+-	 * working because gadget uses the same root hub. We disable
+-	 * this feature when OTG is selected.
++	/* Defaultly disable autosuspend for hub and reley on sys
++	 * to enable it.
+ 	 */
+-#if defined(CONFIG_PM) && defined(CONFIG_USB_EHCI_ARC_OTG)
+ 	hdev->autosuspend_disabled = 1;
+-#endif
+ 
+ #ifdef	CONFIG_USB_OTG_BLACKLIST_HUB
+ 	if (hdev->parent) {
+diff --git a/drivers/usb/host/ehci-hub.c b/drivers/usb/host/ehci-hub.c
+index 615d263..de459bb 100644
+--- a/drivers/usb/host/ehci-hub.c
++++ b/drivers/usb/host/ehci-hub.c
+@@ -151,9 +151,12 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
+ 		}
+ 
+ 		/* enable remote wakeup on all ports */
+-		if (hcd->self.root_hub->do_remote_wakeup)
+-			t2 |= PORT_WAKE_BITS;
+-		else
++		if (hcd->self.root_hub->do_remote_wakeup) {
++			if (t1 & PORT_CONNECT)
++				t2 |= PORT_WKOC_E|PORT_WKDISC_E;
++			else
++				t2 |= PORT_WKOC_E|PORT_WKCONN_E;
++		} else
+ 			t2 &= ~PORT_WAKE_BITS;
+ 
+ 		if (t1 != t2) {
+diff --git a/include/linux/usb/ehci_def.h b/include/linux/usb/ehci_def.h
+index 5b88e36..56580aa 100644
+--- a/include/linux/usb/ehci_def.h
++++ b/include/linux/usb/ehci_def.h
+@@ -100,7 +100,8 @@ struct ehci_regs {
+ 
+ 	/* PORTSC: offset 0x44 */
+ 	u32		port_status [0];	/* up to N_PORTS */
+-/* 31:23 reserved */
++/* 31:24 reserved */
++#define PORT_PHCD	(1<<23)		/* PHY Low Power Suspend */
+ #define PORT_WKOC_E	(1<<22)		/* wake on overcurrent (enable) */
+ #define PORT_WKDISC_E	(1<<21)		/* wake on disconnect (enable) */
+ #define PORT_WKCONN_E	(1<<20)		/* wake on connect (enable) */
+-- 
+1.5.4.4
+

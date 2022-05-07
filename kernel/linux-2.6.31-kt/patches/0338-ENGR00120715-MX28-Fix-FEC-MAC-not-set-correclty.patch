@@ -1,0 +1,32 @@
+From 8219d5f7e0c0af4ce84606a71289d050adfb4c86 Mon Sep 17 00:00:00 2001
+From: Jason <r64343@freescale.com>
+Date: Wed, 3 Feb 2010 15:57:52 +0800
+Subject: [PATCH] ENGR00120715 MX28:Fix FEC MAC not set correclty
+
+FEC MAC not set correclty on MX28 EVK board
+
+Signed-off-by:Jason Liu <r64343@freescale.com>
+---
+ drivers/net/fec.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/net/fec.c b/drivers/net/fec.c
+index 7eb22b3..5b63b8d 100644
+--- a/drivers/net/fec.c
++++ b/drivers/net/fec.c
+@@ -1789,10 +1789,10 @@ static const struct net_device_ops fec_netdev_ops = {
+ };
+ #ifdef CONFIG_ARCH_MXS
+ 
+-static int fec_set_hw_mac(struct net_device *dev, char *mac_addr)
++static int fec_set_hw_mac(struct net_device *dev, unsigned char *mac_addr)
+ {
+ 	struct fec_enet_private *fep = netdev_priv(dev);
+-	char *addr = mac_addr;
++	unsigned char *addr = mac_addr;
+ 
+ 	if (!is_valid_ether_addr(addr))
+ 		return -EADDRNOTAVAIL;
+-- 
+1.5.4.4
+

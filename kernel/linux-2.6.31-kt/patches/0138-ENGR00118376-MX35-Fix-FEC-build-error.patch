@@ -1,0 +1,30 @@
+From 7a31d9fb13ddd37dfe0924d579983a5b8d6b29ed Mon Sep 17 00:00:00 2001
+From: Lily Zhang <r58066@freescale.com>
+Date: Wed, 25 Nov 2009 13:58:53 +0800
+Subject: [PATCH] ENGR00118376 MX35: Fix FEC build error
+
+Use "MXC_FEC_BASE_ADDR" instead of FEC_BASE_ADDR
+
+Signed-off-by: Lily Zhang <r58066@freescale.com>
+---
+ arch/arm/mach-mx35/mx35_3stack.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm/mach-mx35/mx35_3stack.c b/arch/arm/mach-mx35/mx35_3stack.c
+index 1231d5e..306f2e8 100644
+--- a/arch/arm/mach-mx35/mx35_3stack.c
++++ b/arch/arm/mach-mx35/mx35_3stack.c
+@@ -518,8 +518,8 @@ static inline void mxc_init_enet(void)
+ #if defined(CONFIG_FEC) || defined(CONFIG_FEC_MODULE)
+ static struct resource mxc_fec_resources[] = {
+ 	{
+-		.start	= FEC_BASE_ADDR,
+-		.end	= FEC_BASE_ADDR + 0xfff,
++		.start	= MXC_FEC_BASE_ADDR,
++		.end	= MXC_FEC_BASE_ADDR + 0xfff,
+ 		.flags	= IORESOURCE_MEM
+ 	}, {
+ 		.start	= MXC_INT_FEC,
+-- 
+1.5.4.4
+

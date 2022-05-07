@@ -1,0 +1,355 @@
+From d4c9027921b9f54e769755a07a398d7711f114cd Mon Sep 17 00:00:00 2001
+From: Zhou Jingyu <b02241@freescale.com>
+Date: Thu, 24 Sep 2009 16:30:13 +0800
+Subject: [PATCH] ENGR00115040 imx233: reduce stanby power below 2mA@3.7v
+
+reduce stanby power to 2mA@3.7v
+
+Signed-off-by: Zhou Jingyu <Jingyu.Zhou@freescale.com>
+---
+ arch/arm/mach-stmp378x/include/mach/regs-clkctrl.h |   34 +++++
+ arch/arm/mach-stmp378x/include/mach/regs-dram.h    |    5 +
+ arch/arm/mach-stmp378x/pm.c                        |  153 +++++++++++++++++++-
+ arch/arm/plat-stmp3xxx/clock.c                     |   22 +++
+ arch/arm/plat-stmp3xxx/core.c                      |    3 -
+ 5 files changed, 213 insertions(+), 4 deletions(-)
+
+diff --git a/arch/arm/mach-stmp378x/include/mach/regs-clkctrl.h b/arch/arm/mach-stmp378x/include/mach/regs-clkctrl.h
+index 7c546af..08f26f1 100644
+--- a/arch/arm/mach-stmp378x/include/mach/regs-clkctrl.h
++++ b/arch/arm/mach-stmp378x/include/mach/regs-clkctrl.h
+@@ -27,20 +27,46 @@
+ 
+ #define HW_CLKCTRL_PLLCTRL0	0x0
+ #define BM_CLKCTRL_PLLCTRL0_EN_USB_CLKS	0x00040000
++#define BM_CLKCTRL_PLLCTRL0_POWER	0x00010000
+ 
+ #define HW_CLKCTRL_CPU		0x20
+ #define BM_CLKCTRL_CPU_DIV_CPU	0x0000003F
+ #define BP_CLKCTRL_CPU_DIV_CPU	0
++#define BM_CLKCTRL_CPU_INTERRUPT_WAIT	0x00001000
+ 
+ #define HW_CLKCTRL_HBUS		0x30
+ #define BM_CLKCTRL_HBUS_DIV	0x0000001F
+ #define BP_CLKCTRL_HBUS_DIV	0
+ #define BM_CLKCTRL_HBUS_DIV_FRAC_EN	0x00000020
++#define BM_CLKCTRL_HBUS_BUSY	0x20000000
++#define BM_CLKCTRL_HBUS_DCP_AS_ENABLE	0x10000000
++#define BM_CLKCTRL_HBUS_PXP_AS_ENABLE	0x08000000
++#define BM_CLKCTRL_HBUS_APBHDMA_AS_ENABLE 0x04000000
++#define BM_CLKCTRL_HBUS_APBXDMA_AS_ENABLE 0x02000000
++#define BM_CLKCTRL_HBUS_TRAFFIC_JAM_AS_ENABLE 0x01000000
++#define BM_CLKCTRL_HBUS_TRAFFIC_AS_ENABLE 0x00800000
++#define BM_CLKCTRL_HBUS_CPU_DATA_AS_ENABLE 0x00400000
++#define BM_CLKCTRL_HBUS_CPU_INSTR_AS_ENABLE 0x00200000
++#define BM_CLKCTRL_HBUS_AUTO_SLOW_MODE 0x00100000
++#define BP_CLKCTRL_HBUS_SLOW_DIV	16
++#define BM_CLKCTRL_HBUS_SLOW_DIV	0x00070000
++#define BF_CLKCTRL_HBUS_SLOW_DIV(v) 	\
++	(((v) << 16) & BM_CLKCTRL_HBUS_SLOW_DIV)
++#define BV_CLKCTRL_HBUS_SLOW_DIV__BY1	0x0
++#define BV_CLKCTRL_HBUS_SLOW_DIV__BY2	0x1
++#define BV_CLKCTRL_HBUS_SLOW_DIV__BY4	0x2
++#define BV_CLKCTRL_HBUS_SLOW_DIV__BY8	0x3
++#define BV_CLKCTRL_HBUS_SLOW_DIV__BY16	0x4
++#define BV_CLKCTRL_HBUS_SLOW_DIV__BY32	0x5
++#define BF_CLKCTRL_HBUS_DIV(v)		\
++	(((v) << 0) & BM_CLKCTRL_HBUS_DIV)
+ 
+ #define HW_CLKCTRL_XBUS		0x40
+ 
+ #define HW_CLKCTRL_XTAL		0x50
+ #define BM_CLKCTRL_XTAL_DRI_CLK24M_GATE	0x10000000
++#define BM_CLKCTRL_XTAL_FILT_CLK24M_GATE 0x40000000
++#define BM_CLKCTRL_XTAL_PWM_CLK24M_GATE	0x20000000
+ 
+ #define HW_CLKCTRL_PIX		0x60
+ #define BM_CLKCTRL_PIX_DIV	0x00000FFF
+@@ -54,6 +80,7 @@
+ #define HW_CLKCTRL_SPDIF	0x90
+ 
+ #define HW_CLKCTRL_EMI		0xA0
++#define BM_CLKCTRL_EMI_CLKGATE	0x80000000
+ #define BM_CLKCTRL_EMI_DIV_EMI	0x0000003F
+ #define BP_CLKCTRL_EMI_DIV_EMI	0
+ #define BM_CLKCTRL_EMI_DCC_RESYNC_ENABLE	0x00010000
+@@ -80,6 +107,13 @@
+ 
+ #define HW_CLKCTRL_CLKSEQ	0x110
+ #define BM_CLKCTRL_CLKSEQ_BYPASS_PIX	0x00000002
++#define BM_CLKCTRL_CLKSEQ_BYPASS_ETM	0x00000100
++#define BM_CLKCTRL_CLKSEQ_BYPASS_CPU	0x00000080
++#define BM_CLKCTRL_CLKSEQ_BYPASS_EMI	0x00000040
++#define BM_CLKCTRL_CLKSEQ_BYPASS_SSP	0x00000020
++#define BM_CLKCTRL_CLKSEQ_BYPASS_GPMI	0x00000010
++#define BM_CLKCTRL_CLKSEQ_BYPASS_IR	0x00000008
++#define BM_CLKCTRL_CLKSEQ_BYPASS_SAIF	0x00000001
+ 
+ #define HW_CLKCTRL_RESET	0x120
+ #define BM_CLKCTRL_RESET_DIG	0x00000001
+diff --git a/arch/arm/mach-stmp378x/include/mach/regs-dram.h b/arch/arm/mach-stmp378x/include/mach/regs-dram.h
+index 0285143..030c0f3 100644
+--- a/arch/arm/mach-stmp378x/include/mach/regs-dram.h
++++ b/arch/arm/mach-stmp378x/include/mach/regs-dram.h
+@@ -25,3 +25,8 @@
+ #define HW_DRAM_CTL06		0x18
+ 
+ #define HW_DRAM_CTL08		0x20
++#define BM_DRAM_CTL08_TRAS_LOCKOUT	0x01000000
++#define BM_DRAM_CTL08_START		0x00010000
++#define BM_DRAM_CTL08_SREFRESH		0x00000100
++#define BM_DRAM_CTL08_SDR_MODE		0x00000001
++
+diff --git a/arch/arm/mach-stmp378x/pm.c b/arch/arm/mach-stmp378x/pm.c
+index bbd9fee..ecb3c23 100644
+--- a/arch/arm/mach-stmp378x/pm.c
++++ b/arch/arm/mach-stmp378x/pm.c
+@@ -36,13 +36,143 @@
+ #include <mach/regs-clkctrl.h>
+ #include <mach/regs-pinctrl.h>
+ #include <mach/regs-power.h>
++#include <mach/regs-gpmi.h>
++#include <mach/regs-pwm.h>
++#include <mach/regs-usbctrl.h>
++#include <mach/regs-apbh.h>
++#include <mach/regs-apbx.h>
++#include <mach/regs-rtc.h>
++#include <mach/regs-dram.h>
++#include <mach/regs-emi.h>
++#include <mach/regs-digctl.h>
+ 
++//#include "clock.h"
+ #include "sleep.h"
+ 
+ #define PENDING_IRQ_RETRY 100
+ static void *saved_sram;
+ static int saved_sleep_state;
+ 
++#define WAIT_DC_OK_CYCLES 24000
++#define WAIT_CYCLE(n) for (i = 0; i < n; i++);
++#define LOWER_VDDIO 10
++#define LOWER_VDDA 9
++#define LOWER_VDDD 0xa
++#define MAX_POWEROFF_CODE_SIZE (6 * 1024)
++
++static void stmp378x_standby(void)
++{
++	int i;
++	u32 reg_vddd, reg_vdda, reg_vddio;
++
++	/* DDR EnterSelfrefreshMode */
++	stmp3xxx_setl(BM_DRAM_CTL08_SREFRESH, REGS_DRAM_BASE + HW_DRAM_CTL08);
++
++	/* Gating EMI CLock */
++	stmp3xxx_setl(BM_CLKCTRL_EMI_CLKGATE, REGS_CLKCTRL_BASE + HW_CLKCTRL_EMI);
++
++	/* Disable PLL */
++	stmp3xxx_clearl(BM_CLKCTRL_PLLCTRL0_POWER, REGS_CLKCTRL_BASE + HW_CLKCTRL_PLLCTRL0);
++
++	/* Reduce the VDDIO (3.050 volt) */
++	reg_vddio = __raw_readl(REGS_POWER_BASE + HW_POWER_VDDIOCTRL);
++	__raw_writel(reg_vddio | BM_POWER_VDDIOCTRL_BO_OFFSET,
++		REGS_POWER_BASE + HW_POWER_VDDIOCTRL);
++	__raw_writel((__raw_readl(REGS_POWER_BASE + HW_POWER_VDDIOCTRL) & ~BM_POWER_VDDIOCTRL_TRG) | LOWER_VDDIO,
++		REGS_POWER_BASE + HW_POWER_VDDIOCTRL);
++	WAIT_CYCLE(WAIT_DC_OK_CYCLES)
++
++	while (!(__raw_readl(REGS_POWER_BASE + HW_POWER_STS) & BM_POWER_STS_DC_OK))
++		;
++
++	/* Reduce VDDA 1.725volt */
++	reg_vdda = __raw_readl(REGS_POWER_BASE + HW_POWER_VDDACTRL);
++	__raw_writel(reg_vdda | BM_POWER_VDDACTRL_BO_OFFSET,
++		REGS_POWER_BASE + HW_POWER_VDDACTRL);
++	__raw_writel((__raw_readl(REGS_POWER_BASE + HW_POWER_VDDACTRL) & ~BM_POWER_VDDACTRL_TRG) | LOWER_VDDA,
++		REGS_POWER_BASE + HW_POWER_VDDACTRL);
++	WAIT_CYCLE(WAIT_DC_OK_CYCLES)
++
++	/* wait for DC_OK */
++	while (!(__raw_readl(REGS_POWER_BASE + HW_POWER_STS) & BM_POWER_STS_DC_OK))
++		;
++
++	/* Reduce VDDD 1.000 volt */
++	reg_vddd = __raw_readl(REGS_POWER_BASE + HW_POWER_VDDDCTRL);
++	__raw_writel(reg_vddd | BM_POWER_VDDDCTRL_BO_OFFSET,
++		REGS_POWER_BASE + HW_POWER_VDDDCTRL);
++	__raw_writel((__raw_readl(REGS_POWER_BASE + HW_POWER_VDDDCTRL) & ~BM_POWER_VDDDCTRL_TRG) | LOWER_VDDD,
++		REGS_POWER_BASE + HW_POWER_VDDDCTRL);
++	WAIT_CYCLE(WAIT_DC_OK_CYCLES)
++
++	while (!(__raw_readl(REGS_POWER_BASE + HW_POWER_STS) & BM_POWER_STS_DC_OK))
++		;
++
++	/* optimize the DCDC loop gain */
++	__raw_writel((__raw_readl(REGS_POWER_BASE + HW_POWER_LOOPCTRL) & ~BM_POWER_LOOPCTRL_EN_RCSCALE),
++		REGS_POWER_BASE + HW_POWER_LOOPCTRL);
++	__raw_writel((__raw_readl(REGS_POWER_BASE + HW_POWER_LOOPCTRL) & ~BM_POWER_LOOPCTRL_DC_R) |
++		(2<<BP_POWER_LOOPCTRL_DC_R),
++		REGS_POWER_BASE + HW_POWER_LOOPCTRL);
++
++	/* half the fets */
++	stmp3xxx_setl(BM_POWER_MINPWR_HALF_FETS, REGS_POWER_BASE + HW_POWER_MINPWR);
++
++	stmp3xxx_clearl(BM_POWER_LOOPCTRL_CM_HYST_THRESH, REGS_POWER_BASE + HW_POWER_LOOPCTRL);
++	stmp3xxx_clearl(BM_POWER_LOOPCTRL_EN_CM_HYST, REGS_POWER_BASE + HW_POWER_LOOPCTRL);
++	stmp3xxx_clearl(BM_POWER_LOOPCTRL_EN_DF_HYST, REGS_POWER_BASE + HW_POWER_LOOPCTRL);
++	/* enable PFM */
++	stmp3xxx_setl(BM_POWER_LOOPCTRL_HYST_SIGN, REGS_POWER_BASE + HW_POWER_LOOPCTRL);
++	stmp3xxx_setl(BM_POWER_MINPWR_EN_DC_PFM, REGS_POWER_BASE + HW_POWER_MINPWR);
++
++	stmp3xxx_setl(BM_CLKCTRL_CPU_INTERRUPT_WAIT, REGS_CLKCTRL_BASE + HW_CLKCTRL_CPU);
++	/* Power off ... */
++	asm("mcr     p15, 0, r2, c7, c0, 4");
++	stmp3xxx_clearl(BM_CLKCTRL_CPU_INTERRUPT_WAIT, REGS_CLKCTRL_BASE + HW_CLKCTRL_CPU);
++
++	/* restore the DCDC parameter */
++
++	stmp3xxx_clearl(BM_POWER_MINPWR_EN_DC_PFM, REGS_POWER_BASE + HW_POWER_MINPWR);
++	stmp3xxx_clearl(BM_POWER_LOOPCTRL_HYST_SIGN, REGS_POWER_BASE + HW_POWER_LOOPCTRL);
++	stmp3xxx_setl(BM_POWER_LOOPCTRL_EN_DF_HYST, REGS_POWER_BASE + HW_POWER_LOOPCTRL);
++	stmp3xxx_setl(BM_POWER_LOOPCTRL_EN_CM_HYST, REGS_POWER_BASE + HW_POWER_LOOPCTRL);
++	stmp3xxx_setl(BM_POWER_LOOPCTRL_CM_HYST_THRESH, REGS_POWER_BASE + HW_POWER_LOOPCTRL);
++
++	__raw_writel((__raw_readl(REGS_POWER_BASE + HW_POWER_LOOPCTRL) & ~BM_POWER_LOOPCTRL_DC_R) |
++		(2<<BP_POWER_LOOPCTRL_DC_R),
++		REGS_POWER_BASE + HW_POWER_LOOPCTRL);
++	__raw_writel((__raw_readl(REGS_POWER_BASE + HW_POWER_LOOPCTRL) & ~BM_POWER_LOOPCTRL_EN_RCSCALE) |
++		(3 << BP_POWER_LOOPCTRL_EN_RCSCALE),
++		REGS_POWER_BASE + HW_POWER_LOOPCTRL);
++
++	/* Restore VDDD */
++	__raw_writel(reg_vddd, REGS_POWER_BASE + HW_POWER_VDDDCTRL);
++
++	WAIT_CYCLE(WAIT_DC_OK_CYCLES)
++	while (!(__raw_readl(REGS_POWER_BASE + HW_POWER_STS) & BM_POWER_STS_DC_OK))
++		;
++
++	__raw_writel(reg_vdda, REGS_POWER_BASE + HW_POWER_VDDACTRL);
++	WAIT_CYCLE(WAIT_DC_OK_CYCLES)
++	while (!(__raw_readl(REGS_POWER_BASE + HW_POWER_STS) & BM_POWER_STS_DC_OK))
++		;
++
++	__raw_writel(reg_vddio, REGS_POWER_BASE + HW_POWER_VDDIOCTRL);
++	WAIT_CYCLE(WAIT_DC_OK_CYCLES)
++	while (!(__raw_readl(REGS_POWER_BASE + HW_POWER_STS) & BM_POWER_STS_DC_OK))
++		;
++
++
++	/* Enable PLL */
++	stmp3xxx_setl(BM_CLKCTRL_PLLCTRL0_POWER, REGS_CLKCTRL_BASE + HW_CLKCTRL_PLLCTRL0);
++	/* Ungating EMI CLock */
++	stmp3xxx_clearl(BM_CLKCTRL_EMI_CLKGATE, REGS_CLKCTRL_BASE + HW_CLKCTRL_EMI);
++
++	/* LeaveSelfrefreshMode */
++	stmp3xxx_clearl(BM_DRAM_CTL08_SREFRESH, REGS_DRAM_BASE + HW_DRAM_CTL08);
++	WAIT_CYCLE(WAIT_DC_OK_CYCLES)
++}
++
+ static inline void do_standby(void)
+ {
+ 	void (*stmp37xx_cpu_standby_ptr) (void);
+@@ -54,6 +184,7 @@ static inline void do_standby(void)
+ 	int cpu_rate = 0;
+ 	int hbus_rate = 0;
+ 	int i, pending_irq;
++	u32 reg_clkctrl_clkseq, reg_clkctrl_xtal;
+ 
+ 	/*
+ 	 * 1) switch clock domains from PLL to 24MHz
+@@ -72,7 +203,7 @@ static inline void do_standby(void)
+ 
+ 	/* copy suspend function into SRAM */
+ 	memcpy((void *)STMP3XXX_OCRAM_BASE, stmp37xx_cpu_standby,
+-			stmp_standby_alloc_sz);
++			MAX_POWEROFF_CODE_SIZE);
+ 
+ 	/* now switch the CPU to ref_xtal */
+ 	cpu_clk = clk_get(NULL, "cpu");
+@@ -110,10 +241,30 @@ static inline void do_standby(void)
+ 		/* Barrier */
+ 		(void) __raw_readl(REGS_ICOLL_BASE + HW_ICOLL_STAT);
+ 	}
++
++	reg_clkctrl_clkseq = __raw_readl(REGS_CLKCTRL_BASE + HW_CLKCTRL_CLKSEQ);
++
++	stmp3xxx_setl(BM_CLKCTRL_CLKSEQ_BYPASS_ETM |
++		BM_CLKCTRL_CLKSEQ_BYPASS_SSP |
++		BM_CLKCTRL_CLKSEQ_BYPASS_GPMI |
++		BM_CLKCTRL_CLKSEQ_BYPASS_IR |
++		BM_CLKCTRL_CLKSEQ_BYPASS_PIX|
++		BM_CLKCTRL_CLKSEQ_BYPASS_SAIF, 
++		REGS_CLKCTRL_BASE + HW_CLKCTRL_CLKSEQ);
++
++	reg_clkctrl_xtal = __raw_readl(REGS_CLKCTRL_BASE + HW_CLKCTRL_XTAL);
++
++	__raw_writel(reg_clkctrl_xtal | BM_CLKCTRL_XTAL_FILT_CLK24M_GATE |
++		BM_CLKCTRL_XTAL_PWM_CLK24M_GATE | BM_CLKCTRL_XTAL_DRI_CLK24M_GATE,
++		REGS_CLKCTRL_BASE + HW_CLKCTRL_XTAL);
++
+ 	/* do suspend */
+ 	stmp37xx_cpu_standby_ptr = (void *)STMP3XXX_OCRAM_BASE;
+ 	stmp37xx_cpu_standby_ptr();
+ 
++	__raw_writel(reg_clkctrl_clkseq, REGS_CLKCTRL_BASE + HW_CLKCTRL_CLKSEQ);
++	__raw_writel(reg_clkctrl_xtal, REGS_CLKCTRL_BASE + HW_CLKCTRL_XTAL);
++
+ 	pr_info("wakeup irq source = %d\n", __raw_readl(REGS_ICOLL_BASE + HW_ICOLL_STAT));
+ 	saved_sleep_state = 0;  /* waking from standby */
+ 	stmp3xxx_clearl(BM_POWER_CTRL_PSWITCH_IRQ, REGS_POWER_BASE + HW_POWER_CTRL);
+diff --git a/arch/arm/plat-stmp3xxx/clock.c b/arch/arm/plat-stmp3xxx/clock.c
+index b59ffbb..1de3109 100644
+--- a/arch/arm/plat-stmp3xxx/clock.c
++++ b/arch/arm/plat-stmp3xxx/clock.c
+@@ -1232,6 +1232,26 @@ struct clk *clk_get_parent(struct clk *clk)
+ }
+ EXPORT_SYMBOL(clk_get_parent);
+ 
++static void clkctrl_enable_powersavings(void)
++{
++	u32 reg;
++
++	reg = __raw_readl(REGS_CLKCTRL_BASE + HW_CLKCTRL_HBUS);
++	reg |= BM_CLKCTRL_HBUS_APBHDMA_AS_ENABLE |
++		BM_CLKCTRL_HBUS_APBXDMA_AS_ENABLE |
++		BM_CLKCTRL_HBUS_TRAFFIC_AS_ENABLE |
++		BM_CLKCTRL_HBUS_TRAFFIC_JAM_AS_ENABLE |
++		BM_CLKCTRL_HBUS_CPU_DATA_AS_ENABLE |
++		BM_CLKCTRL_HBUS_CPU_INSTR_AS_ENABLE |
++		BM_CLKCTRL_HBUS_DCP_AS_ENABLE |
++		BM_CLKCTRL_HBUS_PXP_AS_ENABLE |
++		BM_CLKCTRL_HBUS_AUTO_SLOW_MODE;
++
++	reg &= ~BM_CLKCTRL_HBUS_SLOW_DIV;
++	reg |= BV_CLKCTRL_HBUS_SLOW_DIV__BY32;
++	__raw_writel(reg, REGS_CLKCTRL_BASE + HW_CLKCTRL_HBUS);
++}
++
+ static int __init clk_init(void)
+ {
+ 	struct clk_lookup *cl;
+@@ -1267,6 +1287,8 @@ static int __init clk_init(void)
+ 
+ 		clkdev_add(cl);
+ 	}
++	clkctrl_enable_powersavings();
++
+ 	return 0;
+ }
+ 
+diff --git a/arch/arm/plat-stmp3xxx/core.c b/arch/arm/plat-stmp3xxx/core.c
+index 6ada910..2d358f5 100644
+--- a/arch/arm/plat-stmp3xxx/core.c
++++ b/arch/arm/plat-stmp3xxx/core.c
+@@ -126,9 +126,6 @@ static void stmp3xxx_machine_restart(char mode, const char *cmd)
+ 
+ void __init stmp3xxx_init(void)
+ {
+-	/* Turn off auto-slow and other tricks */
+-	stmp3xxx_clearl(0x7f00000, REGS_CLKCTRL_BASE + HW_CLKCTRL_HBUS);
+-
+ 	/* Re-route machine restart to our own handler */
+ 	arm_pm_restart = stmp3xxx_machine_restart;
+ 
+-- 
+1.5.4.4
+

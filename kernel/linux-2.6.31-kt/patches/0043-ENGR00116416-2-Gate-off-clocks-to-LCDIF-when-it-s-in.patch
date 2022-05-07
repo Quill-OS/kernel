@@ -1,0 +1,35 @@
+From 96ab00ce1ae0fdc21227ef3cebdc07e840bbc335 Mon Sep 17 00:00:00 2001
+From: Robby Cai <r63905@freescale.com>
+Date: Sat, 10 Oct 2009 16:37:03 +0800
+Subject: [PATCH] ENGR00116416-2 Gate off clocks to LCDIF when it's inactive
+
+Gate off clocks to LCDIF when it's inactive, Gate on otherwise.
+
+Signed-off-by: Robby Cai <r63905@freescale.com>
+---
+ arch/arm/mach-stmp378x/stmp378x_lcdif.c |    2 ++
+ 1 files changed, 2 insertions(+), 0 deletions(-)
+
+diff --git a/arch/arm/mach-stmp378x/stmp378x_lcdif.c b/arch/arm/mach-stmp378x/stmp378x_lcdif.c
+index abd1d72..a88684c 100644
+--- a/arch/arm/mach-stmp378x/stmp378x_lcdif.c
++++ b/arch/arm/mach-stmp378x/stmp378x_lcdif.c
+@@ -35,6 +35,7 @@ static unsigned dma_chain_info_pos;
+ 
+ void stmp3xxx_init_lcdif(void)
+ {
++	stmp3xxx_clearl(BM_LCDIF_CTRL_CLKGATE, REGS_LCDIF_BASE + HW_LCDIF_CTRL);
+ 	/* Reset controller */
+ 	stmp3xxx_setl(BM_LCDIF_CTRL_SFTRST, REGS_LCDIF_BASE + HW_LCDIF_CTRL);
+ 	udelay(10);
+@@ -161,6 +162,7 @@ void stmp3xxx_lcdif_stop(void)
+ 		    BM_APBH_CHn_CMD_SEMAPHORE;
+ 		udelay(100);
+ 	}
++	stmp3xxx_setl(BM_LCDIF_CTRL_CLKGATE, REGS_LCDIF_BASE + HW_LCDIF_CTRL);
+ }
+ 
+ EXPORT_SYMBOL(stmp3xxx_lcdif_stop);
+-- 
+1.5.4.4
+

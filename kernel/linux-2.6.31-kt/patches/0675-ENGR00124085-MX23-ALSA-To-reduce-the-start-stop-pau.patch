@@ -1,0 +1,650 @@
+From 7c646642949e53e25144e305eb286e24faae2048 Mon Sep 17 00:00:00 2001
+From: Lionel Xu <Lionel.Xu@freescale.com>
+Date: Wed, 2 Jun 2010 13:19:20 +0800
+Subject: [PATCH] ENGR00124085 MX23 ALSA: To reduce the start/stop/pause pop noise when playback
+
+1)There is still pop noise sometimes when start/stop/pausing a playback,
+   this patch is used to further reduce the pop noise.
+2)Enter low power mode(power down DAC) when there is no playback for 5 seconds.
+3)Modify amixer controls "Speaker Playback Switch" and "Headhpone Playback
+   Switch"
+
+Signed-off-by: Lionel Xu <r63889@freescale.com>
+---
+ sound/soc/codecs/mxs-adc-codec.c |  177 ++++++++++++++++++++++++++++----------
+ sound/soc/mxs/mxs-adc.c          |  157 +++++++++++++++++++++++++--------
+ sound/soc/mxs/mxs-evk-adc.c      |  107 +++++++++++++++++++++++
+ 3 files changed, 357 insertions(+), 84 deletions(-)
+
+diff --git a/sound/soc/codecs/mxs-adc-codec.c b/sound/soc/codecs/mxs-adc-codec.c
+index 31fd021..f8f1061 100644
+--- a/sound/soc/codecs/mxs-adc-codec.c
++++ b/sound/soc/codecs/mxs-adc-codec.c
+@@ -48,6 +48,8 @@
+ #define BF(value, field) (((value) << BP_##field) & BM_##field)
+ #endif
+ 
++#define BM_RTC_PERSISTENT0_RELEASE_GND BF(0x2, RTC_PERSISTENT0_SPARE_ANALOG)
++
+ #define REGS_RTC_BASE  (IO_ADDRESS(RTC_PHYS_ADDR))
+ 
+ struct mxs_codec_priv {
+@@ -252,6 +254,47 @@ static int dac_put_volsw(struct snd_kcontrol *kcontrol,
+ 	return 0;
+ }
+ 
++static int pga_event(struct snd_soc_dapm_widget *w,
++			struct snd_kcontrol *kcontrol, int event)
++{
++	switch (event) {
++	case SND_SOC_DAPM_PRE_PMU:
++		/* Prepare powering up HP and SPEAKER output */
++		__raw_writel(BM_AUDIOOUT_ANACTRL_HP_HOLD_GND,
++			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_ANACTRL_SET);
++		__raw_writel(BM_RTC_PERSISTENT0_RELEASE_GND,
++			REGS_RTC_BASE + HW_RTC_PERSISTENT0_SET);
++		msleep(100);
++		break;
++	case SND_SOC_DAPM_POST_PMU:
++		__raw_writel(BM_AUDIOOUT_ANACTRL_HP_HOLD_GND,
++			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_ANACTRL_CLR);
++		break;
++	case SND_SOC_DAPM_POST_PMD:
++		__raw_writel(BM_RTC_PERSISTENT0_RELEASE_GND,
++			REGS_RTC_BASE + HW_RTC_PERSISTENT0_CLR);
++		break;
++	}
++	return 0;
++}
++
++static int adc_event(struct snd_soc_dapm_widget *w,
++			struct snd_kcontrol *kcontrol, int event)
++{
++	switch (event) {
++	case SND_SOC_DAPM_PRE_PMU:
++		__raw_writel(BM_RTC_PERSISTENT0_RELEASE_GND,
++			REGS_RTC_BASE + HW_RTC_PERSISTENT0_SET);
++		msleep(100);
++		break;
++	case SND_SOC_DAPM_POST_PMD:
++		__raw_writel(BM_RTC_PERSISTENT0_RELEASE_GND,
++			REGS_RTC_BASE + HW_RTC_PERSISTENT0_CLR);
++		break;
++	}
++	return 0;
++}
++
+ static const char *mxs_codec_adc_input_sel[] =
+     { "Mic", "Line In 1", "Head Phone", "Line In 2" };
+ 
+@@ -282,8 +325,6 @@ static const struct snd_kcontrol_new mxs_snd_controls[] = {
+ 	SOC_DOUBLE_R("DAC Playback Switch",
+ 		     DAC_VOLUME_H, DAC_VOLUME_L, 8, 0x01, 1),
+ 	SOC_DOUBLE("HP Playback Volume", DAC_HPVOL_L, 8, 0, 0x7F, 1),
+-	SOC_SINGLE("HP Playback Switch", DAC_HPVOL_H, 8, 0x1, 1),
+-	SOC_SINGLE("Speaker Playback Switch", DAC_SPEAKERCTRL_H, 8, 0x1, 1),
+ 
+ 	/* Capture Volume */
+ 	SOC_DOUBLE_R("ADC Capture Volume",
+@@ -310,10 +351,10 @@ SOC_DAPM_ENUM("Route", mxs_codec_enum[2]);
+ 
+ static const struct snd_soc_dapm_widget mxs_codec_widgets[] = {
+ 
+-	SND_SOC_DAPM_ADC("Left ADC", "Left Capture", DAC_PWRDN_L, 8, 1),
+-	SND_SOC_DAPM_ADC("Right ADC", "Right Capture", DAC_PWRDN_H, 0, 1),
++	SND_SOC_DAPM_ADC_E("ADC", "Capture", DAC_PWRDN_L, 8, 1, adc_event,
++			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+ 
+-	SND_SOC_DAPM_DAC("DAC", "Playback", SND_SOC_NOPM, 0, 0),
++	SND_SOC_DAPM_DAC("DAC", "Playback", DAC_PWRDN_L, 12, 1),
+ 
+ 	SND_SOC_DAPM_MUX("Left ADC Mux", SND_SOC_NOPM, 0, 0,
+ 			 &mxs_left_adc_controls),
+@@ -321,7 +362,10 @@ static const struct snd_soc_dapm_widget mxs_codec_widgets[] = {
+ 			 &mxs_right_adc_controls),
+ 	SND_SOC_DAPM_MUX("HP Mux", SND_SOC_NOPM, 0, 0,
+ 			 &mxs_hp_controls),
+-
++	SND_SOC_DAPM_PGA_E("HP AMP", DAC_PWRDN_L, 0, 1, NULL, 0, pga_event,
++			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
++			   SND_SOC_DAPM_POST_PMD),
++	SND_SOC_DAPM_PGA("SPEAKER AMP", DAC_PWRDN_H, 8, 1, NULL, 0),
+ 	SND_SOC_DAPM_INPUT("LINE1L"),
+ 	SND_SOC_DAPM_INPUT("LINE1R"),
+ 	SND_SOC_DAPM_INPUT("LINE2L"),
+@@ -348,20 +392,23 @@ static const struct snd_soc_dapm_route intercon[] = {
+ 	{"Right ADC Mux", "Head Phone", "HPR"},
+ 
+ 	/* ADC */
+-	{"Left ADC", NULL, "Left ADC Mux"},
+-	{"Right ADC", NULL, "Right ADC Mux"},
++	{"ADC", NULL, "Left ADC Mux"},
++	{"ADC", NULL, "Right ADC Mux"},
+ 
+ 	/* HP Mux */
+ 	{"HP Mux", "DAC Out", "DAC"},
+ 	{"HP Mux", "Line In 1", "LINE1L"},
+ 	{"HP Mux", "Line In 1", "LINE1R"},
+ 
++	/* HP amp */
++	{"HP AMP", NULL, "HP Mux"},
+ 	/* HP output */
+-	{"HPR", NULL, "HP MUX"},
+-	{"HPL", NULL, "HP MUX"},
++	{"HPR", NULL, "HP AMP"},
++	{"HPL", NULL, "HP AMP"},
+ 
+ 	/* Speaker amp */
+-	{"SPEAKER", NULL, "DAC"},
++	{"SPEAKER AMP", NULL, "DAC"},
++	{"SPEAKER", NULL, "SPEAKER AMP"},
+ };
+ 
+ static int mxs_codec_add_widgets(struct snd_soc_codec *codec)
+@@ -488,29 +535,84 @@ static int mxs_codec_hw_params(struct snd_pcm_substream *substream,
+ 
+ static int mxs_codec_dig_mute(struct snd_soc_dai *dai, int mute)
+ {
++	int l, r;
++	int ll, rr;
++	u32 reg, reg1, reg2;
+ 	u32 dac_mask = BM_AUDIOOUT_DACVOLUME_MUTE_LEFT |
+ 	    BM_AUDIOOUT_DACVOLUME_MUTE_RIGHT;
+-	u32 reg1 = 0;
+-	u32 reg = 0;
+ 
+ 	if (mute) {
+-		reg1 = __raw_readl(REGS_AUDIOOUT_BASE + HW_AUDIOOUT_HPVOL);
+-		reg = reg1 | BF_AUDIOOUT_HPVOL_VOL_LEFT(0x7f) | \
+-			BF_AUDIOOUT_HPVOL_VOL_RIGHT(0x7f);
+-		__raw_writel(reg, REGS_AUDIOOUT_BASE + HW_AUDIOOUT_HPVOL);
++		reg = __raw_readl(REGS_AUDIOOUT_BASE + \
++				HW_AUDIOOUT_DACVOLUME);
++
++		reg1 = reg & ~BM_AUDIOOUT_DACVOLUME_VOLUME_LEFT;
++		reg1 = reg1 & ~BM_AUDIOOUT_DACVOLUME_VOLUME_RIGHT;
++
++		l = (reg & BM_AUDIOOUT_DACVOLUME_VOLUME_LEFT) >>
++			BP_AUDIOOUT_DACVOLUME_VOLUME_LEFT;
++		r = (reg & BM_AUDIOOUT_DACVOLUME_VOLUME_RIGHT) >>
++			BP_AUDIOOUT_DACVOLUME_VOLUME_RIGHT;
++
++		/* fade out dac vol */
++		while ((l > DAC_VOLUME_MIN) || (r > DAC_VOLUME_MIN)) {
++			l -= 0x8;
++			r -= 0x8;
++			ll = l > DAC_VOLUME_MIN ? l : DAC_VOLUME_MIN;
++			rr = r > DAC_VOLUME_MIN ? r : DAC_VOLUME_MIN;
++			reg2 = reg1 | BF_AUDIOOUT_DACVOLUME_VOLUME_LEFT(ll)
++				| BF_AUDIOOUT_DACVOLUME_VOLUME_RIGHT(rr);
++			__raw_writel(reg2,
++				REGS_AUDIOOUT_BASE + HW_AUDIOOUT_DACVOLUME);
++			msleep(1);
++		}
+ 
+ 		__raw_writel(dac_mask,
+-			      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_DACVOLUME_SET);
+-		__raw_writel(BM_AUDIOOUT_HPVOL_MUTE,
+-			      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_HPVOL_SET);
+-
+-		__raw_writel(reg1, REGS_AUDIOOUT_BASE + HW_AUDIOOUT_HPVOL);
+-	} else {
++			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_DACVOLUME_SET);
++		reg = reg | dac_mask;
++		__raw_writel(reg,
++			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_DACVOLUME);
++	} else
+ 		__raw_writel(dac_mask,
+ 			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_DACVOLUME_CLR);
+-		__raw_writel(BM_AUDIOOUT_HPVOL_MUTE,
+-			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_HPVOL_CLR);
++
++	return 0;
++}
++
++static int mxs_codec_set_bias_level(struct snd_soc_codec *codec,
++				   enum snd_soc_bias_level level)
++{
++	pr_debug("dapm level %d\n", level);
++	switch (level) {
++	case SND_SOC_BIAS_ON:		/* full On */
++		if (codec->bias_level == SND_SOC_BIAS_ON)
++			break;
++		break;
++
++	case SND_SOC_BIAS_PREPARE:	/* partial On */
++		if (codec->bias_level == SND_SOC_BIAS_PREPARE)
++			break;
++		/* Set Capless mode */
++		__raw_writel(BM_AUDIOOUT_PWRDN_CAPLESS,
++		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_PWRDN_CLR);
++		break;
++
++	case SND_SOC_BIAS_STANDBY:	/* Off, with power */
++		if (codec->bias_level == SND_SOC_BIAS_STANDBY)
++			break;
++		/* Unset Capless mode */
++		__raw_writel(BM_AUDIOOUT_PWRDN_CAPLESS,
++			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_PWRDN_SET);
++		break;
++
++	case SND_SOC_BIAS_OFF:	/* Off, without power */
++		if (codec->bias_level == SND_SOC_BIAS_OFF)
++			break;
++		/* Unset Capless mode */
++		__raw_writel(BM_AUDIOOUT_PWRDN_CAPLESS,
++			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_PWRDN_SET);
++		break;
+ 	}
++	codec->bias_level = level;
+ 	return 0;
+ }
+ 
+@@ -594,18 +696,10 @@ mxs_codec_dac_power_on(struct mxs_codec_priv *mxs_adc)
+ 	__raw_writel(BM_AUDIOOUT_ANACLKCTRL_CLKGATE,
+ 			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_ANACLKCTRL_CLR);
+ 
+-	/* Set capless mode */
+-	__raw_writel(BM_AUDIOOUT_PWRDN_CAPLESS, REGS_AUDIOOUT_BASE
+-			+ HW_AUDIOOUT_PWRDN_CLR);
+-
+ 	/* 16 bit word length */
+ 	__raw_writel(BM_AUDIOOUT_CTRL_WORD_LENGTH,
+ 		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL_SET);
+ 
+-	/* Powerup DAC */
+-	__raw_writel(BM_AUDIOOUT_PWRDN_DAC,
+-			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_PWRDN_CLR);
+-
+ 	/* Arm headphone LR short protect */
+ 	mxs_codec_dac_set_short_trip_level(0);
+ 	mxs_codec_dac_arm_short(false, true);
+@@ -622,22 +716,12 @@ mxs_codec_dac_power_on(struct mxs_codec_priv *mxs_adc)
+ 	__raw_writel(BM_AUDIOOUT_HPVOL_EN_MSTR_ZCD,
+ 		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_HPVOL_SET);
+ 
+-	/* Prepare powering up HP output */
+-	__raw_writel(BM_AUDIOOUT_ANACTRL_HP_HOLD_GND,
+-		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_ANACTRL_SET);
+-	__raw_writel(BF(0x2, RTC_PERSISTENT0_SPARE_ANALOG),
+-		      REGS_RTC_BASE + HW_RTC_PERSISTENT0_SET);
+-	__raw_writel(BM_AUDIOOUT_PWRDN_HEADPHONE,
+-			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_PWRDN_CLR);
+ 	__raw_writel(BM_AUDIOOUT_ANACTRL_HP_CLASSAB,
+ 		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_ANACTRL_SET);
+-	__raw_writel(BM_AUDIOOUT_ANACTRL_HP_HOLD_GND,
+-			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_ANACTRL_CLR);
++
+ 	/* Mute HP output */
+ 	__raw_writel(BM_AUDIOOUT_HPVOL_MUTE,
+ 		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_HPVOL_SET);
+-	__raw_writel(BM_AUDIOOUT_PWRDN_SPEAKER,
+-			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_PWRDN_CLR);
+ 	/* Mute speaker amp */
+ 	__raw_writel(BM_AUDIOOUT_SPEAKERCTRL_MUTE,
+ 		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_SPEAKERCTRL_SET);
+@@ -920,7 +1004,8 @@ static int mxs_codec_probe(struct platform_device *pdev)
+ 		snd_soc_free_pcms(socdev);
+ 		return ret;
+ 	}
+-
++	/* Set default bias level*/
++	mxs_codec_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+ 	return 0;
+ }
+ 
+@@ -1044,6 +1129,8 @@ static int __init mxs_codec_audio_probe(struct platform_device *pdev)
+ 	codec->private_data = mxs_adc;
+ 	codec->read = mxs_codec_read;
+ 	codec->write = mxs_codec_write;
++	codec->bias_level = SND_SOC_BIAS_OFF;
++	codec->set_bias_level = mxs_codec_set_bias_level;
+ 	codec->dai = &mxs_codec_dai;
+ 	codec->num_dai = 1;
+ 	codec->reg_cache_size = sizeof(mxs_audio_regs) >> 1;
+diff --git a/sound/soc/mxs/mxs-adc.c b/sound/soc/mxs/mxs-adc.c
+index 44e04d6..7069927 100644
+--- a/sound/soc/mxs/mxs-adc.c
++++ b/sound/soc/mxs/mxs-adc.c
+@@ -37,6 +37,7 @@
+ #define MXS_ADC_RATES	SNDRV_PCM_RATE_8000_192000
+ #define MXS_ADC_FORMATS	(SNDRV_PCM_FMTBIT_S16_LE | \
+ 				SNDRV_PCM_FMTBIT_S32_LE)
++#define ADC_VOLUME_MIN  0x37
+ 
+ struct mxs_pcm_dma_params mxs_audio_in = {
+ 	.name = "mxs-audio-in",
+@@ -51,6 +52,11 @@ struct mxs_pcm_dma_params mxs_audio_out = {
+ };
+ 
+ static struct delayed_work work;
++static struct delayed_work adc_ramp_work;
++static struct delayed_work dac_ramp_work;
++static bool adc_ramp_done = 1;
++static bool dac_ramp_done = 1;
++
+ static void mxs_adc_schedule_work(struct delayed_work *work)
+ {
+ 	schedule_delayed_work(work, HZ / 10);
+@@ -94,6 +100,98 @@ static void mxs_adc_work(struct work_struct *work)
+ 	enable_irq(IRQ_HEADPHONE_SHORT);
+ }
+ 
++static void mxs_adc_schedule_ramp_work(struct delayed_work *work)
++{
++	schedule_delayed_work(work, msecs_to_jiffies(2));
++	adc_ramp_done = 0;
++}
++
++static void mxs_adc_ramp_work(struct work_struct *work)
++{
++	u32 reg = 0;
++	u32 reg1 = 0;
++	u32 reg2 = 0;
++	u32 l, r;
++	u32 ll, rr;
++	int i;
++
++	reg = __raw_readl(REGS_AUDIOIN_BASE + \
++		HW_AUDIOIN_ADCVOLUME);
++
++	reg1 = reg & ~BM_AUDIOIN_ADCVOLUME_VOLUME_LEFT;
++	reg1 = reg1 & ~BM_AUDIOIN_ADCVOLUME_VOLUME_RIGHT;
++	/* minimize adc volume */
++	reg2 = reg1 |
++	    BF_AUDIOIN_ADCVOLUME_VOLUME_LEFT(ADC_VOLUME_MIN) |
++	    BF_AUDIOIN_ADCVOLUME_VOLUME_RIGHT(ADC_VOLUME_MIN);
++	__raw_writel(reg2,
++		REGS_AUDIOIN_BASE + HW_AUDIOIN_ADCVOLUME);
++	msleep(1);
++
++	l = (reg & BM_AUDIOIN_ADCVOLUME_VOLUME_LEFT) >>
++		BP_AUDIOIN_ADCVOLUME_VOLUME_LEFT;
++	r = (reg & BM_AUDIOIN_ADCVOLUME_VOLUME_RIGHT) >>
++		BP_AUDIOIN_ADCVOLUME_VOLUME_RIGHT;
++
++	/* fade in adc vol */
++	for (i = ADC_VOLUME_MIN; (i < l) || (i < r);) {
++		i += 0x8;
++		ll = i < l ? i : l;
++		rr = i < r ? i : r;
++		reg2 = reg1 |
++		    BF_AUDIOIN_ADCVOLUME_VOLUME_LEFT(ll) |
++		    BF_AUDIOIN_ADCVOLUME_VOLUME_RIGHT(rr);
++		__raw_writel(reg2,
++		    REGS_AUDIOIN_BASE + HW_AUDIOIN_ADCVOLUME);
++		msleep(1);
++	}
++	adc_ramp_done = 1;
++}
++
++static void mxs_dac_schedule_ramp_work(struct delayed_work *work)
++{
++	schedule_delayed_work(work, msecs_to_jiffies(2));
++	dac_ramp_done = 0;
++}
++
++static void mxs_dac_ramp_work(struct work_struct *work)
++{
++	u32 reg = 0;
++	u32 reg1 = 0;
++	u32 l, r;
++	u32 ll, rr;
++	int i;
++
++	/* unmute hp and speaker */
++	__raw_writel(BM_AUDIOOUT_HPVOL_MUTE,
++		REGS_AUDIOOUT_BASE + HW_AUDIOOUT_HPVOL_CLR);
++	__raw_writel(BM_AUDIOOUT_SPEAKERCTRL_MUTE,
++		REGS_AUDIOOUT_BASE + HW_AUDIOOUT_SPEAKERCTRL_CLR);
++
++	reg = __raw_readl(REGS_AUDIOOUT_BASE + \
++			HW_AUDIOOUT_HPVOL);
++
++	reg1 = reg & ~BM_AUDIOOUT_HPVOL_VOL_LEFT;
++	reg1 = reg1 & ~BM_AUDIOOUT_HPVOL_VOL_RIGHT;
++
++	l = (reg & BM_AUDIOOUT_HPVOL_VOL_LEFT) >>
++		BP_AUDIOOUT_HPVOL_VOL_LEFT;
++	r = (reg & BM_AUDIOOUT_HPVOL_VOL_RIGHT) >>
++		BP_AUDIOOUT_HPVOL_VOL_RIGHT;
++	/* fade in hp vol */
++	for (i = 0x7f; i > 0 ;) {
++		i -= 0x8;
++		ll = i > (int)l ? i : l;
++		rr = i > (int)r ? i : r;
++		reg = reg1 | BF_AUDIOOUT_HPVOL_VOL_LEFT(ll)
++			| BF_AUDIOOUT_HPVOL_VOL_RIGHT(rr);
++		__raw_writel(reg,
++			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_HPVOL);
++		msleep(1);
++	}
++	dac_ramp_done = 1;
++}
++
+ static irqreturn_t mxs_short_irq(int irq, void *dev_id)
+ {
+ 	__raw_writel(BM_AUDIOOUT_ANACTRL_SHORTMODE_LR,
+@@ -167,68 +265,47 @@ static int mxs_adc_trigger(struct snd_pcm_substream *substream,
+ {
+ 	int playback = substream->stream == SNDRV_PCM_STREAM_PLAYBACK ? 1 : 0;
+ 	int ret = 0;
+-	u32 reg = 0;
+-	u32 reg1 = 0;
+-	u32 l, r;
+-	u32 ll, rr;
+-	int i;
+ 
+ 	switch (cmd) {
+ 	case SNDRV_PCM_TRIGGER_START:
+ 
+ 		if (playback) {
+-			reg = __raw_readl(REGS_AUDIOOUT_BASE + \
+-					HW_AUDIOOUT_HPVOL);
+-			reg1 = BM_AUDIOOUT_HPVOL_VOL_LEFT | \
+-				BM_AUDIOOUT_HPVOL_VOL_RIGHT;
+-			__raw_writel(reg1, REGS_AUDIOOUT_BASE + \
+-				HW_AUDIOOUT_HPVOL);
+ 			/* enable the fifo error interrupt */
+ 			__raw_writel(BM_AUDIOOUT_CTRL_FIFO_ERROR_IRQ_EN,
+ 				REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL_SET);
+ 			/* write a data to data reg to trigger the transfer */
+ 			__raw_writel(0x0,
+ 				REGS_AUDIOOUT_BASE + HW_AUDIOOUT_DATA);
+-			__raw_writel(BM_AUDIOOUT_ANACTRL_HP_HOLD_GND,
+-				REGS_AUDIOOUT_BASE + HW_AUDIOOUT_ANACTRL_CLR);
+-
+-			reg1 = reg & ~BM_AUDIOOUT_HPVOL_VOL_LEFT;
+-			reg1 = reg1 & ~BM_AUDIOOUT_HPVOL_VOL_RIGHT;
+-
+-			l = (reg & BM_AUDIOOUT_HPVOL_VOL_LEFT) >>
+-				BP_AUDIOOUT_HPVOL_VOL_LEFT;
+-			r = (reg & BM_AUDIOOUT_HPVOL_VOL_RIGHT) >>
+-				BP_AUDIOOUT_HPVOL_VOL_RIGHT;
+-			for (i = 0x7f; i > 0 ; i -= 0x8) {
+-				ll = i > l ? i : l;
+-				rr = i > r ? i : r;
+-				/* fade in hp vol */
+-				reg = reg1 | BF_AUDIOOUT_HPVOL_VOL_LEFT(ll)
+-					| BF_AUDIOOUT_HPVOL_VOL_RIGHT(rr);
+-				__raw_writel(reg,
+-					REGS_AUDIOOUT_BASE + HW_AUDIOOUT_HPVOL);
+-				udelay(100);
+-			}
+-		}
+-		else
++			mxs_dac_schedule_ramp_work(&dac_ramp_work);
++		} else {
+ 			__raw_writel(BM_AUDIOIN_CTRL_RUN,
+ 				REGS_AUDIOIN_BASE + HW_AUDIOIN_CTRL_SET);
+-
++			mxs_adc_schedule_ramp_work(&adc_ramp_work);
++		}
+ 		break;
+ 
+ 	case SNDRV_PCM_TRIGGER_STOP:
+ 
+ 		if (playback) {
+-			__raw_writel(BM_AUDIOOUT_ANACTRL_HP_HOLD_GND,
+-				REGS_AUDIOOUT_BASE + HW_AUDIOOUT_ANACTRL_SET);
++			if (dac_ramp_done == 0) {
++				cancel_delayed_work(&dac_ramp_work);
++				dac_ramp_done = 1;
++			}
++			__raw_writel(BM_AUDIOOUT_HPVOL_MUTE,
++			  REGS_AUDIOOUT_BASE + HW_AUDIOOUT_HPVOL_SET);
++			__raw_writel(BM_AUDIOOUT_SPEAKERCTRL_MUTE,
++			  REGS_AUDIOOUT_BASE + HW_AUDIOOUT_SPEAKERCTRL_SET);
+ 			/* disable the fifo error interrupt */
+ 			__raw_writel(BM_AUDIOOUT_CTRL_FIFO_ERROR_IRQ_EN,
+ 				REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL_CLR);
+-			mdelay(50);
+-		}
+-		else
++		} else {
++			if (adc_ramp_done == 0) {
++				cancel_delayed_work(&adc_ramp_work);
++				adc_ramp_done = 1;
++			}
+ 			__raw_writel(BM_AUDIOIN_CTRL_RUN,
+ 				REGS_AUDIOIN_BASE + HW_AUDIOIN_CTRL_CLR);
++		}
+ 		break;
+ 
+ 	case SNDRV_PCM_TRIGGER_RESUME:
+@@ -254,6 +331,8 @@ static int mxs_adc_startup(struct snd_pcm_substream *substream,
+ 	int ret;
+ 
+ 	INIT_DELAYED_WORK(&work, mxs_adc_work);
++	INIT_DELAYED_WORK(&adc_ramp_work, mxs_adc_ramp_work);
++	INIT_DELAYED_WORK(&dac_ramp_work, mxs_dac_ramp_work);
+ 
+ 	if (playback) {
+ 		irq = IRQ_DAC_ERROR;
+diff --git a/sound/soc/mxs/mxs-evk-adc.c b/sound/soc/mxs/mxs-evk-adc.c
+index bd1ed6b..16c1cb4 100644
+--- a/sound/soc/mxs/mxs-evk-adc.c
++++ b/sound/soc/mxs/mxs-evk-adc.c
+@@ -33,12 +33,119 @@
+ #include "mxs-adc.h"
+ #include "mxs-pcm.h"
+ 
++/* mxs evk machine connections to the codec pins */
++static const struct snd_soc_dapm_route audio_map[] = {
++	/* HPR/HPL OUT --> Headphone Jack */
++	{"Headphone Jack", NULL, "HPR"},
++	{"Headphone Jack", NULL, "HPL"},
++
++	/* SPEAKER OUT --> Ext Speaker */
++	{"Ext Spk", NULL, "SPEAKER"},
++};
++
++static int mxs_evk_jack_func;
++static int mxs_evk_spk_func;
++
++static const char *jack_function[] = { "off", "on"};
++
++static const char *spk_function[] = { "off", "on" };
++
++
++static const struct soc_enum mxs_evk_enum[] = {
++	SOC_ENUM_SINGLE_EXT(2, jack_function),
++	SOC_ENUM_SINGLE_EXT(2, spk_function),
++};
++
++static int mxs_evk_get_jack(struct snd_kcontrol *kcontrol,
++			     struct snd_ctl_elem_value *ucontrol)
++{
++	ucontrol->value.enumerated.item[0] = mxs_evk_jack_func;
++	return 0;
++}
++
++static int mxs_evk_set_jack(struct snd_kcontrol *kcontrol,
++			     struct snd_ctl_elem_value *ucontrol)
++{
++	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
++
++	if (mxs_evk_jack_func == ucontrol->value.enumerated.item[0])
++		return 0;
++
++	mxs_evk_jack_func = ucontrol->value.enumerated.item[0];
++	if (mxs_evk_jack_func)
++		snd_soc_dapm_enable_pin(codec, "Headphone Jack");
++	else
++		snd_soc_dapm_disable_pin(codec, "Headphone Jack");
++
++	snd_soc_dapm_sync(codec);
++	return 1;
++}
++
++static int mxs_evk_get_spk(struct snd_kcontrol *kcontrol,
++			    struct snd_ctl_elem_value *ucontrol)
++{
++	ucontrol->value.enumerated.item[0] = mxs_evk_spk_func;
++	return 0;
++}
++
++static int mxs_evk_set_spk(struct snd_kcontrol *kcontrol,
++			    struct snd_ctl_elem_value *ucontrol)
++{
++	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
++
++	if (mxs_evk_spk_func == ucontrol->value.enumerated.item[0])
++		return 0;
++
++	mxs_evk_spk_func = ucontrol->value.enumerated.item[0];
++	if (mxs_evk_spk_func)
++		snd_soc_dapm_enable_pin(codec, "Ext Spk");
++	else
++		snd_soc_dapm_disable_pin(codec, "Ext Spk");
++
++	snd_soc_dapm_sync(codec);
++	return 1;
++}
++/* mxs evk card dapm widgets */
++static const struct snd_soc_dapm_widget mxs_evk_dapm_widgets[] = {
++	SND_SOC_DAPM_SPK("Ext Spk", NULL),
++	SND_SOC_DAPM_HP("Headphone Jack", NULL),
++};
++
++static const struct snd_kcontrol_new mxs_evk_controls[] = {
++	SOC_ENUM_EXT("HP Playback Switch", mxs_evk_enum[0], mxs_evk_get_jack,
++		     mxs_evk_set_jack),
++	SOC_ENUM_EXT("Speaker Playback Switch", mxs_evk_enum[1],
++		     mxs_evk_get_spk, mxs_evk_set_spk),
++};
++
++static int mxs_evk_codec_init(struct snd_soc_codec *codec)
++{
++	int i, ret;
++	/* Add mxs evk specific controls */
++	snd_soc_add_controls(codec, mxs_evk_controls,
++		ARRAY_SIZE(mxs_evk_controls));
++
++	/* Add mxs evk specific widgets */
++	snd_soc_dapm_new_controls(codec, mxs_evk_dapm_widgets,
++				  ARRAY_SIZE(mxs_evk_dapm_widgets));
++
++	/* Set up mxs evk specific audio path audio_map */
++	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
++
++	snd_soc_dapm_sync(codec);
++	/* default on */
++	mxs_evk_jack_func = 1;
++	mxs_evk_spk_func = 1;
++
++	return ret;
++}
+ /* mxs evk dac/adc audio interface glue - connects codec <--> CPU */
+ static struct snd_soc_dai_link mxs_evk_codec_dai = {
+ 	.name = "MXS ADC/DAC",
+ 	.stream_name = "MXS ADC/DAC",
+ 	.cpu_dai = &mxs_adc_dai,
+ 	.codec_dai = &mxs_codec_dai,
++	.init = mxs_evk_codec_init,
+ };
+ 
+ /* mxs evk audio machine driver */
+-- 
+1.5.4.4
+

@@ -1,0 +1,84 @@
+From b55077044941af153cbab8f94be9f82c3a027a82 Mon Sep 17 00:00:00 2001
+From: Frank Li <Frank.Li@freescale.com>
+Date: Thu, 13 May 2010 12:17:36 +0800
+Subject: [PATCH] ENGR00122965 Improve USB100 feature due to bootloader change.
+
+Smalle change due to the bootloader change and fix Mx23 fail
+caused by clock module change.
+
+Signed-off-by: Frank Li <Frank.Li@freescale.com>
+---
+ arch/arm/plat-mxs/utmixc.c |    2 +-
+ drivers/power/mxs/linux.c  |   13 ++++++-------
+ 2 files changed, 7 insertions(+), 8 deletions(-)
+
+diff --git a/arch/arm/plat-mxs/utmixc.c b/arch/arm/plat-mxs/utmixc.c
+index 1e9015d..8ad6bd4 100644
+--- a/arch/arm/plat-mxs/utmixc.c
++++ b/arch/arm/plat-mxs/utmixc.c
+@@ -45,7 +45,7 @@ static void set_vbus_draw(struct fsl_xcvr_ops *this,
+ {
+ #ifdef CONFIG_MXS_VBUS_CURRENT_DRAW
+ 	if ((__raw_readl(REGS_POWER_BASE + HW_POWER_5VCTRL)
+-		& BM_POWER_5VCTRL_CHARGE_4P2_ILIMIT) == 0x8000) {
++		& BM_POWER_5VCTRL_CHARGE_4P2_ILIMIT) == 0x20000) {
+ 		printk(KERN_INFO "USB enumeration done,current limitation release\r\n");
+ 		__raw_writel(__raw_readl(REGS_POWER_BASE + HW_POWER_5VCTRL) |
+ 		BM_POWER_5VCTRL_CHARGE_4P2_ILIMIT, REGS_POWER_BASE +
+diff --git a/drivers/power/mxs/linux.c b/drivers/power/mxs/linux.c
+index 80eecf0..1c2dfc1 100644
+--- a/drivers/power/mxs/linux.c
++++ b/drivers/power/mxs/linux.c
+@@ -236,12 +236,12 @@ static void check_and_handle_5v_connection(struct mxs_info *info)
+ 		*/
+ 		if ((__raw_readl(REGS_POWER_BASE + HW_POWER_5VCTRL)
+ 			& BM_POWER_5VCTRL_CHARGE_4P2_ILIMIT) ==
+-			(0x8 << BP_POWER_5VCTRL_CHARGE_4P2_ILIMIT)) {
++			(0x20 << BP_POWER_5VCTRL_CHARGE_4P2_ILIMIT)) {
+ 			dev_info(info->dev, "waiting USB enum done...\r\n");
+ 		}
+ 		while ((__raw_readl(REGS_POWER_BASE + HW_POWER_5VCTRL)
+ 			& BM_POWER_5VCTRL_CHARGE_4P2_ILIMIT)
+-			== (0x8 << BP_POWER_5VCTRL_CHARGE_4P2_ILIMIT)) {
++			== (0x20 << BP_POWER_5VCTRL_CHARGE_4P2_ILIMIT)) {
+ 			msleep(50);
+ 		}
+ 	#endif
+@@ -297,7 +297,7 @@ static void check_and_handle_5v_connection(struct mxs_info *info)
+ 				__raw_writel(__raw_readl(REGS_POWER_BASE +
+ 				HW_POWER_5VCTRL) &
+ 				(~BM_POWER_5VCTRL_CHARGE_4P2_ILIMIT)
+-				| (0x8 << BP_POWER_5VCTRL_CHARGE_4P2_ILIMIT),
++				| (0x20 << BP_POWER_5VCTRL_CHARGE_4P2_ILIMIT),
+ 				REGS_POWER_BASE + HW_POWER_5VCTRL);
+ 
+ 			}
+@@ -1144,13 +1144,13 @@ static int __init mxs_bat_init(void)
+ 
+ #ifdef CONFIG_MXS_VBUS_CURRENT_DRAW
+ 	if (((__raw_readl(REGS_POWER_BASE + HW_POWER_5VCTRL) &
+-		BM_POWER_5VCTRL_CHARGE_4P2_ILIMIT) == 0x8000)
++		BM_POWER_5VCTRL_CHARGE_4P2_ILIMIT) == 0x20000)
+ 		&& ((__raw_readl(REGS_POWER_BASE + HW_POWER_5VCTRL) &
+ 		BM_POWER_5VCTRL_PWD_CHARGE_4P2) == 0)) {
+ #ifdef CONFIG_USB_GADGET
+ 		printk(KERN_INFO "USB GADGET exist,wait USB enum done...\r\n");
+ 		while (((__raw_readl(REGS_POWER_BASE + HW_POWER_5VCTRL)
+-			& BM_POWER_5VCTRL_CHARGE_4P2_ILIMIT) == 0x8000) &&
++			& BM_POWER_5VCTRL_CHARGE_4P2_ILIMIT) == 0x20000) &&
+ 			((__raw_readl(REGS_POWER_BASE + HW_POWER_5VCTRL) &
+ 			BM_POWER_5VCTRL_PWD_CHARGE_4P2) == 0))
+ 			;
+@@ -1161,8 +1161,7 @@ static int __init mxs_bat_init(void)
+ 	}
+ 	cpu = clk_get(NULL, "cpu");
+ 	pll0 = clk_get(NULL, "ref_cpu");
+-	if (cpu->set_parent)
+-		cpu->set_parent(cpu, pll0);
++	clk_set_parent(cpu, pll0);
+ #endif
+ 	return platform_driver_register(&mxs_batdrv);
+ }
+-- 
+1.5.4.4
+

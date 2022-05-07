@@ -1,0 +1,93 @@
+From 0a3888db46a581971059c250d7e88c23b62075ac Mon Sep 17 00:00:00 2001
+From: William Lai <b04597@freescale.com>
+Date: Fri, 19 Mar 2010 10:45:24 +0800
+Subject: [PATCH] ENGR00121677-1 MX53 PWM: PWM backlight support
+
+Backlight based on PWM support on MX53 EVK
+
+Signed-off-by: William Lai <b04597@freescale.com>
+---
+ arch/arm/mach-mx5/mx53_evk.c      |    5 ++---
+ arch/arm/mach-mx5/mx53_evk_gpio.c |    6 +-----
+ arch/arm/plat-mxc/pwm.c           |    4 ++--
+ 3 files changed, 5 insertions(+), 10 deletions(-)
+
+diff --git a/arch/arm/mach-mx5/mx53_evk.c b/arch/arm/mach-mx5/mx53_evk.c
+index 9cc390d..db1d6ea 100644
+--- a/arch/arm/mach-mx5/mx53_evk.c
++++ b/arch/arm/mach-mx5/mx53_evk.c
+@@ -144,7 +144,7 @@ static struct mxc_w1_config mxc_w1_data = {
+ };
+ 
+ static struct platform_pwm_backlight_data mxc_pwm_backlight_data = {
+-	.pwm_id = 0,
++	.pwm_id = 1,
+ 	.max_brightness = 255,
+ 	.dft_brightness = 128,
+ 	.pwm_period_ns = 78770,
+@@ -544,7 +544,7 @@ static void __init mxc_board_init(void)
+ 	mxc_register_device(&mxc_dvfs_per_device, &dvfs_per_data);
+ 	*/
+ 	mxc_register_device(&mxc_iim_device, NULL);
+-	mxc_register_device(&mxc_pwm1_device, NULL);
++	mxc_register_device(&mxc_pwm2_device, NULL);
+ 	mxc_register_device(&mxc_pwm_backlight_device, &mxc_pwm_backlight_data);
+ /*	mxc_register_device(&mxc_keypad_device, &keypad_plat_data); */
+ 
+@@ -556,7 +556,6 @@ static void __init mxc_board_init(void)
+ 	mxc_register_device(&mxc_alsa_spdif_device, &mxc_spdif_data);
+ 	*/
+ 	mxc_register_device(&mxc_fec_device, NULL);
+-
+ /*
+ 	spi_register_board_info(mxc_spi_nor_device,
+ 					ARRAY_SIZE(mxc_spi_nor_device));
+diff --git a/arch/arm/mach-mx5/mx53_evk_gpio.c b/arch/arm/mach-mx5/mx53_evk_gpio.c
+index f5cb20d..539df1a 100644
+--- a/arch/arm/mach-mx5/mx53_evk_gpio.c
++++ b/arch/arm/mach-mx5/mx53_evk_gpio.c
+@@ -229,7 +229,7 @@ static struct mxc_iomux_pin_cfg __initdata mxc_iomux_pins[] = {
+ 	 MX53_PIN_CSI0_DATA_EN, IOMUX_CONFIG_GPIO,
+ 	 },
+ 	{
+-	 MX53_PIN_GPIO_1, IOMUX_CONFIG_GPIO,
++	 MX53_PIN_GPIO_1, IOMUX_CONFIG_ALT4,
+ 	 },
+ 	{
+ 	 MX53_PIN_GPIO_2, IOMUX_CONFIG_GPIO,
+@@ -588,10 +588,6 @@ void __init mx53_evk_io_init(void)
+ 					    mxc_iomux_pins[i].in_mode);
+ 	}
+ 
+-	gpio_request(IOMUX_TO_GPIO(MX53_PIN_GPIO_1), "gpio1_1");
+-	gpio_direction_output(IOMUX_TO_GPIO(MX53_PIN_GPIO_1), 0);
+-	gpio_set_value(IOMUX_TO_GPIO(MX53_PIN_GPIO_1), 1); /*BL*/
+-
+ 	gpio_request(IOMUX_TO_GPIO(MX53_PIN_GPIO_16), "gpio7_11");
+ 	gpio_direction_input(IOMUX_TO_GPIO(MX53_PIN_GPIO_16));	/*PMIC_INT*/
+ 
+diff --git a/arch/arm/plat-mxc/pwm.c b/arch/arm/plat-mxc/pwm.c
+index bc240e0..f159feb 100644
+--- a/arch/arm/plat-mxc/pwm.c
++++ b/arch/arm/plat-mxc/pwm.c
+@@ -6,7 +6,7 @@
+  * published by the Free Software Foundation.
+  *
+  * Derived from pxa PWM driver by eric miao <eric.miao@marvell.com>
+- * Copyright 2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2009-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ #include <linux/module.h>
+@@ -61,7 +61,7 @@ int pwm_config(struct pwm_device *pwm, int duty_ns, int period_ns)
+ 	if (pwm == NULL || period_ns == 0 || duty_ns > period_ns)
+ 		return -EINVAL;
+ 
+-	if (cpu_is_mx27() || cpu_is_mx3() || cpu_is_mx51()) {
++	if (cpu_is_mx27() || cpu_is_mx3() || cpu_is_mx51() || cpu_is_mx53()) {
+ 		unsigned long long c;
+ 		unsigned long period_cycles, duty_cycles, prescale;
+ 		c = clk_get_rate(pwm->clk);
+-- 
+1.5.4.4
+

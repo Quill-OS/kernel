@@ -1,0 +1,1707 @@
+From cf18ab595704b3a1b0f7c88a62abb7bd7ee8a26d Mon Sep 17 00:00:00 2001
+From: Robby Cai <R63905@freescale.com>
+Date: Wed, 27 Jan 2010 21:28:32 +0800
+Subject: [PATCH] ENGR00117728-1 MX28 Add lcdif and framebuffer driver support
+
+Borrow files from MX23
+
+Signed-off-by: Robby Cai <R63905@freescale.com>
+---
+ arch/arm/mach-mx28/include/mach/lcdif.h |  498 ++++++++++++++++
+ drivers/video/mxs/lcdif.c               |  210 +++++++
+ drivers/video/mxs/mxsfb.c               |  964 +++++++++++++++++++++++++++++++
+ 3 files changed, 1672 insertions(+), 0 deletions(-)
+
+diff --git a/arch/arm/mach-mx28/include/mach/lcdif.h b/arch/arm/mach-mx28/include/mach/lcdif.h
+new file mode 100644
+index 0000000..79a94f4
+--- /dev/null
++++ b/arch/arm/mach-mx28/include/mach/lcdif.h
+@@ -0,0 +1,498 @@
++/*
++ * Freescale STMP378X LCDIF interfaces
++ *
++ * Author: Vitaly Wool <vital@embeddedalley.com>
++ *
++ * Copyright 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2008 Embedded Alley Solutions, Inc All Rights Reserved.
++ */
++
++/*
++ * The code contained herein is licensed under the GNU General Public
++ * License. You may obtain a copy of the GNU General Public License
++ * Version 2 or later at the following locations:
++ *
++ * http://www.opensource.org/licenses/gpl-license.html
++ * http://www.gnu.org/copyleft/gpl.html
++ */
++#ifndef _ARCH_ARM_LCDIF_H
++#define _ARCH_ARM_LCDIF_H
++
++#include <linux/types.h>
++#include <linux/fb.h>
++#include <linux/list.h>
++#include <linux/backlight.h>
++#include <linux/dma-mapping.h>
++#include <linux/regulator/consumer.h>
++#include <mach/dma.h>
++#include <mach/platform.h>
++
++#include "regs-lcdif.h"
++#include "regs-apbh.h"
++
++enum {
++	SPI_MOSI = 0,
++	SPI_SCLK,
++	SPI_CS,
++};
++
++struct stmp3xxx_lcd_dma_chain_info {
++	dma_addr_t *dma_addr_p;
++	unsigned offset;
++};
++
++enum {
++	STMP3XXX_LCD_PANEL_SYSTEM = 0,
++	STMP3XXX_LCD_PANEL_VSYNC,
++	STMP3XXX_LCD_PANEL_DOTCLK,
++	STMP3XXX_LCD_PANEL_DVI,
++};
++
++struct stmp3xxx_platform_bl_data;
++struct stmp3xxx_platform_fb_entry {
++	char name[16];
++	u16 x_res;
++	u16 y_res;
++	u16 bpp;
++	u32 cycle_time_ns;
++	int lcd_type;
++	int (*init_panel) (struct device *, dma_addr_t, int,
++			   struct stmp3xxx_platform_fb_entry *);
++	void (*release_panel) (struct device *,
++			       struct stmp3xxx_platform_fb_entry *);
++	int (*blank_panel) (int);
++	void (*run_panel) (void);
++	void (*stop_panel) (void);
++	int (*pan_display) (dma_addr_t);
++	int (*update_panel) (void *,
++			     struct stmp3xxx_platform_fb_entry *);
++	struct list_head link;
++	struct stmp3xxx_platform_bl_data *bl_data;
++};
++
++struct stmp3xxx_platform_fb_data {
++	struct list_head list;
++	struct stmp3xxx_platform_fb_entry *cur;
++	struct stmp3xxx_platform_fb_entry *next;
++};
++
++#define STMP3XXX_LCDIF_PANEL_INIT	1
++#define STMP3XXX_LCDIF_PANEL_RELEASE	2
++
++struct stmp3xxx_platform_bl_data {
++	struct list_head list;
++	struct regulator *regulator;
++	int bl_gpio;
++	int bl_max_intensity;
++	int bl_cons_intensity;
++	int bl_default_intensity;
++	int (*init_bl) (struct stmp3xxx_platform_bl_data *);
++	int (*set_bl_intensity) (struct stmp3xxx_platform_bl_data *,
++				 struct backlight_device *, int);
++	void (*free_bl) (struct stmp3xxx_platform_bl_data *);
++};
++
++static inline void stmp3xxx_lcd_register_entry(struct stmp3xxx_platform_fb_entry
++					       *pentry,
++					       struct stmp3xxx_platform_fb_data
++					       *pdata)
++{
++	list_add_tail(&pentry->link, &pdata->list);
++	if (!pdata->cur)
++		pdata->cur = pentry;
++}
++
++static inline void stmp3xxx_lcd_move_pentry_up(struct stmp3xxx_platform_fb_entry
++					       *pentry,
++					       struct stmp3xxx_platform_fb_data
++					       *pdata)
++{
++	list_del(&pentry->link);
++	list_add(&pentry->link, &pdata->list);
++}
++
++static inline int stmp3xxx_lcd_iterate_pdata(struct stmp3xxx_platform_fb_data
++					     *pdata,
++					     int (*func) (struct
++							  stmp3xxx_platform_fb_entry
++							  * pentry, void *data,
++							  int ret_prev),
++					     void *data)
++{
++	struct stmp3xxx_platform_fb_entry *pentry;
++	int ret = 0;
++	list_for_each_entry(pentry, &pdata->list, link) {
++		ret = func(pentry, data, ret);
++	}
++	return ret;
++}
++
++static inline void stmp3xxx_lcd_set_bl_pdata(struct stmp3xxx_platform_bl_data
++					     *pdata)
++{
++	extern struct platform_device stmp3xxx_backlight;
++	stmp3xxx_backlight.dev.platform_data = pdata;
++}
++
++void stmp3xxx_init_lcdif(void);
++int stmp3xxx_lcdif_dma_init(struct device *dev, dma_addr_t phys, int memsize,
++			    int lcd_master);
++void stmp3xxx_lcdif_dma_release(void);
++void stmp3xxx_lcdif_run(void);
++void stmp3xxx_lcdif_stop(void);
++int stmp3xxx_lcdif_pan_display(dma_addr_t addr);
++
++int stmp3xxx_lcdif_register_client(struct notifier_block *nb);
++void stmp3xxx_lcdif_unregister_client(struct notifier_block *nb);
++void stmp3xxx_lcdif_notify_clients(unsigned long event,
++				   struct stmp3xxx_platform_fb_entry *pentry);
++
++#ifndef FBIO_WAITFORVSYNC
++#define FBIO_WAITFORVSYNC		_IOW('F', 0x20, u_int32_t)
++#endif
++
++#define LCD_DMA_CHANNEL		0
++
++static inline void setup_dotclk_panel(u16 v_pulse_width,
++				      u16 v_period,
++				      u16 v_wait_cnt,
++				      u16 v_active,
++				      u16 h_pulse_width,
++				      u16 h_period,
++				      u16 h_wait_cnt,
++				      u16 h_active, int enable_present)
++{
++	u32 val;
++
++	stmp3xxx_clearl(BM_LCDIF_CTRL_DATA_SHIFT_DIR,
++			REGS_LCDIF_BASE + HW_LCDIF_CTRL);
++
++	stmp3xxx_clearl(BM_LCDIF_CTRL_SHIFT_NUM_BITS,
++			REGS_LCDIF_BASE + HW_LCDIF_CTRL);
++
++	stmp3xxx_clearl(BM_LCDIF_CTRL1_BYTE_PACKING_FORMAT,
++			REGS_LCDIF_BASE + HW_LCDIF_CTRL1);
++	stmp3xxx_setl(BF(7, LCDIF_CTRL1_BYTE_PACKING_FORMAT) |
++		      BM_LCDIF_CTRL1_RECOVER_ON_UNDERFLOW,
++		      REGS_LCDIF_BASE + HW_LCDIF_CTRL1);
++
++	val = __raw_readl(REGS_LCDIF_BASE + HW_LCDIF_TRANSFER_COUNT);
++	val &= ~(BM_LCDIF_TRANSFER_COUNT_V_COUNT |
++			BM_LCDIF_TRANSFER_COUNT_H_COUNT);
++	val |= BF(h_active, LCDIF_TRANSFER_COUNT_H_COUNT) |
++			BF(v_active, LCDIF_TRANSFER_COUNT_V_COUNT);
++	__raw_writel(val, REGS_LCDIF_BASE + HW_LCDIF_TRANSFER_COUNT);
++
++	stmp3xxx_clearl(BM_LCDIF_CTRL_VSYNC_MODE,
++			REGS_LCDIF_BASE + HW_LCDIF_CTRL);
++	stmp3xxx_clearl(BM_LCDIF_CTRL_WAIT_FOR_VSYNC_EDGE,
++			REGS_LCDIF_BASE + HW_LCDIF_CTRL);
++	stmp3xxx_clearl(BM_LCDIF_CTRL_DVI_MODE,
++			REGS_LCDIF_BASE + HW_LCDIF_CTRL);
++	stmp3xxx_setl(BM_LCDIF_CTRL_DOTCLK_MODE,
++		      REGS_LCDIF_BASE + HW_LCDIF_CTRL);
++	stmp3xxx_setl(BM_LCDIF_CTRL_BYPASS_COUNT,
++		      REGS_LCDIF_BASE + HW_LCDIF_CTRL);
++
++	stmp3xxx_clearl(BM_LCDIF_CTRL_WORD_LENGTH |
++			BM_LCDIF_CTRL_INPUT_DATA_SWIZZLE |
++			BM_LCDIF_CTRL_LCD_DATABUS_WIDTH,
++			REGS_LCDIF_BASE + HW_LCDIF_CTRL);
++	stmp3xxx_setl(BF(3, LCDIF_CTRL_WORD_LENGTH) |	/* 24 bit */
++		      BM_LCDIF_CTRL_DATA_SELECT |	/* data mode */
++		      BF(0, LCDIF_CTRL_INPUT_DATA_SWIZZLE) |	/* no swap */
++		      BF(3, LCDIF_CTRL_LCD_DATABUS_WIDTH),	/* 24 bit */
++		      REGS_LCDIF_BASE + HW_LCDIF_CTRL);
++
++	val = __raw_readl(REGS_LCDIF_BASE + HW_LCDIF_VDCTRL0);
++	val &= ~(BM_LCDIF_VDCTRL0_VSYNC_POL |
++			BM_LCDIF_VDCTRL0_HSYNC_POL |
++			BM_LCDIF_VDCTRL0_ENABLE_POL |
++			BM_LCDIF_VDCTRL0_DOTCLK_POL);
++	val |= BM_LCDIF_VDCTRL0_ENABLE_POL |
++			BM_LCDIF_VDCTRL0_DOTCLK_POL;
++	__raw_writel(val, REGS_LCDIF_BASE + HW_LCDIF_VDCTRL0);
++
++	val = __raw_readl(REGS_LCDIF_BASE + HW_LCDIF_VDCTRL0);
++	val &= ~(BM_LCDIF_VDCTRL0_VSYNC_OEB);
++	__raw_writel(val, REGS_LCDIF_BASE + HW_LCDIF_VDCTRL0);	/* vsync is output */
++
++	/*
++	 * need enable sig for true RGB i/f.  Or, if not true RGB, leave it
++	 * zero.
++	 */
++	val = __raw_readl(REGS_LCDIF_BASE + HW_LCDIF_VDCTRL0);
++	val |= BM_LCDIF_VDCTRL0_ENABLE_PRESENT;
++	__raw_writel(val, REGS_LCDIF_BASE + HW_LCDIF_VDCTRL0);
++
++	/*
++	 * For DOTCLK mode, count VSYNC_PERIOD in terms of complete hz lines
++	 */
++	val = __raw_readl(REGS_LCDIF_BASE + HW_LCDIF_VDCTRL0);
++	val &= ~(BM_LCDIF_VDCTRL0_VSYNC_PERIOD_UNIT |
++		      BM_LCDIF_VDCTRL0_VSYNC_PULSE_WIDTH_UNIT);
++	val |= BM_LCDIF_VDCTRL0_VSYNC_PERIOD_UNIT |
++		      BM_LCDIF_VDCTRL0_VSYNC_PULSE_WIDTH_UNIT;
++	__raw_writel(val, REGS_LCDIF_BASE + HW_LCDIF_VDCTRL0);
++
++	stmp3xxx_clearl(BM_LCDIF_VDCTRL0_VSYNC_PULSE_WIDTH,
++			REGS_LCDIF_BASE + HW_LCDIF_VDCTRL0);
++	stmp3xxx_setl(v_pulse_width, REGS_LCDIF_BASE + HW_LCDIF_VDCTRL0);
++
++	stmp3xxx_clearl(BM_LCDIF_VDCTRL1_VSYNC_PERIOD,
++			REGS_LCDIF_BASE + HW_LCDIF_VDCTRL1);
++	stmp3xxx_setl(v_period, REGS_LCDIF_BASE + HW_LCDIF_VDCTRL1);
++
++	stmp3xxx_clearl(BM_LCDIF_VDCTRL2_HSYNC_PERIOD |
++			BM_LCDIF_VDCTRL2_HSYNC_PULSE_WIDTH,
++			REGS_LCDIF_BASE + HW_LCDIF_VDCTRL2);
++
++	stmp3xxx_setl(BF(h_pulse_width, LCDIF_VDCTRL2_HSYNC_PULSE_WIDTH) |
++		      BF(h_period, LCDIF_VDCTRL2_HSYNC_PERIOD),
++		      REGS_LCDIF_BASE + HW_LCDIF_VDCTRL2);
++
++	val = __raw_readl(REGS_LCDIF_BASE + HW_LCDIF_VDCTRL4);
++	val &= ~BM_LCDIF_VDCTRL4_DOTCLK_H_VALID_DATA_CNT;
++	val |= BF(h_active, LCDIF_VDCTRL4_DOTCLK_H_VALID_DATA_CNT);
++	__raw_writel(val, REGS_LCDIF_BASE + HW_LCDIF_VDCTRL4);
++
++	val = __raw_readl(REGS_LCDIF_BASE + HW_LCDIF_VDCTRL3);
++	val &= ~(BM_LCDIF_VDCTRL3_HORIZONTAL_WAIT_CNT |
++			BM_LCDIF_VDCTRL3_VERTICAL_WAIT_CNT);
++	val |= BF(h_wait_cnt, LCDIF_VDCTRL3_HORIZONTAL_WAIT_CNT) |
++			BF(v_wait_cnt, LCDIF_VDCTRL3_VERTICAL_WAIT_CNT);
++	__raw_writel(val, REGS_LCDIF_BASE + HW_LCDIF_VDCTRL3);
++
++	val = __raw_readl(REGS_LCDIF_BASE + HW_LCDIF_VDCTRL4);
++	val |= BM_LCDIF_VDCTRL4_SYNC_SIGNALS_ON;
++	__raw_writel(val, REGS_LCDIF_BASE + HW_LCDIF_VDCTRL4);
++}
++
++static inline void release_dotclk_panel(void)
++{
++	stmp3xxx_clearl(BM_LCDIF_CTRL_DOTCLK_MODE,
++			REGS_LCDIF_BASE + HW_LCDIF_CTRL);
++	__raw_writel(0, REGS_LCDIF_BASE + HW_LCDIF_VDCTRL0);
++	__raw_writel(0, REGS_LCDIF_BASE + HW_LCDIF_VDCTRL1);
++	__raw_writel(0, REGS_LCDIF_BASE + HW_LCDIF_VDCTRL2);
++	__raw_writel(0, REGS_LCDIF_BASE + HW_LCDIF_VDCTRL3);
++}
++
++static inline void dotclk_dma_chain_init(int memsize, dma_addr_t video_phys,
++					 struct stmp3xxx_dma_descriptor
++					 *video_dma_descriptor,
++					 struct stmp3xxx_lcd_dma_chain_info
++					 *dma_chain_info,
++					 unsigned *dma_chain_info_pos)
++{
++	unsigned i, bytes_left;
++	dma_addr_t phys = video_phys;
++	bytes_left = memsize;
++
++	for (i = 0; bytes_left > 0; ++i) {
++		unsigned this_chain = bytes_left < 0xff00 ? bytes_left : 0xff00;
++		/* Count of 0 in the DMA word means 65536 */
++		unsigned xfer_count = this_chain & 65535;
++		stmp3xxx_dma_allocate_command(STMP3XXX_DMA
++					      (LCD_DMA_CHANNEL,
++					       STMP3XXX_BUS_APBH),
++					      &video_dma_descriptor[i]);
++		if (i != 0) {
++			/* Chain previous command to this one */
++			video_dma_descriptor[i - 1].command->next =
++			    video_dma_descriptor[i].handle;
++			/* Enable DMA chaining, disable IRQ and semaphore
++			 * on previous command
++			 */
++			video_dma_descriptor[i - 1].command->cmd &=
++			    ~(BM_APBH_CHn_CMD_IRQONCMPLT |
++			      BM_APBH_CHn_CMD_SEMAPHORE);
++		}
++		video_dma_descriptor[i].command->cmd =
++						BF(xfer_count, APBH_CHn_CMD_XFER_COUNT) |
++						BF(1, APBH_CHn_CMD_CMDWORDS) |
++						BM_APBH_CHn_CMD_CHAIN |
++						BF(2, APBH_CHn_CMD_COMMAND);	/* DMA read */
++		video_dma_descriptor[i].command->pio_words[0] =
++		    BM_LCDIF_CTRL_RUN |
++		    BF(1, LCDIF_CTRL_INPUT_DATA_SWIZZLE) |
++		    BM_LCDIF_CTRL_DATA_SHIFT_DIR |
++		    BM_LCDIF_CTRL_DOTCLK_MODE |
++		    BM_LCDIF_CTRL_BYPASS_COUNT | BM_LCDIF_CTRL_DATA_SELECT;
++		video_dma_descriptor[i].command->buf_ptr = phys;
++		dma_chain_info[*dma_chain_info_pos].dma_addr_p =
++		    &video_dma_descriptor[i].command->buf_ptr;
++		dma_chain_info[*dma_chain_info_pos].offset = phys - video_phys;
++		++*dma_chain_info_pos;
++		phys += this_chain;
++		bytes_left -= this_chain;
++	}
++	video_dma_descriptor[i - 1].command->next =
++	    video_dma_descriptor[0].handle;
++	pr_debug("%s: Used %u DMA chains to cover %u bytes\n", __func__, i,
++		 memsize);
++}
++
++static inline void setup_dvi_panel(u16 h_active, u16 v_active,
++				   u16 h_blanking, u16 v_lines,
++				   u16 v1_blank_start, u16 v1_blank_end,
++				   u16 v2_blank_start, u16 v2_blank_end,
++				   u16 f1_start, u16 f1_end,
++				   u16 f2_start, u16 f2_end)
++{
++	u32 val;
++	/* 32bit packed format (RGB) */
++	stmp3xxx_clearl(BM_LCDIF_CTRL1_BYTE_PACKING_FORMAT,
++			REGS_LCDIF_BASE + HW_LCDIF_CTRL1);
++	stmp3xxx_setl(BF(0x7, LCDIF_CTRL1_BYTE_PACKING_FORMAT) |
++		      BM_LCDIF_CTRL1_RECOVER_ON_UNDERFLOW,
++		      REGS_LCDIF_BASE + HW_LCDIF_CTRL1);
++
++	val = __raw_readl(REGS_LCDIF_BASE + HW_LCDIF_TRANSFER_COUNT);
++	val &= ~(BM_LCDIF_TRANSFER_COUNT_V_COUNT |
++			BM_LCDIF_TRANSFER_COUNT_H_COUNT);
++	val |= BF(h_active, LCDIF_TRANSFER_COUNT_H_COUNT) |
++			BF(v_active, LCDIF_TRANSFER_COUNT_V_COUNT);
++	__raw_writel(val, REGS_LCDIF_BASE + HW_LCDIF_TRANSFER_COUNT);
++
++	/* set lcdif to DVI mode */
++	stmp3xxx_setl(BM_LCDIF_CTRL_DVI_MODE, REGS_LCDIF_BASE + HW_LCDIF_CTRL);
++	stmp3xxx_clearl(BM_LCDIF_CTRL_VSYNC_MODE,
++			REGS_LCDIF_BASE + HW_LCDIF_CTRL);
++	stmp3xxx_clearl(BM_LCDIF_CTRL_DOTCLK_MODE,
++			REGS_LCDIF_BASE + HW_LCDIF_CTRL);
++
++	stmp3xxx_setl(BM_LCDIF_CTRL_BYPASS_COUNT,
++		      REGS_LCDIF_BASE + HW_LCDIF_CTRL);
++	/* convert input RGB -> YCbCr */
++	stmp3xxx_setl(BM_LCDIF_CTRL_RGB_TO_YCBCR422_CSC,
++		      REGS_LCDIF_BASE + HW_LCDIF_CTRL);
++	/* interlace odd and even fields */
++	stmp3xxx_setl(BM_LCDIF_CTRL1_INTERLACE_FIELDS,
++		      REGS_LCDIF_BASE + HW_LCDIF_CTRL1);
++
++	stmp3xxx_clearl(BM_LCDIF_CTRL_WORD_LENGTH |
++			BM_LCDIF_CTRL_INPUT_DATA_SWIZZLE |
++			BM_LCDIF_CTRL_LCD_DATABUS_WIDTH,
++			REGS_LCDIF_BASE + HW_LCDIF_CTRL);
++	stmp3xxx_setl(BF(3, LCDIF_CTRL_WORD_LENGTH) |	/* 24 bit */
++		      BM_LCDIF_CTRL_DATA_SELECT |	/* data mode */
++		      BF(0, LCDIF_CTRL_INPUT_DATA_SWIZZLE) |	/* no swap */
++		      BF(1, LCDIF_CTRL_LCD_DATABUS_WIDTH),	/* 8 bit */
++		      REGS_LCDIF_BASE + HW_LCDIF_CTRL);
++
++	/* LCDIF_DVI */
++	/* set frame size */
++	val = __raw_readl(REGS_LCDIF_BASE + HW_LCDIF_DVICTRL0);
++	val &= ~(BM_LCDIF_DVICTRL0_H_ACTIVE_CNT |
++		      BM_LCDIF_DVICTRL0_H_BLANKING_CNT |
++		      BM_LCDIF_DVICTRL0_V_LINES_CNT);
++	val |= BF(1440, LCDIF_DVICTRL0_H_ACTIVE_CNT) |
++		      BF(h_blanking, LCDIF_DVICTRL0_H_BLANKING_CNT) |
++		      BF(v_lines, LCDIF_DVICTRL0_V_LINES_CNT);
++	__raw_writel(val, REGS_LCDIF_BASE + HW_LCDIF_DVICTRL0);
++
++	/* set start/end of field-1 and start of field-2 */
++	val = __raw_readl(REGS_LCDIF_BASE + HW_LCDIF_DVICTRL1);
++	val &= ~(BM_LCDIF_DVICTRL1_F1_START_LINE |
++		      BM_LCDIF_DVICTRL1_F1_END_LINE |
++		      BM_LCDIF_DVICTRL1_F2_START_LINE);
++	val |= BF(f1_start, LCDIF_DVICTRL1_F1_START_LINE) |
++		BF(f1_end, LCDIF_DVICTRL1_F1_END_LINE) |
++		BF(f2_start, LCDIF_DVICTRL1_F2_START_LINE);
++	__raw_writel(val, REGS_LCDIF_BASE + HW_LCDIF_DVICTRL1);
++
++	/* set first vertical blanking interval and end of filed-2 */
++	val = __raw_readl(REGS_LCDIF_BASE + HW_LCDIF_DVICTRL2);
++	val &= ~(BM_LCDIF_DVICTRL2_F2_END_LINE |
++		      BM_LCDIF_DVICTRL2_V1_BLANK_START_LINE |
++		      BM_LCDIF_DVICTRL2_V1_BLANK_END_LINE);
++	val |= BF(f2_end, LCDIF_DVICTRL2_F2_END_LINE) |
++		      BF(v1_blank_start, LCDIF_DVICTRL2_V1_BLANK_START_LINE) |
++		      BF(v1_blank_end, LCDIF_DVICTRL2_V1_BLANK_END_LINE);
++	__raw_writel(val, REGS_LCDIF_BASE + HW_LCDIF_DVICTRL2);
++
++	/* set second vertical blanking interval */
++	val = __raw_readl(REGS_LCDIF_BASE + HW_LCDIF_DVICTRL3);
++	val &= ~(BM_LCDIF_DVICTRL3_V2_BLANK_START_LINE |
++		      BM_LCDIF_DVICTRL3_V2_BLANK_END_LINE);
++	val |= BF(v2_blank_start, LCDIF_DVICTRL3_V2_BLANK_START_LINE) |
++		      BF(v2_blank_end, LCDIF_DVICTRL3_V2_BLANK_END_LINE);
++	__raw_writel(val, REGS_LCDIF_BASE + HW_LCDIF_DVICTRL3);
++
++	/* fill the rest area black color if the input frame
++	 * is not 720 pixels/line
++	 */
++	if (h_active != 720) {
++		/* the input frame can't be less then (720-256) pixels/line */
++		if (720 - h_active > 0xff)
++			h_active = 720 - 0xff;
++
++		val = __raw_readl(REGS_LCDIF_BASE + HW_LCDIF_DVICTRL4);
++		val &= ~(BM_LCDIF_DVICTRL4_H_FILL_CNT |
++			      BM_LCDIF_DVICTRL4_Y_FILL_VALUE |
++			      BM_LCDIF_DVICTRL4_CB_FILL_VALUE |
++			      BM_LCDIF_DVICTRL4_CR_FILL_VALUE);
++		val |= BF(720 - h_active, LCDIF_DVICTRL4_H_FILL_CNT) |
++			      BF(16, LCDIF_DVICTRL4_Y_FILL_VALUE) |
++			      BF(128, LCDIF_DVICTRL4_CB_FILL_VALUE) |
++			      BF(128, LCDIF_DVICTRL4_CR_FILL_VALUE);
++		__raw_writel(val, REGS_LCDIF_BASE + HW_LCDIF_DVICTRL4);
++	}
++
++	/* Color Space Conversion RGB->YCbCr */
++	val = __raw_readl(REGS_LCDIF_BASE + HW_LCDIF_CSC_COEFF0);
++	val &= ~(BM_LCDIF_CSC_COEFF0_C0 |
++		      BM_LCDIF_CSC_COEFF0_CSC_SUBSAMPLE_FILTER);
++	val |= BF(0x41, LCDIF_CSC_COEFF0_C0) |
++		      BF(3, LCDIF_CSC_COEFF0_CSC_SUBSAMPLE_FILTER);
++	__raw_writel(val, REGS_LCDIF_BASE + HW_LCDIF_CSC_COEFF0);
++
++	val = __raw_readl(REGS_LCDIF_BASE + HW_LCDIF_CSC_COEFF1);
++	val &= ~(BM_LCDIF_CSC_COEFF1_C1 | BM_LCDIF_CSC_COEFF1_C2);
++	val |= BF(0x81, LCDIF_CSC_COEFF1_C1) |
++		      BF(0x19, LCDIF_CSC_COEFF1_C2);
++	__raw_writel(val, REGS_LCDIF_BASE + HW_LCDIF_CSC_COEFF1);
++
++	val = __raw_readl(REGS_LCDIF_BASE + HW_LCDIF_CSC_COEFF2);
++	val &= ~(BM_LCDIF_CSC_COEFF2_C3 | BM_LCDIF_CSC_COEFF2_C4);
++	val |= BF(0x3DB, LCDIF_CSC_COEFF2_C3) |
++		      BF(0x3B6, LCDIF_CSC_COEFF2_C4);
++	__raw_writel(val, REGS_LCDIF_BASE + HW_LCDIF_CSC_COEFF2);
++
++	val = __raw_readl(REGS_LCDIF_BASE + HW_LCDIF_CSC_COEFF3);
++	val &= ~(BM_LCDIF_CSC_COEFF3_C5 | BM_LCDIF_CSC_COEFF3_C6);
++	val |= BF(0x70, LCDIF_CSC_COEFF3_C5) |
++		      BF(0x70, LCDIF_CSC_COEFF3_C6);
++	__raw_writel(val, REGS_LCDIF_BASE + HW_LCDIF_CSC_COEFF3);
++
++	val = __raw_readl(REGS_LCDIF_BASE + HW_LCDIF_CSC_COEFF4);
++	val &= ~(BM_LCDIF_CSC_COEFF4_C7 | BM_LCDIF_CSC_COEFF4_C8);
++	val |= BF(0x3A2, LCDIF_CSC_COEFF4_C7) | BF(0x3EE, LCDIF_CSC_COEFF4_C8);
++	__raw_writel(val, REGS_LCDIF_BASE + HW_LCDIF_CSC_COEFF4);
++
++	val = __raw_readl(REGS_LCDIF_BASE + HW_LCDIF_CSC_OFFSET);
++	val &= ~(BM_LCDIF_CSC_OFFSET_CBCR_OFFSET | BM_LCDIF_CSC_OFFSET_Y_OFFSET);
++	val |= BF(0x80, LCDIF_CSC_OFFSET_CBCR_OFFSET) |
++		      BF(0x10, LCDIF_CSC_OFFSET_Y_OFFSET);
++	__raw_writel(val, REGS_LCDIF_BASE + HW_LCDIF_CSC_OFFSET);
++
++	val = __raw_readl(REGS_LCDIF_BASE + HW_LCDIF_CSC_LIMIT);
++	val &= ~(BM_LCDIF_CSC_LIMIT_CBCR_MIN |
++		      BM_LCDIF_CSC_LIMIT_CBCR_MAX |
++		      BM_LCDIF_CSC_LIMIT_Y_MIN |
++		      BM_LCDIF_CSC_LIMIT_Y_MAX);
++	val |= BF(16, LCDIF_CSC_LIMIT_CBCR_MIN) |
++		      BF(240, LCDIF_CSC_LIMIT_CBCR_MAX) |
++		      BF(16, LCDIF_CSC_LIMIT_Y_MIN) |
++		      BF(235, LCDIF_CSC_LIMIT_Y_MAX);
++	__raw_writel(val, REGS_LCDIF_BASE + HW_LCDIF_CSC_LIMIT);
++}
++
++static inline void release_dvi_panel(void)
++{
++	stmp3xxx_clearl(BM_LCDIF_CTRL_DVI_MODE,
++			REGS_LCDIF_BASE + HW_LCDIF_CTRL);
++}
++
++#endif /* _ARCH_ARM_LCDIF_H */
+diff --git a/drivers/video/mxs/lcdif.c b/drivers/video/mxs/lcdif.c
+new file mode 100644
+index 0000000..5cdd52a
+--- /dev/null
++++ b/drivers/video/mxs/lcdif.c
+@@ -0,0 +1,210 @@
++/*
++ * Freescale STMP378X LCDIF low-level routines
++ *
++ * Author: Vitaly Wool <vital@embeddedalley.com>
++ *
++ * Copyright 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2008 Embedded Alley Solutions, Inc All Rights Reserved.
++ */
++
++/*
++ * The code contained herein is licensed under the GNU General Public
++ * License. You may obtain a copy of the GNU General Public License
++ * Version 2 or later at the following locations:
++ *
++ * http://www.opensource.org/licenses/gpl-license.html
++ * http://www.gnu.org/copyleft/gpl.html
++ */
++/* #define DEBUG */
++
++#include <linux/dma-mapping.h>
++#include <linux/delay.h>
++
++#include <mach/hardware.h>
++#include <mach/dma.h>
++#include <mach/dma.h>
++#include <mach/regs-lcdif.h>
++#include <mach/regs-pinctrl.h>
++#include <mach/lcdif.h>
++
++#define MAX_CHAIN_LEN		10
++
++static struct stmp3xxx_dma_descriptor video_dma_descriptor[MAX_CHAIN_LEN];
++static struct stmp3xxx_lcd_dma_chain_info dma_chain_info[MAX_CHAIN_LEN];
++static unsigned dma_chain_info_pos;
++
++void stmp3xxx_init_lcdif(void)
++{
++	stmp3xxx_clearl(BM_LCDIF_CTRL_CLKGATE, REGS_LCDIF_BASE + HW_LCDIF_CTRL);
++	/* Reset controller */
++	stmp3xxx_setl(BM_LCDIF_CTRL_SFTRST, REGS_LCDIF_BASE + HW_LCDIF_CTRL);
++	udelay(10);
++
++	/* Take controller out of reset */
++	stmp3xxx_clearl(BM_LCDIF_CTRL_SFTRST | BM_LCDIF_CTRL_CLKGATE,
++			REGS_LCDIF_BASE + HW_LCDIF_CTRL);
++
++	/* Setup the bus protocol */
++	stmp3xxx_clearl(BM_LCDIF_CTRL1_MODE86,
++			REGS_LCDIF_BASE + HW_LCDIF_CTRL1);
++	stmp3xxx_clearl(BM_LCDIF_CTRL1_BUSY_ENABLE,
++			REGS_LCDIF_BASE + HW_LCDIF_CTRL1);
++
++	/* Take display out of reset */
++	stmp3xxx_setl(BM_LCDIF_CTRL1_RESET, REGS_LCDIF_BASE + HW_LCDIF_CTRL1);
++
++	/* VSYNC is an input by default */
++	stmp3xxx_setl(BM_LCDIF_VDCTRL0_VSYNC_OEB,
++		      REGS_LCDIF_BASE + HW_LCDIF_VDCTRL0);
++
++	/* Reset display */
++	stmp3xxx_clearl(BM_LCDIF_CTRL1_RESET, REGS_LCDIF_BASE + HW_LCDIF_CTRL1);
++	udelay(10);
++	stmp3xxx_setl(BM_LCDIF_CTRL1_RESET, REGS_LCDIF_BASE + HW_LCDIF_CTRL1);
++	udelay(10);
++}
++
++EXPORT_SYMBOL(stmp3xxx_init_lcdif);
++
++static int stmp378x_lcd_master = 1;
++int stmp3xxx_lcdif_dma_init(struct device *dev, dma_addr_t phys, int memsize,
++			    int lcd_master)
++{
++	int ret = 0;
++
++	stmp378x_lcd_master = lcd_master;
++	if (lcd_master) {
++		stmp3xxx_setl(BM_LCDIF_CTRL_LCDIF_MASTER,
++			      REGS_LCDIF_BASE + HW_LCDIF_CTRL);
++
++		__raw_writel(phys, REGS_LCDIF_BASE + HW_LCDIF_CUR_BUF);
++		__raw_writel(phys, REGS_LCDIF_BASE + HW_LCDIF_NEXT_BUF);
++	} else {
++		ret =
++		    stmp3xxx_dma_request(STMP3XXX_DMA
++					 (LCD_DMA_CHANNEL, STMP3XXX_BUS_APBH),
++					 dev, "lcdif");
++		if (ret) {
++			dev_err(dev,
++				"stmp3xxx_dma_request failed: error %d\n", ret);
++			goto out;
++		}
++
++		stmp3xxx_dma_reset_channel(STMP3XXX_DMA
++					   (LCD_DMA_CHANNEL,
++					    STMP3XXX_BUS_APBH));
++
++		stmp3xxx_dma_clear_interrupt(STMP3XXX_DMA
++					     (LCD_DMA_CHANNEL,
++					      STMP3XXX_BUS_APBH));
++		stmp3xxx_dma_enable_interrupt(STMP3XXX_DMA
++					      (LCD_DMA_CHANNEL,
++					       STMP3XXX_BUS_APBH));
++
++		dotclk_dma_chain_init(memsize, phys, video_dma_descriptor,
++				      dma_chain_info, &dma_chain_info_pos);
++	}
++out:
++	return ret;
++}
++
++EXPORT_SYMBOL(stmp3xxx_lcdif_dma_init);
++
++void stmp3xxx_lcdif_dma_release(void)
++{
++	int i;
++
++	if (stmp378x_lcd_master) {
++		stmp3xxx_clearl(BM_LCDIF_CTRL_LCDIF_MASTER,
++				REGS_LCDIF_BASE + HW_LCDIF_CTRL);
++		return;
++	}
++
++	for (i = 0; i < dma_chain_info_pos; i++)
++		stmp3xxx_dma_free_command(STMP3XXX_DMA
++					  (LCD_DMA_CHANNEL, STMP3XXX_BUS_APBH),
++					  &video_dma_descriptor[i]);
++	stmp3xxx_dma_release(STMP3XXX_DMA(LCD_DMA_CHANNEL, STMP3XXX_BUS_APBH));
++
++	dma_chain_info_pos = 0;
++}
++
++EXPORT_SYMBOL(stmp3xxx_lcdif_dma_release);
++
++void stmp3xxx_lcdif_run(void)
++{
++	if (stmp378x_lcd_master) {
++		stmp3xxx_setl(BM_LCDIF_CTRL_LCDIF_MASTER,
++			      REGS_LCDIF_BASE + HW_LCDIF_CTRL);
++		stmp3xxx_setl(BM_LCDIF_CTRL_RUN,
++			      REGS_LCDIF_BASE + HW_LCDIF_CTRL);
++	} else {
++		video_dma_descriptor[dma_chain_info_pos - 1].command->cmd &=
++		    ~BM_APBH_CHn_CMD_SEMAPHORE;
++		stmp3xxx_dma_go(STMP3XXX_DMA
++				(LCD_DMA_CHANNEL, STMP3XXX_BUS_APBH),
++				video_dma_descriptor, 1);
++	}
++}
++
++EXPORT_SYMBOL(stmp3xxx_lcdif_run);
++
++void stmp3xxx_lcdif_stop(void)
++{
++	if (stmp378x_lcd_master) {
++		stmp3xxx_clearl(BM_LCDIF_CTRL_RUN,
++				REGS_LCDIF_BASE + HW_LCDIF_CTRL);
++		stmp3xxx_clearl(BM_LCDIF_CTRL_LCDIF_MASTER,
++				REGS_LCDIF_BASE + HW_LCDIF_CTRL);
++		udelay(100);
++	} else {
++		video_dma_descriptor[dma_chain_info_pos - 1].command->cmd |=
++		    BM_APBH_CHn_CMD_SEMAPHORE;
++		udelay(100);
++	}
++	stmp3xxx_setl(BM_LCDIF_CTRL_CLKGATE, REGS_LCDIF_BASE + HW_LCDIF_CTRL);
++}
++
++EXPORT_SYMBOL(stmp3xxx_lcdif_stop);
++
++int stmp3xxx_lcdif_pan_display(dma_addr_t addr)
++{
++	if (stmp378x_lcd_master)
++		__raw_writel(addr, REGS_LCDIF_BASE + HW_LCDIF_NEXT_BUF);
++	else {
++		int i;
++		/* Modify the chain addresses */
++		for (i = 0; i < dma_chain_info_pos; ++i) {
++			*dma_chain_info[i].dma_addr_p = addr +
++			    dma_chain_info[i].offset;
++			barrier();
++		}
++	}
++	return 0;
++}
++
++EXPORT_SYMBOL(stmp3xxx_lcdif_pan_display);
++
++static BLOCKING_NOTIFIER_HEAD(lcdif_client_list);
++
++int stmp3xxx_lcdif_register_client(struct notifier_block *nb)
++{
++	return blocking_notifier_chain_register(&lcdif_client_list, nb);
++}
++
++EXPORT_SYMBOL(stmp3xxx_lcdif_register_client);
++
++void stmp3xxx_lcdif_unregister_client(struct notifier_block *nb)
++{
++	blocking_notifier_chain_unregister(&lcdif_client_list, nb);
++}
++
++EXPORT_SYMBOL(stmp3xxx_lcdif_unregister_client);
++
++void stmp3xxx_lcdif_notify_clients(unsigned long event,
++				   struct stmp3xxx_platform_fb_entry *pentry)
++{
++	blocking_notifier_call_chain(&lcdif_client_list, event, pentry);
++}
++
++EXPORT_SYMBOL(stmp3xxx_lcdif_notify_clients);
+diff --git a/drivers/video/mxs/mxsfb.c b/drivers/video/mxs/mxsfb.c
+new file mode 100644
+index 0000000..9ecbde8
+--- /dev/null
++++ b/drivers/video/mxs/mxsfb.c
+@@ -0,0 +1,964 @@
++/*
++ * Freescale STMP37XX/STMP378X framebuffer driver
++ *
++ * Author: Vitaly Wool <vital@embeddedalley.com>
++ *
++ * Copyright 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2008 Embedded Alley Solutions, Inc All Rights Reserved.
++ */
++
++/*
++ * The code contained herein is licensed under the GNU General Public
++ * License. You may obtain a copy of the GNU General Public License
++ * Version 2 or later at the following locations:
++ *
++ * http://www.opensource.org/licenses/gpl-license.html
++ * http://www.gnu.org/copyleft/gpl.html
++ */
++#include <linux/module.h>
++#include <linux/kernel.h>
++#include <linux/device.h>
++#include <linux/platform_device.h>
++#include <linux/input.h>
++#include <linux/interrupt.h>
++#include <linux/fb.h>
++#include <linux/init.h>
++#include <linux/list.h>
++#include <linux/mutex.h>
++#include <linux/dma-mapping.h>
++#include <linux/err.h>
++#include <linux/uaccess.h>
++#include <linux/cpufreq.h>
++
++#include <mach/hardware.h>
++#include <mach/regs-pinctrl.h>
++#include <mach/regs-lcdif.h>
++#include <mach/regs-clkctrl.h>
++#include <mach/regs-apbh.h>
++#include <mach/lcdif.h>
++
++#include <mach/stmp3xxx.h>
++
++#define NUM_SCREENS	1
++
++enum {
++	F_DISABLE = 0,
++	F_ENABLE,
++	F_REENABLE,
++};
++
++struct stmp3xxx_fb_data {
++	struct fb_info info;
++	struct stmp3xxx_platform_fb_data *pdata;
++	struct work_struct work;
++	struct mutex blank_mutex;
++	u32 state;
++	u32 task_state;
++	ssize_t mem_size;
++	ssize_t map_size;
++	dma_addr_t phys_start;
++	dma_addr_t cur_phys;
++	int dma_irq;
++	int err_irq;
++	void *virt_start;
++	struct device *dev;
++	wait_queue_head_t vsync_wait_q;
++	u32 vsync_count;
++	void *par;
++};
++
++/* forward declaration */
++static int stmp3xxxfb_blank(int blank, struct fb_info *info);
++static unsigned char *default_panel_name;
++static struct stmp3xxx_fb_data *cdata;
++static void init_timings(struct stmp3xxx_fb_data *data);
++
++static void stmp3xxxfb_enable_controller(struct stmp3xxx_fb_data *data)
++{
++	struct stmp3xxx_platform_fb_entry *pentry = data->pdata->cur;
++
++	if (!data || !data->pdata || !data->pdata->cur)
++		return;
++
++	stmp3xxx_init_lcdif();
++	init_timings(data);
++	pentry->init_panel(data->dev, data->phys_start,
++			data->info.fix.smem_len, data->pdata->cur);
++	pentry->run_panel();
++
++	if (pentry->blank_panel)
++		pentry->blank_panel(FB_BLANK_UNBLANK);
++}
++
++static void stmp3xxxfb_disable_controller(struct stmp3xxx_fb_data *data)
++{
++	struct stmp3xxx_platform_fb_entry *pentry = data->pdata->cur;
++
++	if (!data || !data->pdata || !data->pdata->cur)
++		return;
++
++	if (pentry->blank_panel)
++		pentry->blank_panel(FB_BLANK_POWERDOWN);
++
++	if (pentry->stop_panel)
++		pentry->stop_panel();
++	pentry->release_panel(data->dev, pentry);
++}
++
++static void set_controller_state(struct stmp3xxx_fb_data *data, u32 state)
++{
++	struct stmp3xxx_platform_fb_entry *pentry = data->pdata->cur;
++	struct fb_info *info = &data->info;
++	u32 old_state;
++
++	mutex_lock(&data->blank_mutex);
++	old_state = data->state;
++	pr_debug("%s, old_state %d, state %d\n", __func__, old_state, state);
++
++	switch (state) {
++	case F_DISABLE:
++		/*
++		 * Disable controller
++		 */
++		if (old_state != F_DISABLE) {
++			data->state = F_DISABLE;
++			stmp3xxxfb_disable_controller(data);
++		}
++		break;
++
++	case F_REENABLE:
++		/*
++		 * Re-enable the controller when panel changed.
++		 */
++		if (old_state == F_ENABLE) {
++			stmp3xxxfb_disable_controller(data);
++
++			pentry = data->pdata->cur = data->pdata->next;
++			info->fix.smem_len = pentry->y_res * pentry->x_res *
++						pentry->bpp / 8;
++			info->screen_size = info->fix.smem_len;
++			memset((void *)info->screen_base, 0, info->screen_size);
++
++			stmp3xxxfb_enable_controller(data);
++
++			data->state = F_ENABLE;
++		} else if (old_state == F_DISABLE) {
++			pentry = data->pdata->cur = data->pdata->next;
++			info->fix.smem_len = pentry->y_res * pentry->x_res *
++						pentry->bpp / 8;
++			info->screen_size = info->fix.smem_len;
++			memset((void *)info->screen_base, 0, info->screen_size);
++
++			data->state = F_DISABLE;
++		}
++		break;
++
++	case F_ENABLE:
++		if (old_state != F_ENABLE) {
++			data->state = F_ENABLE;
++			stmp3xxxfb_enable_controller(data);
++		}
++		break;
++	}
++	mutex_unlock(&data->blank_mutex);
++
++}
++
++static void stmp3xxxfb_task(struct work_struct *work)
++{
++	struct stmp3xxx_fb_data *data =
++			container_of(work, struct stmp3xxx_fb_data, work);
++
++	u32 state = xchg(&data->task_state, -1);
++	pr_debug("%s: state = %d, data->task_state = %d\n",
++				__func__, state, data->task_state);
++
++	set_controller_state(data, state);
++}
++
++static void stmp3xxx_schedule_work(struct stmp3xxx_fb_data *data, u32 state)
++{
++	unsigned long flags;
++
++	local_irq_save(flags);
++
++	data->task_state = state;
++	schedule_work(&data->work);
++
++	local_irq_restore(flags);
++}
++
++static irqreturn_t lcd_irq_handler(int irq, void *dev_id)
++{
++	struct stmp3xxx_fb_data *data = dev_id;
++	u32 status_lcd = __raw_readl(REGS_LCDIF_BASE + HW_LCDIF_CTRL1);
++	u32 status_apbh = __raw_readl(REGS_APBH_BASE + HW_APBH_CTRL1);
++	pr_debug("%s: irq %d\n", __func__, irq);
++
++	if (status_apbh & BM_APBH_CTRL1_CH0_CMDCMPLT_IRQ)
++		__raw_writel(BM_APBH_CTRL1_CH0_CMDCMPLT_IRQ,
++			REGS_APBH_BASE + HW_APBH_CTRL1_CLR);
++
++	if (status_lcd & BM_LCDIF_CTRL1_VSYNC_EDGE_IRQ) {
++		pr_debug("%s: VSYNC irq\n", __func__);
++		data->vsync_count++;
++		__raw_writel(BM_LCDIF_CTRL1_VSYNC_EDGE_IRQ,
++			REGS_LCDIF_BASE + HW_LCDIF_CTRL1_CLR);
++		wake_up_interruptible(&data->vsync_wait_q);
++	}
++	if (status_lcd & BM_LCDIF_CTRL1_CUR_FRAME_DONE_IRQ) {
++		pr_debug("%s: frame done irq\n", __func__);
++		__raw_writel(BM_LCDIF_CTRL1_CUR_FRAME_DONE_IRQ,
++			REGS_LCDIF_BASE + HW_LCDIF_CTRL1_CLR);
++		data->vsync_count++;
++	}
++	if (status_lcd & BM_LCDIF_CTRL1_UNDERFLOW_IRQ) {
++		pr_debug("%s: underflow irq\n", __func__);
++		__raw_writel(BM_LCDIF_CTRL1_UNDERFLOW_IRQ,
++			REGS_LCDIF_BASE + HW_LCDIF_CTRL1_CLR);
++	}
++	if (status_lcd & BM_LCDIF_CTRL1_OVERFLOW_IRQ) {
++		pr_debug("%s: overflow irq\n", __func__);
++		__raw_writel(BM_LCDIF_CTRL1_OVERFLOW_IRQ,
++			REGS_LCDIF_BASE + HW_LCDIF_CTRL1_CLR);
++	}
++	return IRQ_HANDLED;
++}
++
++static struct fb_var_screeninfo stmp3xxxfb_default __devinitdata = {
++	.activate =	FB_ACTIVATE_TEST,
++	.height =	-1,
++	.width =	-1,
++	.pixclock =	20000,
++	.left_margin =	64,
++	.right_margin =	64,
++	.upper_margin =	32,
++	.lower_margin =	32,
++	.hsync_len =	64,
++	.vsync_len =	2,
++	.vmode =	FB_VMODE_NONINTERLACED,
++};
++
++static struct fb_fix_screeninfo stmp3xxxfb_fix __devinitdata = {
++	.id =		"stmp3xxxfb",
++	.type =		FB_TYPE_PACKED_PIXELS,
++	.visual =       FB_VISUAL_TRUECOLOR,
++	.xpanstep =	0,
++	.ypanstep =	0,
++	.ywrapstep =	0,
++	.accel =	FB_ACCEL_NONE,
++};
++
++int stmp3xxxfb_get_info(struct fb_var_screeninfo *var,
++			struct fb_fix_screeninfo *fix)
++{
++	if (!cdata)
++		return -ENODEV;
++
++	*var = cdata->info.var;
++	*fix = cdata->info.fix;
++	return 0;
++}
++
++void stmp3xxxfb_cfg_pxp(int enable, dma_addr_t pxp_phys)
++{
++	if (enable)
++		cdata->pdata->cur->pan_display(pxp_phys);
++	else
++		cdata->pdata->cur->pan_display(cdata->cur_phys);
++}
++
++static int stmp3xxxfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
++{
++	struct stmp3xxx_fb_data *data = (struct stmp3xxx_fb_data *)info;
++
++	unsigned long off = vma->vm_pgoff << PAGE_SHIFT;
++
++	if (off < info->fix.smem_len)
++		return dma_mmap_writecombine(data->dev, vma,
++				data->virt_start,
++				data->phys_start,
++				info->fix.smem_len);
++	else
++		return -EINVAL;
++}
++
++static int stmp3xxxfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
++			 u_int transp, struct fb_info *info)
++{
++	if (regno >= 256)	/* no. of hw registers */
++		return 1;
++	/*
++	* Program hardware... do anything you want with transp
++	*/
++
++	/* grayscale works only partially under directcolor */
++	if (info->var.grayscale) {
++		/* grayscale = 0.30*R + 0.59*G + 0.11*B */
++		red = green = blue =
++		    (red * 77 + green * 151 + blue * 28) >> 8;
++	}
++
++	/* Directcolor:
++	 *   var->{color}.offset contains start of bitfield
++	 *   var->{color}.length contains length of bitfield
++	 *   {hardwarespecific} contains width of RAMDAC
++	 *   cmap[X] is programmed to
++	 *	(X << red.offset) | (X << green.offset) | (X << blue.offset)
++	 *   RAMDAC[X] is programmed to (red, green, blue)
++	 *
++	 * Pseudocolor:
++	 *    uses offset = 0 && length = RAMDAC register width.
++	 *    var->{color}.offset is 0
++	 *    var->{color}.length contains widht of DAC
++	 *    cmap is not used
++	 *    RAMDAC[X] is programmed to (red, green, blue)
++	 * Truecolor:
++	 *    does not use DAC. Usually 3 are present.
++	 *    var->{color}.offset contains start of bitfield
++	 *    var->{color}.length contains length of bitfield
++	 *    cmap is programmed to
++	 *	(red << red.offset) | (green << green.offset) |
++	 *	(blue << blue.offset) | (transp << transp.offset)
++	 *    RAMDAC does not exist
++	 */
++#define CNVT_TOHW(val, width) ((((val)<<(width))+0x7FFF-(val))>>16)
++	switch (info->fix.visual) {
++	case FB_VISUAL_TRUECOLOR:
++	case FB_VISUAL_PSEUDOCOLOR:
++		red = CNVT_TOHW(red, info->var.red.length);
++		green = CNVT_TOHW(green, info->var.green.length);
++		blue = CNVT_TOHW(blue, info->var.blue.length);
++		transp = CNVT_TOHW(transp, info->var.transp.length);
++		break;
++	case FB_VISUAL_DIRECTCOLOR:
++		red = CNVT_TOHW(red, 8);	/* expect 8 bit DAC */
++		green = CNVT_TOHW(green, 8);
++		blue = CNVT_TOHW(blue, 8);
++		/* hey, there is bug in transp handling... */
++		transp = CNVT_TOHW(transp, 8);
++		break;
++	}
++#undef CNVT_TOHW
++	/* Truecolor has hardware independent palette */
++	if (info->fix.visual == FB_VISUAL_TRUECOLOR) {
++
++		if (regno >= 16)
++			return 1;
++
++		((u32 *) (info->pseudo_palette))[regno] =
++				(red << info->var.red.offset) |
++				(green << info->var.green.offset) |
++				(blue << info->var.blue.offset) |
++				(transp << info->var.transp.offset);
++	}
++	return 0;
++}
++
++static inline u_long get_line_length(int xres_virtual, int bpp)
++{
++	u_long length;
++
++	length = xres_virtual * bpp;
++	length = (length + 31) & ~31;
++	length >>= 3;
++	return length;
++}
++
++static int get_matching_pentry(struct stmp3xxx_platform_fb_entry *pentry,
++			       void *data, int ret_prev)
++{
++	struct fb_var_screeninfo *info = data;
++	pr_debug("%s: %d:%d:%d vs %d:%d:%d\n", __func__,
++		pentry->x_res, pentry->y_res, pentry->bpp,
++		info->yres, info->xres, info->bits_per_pixel);
++	if (pentry->x_res == info->yres && pentry->y_res == info->xres &&
++	    pentry->bpp == info->bits_per_pixel)
++		ret_prev = (int)pentry;
++	return ret_prev;
++}
++
++static int get_matching_pentry_by_name(
++		struct stmp3xxx_platform_fb_entry *pentry,
++		void *data,
++		int ret_prev)
++{
++	unsigned char *name = data;
++	if (!strcmp(pentry->name, name))
++		ret_prev = (int)pentry;
++	return ret_prev;
++}
++
++/*
++ * This routine actually sets the video mode. It's in here where we
++ * the hardware state info->par and fix which can be affected by the
++ * change in par. For this driver it doesn't do much.
++ *
++ * XXX: REVISIT
++ */
++static int stmp3xxxfb_set_par(struct fb_info *info)
++{
++	struct stmp3xxx_fb_data *data = (struct stmp3xxx_fb_data *)info;
++	struct stmp3xxx_platform_fb_data *pdata = data->pdata;
++	struct stmp3xxx_platform_fb_entry *pentry;
++	pentry = (void *)stmp3xxx_lcd_iterate_pdata(pdata,
++						get_matching_pentry,
++						&info->var);
++
++	dev_dbg(data->dev, "%s: xres %d, yres %d, bpp %d\n",
++		__func__,
++		info->var.xres,
++		info->var.yres,
++		info->var.bits_per_pixel);
++	if (!pentry)
++		return -EINVAL;
++
++	info->fix.line_length = get_line_length(info->var.xres_virtual,
++						info->var.bits_per_pixel);
++
++	if (pentry == pdata->cur || !pdata->cur)
++		return 0;
++
++	/* init next panel */
++	pdata->next = pentry;
++
++	set_controller_state(data, F_REENABLE);
++
++	return 0;
++}
++
++static int stmp3xxxfb_check_var(struct fb_var_screeninfo *var,
++				struct fb_info *info)
++{
++	u32 line_length;
++	struct stmp3xxx_fb_data *data = (struct stmp3xxx_fb_data *)info;
++	struct stmp3xxx_platform_fb_data *pdata = data->pdata;
++
++	/*
++	 *  FB_VMODE_CONUPDATE and FB_VMODE_SMOOTH_XPAN are equal!
++	 *  as FB_VMODE_SMOOTH_XPAN is only used internally
++	 */
++
++	if (var->vmode & FB_VMODE_CONUPDATE) {
++		var->vmode |= FB_VMODE_YWRAP;
++		var->xoffset = info->var.xoffset;
++		var->yoffset = info->var.yoffset;
++	}
++
++	pr_debug("%s: xres %d, yres %d, bpp %d\n", __func__,
++		var->xres,  var->yres, var->bits_per_pixel);
++	/*
++	 *  Some very basic checks
++	 */
++	if (!var->xres)
++		var->xres = 1;
++	if (!var->yres)
++		var->yres = 1;
++	if (var->xres > var->xres_virtual)
++		var->xres_virtual = var->xres;
++	if (var->yres > var->yres_virtual)
++		var->yres_virtual = var->yres;
++
++	if (var->xres_virtual < var->xoffset + var->xres)
++		var->xres_virtual = var->xoffset + var->xres;
++	if (var->yres_virtual < var->yoffset + var->yres)
++		var->yres_virtual = var->yoffset + var->yres;
++
++	line_length = get_line_length(var->xres_virtual, var->bits_per_pixel);
++	dev_dbg(data->dev,
++		"line_length %d, var->yres_virtual %d, data->mem_size %d\n",
++		line_length, var->yres_virtual, data->mem_size);
++	if (line_length * var->yres_virtual > data->map_size)
++		return -ENOMEM;
++
++	if (!stmp3xxx_lcd_iterate_pdata(pdata, get_matching_pentry, var))
++		return -EINVAL;
++
++	if (var->bits_per_pixel == 16) {
++		/* RGBA 5551 */
++		if (var->transp.length) {
++			var->red.offset = 0;
++			var->red.length = 5;
++			var->green.offset = 5;
++			var->green.length = 5;
++			var->blue.offset = 10;
++			var->blue.length = 5;
++			var->transp.offset = 15;
++			var->transp.length = 1;
++		} else {	/* RGB 565 */
++			var->red.offset = 0;
++			var->red.length = 5;
++			var->green.offset = 5;
++			var->green.length = 6;
++			var->blue.offset = 11;
++			var->blue.length = 5;
++			var->transp.offset = 0;
++			var->transp.length = 0;
++		}
++	} else {
++		var->red.offset = 16;
++		var->red.length = 8;
++		var->green.offset = 8;
++		var->green.length = 8;
++		var->blue.offset = 0;
++		var->blue.length = 8;
++	}
++
++	var->red.msb_right = 0;
++	var->green.msb_right = 0;
++	var->blue.msb_right = 0;
++	var->transp.msb_right = 0;
++
++	return 0;
++}
++
++
++static int stmp3xxxfb_wait_for_vsync(u32 channel, struct fb_info *info)
++{
++	struct stmp3xxx_fb_data *data = (struct stmp3xxx_fb_data *)info;
++	u32 count = data->vsync_count;
++	int ret = 0;
++
++	__raw_writel(BM_LCDIF_CTRL1_VSYNC_EDGE_IRQ_EN,
++		REGS_LCDIF_BASE + HW_LCDIF_CTRL1_SET);
++	ret = wait_event_interruptible_timeout(data->vsync_wait_q,
++			count != data->vsync_count, HZ / 10);
++	__raw_writel(BM_LCDIF_CTRL1_VSYNC_EDGE_IRQ_EN,
++		REGS_LCDIF_BASE + HW_LCDIF_CTRL1_CLR);
++	if (!ret) {
++		dev_err(data->dev, "wait for vsync timed out\n");
++		ret = -ETIMEDOUT;
++	}
++	return ret;
++}
++
++static int stmp3xxxfb_ioctl(struct fb_info *info, unsigned int cmd,
++			unsigned long arg)
++{
++	u32 channel = 0;
++	int ret = -EINVAL;
++
++	switch (cmd) {
++	case FBIO_WAITFORVSYNC:
++		if (!get_user(channel, (__u32 __user *) arg))
++			ret = stmp3xxxfb_wait_for_vsync(channel, info);
++		break;
++	default:
++		break;
++	}
++	return ret;
++}
++
++static int stmp3xxxfb_blank(int blank, struct fb_info *info)
++{
++	struct stmp3xxx_fb_data *data = (struct stmp3xxx_fb_data *)info;
++	int ret = 0;
++
++	switch (blank) {
++	case FB_BLANK_NORMAL:
++	case FB_BLANK_VSYNC_SUSPEND:
++	case FB_BLANK_HSYNC_SUSPEND:
++	case FB_BLANK_POWERDOWN:
++		pr_debug("%s: FB_BLANK_POWERDOWN\n", __func__);
++		stmp3xxx_schedule_work(data, F_DISABLE);
++		break;
++
++	case FB_BLANK_UNBLANK:
++		pr_debug("%s: FB_BLANK_UNBLANK\n", __func__);
++		stmp3xxx_schedule_work(data, F_ENABLE);
++		break;
++
++	default:
++		ret = -EINVAL;
++	}
++	return ret;
++}
++
++static int stmp3xxxfb_pan_display(struct fb_var_screeninfo *var,
++				struct fb_info *info)
++{
++	struct stmp3xxx_fb_data *data = (struct stmp3xxx_fb_data *)info;
++	int ret = 0;
++
++	pr_debug("%s: var->xoffset %d, info->var.xoffset %d\n",
++		__func__, var->xoffset, info->var.xoffset);
++	/* check if var is valid; also, xpan is not supported */
++	if (!var || (var->xoffset != info->var.xoffset) ||
++	    (var->yoffset + var->yres > var->yres_virtual)) {
++		ret = -EINVAL;
++		goto out;
++	}
++
++	if (!data->pdata->cur->pan_display) {
++		ret = -EINVAL;
++		goto out;
++	}
++
++	/* update framebuffer visual */
++	data->cur_phys = data->phys_start +
++			info->fix.line_length * var->yoffset;
++	data->pdata->cur->pan_display(data->cur_phys);
++out:
++	return ret;
++}
++
++static struct fb_ops stmp3xxxfb_ops = {
++	.owner = THIS_MODULE,
++	.fb_check_var = stmp3xxxfb_check_var,
++	.fb_set_par = stmp3xxxfb_set_par,
++	.fb_mmap = stmp3xxxfb_mmap,
++	.fb_setcolreg = stmp3xxxfb_setcolreg,
++	.fb_ioctl = stmp3xxxfb_ioctl,
++	.fb_blank = stmp3xxxfb_blank,
++	.fb_pan_display = stmp3xxxfb_pan_display,
++	.fb_fillrect = cfb_fillrect,
++	.fb_copyarea = cfb_copyarea,
++	.fb_imageblit = cfb_imageblit,
++};
++
++static void init_timings(struct stmp3xxx_fb_data *data)
++{
++	unsigned phase_time;
++	unsigned timings;
++
++	/* Just use a phase_time of 1. As optimal as it gets, now. */
++	phase_time = 1;
++
++	/* Program all 4 timings the same */
++	timings = phase_time;
++	timings |= timings << 8;
++	timings |= timings << 16;
++	__raw_writel(timings, REGS_LCDIF_BASE + HW_LCDIF_TIMING);
++}
++
++#ifdef CONFIG_CPU_FREQ
++
++struct stmp3xxxfb_notifier_block {
++	struct stmp3xxx_fb_data *fb_data;
++	struct notifier_block nb;
++};
++
++static int stmp3xxxfb_notifier(struct notifier_block *self,
++				unsigned long phase, void *p)
++{
++	struct stmp3xxxfb_notifier_block *block =
++		container_of(self, struct stmp3xxxfb_notifier_block, nb);
++	struct stmp3xxx_fb_data *data = block->fb_data;
++	struct stmp3xxx_platform_fb_entry *pentry = data->pdata->cur;
++	u32 old_state = data->state;
++
++	if (!data || !data->pdata || !data->pdata->cur)
++		return NOTIFY_BAD;
++
++	/* REVISIT */
++	switch (phase) {
++	case CPUFREQ_PRECHANGE:
++		if (old_state == F_ENABLE)
++			if (pentry->blank_panel)
++				pentry->blank_panel(FB_BLANK_POWERDOWN);
++		break;
++
++	case CPUFREQ_POSTCHANGE:
++		if (old_state == F_ENABLE)
++			if (pentry->blank_panel)
++				pentry->blank_panel(FB_BLANK_UNBLANK);
++		break;
++
++	default:
++		dev_dbg(data->dev, "didn't handle notify %ld\n", phase);
++	}
++
++	return NOTIFY_DONE;
++}
++
++static struct stmp3xxxfb_notifier_block stmp3xxxfb_nb = {
++	.nb = {
++		.notifier_call = stmp3xxxfb_notifier,
++	},
++};
++#endif /* CONFIG_CPU_FREQ */
++
++static int get_max_memsize(struct stmp3xxx_platform_fb_entry *pentry,
++			   void *data, int ret_prev)
++{
++	struct stmp3xxx_fb_data *fbdata = data;
++	int sz = pentry->x_res * pentry->y_res * pentry->bpp / 8;
++	fbdata->mem_size = sz < ret_prev ? ret_prev : sz;
++	pr_debug("%s: mem_size now %d\n", __func__, fbdata->mem_size);
++	return fbdata->mem_size;
++}
++
++static int __devinit stmp3xxxfb_probe(struct platform_device *pdev)
++{
++	int ret = 0;
++	struct stmp3xxx_fb_data *data;
++	struct resource *res;
++	struct fb_info *info;
++	struct stmp3xxx_platform_fb_data *pdata = pdev->dev.platform_data;
++	struct stmp3xxx_platform_fb_entry *pentry;
++
++	if (pdata == NULL) {
++		ret = -ENODEV;
++		goto out;
++	}
++
++	if (default_panel_name) {
++		pentry = (void *)stmp3xxx_lcd_iterate_pdata(pdata,
++					get_matching_pentry_by_name,
++					default_panel_name);
++		if (pentry) {
++			stmp3xxx_lcd_move_pentry_up(pentry, pdata);
++			pdata->cur = pentry;
++		}
++	}
++	if (!default_panel_name || !pentry)
++		pentry = pdata->cur;
++	if (!pentry || !pentry->init_panel || !pentry->run_panel ||
++	    !pentry->release_panel) {
++		ret = -EINVAL;
++		goto out;
++	}
++
++	data = (struct stmp3xxx_fb_data *)framebuffer_alloc(
++				sizeof(struct stmp3xxx_fb_data) +
++				sizeof(u32) * 256 -
++				sizeof(struct fb_info), &pdev->dev);
++	if (data == NULL) {
++		ret = -ENOMEM;
++		goto out;
++	}
++
++	cdata = data;
++	data->dev = &pdev->dev;
++	data->pdata = pdata;
++	platform_set_drvdata(pdev, data);
++	info = &data->info;
++
++	dev_dbg(&pdev->dev, "resolution %dx%d, bpp %d\n", pentry->x_res,
++		pentry->y_res, pentry->bpp);
++
++	stmp3xxx_lcd_iterate_pdata(pdata, get_max_memsize, data);
++
++	data->map_size = PAGE_ALIGN(data->mem_size) * NUM_SCREENS;
++	dev_dbg(&pdev->dev, "memory to allocate: %d\n", data->map_size);
++
++	data->virt_start = dma_alloc_writecombine(&pdev->dev,
++					data->map_size,
++					&data->phys_start,
++					GFP_KERNEL);
++
++	if (data->virt_start == NULL) {
++		ret = -ENOMEM;
++		goto out_dma;
++	}
++	dev_dbg(&pdev->dev, "allocated at %p:0x%x\n", data->virt_start,
++		data->phys_start);
++	mutex_init(&data->blank_mutex);
++	INIT_WORK(&data->work, stmp3xxxfb_task);
++	data->state = F_ENABLE;
++
++	stmp3xxxfb_default.bits_per_pixel = pentry->bpp;
++	/* NB: rotated */
++	stmp3xxxfb_default.xres = pentry->y_res;
++	stmp3xxxfb_default.yres = pentry->x_res;
++	stmp3xxxfb_default.xres_virtual = pentry->y_res;
++	stmp3xxxfb_default.yres_virtual = data->map_size /
++					(pentry->y_res * pentry->bpp / 8);
++	if (stmp3xxxfb_default.yres_virtual >= stmp3xxxfb_default.yres * 2)
++		stmp3xxxfb_default.yres_virtual = stmp3xxxfb_default.yres * 2;
++	else
++		stmp3xxxfb_default.yres_virtual = stmp3xxxfb_default.yres;
++
++	stmp3xxxfb_fix.smem_start = data->phys_start;
++	stmp3xxxfb_fix.smem_len = pentry->y_res * pentry->x_res * pentry->bpp /
++		8;
++	stmp3xxxfb_fix.ypanstep = 1;
++
++	switch (pentry->bpp) {
++	case 32:
++	case 24:
++		stmp3xxxfb_default.red.offset = 16;
++		stmp3xxxfb_default.red.length = 8;
++		stmp3xxxfb_default.green.offset = 8;
++		stmp3xxxfb_default.green.length = 8;
++		stmp3xxxfb_default.blue.offset = 0;
++		stmp3xxxfb_default.blue.length = 8;
++		break;
++
++	case 16:
++		stmp3xxxfb_default.red.offset = 11;
++		stmp3xxxfb_default.red.length = 5;
++		stmp3xxxfb_default.green.offset = 5;
++		stmp3xxxfb_default.green.length = 6;
++		stmp3xxxfb_default.blue.offset = 0;
++		stmp3xxxfb_default.blue.length = 5;
++		break;
++
++	default:
++		dev_err(&pdev->dev, "unsupported bitwidth %d\n", pentry->bpp);
++		ret = -EINVAL;
++		goto out_dma;
++	}
++
++	info->screen_base = data->virt_start;
++	info->fbops = &stmp3xxxfb_ops;
++	info->var = stmp3xxxfb_default;
++	info->fix = stmp3xxxfb_fix;
++	info->pseudo_palette = &data->par;
++	data->par = NULL;
++	info->flags = FBINFO_FLAG_DEFAULT;
++
++	init_waitqueue_head(&data->vsync_wait_q);
++	data->vsync_count = 0;
++
++	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
++	if (res == NULL) {
++		dev_err(&pdev->dev, "cannot get IRQ resource\n");
++		ret = -ENODEV;
++		goto out_dma;
++	}
++	data->dma_irq = res->start;
++
++	res = platform_get_resource(pdev, IORESOURCE_IRQ, 1);
++	if (res == NULL) {
++		dev_err(&pdev->dev, "cannot get IRQ resource\n");
++		ret = -ENODEV;
++		goto out_dma;
++	}
++	data->err_irq = res->start;
++
++	ret = fb_alloc_cmap(&info->cmap, 256, 0);
++	if (ret)
++		goto out_cmap;
++
++	stmp3xxx_init_lcdif();
++	ret = pentry->init_panel(data->dev, data->phys_start,
++				stmp3xxxfb_fix.smem_len, pentry);
++	if (ret) {
++		dev_err(&pdev->dev, "cannot initialize LCD panel\n");
++		goto out_panel;
++	}
++	dev_dbg(&pdev->dev, "LCD panel initialized\n");
++	init_timings(data);
++
++	ret = request_irq(data->dma_irq, lcd_irq_handler, 0, "fb_dma", data);
++	if (ret) {
++		dev_err(&pdev->dev, "request_irq (%d) failed with error %d\n",
++				data->dma_irq, ret);
++		goto out_panel;
++	}
++	ret = request_irq(data->err_irq, lcd_irq_handler, 0, "fb_error", data);
++	if (ret) {
++		dev_err(&pdev->dev, "request_irq (%d) failed with error %d\n",
++				data->err_irq, ret);
++		goto out_irq;
++	}
++	ret = register_framebuffer(info);
++	if (ret)
++		goto out_register;
++
++	pentry->run_panel();
++	dev_dbg(&pdev->dev, "LCD DMA channel has been started\n");
++	data->cur_phys = data->phys_start;
++	dev_dbg(&pdev->dev, "LCD running now\n");
++
++#ifdef CONFIG_CPU_FREQ
++	stmp3xxxfb_nb.fb_data = data;
++	cpufreq_register_notifier(&stmp3xxxfb_nb.nb,
++				CPUFREQ_TRANSITION_NOTIFIER);
++#endif /* CONFIG_CPU_FREQ */
++
++	goto out;
++
++out_register:
++	free_irq(data->err_irq, data);
++out_irq:
++	free_irq(data->dma_irq, data);
++out_panel:
++	fb_dealloc_cmap(&info->cmap);
++out_cmap:
++	dma_free_writecombine(&pdev->dev, data->map_size, data->virt_start,
++			data->phys_start);
++out_dma:
++	kfree(data);
++out:
++	return ret;
++}
++
++static int stmp3xxxfb_remove(struct platform_device *pdev)
++{
++	struct stmp3xxx_fb_data *data = platform_get_drvdata(pdev);
++
++	set_controller_state(data, F_DISABLE);
++
++	unregister_framebuffer(&data->info);
++	framebuffer_release(&data->info);
++	fb_dealloc_cmap(&data->info.cmap);
++	free_irq(data->dma_irq, data);
++	free_irq(data->err_irq, data);
++	dma_free_writecombine(&pdev->dev, data->map_size, data->virt_start,
++			data->phys_start);
++	kfree(data);
++	platform_set_drvdata(pdev, NULL);
++	return 0;
++}
++
++#ifdef CONFIG_PM
++static int stmp3xxxfb_suspend(struct platform_device *pdev, pm_message_t state)
++{
++	struct stmp3xxx_fb_data *data = platform_get_drvdata(pdev);
++
++	set_controller_state(data, F_DISABLE);
++
++	return 0;
++}
++
++static int stmp3xxxfb_resume(struct platform_device *pdev)
++{
++	struct stmp3xxx_fb_data *data = platform_get_drvdata(pdev);
++
++	set_controller_state(data, F_ENABLE);
++	return 0;
++}
++#else
++#define stmp3xxxfb_suspend	NULL
++#define	stmp3xxxfb_resume	NULL
++#endif
++
++static struct platform_driver stmp3xxxfb_driver = {
++	.probe		= stmp3xxxfb_probe,
++	.remove		= stmp3xxxfb_remove,
++	.suspend	= stmp3xxxfb_suspend,
++	.resume		= stmp3xxxfb_resume,
++	.driver		= {
++		.name   = "stmp3xxx-fb",
++		.owner	= THIS_MODULE,
++	},
++};
++
++static int __init stmp3xxxfb_init(void)
++{
++	return platform_driver_register(&stmp3xxxfb_driver);
++}
++
++static void __exit stmp3xxxfb_exit(void)
++{
++	platform_driver_unregister(&stmp3xxxfb_driver);
++}
++
++module_init(stmp3xxxfb_init);
++module_exit(stmp3xxxfb_exit);
++
++/*
++ * LCD panel select
++ */
++static int __init default_panel_select(char *str)
++{
++	default_panel_name = str;
++	return 0;
++}
++__setup("lcd_panel=", default_panel_select);
++
++MODULE_AUTHOR("Vitaly Wool <vital@embeddedalley.com>");
++MODULE_DESCRIPTION("STMP3xxx Framebuffer Driver");
++MODULE_LICENSE("GPL");
+-- 
+1.5.4.4
+

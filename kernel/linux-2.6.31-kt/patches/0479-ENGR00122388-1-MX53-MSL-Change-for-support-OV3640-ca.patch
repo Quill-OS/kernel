@@ -1,0 +1,209 @@
+From 1cb7952774dcd624bb4ec667a79a8de687226589 Mon Sep 17 00:00:00 2001
+From: Liu Ying <b17645@freescale.com>
+Date: Fri, 9 Apr 2010 13:48:19 -0400
+Subject: [PATCH] ENGR00122388-1 MX53 MSL:Change for support OV3640 camera
+
+This patch includes IOMUX, clock and regulator change
+for supporting OV3640 camera.
+
+Signed-off-by: Liu Ying <b17645@freescale.com>
+---
+ arch/arm/mach-mx5/clock.c         |   32 +++++++++++------
+ arch/arm/mach-mx5/mx53_evk.c      |    5 +--
+ arch/arm/mach-mx5/mx53_evk_gpio.c |   68 +++++++++++++++++++++++++++++++++----
+ 3 files changed, 83 insertions(+), 22 deletions(-)
+
+diff --git a/arch/arm/mach-mx5/clock.c b/arch/arm/mach-mx5/clock.c
+index 57d28f9..c71a7a3 100644
+--- a/arch/arm/mach-mx5/clock.c
++++ b/arch/arm/mach-mx5/clock.c
+@@ -2495,17 +2495,21 @@ static void _clk_ssi_ext1_recalc(struct clk *clk)
+ 
+ static int _clk_ssi_ext1_set_rate(struct clk *clk, unsigned long rate)
+ {
+-	u32 reg, div;
++	u32 reg, div, pre, post;
+ 
+ 	div = clk->parent->rate / rate;
+ 	if (div == 0)
+ 		div++;
+-	if (((clk->parent->rate / div) != rate) || (div > 8))
++	if (((clk->parent->rate / div) != rate) || div > 512)
+ 		return -EINVAL;
+ 
++	__calc_pre_post_dividers(div, &pre, &post);
++
+ 	reg = __raw_readl(MXC_CCM_CS1CDR);
+-	reg &= ~MXC_CCM_CS1CDR_SSI_EXT1_CLK_PRED_MASK;
+-	reg |= (div - 1) << MXC_CCM_CS1CDR_SSI_EXT1_CLK_PRED_OFFSET;
++	reg &= ~(MXC_CCM_CS1CDR_SSI_EXT1_CLK_PRED_MASK |
++		 MXC_CCM_CS1CDR_SSI_EXT1_CLK_PODF_MASK);
++	reg |= (post - 1) << MXC_CCM_CS1CDR_SSI_EXT1_CLK_PODF_OFFSET;
++	reg |= (pre - 1) << MXC_CCM_CS1CDR_SSI_EXT1_CLK_PRED_OFFSET;
+ 	__raw_writel(reg, MXC_CCM_CS1CDR);
+ 
+ 	clk->rate = rate;
+@@ -2536,14 +2540,15 @@ static int _clk_ssi_ext1_set_parent(struct clk *clk, struct clk *parent)
+ static unsigned long _clk_ssi_ext1_round_rate(struct clk *clk,
+ 						unsigned long rate)
+ {
+-	u32 div;
++	u32 pre, post;
++	u32 div = clk->parent->rate / rate;
+ 
+-	div = clk->parent->rate / rate;
+-	if (div > 8)
+-		div = 8;
+-	else if (div == 0)
++	if (clk->parent->rate % rate)
+ 		div++;
+-	return clk->parent->rate / div;
++
++	__calc_pre_post_dividers(div, &pre, &post);
++
++	return clk->parent->rate / (pre * post);
+ }
+ 
+ static struct clk ssi_ext1_clk = {
+@@ -4605,8 +4610,11 @@ int __init mx53_clocks_init(unsigned long ckil, unsigned long osc, unsigned long
+ 	reg |= 1 << MXC_CCM_CS2CDR_SSI2_CLK_PRED_OFFSET;
+ 	__raw_writel(reg, MXC_CCM_CS2CDR);
+ 
+-	/* Change the SSI_EXT1_CLK to be sourced from SSI1_CLK_ROOT */
+-	clk_set_parent(&ssi_ext1_clk, &ssi1_clk[0]);
++	/* Change the SSI_EXT1_CLK to be sourced from PLL2 for camera */
++	clk_disable(&ssi_ext1_clk);
++	clk_set_parent(&ssi_ext1_clk, &pll2_sw_clk);
++	clk_set_rate(&ssi_ext1_clk, 24000000);
++	clk_enable(&ssi_ext1_clk);
+ 	clk_set_parent(&ssi_ext2_clk, &ssi2_clk[0]);
+ 
+ 	/* move usb_phy_clk to 24MHz */
+diff --git a/arch/arm/mach-mx5/mx53_evk.c b/arch/arm/mach-mx5/mx53_evk.c
+index e6cdc5d..7cb9830 100644
+--- a/arch/arm/mach-mx5/mx53_evk.c
++++ b/arch/arm/mach-mx5/mx53_evk.c
+@@ -308,8 +308,7 @@ static int __init tv_setup(char *s)
+ __setup("hdtv", tv_setup);
+ 
+ static struct mxc_camera_platform_data camera_data = {
+-	.io_regulator = "SW4",
+-	.analog_regulator = "VIOHI",
++	.analog_regulator = "VSD",
+ 	.mclk = 24000000,
+ 	.csi = 0,
+ };
+@@ -440,7 +439,7 @@ static int mxc_sgtl5000_init(void)
+ 		if (IS_ERR(ssi_ext1))
+ 			return -1;
+ 
+-		rate = clk_round_rate(ssi_ext1, 12000000);
++		rate = clk_round_rate(ssi_ext1, 24000000);
+ 		if (rate < 8000000 || rate > 27000000) {
+ 			printk(KERN_ERR "Error: SGTL5000 mclk freq %d out of range!\n",
+ 			       rate);
+diff --git a/arch/arm/mach-mx5/mx53_evk_gpio.c b/arch/arm/mach-mx5/mx53_evk_gpio.c
+index 37c489a..7b1efd1 100644
+--- a/arch/arm/mach-mx5/mx53_evk_gpio.c
++++ b/arch/arm/mach-mx5/mx53_evk_gpio.c
+@@ -184,9 +184,6 @@ static struct mxc_iomux_pin_cfg __initdata mxc_iomux_pins[] = {
+ 	 MX53_PIN_CSI0_D4, IOMUX_CONFIG_ALT5,
+ 	 },
+ 	{
+-	 MX53_PIN_CSI0_D5, IOMUX_CONFIG_ALT5,
+-	 },
+-	{
+ 	 MX53_PIN_CSI0_D6, IOMUX_CONFIG_ALT5,
+ 	 },
+ 	{
+@@ -395,6 +392,61 @@ static struct mxc_iomux_pin_cfg __initdata mxc_iomux_pins[] = {
+ 	 (PAD_CTL_HYS_NONE | PAD_CTL_PKE_NONE | PAD_CTL_ODE_OPENDRAIN_NONE |
+ 	  PAD_CTL_DRV_LOW | PAD_CTL_SRE_SLOW),
+ 	 },
++	{ /* audio and CSI clock out */
++	 MX53_PIN_GPIO_0, IOMUX_CONFIG_ALT3,
++	 },
++	{
++	 MX53_PIN_CSI0_D12, IOMUX_CONFIG_ALT0,
++	 PAD_CTL_HYS_NONE | PAD_CTL_PKE_NONE | PAD_CTL_ODE_OPENDRAIN_NONE |
++	 PAD_CTL_DRV_LOW,
++	 },
++	{
++	 MX53_PIN_CSI0_D13, IOMUX_CONFIG_ALT0,
++	 PAD_CTL_HYS_NONE | PAD_CTL_PKE_NONE | PAD_CTL_ODE_OPENDRAIN_NONE |
++	 PAD_CTL_DRV_LOW,
++	 },
++	{
++	 MX53_PIN_CSI0_D14, IOMUX_CONFIG_ALT0,
++	 PAD_CTL_HYS_NONE | PAD_CTL_PKE_NONE | PAD_CTL_ODE_OPENDRAIN_NONE |
++	 PAD_CTL_DRV_LOW,
++	 },
++	{
++	 MX53_PIN_CSI0_D15, IOMUX_CONFIG_ALT0,
++	 PAD_CTL_HYS_NONE | PAD_CTL_PKE_NONE | PAD_CTL_ODE_OPENDRAIN_NONE |
++	 PAD_CTL_DRV_LOW,
++	 },
++	{
++	 MX53_PIN_CSI0_D16, IOMUX_CONFIG_ALT0,
++	 PAD_CTL_HYS_NONE | PAD_CTL_PKE_NONE | PAD_CTL_ODE_OPENDRAIN_NONE |
++	 PAD_CTL_DRV_LOW,
++	 },
++	{
++	 MX53_PIN_CSI0_D17, IOMUX_CONFIG_ALT0,
++	 PAD_CTL_HYS_NONE | PAD_CTL_PKE_NONE | PAD_CTL_ODE_OPENDRAIN_NONE |
++	 PAD_CTL_DRV_LOW,
++	 },
++	{
++	 MX53_PIN_CSI0_D18, IOMUX_CONFIG_ALT0,
++	 PAD_CTL_HYS_NONE | PAD_CTL_PKE_NONE | PAD_CTL_ODE_OPENDRAIN_NONE |
++	 PAD_CTL_DRV_LOW,
++	 },
++	{
++	 MX53_PIN_CSI0_D19, IOMUX_CONFIG_ALT0,
++	 PAD_CTL_HYS_NONE | PAD_CTL_PKE_NONE | PAD_CTL_ODE_OPENDRAIN_NONE |
++	 PAD_CTL_DRV_LOW,
++	 },
++	{	/* Camera VSYNC */
++	 MX53_PIN_CSI0_VSYNC, IOMUX_CONFIG_ALT0,
++	 },
++	{	/* Camera HSYNC */
++	 MX53_PIN_CSI0_MCLK, IOMUX_CONFIG_ALT0,
++	 },
++	{	/* Camera pixclk */
++	 MX53_PIN_CSI0_PIXCLK, IOMUX_CONFIG_ALT0,
++	 },
++	{	/* Camera low power */
++	 MX53_PIN_CSI0_D5, IOMUX_CONFIG_ALT1,
++	 },
+ 	/* esdhc1 */
+ 	{
+ 	 MX53_PIN_SD1_CMD, IOMUX_CONFIG_ALT0 | IOMUX_CONFIG_SION,
+@@ -552,9 +604,6 @@ static struct mxc_iomux_pin_cfg __initdata mx53_evk_iomux_pins[] = {
+ 	{ /* FEC_RST */
+ 	MX53_PIN_ATA_DA_0, IOMUX_CONFIG_ALT1,
+ 	},
+-	{ /* audio clock out */
+-	 MX53_PIN_GPIO_0, IOMUX_CONFIG_ALT3,
+-	 },
+ };
+ 
+ static struct mxc_iomux_pin_cfg __initdata mx53_arm2_iomux_pins[] = {
+@@ -739,9 +788,14 @@ void __init mx53_evk_io_init(void)
+ 	/* LCD related gpio */
+ 
+ 	/* Camera reset */
++	gpio_request(IOMUX_TO_GPIO(MX53_PIN_GPIO_10), "gpio4_0");
++	gpio_direction_output(IOMUX_TO_GPIO(MX53_PIN_GPIO_10), 0);
++	gpio_set_value(IOMUX_TO_GPIO(MX53_PIN_GPIO_10), 1);
+ 
+ 	/* Camera low power */
+-
++	gpio_request(IOMUX_TO_GPIO(MX53_PIN_CSI0_D5), "gpio5_23");
++	gpio_direction_output(IOMUX_TO_GPIO(MX53_PIN_CSI0_D5), 0);
++	gpio_set_value(IOMUX_TO_GPIO(MX53_PIN_CSI0_D5), 0);
+ }
+ 
+ /* workaround for ecspi chipselect pin may not keep correct level when idle */
+-- 
+1.5.4.4
+

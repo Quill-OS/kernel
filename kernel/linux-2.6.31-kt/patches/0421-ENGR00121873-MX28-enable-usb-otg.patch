@@ -1,0 +1,81 @@
+From 751a05304a3614310a67ccc7a7f6fce3ccf2d1e5 Mon Sep 17 00:00:00 2001
+From: Frank Li <Frank.Li@freescale.com>
+Date: Mon, 22 Mar 2010 17:47:24 +0800
+Subject: [PATCH] ENGR00121873  MX28 enable usb otg
+
+USB ID pin have not config.
+module arcotg_udc.ko should insert after echi_hcd.ko
+
+Signed-off-by: Frank Li <Frank.Li@freescale.com>
+---
+ arch/arm/mach-mx28/mx28evk_pins.c |   12 ++++++++++++
+ arch/arm/plat-mxs/usb_common.c    |   30 ------------------------------
+ 2 files changed, 12 insertions(+), 30 deletions(-)
+
+diff --git a/arch/arm/mach-mx28/mx28evk_pins.c b/arch/arm/mach-mx28/mx28evk_pins.c
+index 2bb8c58..8f8591d 100644
+--- a/arch/arm/mach-mx28/mx28evk_pins.c
++++ b/arch/arm/mach-mx28/mx28evk_pins.c
+@@ -93,6 +93,18 @@ static struct pin_desc mx28evk_fixed_pins[] = {
+ 	 .fun   = PIN_GPIO,
+ 	 .data  = 1,
+ 	 },
++
++#if defined(CONFIG_USB_OTG)
++	 {
++	 .name 	= "usb0_id",
++	 .id 	= PINID_AUART1_RTS,
++	 .fun	= PIN_FUN2,
++	 .data 	= 1,
++	 .pull 	= 1,
++	 .pullup = 1,
++	 },
++#endif
++
+ #if defined(CONFIG_CAN_FLEXCAN) || defined(CONFIG_CAN_FLEXCAN_MODULE)
+ 	{
+ 	 .name	= "CAN1_TX",
+diff --git a/arch/arm/plat-mxs/usb_common.c b/arch/arm/plat-mxs/usb_common.c
+index c9a65a0..5d8d0b6 100644
+--- a/arch/arm/plat-mxs/usb_common.c
++++ b/arch/arm/plat-mxs/usb_common.c
+@@ -107,36 +107,6 @@ EXPORT_SYMBOL(fsl_platform_set_usb_phy_dis);
+ #if defined(CONFIG_USB_OTG)
+ static struct otg_transceiver *xceiv;
+ 
+-/**
+- * otg_get_transceiver - find the (single) OTG transceiver driver
+- *
+- * Returns the transceiver driver, after getting a refcount to it; or
+- * null if there is no such transceiver.  The caller is responsible for
+- * releasing that count.
+- */
+-struct otg_transceiver *otg_get_transceiver(void)
+-{
+-	pr_debug("%s xceiv=0x%p\n", __func__, xceiv);
+-	if (xceiv)
+-		get_device(xceiv->dev);
+-	return xceiv;
+-}
+-EXPORT_SYMBOL(otg_get_transceiver);
+-
+-int otg_set_transceiver(struct otg_transceiver *x)
+-{
+-	pr_debug("%s xceiv=0x%p  x=0x%p\n", __func__, xceiv, x);
+-	/*
+-	if (x == NULL)
+-		stmp3xxx_release_pin_group(&usb_mux_pins, "usb");
+-		*/
+-	if (xceiv && x)
+-		return -EBUSY;
+-	xceiv = x;
+-	return 0;
+-}
+-EXPORT_SYMBOL(otg_set_transceiver);
+-
+ static struct resource *otg_resources;
+ 
+ struct resource *otg_get_resources(void)
+-- 
+1.5.4.4
+

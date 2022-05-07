@@ -1,0 +1,95 @@
+From bce3f3b03fabf980d61bfe5505b9f00545adb01a Mon Sep 17 00:00:00 2001
+From: Lily Zhang <r58066@freescale.com>
+Date: Sat, 5 Dec 2009 19:24:53 +0800
+Subject: [PATCH] ENGR00119023-2 Fix build error in SPI NOR driver
+
+1. Add SPI NOR flash driver in Makefile
+2. Fix build error with gcc 4.3.3 toolchain
+
+Signed-off-by: Lily Zhang <r58066@freescale.com>
+---
+ drivers/mtd/devices/Kconfig         |    8 ++++++++
+ drivers/mtd/devices/Makefile        |    2 +-
+ drivers/mtd/devices/mxc_dataflash.c |   20 +++++++++++++-------
+ 3 files changed, 22 insertions(+), 8 deletions(-)
+
+diff --git a/drivers/mtd/devices/Kconfig b/drivers/mtd/devices/Kconfig
+index 325fab9..b81b781 100644
+--- a/drivers/mtd/devices/Kconfig
++++ b/drivers/mtd/devices/Kconfig
+@@ -80,6 +80,14 @@ config MTD_DATAFLASH_OTP
+ 	  other key product data.  The second half is programmed with a
+ 	  unique-to-each-chip bit pattern at the factory.
+ 
++config MTD_MXC_DATAFLASH
++        tristate "Support for AT DataFlash via FSL SPI interface"
++        depends on SPI_MASTER && EXPERIMENTAL
++        help
++          This enables access to AT DataFlash chips, using FSL SPI.
++          Sometimes DataFlash chips are packaged inside MMC-format
++          cards; at this writing, the MMC stack won't handle those.
++
+ config MTD_M25P80
+ 	tristate "Support most SPI Flash chips (AT26DF, M25P, W25X, ...)"
+ 	depends on SPI_MASTER && EXPERIMENTAL
+diff --git a/drivers/mtd/devices/Makefile b/drivers/mtd/devices/Makefile
+index f008bac..98a95aa 100644
+--- a/drivers/mtd/devices/Makefile
++++ b/drivers/mtd/devices/Makefile
+@@ -16,4 +16,4 @@ obj-$(CONFIG_MTD_LART)		+= lart.o
+ obj-$(CONFIG_MTD_BLOCK2MTD)	+= block2mtd.o
+ obj-$(CONFIG_MTD_DATAFLASH)	+= mtd_dataflash.o
+ obj-$(CONFIG_MTD_M25P80)	+= m25p80.o
+-
++obj-$(CONFIG_MTD_MXC_DATAFLASH)	+= mxc_dataflash.o
+diff --git a/drivers/mtd/devices/mxc_dataflash.c b/drivers/mtd/devices/mxc_dataflash.c
+index 88c5788..ab75d74 100644
+--- a/drivers/mtd/devices/mxc_dataflash.c
++++ b/drivers/mtd/devices/mxc_dataflash.c
+@@ -210,14 +210,20 @@ static int dataflash_erase(struct mtd_info *mtd, struct erase_info *instr)
+ 	struct spi_device *spi = priv->spi;
+ 	unsigned blocksize = priv->page_size << 3;
+ 	uint8_t *command;
++	uint32_t		rem;
+ 
+-	DEBUG(MTD_DEBUG_LEVEL2, "%s: erase addr=0x%x len 0x%x\n",
+-	      dev_name(&spi->dev), instr->addr, instr->len);
++	DEBUG(MTD_DEBUG_LEVEL2, "%s: erase addr=0x%llx len 0x%llx\n",
++	      dev_name(&spi->dev), (long long)instr->addr,
++	      (long long)instr->len);
+ 
+ 	/* Sanity checks */
+-	if ((instr->addr + instr->len) > mtd->size
+-	    || (instr->len % priv->page_size) != 0
+-	    || (instr->addr % priv->page_size) != 0)
++	if (instr->addr + instr->len > mtd->size)
++		return -EINVAL;
++	div_u64_rem(instr->len, priv->page_size, &rem);
++	if (rem)
++		return -EINVAL;
++	div_u64_rem(instr->addr, priv->page_size, &rem);
++	if (rem)
+ 		return -EINVAL;
+ 
+ 	command = priv->command;
+@@ -231,7 +237,7 @@ static int dataflash_erase(struct mtd_info *mtd, struct erase_info *instr)
+ 		/* Calculate flash page address; use block erase (for speed) if
+ 		 * we're at a block boundary and need to erase the whole block.
+ 		 */
+-		pageaddr = instr->addr / priv->page_size;
++		pageaddr = div_u64(instr->addr, priv->page_size);
+ 		do_block = (pageaddr & 0x7) == 0 && instr->len >= blocksize;
+ 		pageaddr = pageaddr << priv->page_offset;
+ 
+@@ -744,7 +750,7 @@ add_dataflash_otp(struct spi_device *spi, char *name,
+ 	if (revision >= 'c')
+ 		otp_tag = otp_setup(device, revision);
+ 
+-	dev_info(&spi->dev, "%s (%d KBytes) pagesize %d bytes%s\n",
++	dev_info(&spi->dev, "%s (%llx KBytes) pagesize %d bytes%s\n",
+ 		 name, DIV_ROUND_UP(device->size, 1024), pagesize, otp_tag);
+ 	dev_set_drvdata(&spi->dev, priv);
+ 
+-- 
+1.5.4.4
+

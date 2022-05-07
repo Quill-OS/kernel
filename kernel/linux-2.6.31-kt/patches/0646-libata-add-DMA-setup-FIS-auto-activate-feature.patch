@@ -1,0 +1,153 @@
+From faa99a0010bd50f67b468f88edf0bf9ef94f28ba Mon Sep 17 00:00:00 2001
+From: Shaohua Li <shaohua.li@intel.com>
+Date: Mon, 27 Jul 2009 09:24:35 +0800
+Subject: [PATCH] [libata] add DMA setup FIS auto-activate feature
+
+Hopefully results in fewer on-the-wire FIS's and no breakage.  We'll see!
+
+Signed-off-by: Shaohua Li <shaohua.li@intel.com>
+Signed-off-by: Jeff Garzik <jgarzik@redhat.com>
+---
+ drivers/ata/ahci.c        |    2 +-
+ drivers/ata/libata-core.c |   36 +++++++++++++++++++++++++++++-------
+ include/linux/ata.h       |    4 ++++
+ include/linux/libata.h    |    2 ++
+ 4 files changed, 36 insertions(+), 8 deletions(-)
+
+diff --git a/drivers/ata/ahci.c b/drivers/ata/ahci.c
+index fe3eba5..7a3124a 100644
+--- a/drivers/ata/ahci.c
++++ b/drivers/ata/ahci.c
+@@ -2869,7 +2869,7 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
+ 
+ 	/* prepare host */
+ 	if (hpriv->cap & HOST_CAP_NCQ)
+-		pi.flags |= ATA_FLAG_NCQ;
++		pi.flags |= ATA_FLAG_NCQ | ATA_FLAG_FPDMA_AA;
+ 
+ 	if (hpriv->cap & HOST_CAP_PMP)
+ 		pi.flags |= ATA_FLAG_PMP;
+diff --git a/drivers/ata/libata-core.c b/drivers/ata/libata-core.c
+index 072ba5e..98af50f 100644
+--- a/drivers/ata/libata-core.c
++++ b/drivers/ata/libata-core.c
+@@ -2299,29 +2299,49 @@ static inline u8 ata_dev_knobble(struct ata_device *dev)
+ 	return ((ap->cbl == ATA_CBL_SATA) && (!ata_id_is_sata(dev->id)));
+ }
+ 
+-static void ata_dev_config_ncq(struct ata_device *dev,
++static int ata_dev_config_ncq(struct ata_device *dev,
+ 			       char *desc, size_t desc_sz)
+ {
+ 	struct ata_port *ap = dev->link->ap;
+ 	int hdepth = 0, ddepth = ata_id_queue_depth(dev->id);
++	unsigned int err_mask;
++	char *aa_desc = "";
+ 
+ 	if (!ata_id_has_ncq(dev->id)) {
+ 		desc[0] = '\0';
+-		return;
++		return 0;
+ 	}
+ 	if (dev->horkage & ATA_HORKAGE_NONCQ) {
+ 		snprintf(desc, desc_sz, "NCQ (not used)");
+-		return;
++		return 0;
+ 	}
+ 	if (ap->flags & ATA_FLAG_NCQ) {
+ 		hdepth = min(ap->scsi_host->can_queue, ATA_MAX_QUEUE - 1);
+ 		dev->flags |= ATA_DFLAG_NCQ;
+ 	}
+ 
++	if (!(dev->horkage & ATA_HORKAGE_BROKEN_FPDMA_AA) &&
++		(ap->flags & ATA_FLAG_FPDMA_AA) &&
++		ata_id_has_fpdma_aa(dev->id)) {
++		err_mask = ata_dev_set_feature(dev, SETFEATURES_SATA_ENABLE,
++			SATA_FPDMA_AA);
++		if (err_mask) {
++			ata_dev_printk(dev, KERN_ERR, "failed to enable AA"
++				"(error_mask=0x%x)\n", err_mask);
++			if (err_mask != AC_ERR_DEV) {
++				dev->horkage |= ATA_HORKAGE_BROKEN_FPDMA_AA;
++				return -EIO;
++			}
++		} else
++			aa_desc = ", AA";
++	}
++
+ 	if (hdepth >= ddepth)
+-		snprintf(desc, desc_sz, "NCQ (depth %d)", ddepth);
++		snprintf(desc, desc_sz, "NCQ (depth %d)%s", ddepth, aa_desc);
+ 	else
+-		snprintf(desc, desc_sz, "NCQ (depth %d/%d)", hdepth, ddepth);
++		snprintf(desc, desc_sz, "NCQ (depth %d/%d)%s", hdepth,
++			ddepth, aa_desc);
++	return 0;
+ }
+ 
+ /**
+@@ -2461,7 +2481,7 @@ int ata_dev_configure(struct ata_device *dev)
+ 
+ 		if (ata_id_has_lba(id)) {
+ 			const char *lba_desc;
+-			char ncq_desc[20];
++			char ncq_desc[24];
+ 
+ 			lba_desc = "LBA";
+ 			dev->flags |= ATA_DFLAG_LBA;
+@@ -2475,7 +2495,9 @@ int ata_dev_configure(struct ata_device *dev)
+ 			}
+ 
+ 			/* config NCQ */
+-			ata_dev_config_ncq(dev, ncq_desc, sizeof(ncq_desc));
++			rc = ata_dev_config_ncq(dev, ncq_desc, sizeof(ncq_desc));
++			if (rc)
++				return rc;
+ 
+ 			/* print device info to dmesg */
+ 			if (ata_msg_drv(ap) && print_info) {
+diff --git a/include/linux/ata.h b/include/linux/ata.h
+index 9c75921..f549405 100644
+--- a/include/linux/ata.h
++++ b/include/linux/ata.h
+@@ -306,6 +306,7 @@ enum {
+ 	/* SETFEATURE Sector counts for SATA features */
+ 	SATA_AN			= 0x05,  /* Asynchronous Notification */
+ 	SATA_DIPM		= 0x03,  /* Device Initiated Power Management */
++	SATA_FPDMA_AA		= 0x02,  /* DMA Setup FIS Auto-Activate */
+ 
+ 	/* feature values for SET_MAX */
+ 	ATA_SET_MAX_ADDR	= 0x00,
+@@ -525,6 +526,9 @@ static inline int ata_is_data(u8 prot)
+ #define ata_id_has_atapi_AN(id)	\
+ 	( (((id)[76] != 0x0000) && ((id)[76] != 0xffff)) && \
+ 	  ((id)[78] & (1 << 5)) )
++#define ata_id_has_fpdma_aa(id)	\
++	( (((id)[76] != 0x0000) && ((id)[76] != 0xffff)) && \
++	  ((id)[78] & (1 << 2)) )
+ #define ata_id_iordy_disable(id) ((id)[ATA_ID_CAPABILITY] & (1 << 10))
+ #define ata_id_has_iordy(id) ((id)[ATA_ID_CAPABILITY] & (1 << 11))
+ #define ata_id_u32(id,n)	\
+diff --git a/include/linux/libata.h b/include/linux/libata.h
+index e5b6e33..d3f7cab 100644
+--- a/include/linux/libata.h
++++ b/include/linux/libata.h
+@@ -190,6 +190,7 @@ enum {
+ 	ATA_FLAG_NO_POWEROFF_SPINDOWN = (1 << 11), /* don't spindown before poweroff */
+ 	ATA_FLAG_NO_HIBERNATE_SPINDOWN = (1 << 12), /* don't spindown before hibernation */
+ 	ATA_FLAG_DEBUGMSG	= (1 << 13),
++	ATA_FLAG_FPDMA_AA		= (1 << 14), /* driver supports Auto-Activate */
+ 	ATA_FLAG_IGN_SIMPLEX	= (1 << 15), /* ignore SIMPLEX */
+ 	ATA_FLAG_NO_IORDY	= (1 << 16), /* controller lacks iordy */
+ 	ATA_FLAG_ACPI_SATA	= (1 << 17), /* need native SATA ACPI layout */
+@@ -386,6 +387,7 @@ enum {
+ 	ATA_HORKAGE_FIRMWARE_WARN = (1 << 12),	/* firmware update warning */
+ 	ATA_HORKAGE_1_5_GBPS	= (1 << 13),	/* force 1.5 Gbps */
+ 	ATA_HORKAGE_NOSETXFER	= (1 << 14),	/* skip SETXFER, SATA only */
++	ATA_HORKAGE_BROKEN_FPDMA_AA	= (1 << 15),	/* skip AA */
+ 
+ 	 /* DMA mask for user DMA control: User visible values; DO NOT
+ 	    renumber */
+-- 
+1.5.4.4
+

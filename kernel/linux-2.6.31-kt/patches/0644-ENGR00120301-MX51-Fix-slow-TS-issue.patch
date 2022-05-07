@@ -1,0 +1,28 @@
+From e4aa82729814b05dab751bab24de981a1915d947 Mon Sep 17 00:00:00 2001
+From: Nancy Chen <Nancy.Chen@freescale.com>
+Date: Mon, 7 Jun 2010 10:45:08 -0500
+Subject: [PATCH] ENGR00120301 MX51: Fix slow TS issue
+
+MX51: Fix slow TS issue.
+
+Signed-off-by: Nancy Chen <Nancy.Chen@freescale.com>
+---
+ arch/arm/mach-mx5/mx51_babbage_pmic_mc13892.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/arch/arm/mach-mx5/mx51_babbage_pmic_mc13892.c b/arch/arm/mach-mx5/mx51_babbage_pmic_mc13892.c
+index 4aa15f3..c97d219 100644
+--- a/arch/arm/mach-mx5/mx51_babbage_pmic_mc13892.c
++++ b/arch/arm/mach-mx5/mx51_babbage_pmic_mc13892.c
+@@ -407,7 +407,7 @@ static struct mc13892_platform_data mc13892_plat = {
+ static struct spi_board_info __initdata mc13892_spi_device = {
+ 	.modalias = "pmic_spi",
+ 	.irq = IOMUX_TO_IRQ(MX51_PIN_GPIO1_8),
+-	.max_speed_hz = 1000000,	/* max spi SCK clock speed in HZ */
++	.max_speed_hz = 6000000,	/* max spi SCK clock speed in HZ */
+ 	.bus_num = 1,
+ 	.chip_select = 0,
+ 	.platform_data = &mc13892_plat,
+-- 
+1.5.4.4
+

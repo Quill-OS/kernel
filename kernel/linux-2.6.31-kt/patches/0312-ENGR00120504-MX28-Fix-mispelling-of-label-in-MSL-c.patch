@@ -1,0 +1,90 @@
+From bdbe8e0ec9d7ee5bdc4e46e9876fb9ef2ab456f6 Mon Sep 17 00:00:00 2001
+From: Robby Cai <R63905@freescale.com>
+Date: Wed, 27 Jan 2010 14:00:55 +0800
+Subject: [PATCH] ENGR00120504 MX28 Fix mispelling of "label" in MSL codes
+
+The word "label" is mispelled as "lable" in commited files
+
+Signed-off-by: Robby Cai <R63905@freescale.com>
+---
+ arch/arm/plat-mxs/include/mach/pinctrl.h |    2 +-
+ arch/arm/plat-mxs/pinctrl.c              |   14 +++++++-------
+ 2 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/arch/arm/plat-mxs/include/mach/pinctrl.h b/arch/arm/plat-mxs/include/mach/pinctrl.h
+index 3299e42..a636caf 100644
+--- a/arch/arm/plat-mxs/include/mach/pinctrl.h
++++ b/arch/arm/plat-mxs/include/mach/pinctrl.h
+@@ -90,7 +90,7 @@ struct pin_desc {
+ };
+ 
+ struct pin_bank {
+-	const char *lable[sizeof(long) * 8];
++	const char *label[sizeof(long) * 8];
+ 	unsigned long id;
+ 	struct pinctrl_chip *chip;
+ 	unsigned long bitmap;
+diff --git a/arch/arm/plat-mxs/pinctrl.c b/arch/arm/plat-mxs/pinctrl.c
+index 658aa05..47fba76 100644
+--- a/arch/arm/plat-mxs/pinctrl.c
++++ b/arch/arm/plat-mxs/pinctrl.c
+@@ -42,7 +42,7 @@ int mxs_request_pin(unsigned int pin, enum pin_fun fun, const char *lab)
+ 	pb = g_chip->banks + bank;
+ 	if (test_and_set_bit(index, &pb->bitmap))
+ 		return -EBUSY;
+-	pb->lable[index] = lab;
++	pb->label[index] = lab;
+ 	if (g_chip->set_type)
+ 		g_chip->set_type(pb, index, fun);
+ 	return 0;
+@@ -64,7 +64,7 @@ int mxs_set_type(unsigned int pin, enum pin_fun fun, const char *lab)
+ 
+ 	if (!test_bit(index, &pb->bitmap))
+ 		return -ENOLCK;
+-	if (lab != pb->lable[index])	/* lable is const string */
++	if (lab != pb->label[index])	/* label is const string */
+ 		return -EINVAL;
+ 	if (g_chip->set_type)
+ 		g_chip->set_type(pb, index, fun);
+@@ -87,7 +87,7 @@ int mxs_set_strength(unsigned int pin, enum pad_strength cfg, const char *lab)
+ 
+ 	if (!test_bit(index, &pb->bitmap))
+ 		return -ENOLCK;
+-	if (lab != pb->lable[index])	/* lable is const string */
++	if (lab != pb->label[index])	/* label is const string */
+ 		return -EINVAL;
+ 	if (g_chip->set_strength)
+ 		g_chip->set_strength(pb, index, cfg);
+@@ -110,7 +110,7 @@ int mxs_set_voltage(unsigned int pin, enum pad_voltage cfg, const char *lab)
+ 
+ 	if (!test_bit(index, &pb->bitmap))
+ 		return -ENOLCK;
+-	if (lab != pb->lable[index])	/* lable is const string */
++	if (lab != pb->label[index])	/* label is const string */
+ 		return -EINVAL;
+ 	if (g_chip->set_voltage)
+ 		g_chip->set_voltage(pb, index, cfg);
+@@ -133,7 +133,7 @@ int mxs_set_pullup(unsigned int pin, int en, const char *lab)
+ 
+ 	if (!test_bit(index, &pb->bitmap))
+ 		return -ENOLCK;
+-	if (lab != pb->lable[index])	/* lable is const string */
++	if (lab != pb->label[index])	/* label is const string */
+ 		return -EINVAL;
+ 	if (g_chip->set_pullup)
+ 		g_chip->set_pullup(pb, index, en);
+@@ -156,9 +156,9 @@ void mxs_release_pin(unsigned int pin, const char *lab)
+ 
+ 	if (!test_bit(index, &pb->bitmap))
+ 		return;
+-	if (lab != pb->lable[index])	/* lable is const string */
++	if (lab != pb->label[index])	/* label is const string */
+ 		return;
+-	pb->lable[index] = NULL;
++	pb->label[index] = NULL;
+ 
+ 	clear_bit(index, &pb->bitmap);
+ }
+-- 
+1.5.4.4
+

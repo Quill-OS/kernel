@@ -1,0 +1,45 @@
+From c0d7e65a5773bbb5258d39457ad945d566f8e982 Mon Sep 17 00:00:00 2001
+From: Ran Ferderber <Ran.Ferderber@freescale.com>
+Date: Wed, 27 Jan 2010 16:21:07 +0200
+Subject: [PATCH] ENGR00120523 Down sizing of stream bigger then 1024 two stripe failed
+
+Fix stripe size calculation
+
+Signed-off-by: Ran Ferderber r53561@freescale.com
+---
+ drivers/mxc/ipu3/ipu_calc_stripes_sizes.c |    7 +++----
+ 1 files changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/mxc/ipu3/ipu_calc_stripes_sizes.c b/drivers/mxc/ipu3/ipu_calc_stripes_sizes.c
+index 09c7664..6a29c90 100644
+--- a/drivers/mxc/ipu3/ipu_calc_stripes_sizes.c
++++ b/drivers/mxc/ipu3/ipu_calc_stripes_sizes.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2009-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -223,8 +223,7 @@ int ipu_calc_stripes_sizes(const unsigned int input_frame_width,
+ 	output_m = m_calc(output_pixelformat);
+ 
+ 
+-	if ((output_frame_width < input_frame_width) || (input_frame_width < 4)
+-	    || (output_frame_width < 4))
++	if ((input_frame_width < 4) || (output_frame_width < 4))
+ 		return 1;
+ 
+ 	irr_opt = _do_div((((u64)(input_frame_width - 1)) << 32),
+@@ -266,7 +265,7 @@ int ipu_calc_stripes_sizes(const unsigned int input_frame_width,
+ 				       (right->input_width - 1)), (right->output_width - 1));
+ 			left->irr = right->irr = truncate(0, div, 1);
+ 		} else { /* with overlap */
+-			onw = truncate(0, (((u64)output_frame_width) << 32) >> 1,
++			onw = truncate(0, (((u64)output_frame_width - 1) << 32) >> 1,
+ 				       output_f);
+ 			inw = truncate(0, onw * irr_opt, input_f);
+ 			/* this is the maximal inw which allows the same resizing ratio */
+-- 
+1.5.4.4
+

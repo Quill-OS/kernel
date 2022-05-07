@@ -1,0 +1,69 @@
+From 180bcbfe1271b7426af52e5fe2d54aea459263f6 Mon Sep 17 00:00:00 2001
+From: Mark Brown <broonie@opensource.wolfsonmicro.com>
+Date: Tue, 21 Jul 2009 16:00:26 +0100
+Subject: [PATCH] regulator: Fix support for deviceless supply mappings
+
+The patch to add support for looking up consumers by device name
+had the side effect of causing us to require a device which is
+at best premature since at least cpufreq still operates outside
+the device model. Remove that requirement.
+
+Reported-by: Haojian Zhuang <haojian.zhuang@gmail.com>
+Signed-off-by: Mark Brown <broonie@opensource.wolfsonmicro.com>
+Signed-off-by: Liam Girdwood <lrg@slimlogic.co.uk>
+---
+ drivers/regulator/core.c |   18 +++++++++++++-----
+ 1 files changed, 13 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/regulator/core.c b/drivers/regulator/core.c
+index 8275539..bfbe990 100644
+--- a/drivers/regulator/core.c
++++ b/drivers/regulator/core.c
+@@ -872,6 +872,7 @@ static int set_consumer_device_supply(struct regulator_dev *rdev,
+ 	const char *supply)
+ {
+ 	struct regulator_map *node;
++	int has_dev;
+ 
+ 	if (consumer_dev && consumer_dev_name)
+ 		return -EINVAL;
+@@ -882,6 +883,11 @@ static int set_consumer_device_supply(struct regulator_dev *rdev,
+ 	if (supply == NULL)
+ 		return -EINVAL;
+ 
++	if (consumer_dev_name != NULL)
++		has_dev = 1;
++	else
++		has_dev = 0;
++
+ 	list_for_each_entry(node, &regulator_map_list, list) {
+ 		if (consumer_dev_name != node->dev_name)
+ 			continue;
+@@ -896,17 +902,19 @@ static int set_consumer_device_supply(struct regulator_dev *rdev,
+ 		return -EBUSY;
+ 	}
+ 
+-	node = kmalloc(sizeof(struct regulator_map), GFP_KERNEL);
++	node = kzalloc(sizeof(struct regulator_map), GFP_KERNEL);
+ 	if (node == NULL)
+ 		return -ENOMEM;
+ 
+ 	node->regulator = rdev;
+-	node->dev_name = kstrdup(consumer_dev_name, GFP_KERNEL);
+ 	node->supply = supply;
+ 
+-	if (node->dev_name == NULL) {
+-		kfree(node);
+-		return -ENOMEM;
++	if (has_dev) {
++		node->dev_name = kstrdup(consumer_dev_name, GFP_KERNEL);
++		if (node->dev_name == NULL) {
++			kfree(node);
++			return -ENOMEM;
++		}
+ 	}
+ 
+ 	list_add(&node->list, &regulator_map_list);
+-- 
+1.5.4.4
+

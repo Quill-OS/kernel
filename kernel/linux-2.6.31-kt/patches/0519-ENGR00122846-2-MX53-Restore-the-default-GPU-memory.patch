@@ -1,0 +1,30 @@
+From 0520626886a1dcf6e13b6a4438c1fda937a32ecc Mon Sep 17 00:00:00 2001
+From: Lily Zhang <r58066@freescale.com>
+Date: Mon, 26 Apr 2010 10:49:43 +0800
+Subject: [PATCH] ENGR00122846-2 MX53: Restore the default GPU memory as 128M
+
+This reverts commit cf848bba851157fb7c28ad2abd21f8210a4b0831.
+Since the kernel virtual space is changed as 2G, restore the default
+GPU memory as 128M to support flash 10 better.
+
+Signed-off-by: Lily Zhang <r58066@freescale.com>
+---
+ arch/arm/mach-mx5/mx53_evk.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/arch/arm/mach-mx5/mx53_evk.c b/arch/arm/mach-mx5/mx53_evk.c
+index 842cec7..c42ba3d 100644
+--- a/arch/arm/mach-mx5/mx53_evk.c
++++ b/arch/arm/mach-mx5/mx53_evk.c
+@@ -529,7 +529,7 @@ static void __init fixup_mxc_board(struct machine_desc *desc, struct tag *tags,
+ 	struct tag *mem_tag = 0;
+ 	int total_mem = SZ_1G;
+ 	int left_mem = 0;
+-	int gpu_mem = SZ_32M;
++	int gpu_mem = SZ_128M;
+ 	int fb_mem = SZ_32M;
+ 	char *str;
+ 
+-- 
+1.5.4.4
+

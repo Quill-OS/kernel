@@ -1,0 +1,415 @@
+From b9d1239c2df6756dcb415968e41409a575b18e27 Mon Sep 17 00:00:00 2001
+From: Liu Ying <b17645@freescale.com>
+Date: Wed, 30 Jun 2010 13:32:01 +0800
+Subject: [PATCH] ENGR00124761 V4L2 still:Support to capture QXGA still image
+
+1) Add OV3640 camera QXGA configuration at 7.5fps support.
+2) Use double buffer to workaround tearing issue when capturing
+   still image.
+
+Signed-off-by: Liu Ying <b17645@freescale.com>
+---
+ drivers/media/video/mxc/capture/csi_v4l2_capture.c |   12 ++--
+ .../media/video/mxc/capture/emma_v4l2_capture.c    |   17 +++---
+ drivers/media/video/mxc/capture/ipu_still.c        |   28 ++++++---
+ drivers/media/video/mxc/capture/mx27_prpsw.c       |    4 +-
+ drivers/media/video/mxc/capture/mxc_v4l2_capture.c |   38 ++++++++-----
+ drivers/media/video/mxc/capture/mxc_v4l2_capture.h |    2 +-
+ drivers/media/video/mxc/capture/ov3640.c           |   62 +++++++++++++------
+ 7 files changed, 103 insertions(+), 60 deletions(-)
+
+diff --git a/drivers/media/video/mxc/capture/csi_v4l2_capture.c b/drivers/media/video/mxc/capture/csi_v4l2_capture.c
+index 9bddc36..cf224e0 100644
+--- a/drivers/media/video/mxc/capture/csi_v4l2_capture.c
++++ b/drivers/media/video/mxc/capture/csi_v4l2_capture.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2009-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -789,15 +789,15 @@ static ssize_t csi_v4l_read(struct file *file, char *buf, size_t count,
+ 							  (cam->v2f.fmt.
+ 							   pix.sizeimage),
+ 							  &cam->
+-							  still_buf,
++							  still_buf[0],
+ 							  GFP_DMA | GFP_KERNEL);
+ 		if (cam->still_buf_vaddr == NULL) {
+ 			pr_err("alloc dma memory failed\n");
+ 			return -ENOMEM;
+ 		}
+ 		cam->still_counter = 0;
+-		__raw_writel(cam->still_buf, CSI_CSIDMASA_FB2);
+-		__raw_writel(cam->still_buf, CSI_CSIDMASA_FB1);
++		__raw_writel(cam->still_buf[0], CSI_CSIDMASA_FB2);
++		__raw_writel(cam->still_buf[0], CSI_CSIDMASA_FB1);
+ 		__raw_writel(__raw_readl(CSI_CSICR3) | BIT_DMA_REFLASH_RFF,
+ 			     CSI_CSICR3);
+ 		__raw_writel(__raw_readl(CSI_CSISR), CSI_CSISR);
+@@ -813,8 +813,8 @@ static ssize_t csi_v4l_read(struct file *file, char *buf, size_t count,
+ 
+ 	if (cam->still_buf_vaddr != NULL) {
+ 		dma_free_coherent(0, PAGE_ALIGN(cam->v2f.fmt.pix.sizeimage),
+-				  cam->still_buf_vaddr, cam->still_buf);
+-		cam->still_buf = 0;
++				  cam->still_buf_vaddr, cam->still_buf[0]);
++		cam->still_buf[0] = 0;
+ 		cam->still_buf_vaddr = NULL;
+ 	}
+ 
+diff --git a/drivers/media/video/mxc/capture/emma_v4l2_capture.c b/drivers/media/video/mxc/capture/emma_v4l2_capture.c
+index 9cb08b2..1708077 100644
+--- a/drivers/media/video/mxc/capture/emma_v4l2_capture.c
++++ b/drivers/media/video/mxc/capture/emma_v4l2_capture.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2004-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2004-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -858,7 +858,7 @@ static void mxc_csi_dma_chaining(void *data)
+ 
+ 		/* Config DMA */
+ 		memset(&dma_request, 0, sizeof(mxc_dma_requestbuf_t));
+-		dma_request.dst_addr = cam->still_buf
++		dma_request.dst_addr = cam->still_buf[0]
+ 		    + (chained % max_dma) * CSI_DMA_LENGTH;
+ 		dma_request.src_addr = (dma_addr_t) CSI_CSIRXFIFO_PHYADDR;
+ 		dma_request.num_of_bytes = count;
+@@ -1040,7 +1040,7 @@ mxc_v4l_read(struct file *file, char *buf, size_t count, loff_t *ppos)
+ 
+ 	cam->still_buf_vaddr = dma_alloc_coherent(0,
+ 						  PAGE_ALIGN(CSI_MEM_SIZE),
+-						  &cam->still_buf,
++						  &cam->still_buf[0],
+ 						  GFP_DMA | GFP_KERNEL);
+ 
+ 	if (!cam->still_buf_vaddr) {
+@@ -1120,8 +1120,8 @@ mxc_v4l_read(struct file *file, char *buf, size_t count, loff_t *ppos)
+ 
+       exit1:
+ 	dma_free_coherent(0, PAGE_ALIGN(CSI_MEM_SIZE),
+-			  cam->still_buf_vaddr, cam->still_buf);
+-	cam->still_buf = 0;
++			  cam->still_buf_vaddr, cam->still_buf[0]);
++	cam->still_buf[0] = 0;
+ 
+       exit0:
+ 	up(&cam->busy_lock);
+@@ -1160,7 +1160,8 @@ mxc_v4l_read(struct file *file, char *buf, size_t count, loff_t *ppos)
+ 
+ 	v_address = dma_alloc_coherent(0,
+ 				       PAGE_ALIGN(cam->v2f.fmt.pix.sizeimage),
+-				       &cam->still_buf, GFP_DMA | GFP_KERNEL);
++				       &cam->still_buf[0],
++				       GFP_DMA | GFP_KERNEL);
+ 
+ 	if (!v_address) {
+ 		pr_info("mxc_v4l_read failed at allocate still_buf\n");
+@@ -1194,8 +1195,8 @@ mxc_v4l_read(struct file *file, char *buf, size_t count, loff_t *ppos)
+ 
+       exit1:
+ 	dma_free_coherent(0, cam->v2f.fmt.pix.sizeimage, v_address,
+-			  cam->still_buf);
+-	cam->still_buf = 0;
++			  cam->still_buf[0]);
++	cam->still_buf[0] = 0;
+ 
+       exit0:
+ 	up(&cam->busy_lock);
+diff --git a/drivers/media/video/mxc/capture/ipu_still.c b/drivers/media/video/mxc/capture/ipu_still.c
+index 05d2a59..ded2462 100644
+--- a/drivers/media/video/mxc/capture/ipu_still.c
++++ b/drivers/media/video/mxc/capture/ipu_still.c
+@@ -26,6 +26,9 @@
+ #include "ipu_prp_sw.h"
+ 
+ static int callback_eof_flag;
++#ifndef CONFIG_MXC_IPU_V1
++static int buffer_num;
++#endif
+ 
+ #ifdef CONFIG_MXC_IPU_V1
+ static int callback_flag;
+@@ -42,10 +45,10 @@ static int callback_flag;
+  */
+ static irqreturn_t prp_csi_eof_callback(int irq, void *dev_id)
+ {
+-	if (callback_flag == 2) {
+-		ipu_select_buffer(CSI_MEM, IPU_OUTPUT_BUFFER, 0);
++	ipu_select_buffer(CSI_MEM, IPU_OUTPUT_BUFFER,
++			  callback_flag%2 ? 1 : 0);
++	if (callback_flag == 0)
+ 		ipu_enable_channel(CSI_MEM);
+-	}
+ 
+ 	callback_flag++;
+ 	return IRQ_HANDLED;
+@@ -65,9 +68,12 @@ static irqreturn_t prp_still_callback(int irq, void *dev_id)
+ 	cam_data *cam = (cam_data *) dev_id;
+ 
+ 	callback_eof_flag++;
+-	if (callback_eof_flag < 5)
+-		ipu_select_buffer(CSI_MEM, IPU_OUTPUT_BUFFER, 0);
+-	else {
++	if (callback_eof_flag < 5) {
++#ifndef CONFIG_MXC_IPU_V1
++		buffer_num = (buffer_num == 0) ? 1 : 0;
++		ipu_select_buffer(CSI_MEM, IPU_OUTPUT_BUFFER, buffer_num);
++#endif
++	} else {
+ 		cam->still_counter++;
+ 		wake_up_interruptible(&cam->still_queue);
+ 	}
+@@ -124,11 +130,13 @@ static int prp_still_start(void *private)
+ 				      pixel_fmt, cam->v2f.fmt.pix.width,
+ 				      cam->v2f.fmt.pix.height,
+ 				      cam->v2f.fmt.pix.width, IPU_ROTATE_NONE,
+-				      cam->still_buf, 0, 0, 0);
++				      cam->still_buf[0], cam->still_buf[1],
++				      0, 0);
+ 	if (err != 0)
+ 		return err;
+ 
+ #ifdef CONFIG_MXC_IPU_V1
++	ipu_clear_irq(IPU_IRQ_SENSOR_OUT_EOF);
+ 	err = ipu_request_irq(IPU_IRQ_SENSOR_OUT_EOF, prp_still_callback,
+ 			      0, "Mxc Camera", cam);
+ 	if (err != 0) {
+@@ -137,6 +145,7 @@ static int prp_still_start(void *private)
+ 	}
+ 	callback_flag = 0;
+ 	callback_eof_flag = 0;
++	ipu_clear_irq(IPU_IRQ_SENSOR_EOF);
+ 	err = ipu_request_irq(IPU_IRQ_SENSOR_EOF, prp_csi_eof_callback,
+ 			      0, "Mxc Camera", NULL);
+ 	if (err != 0) {
+@@ -144,6 +153,9 @@ static int prp_still_start(void *private)
+ 		return err;
+ 	}
+ #else
++	callback_eof_flag = 0;
++	buffer_num = 0;
++
+ 	ipu_clear_irq(IPU_IRQ_CSI0_OUT_EOF);
+ 	err = ipu_request_irq(IPU_IRQ_CSI0_OUT_EOF, prp_still_callback,
+ 			      0, "Mxc Camera", cam);
+@@ -152,8 +164,6 @@ static int prp_still_start(void *private)
+ 		return err;
+ 	}
+ 
+-	callback_eof_flag = 0;
+-
+ 	ipu_select_buffer(CSI_MEM, IPU_OUTPUT_BUFFER, 0);
+ 	ipu_enable_channel(CSI_MEM);
+ 	ipu_enable_csi(cam->csi);
+diff --git a/drivers/media/video/mxc/capture/mx27_prpsw.c b/drivers/media/video/mxc/capture/mx27_prpsw.c
+index ce7db16..eca200a 100644
+--- a/drivers/media/video/mxc/capture/mx27_prpsw.c
++++ b/drivers/media/video/mxc/capture/mx27_prpsw.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2004-2007 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2004-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -702,7 +702,7 @@ static int prp_still_start(void *private)
+ 	cam_data *cam = (cam_data *) private;
+ 
+ 	g_still_on = 1;
+-	g_prp_cfg.ch2_ptr = (unsigned int)cam->still_buf;
++	g_prp_cfg.ch2_ptr = (unsigned int)cam->still_buf[0];
+ 	g_prp_cfg.ch2_ptr2 = 0;
+ 
+ 	if (prp_v4l2_cfg(&g_prp_cfg, cam))
+diff --git a/drivers/media/video/mxc/capture/mxc_v4l2_capture.c b/drivers/media/video/mxc/capture/mxc_v4l2_capture.c
+index 60a792c..a46ab5f 100644
+--- a/drivers/media/video/mxc/capture/mxc_v4l2_capture.c
++++ b/drivers/media/video/mxc/capture/mxc_v4l2_capture.c
+@@ -1572,7 +1572,7 @@ static ssize_t mxc_v4l_read(struct file *file, char *buf, size_t count,
+ 			    loff_t *ppos)
+ {
+ 	int err = 0;
+-	u8 *v_address;
++	u8 *v_address[2];
+ 	struct video_device *dev = video_devdata(file);
+ 	cam_data *cam = video_get_drvdata(dev);
+ 
+@@ -1583,11 +1583,17 @@ static ssize_t mxc_v4l_read(struct file *file, char *buf, size_t count,
+ 	if (cam->overlay_on == true)
+ 		stop_preview(cam);
+ 
+-	v_address = dma_alloc_coherent(0,
++	v_address[0] = dma_alloc_coherent(0,
+ 				       PAGE_ALIGN(cam->v2f.fmt.pix.sizeimage),
+-				       &cam->still_buf, GFP_DMA | GFP_KERNEL);
++				       &cam->still_buf[0],
++				       GFP_DMA | GFP_KERNEL);
++
++	v_address[1] = dma_alloc_coherent(0,
++				       PAGE_ALIGN(cam->v2f.fmt.pix.sizeimage),
++				       &cam->still_buf[1],
++				       GFP_DMA | GFP_KERNEL);
+ 
+-	if (!v_address) {
++	if (!v_address[0] || !v_address[1]) {
+ 		err = -ENOBUFS;
+ 		goto exit0;
+ 	}
+@@ -1595,14 +1601,14 @@ static ssize_t mxc_v4l_read(struct file *file, char *buf, size_t count,
+ 	err = prp_still_select(cam);
+ 	if (err != 0) {
+ 		err = -EIO;
+-		goto exit1;
++		goto exit0;
+ 	}
+ 
+ 	cam->still_counter = 0;
+ 	err = cam->csi_start(cam);
+ 	if (err != 0) {
+ 		err = -EIO;
+-		goto exit2;
++		goto exit1;
+ 	}
+ 
+ 	if (!wait_event_interruptible_timeout(cam->still_queue,
+@@ -1611,19 +1617,23 @@ static ssize_t mxc_v4l_read(struct file *file, char *buf, size_t count,
+ 		pr_err("ERROR: v4l2 capture: mxc_v4l_read timeout counter %x\n",
+ 		       cam->still_counter);
+ 		err = -ETIME;
+-		goto exit2;
++		goto exit1;
+ 	}
+-	err = copy_to_user(buf, v_address, cam->v2f.fmt.pix.sizeimage);
+-
+-      exit2:
+-	prp_still_deselect(cam);
++	err = copy_to_user(buf, v_address[1], cam->v2f.fmt.pix.sizeimage);
+ 
+       exit1:
+-	dma_free_coherent(0, cam->v2f.fmt.pix.sizeimage, v_address,
+-			  cam->still_buf);
+-	cam->still_buf = 0;
++	prp_still_deselect(cam);
+ 
+       exit0:
++	if (v_address[0] != 0)
++		dma_free_coherent(0, cam->v2f.fmt.pix.sizeimage, v_address[0],
++				  cam->still_buf[0]);
++	if (v_address[1] != 0)
++		dma_free_coherent(0, cam->v2f.fmt.pix.sizeimage, v_address[1],
++				  cam->still_buf[1]);
++
++	cam->still_buf[0] = cam->still_buf[1] = 0;
++
+ 	if (cam->overlay_on == true) {
+ 		start_preview(cam);
+ 	}
+diff --git a/drivers/media/video/mxc/capture/mxc_v4l2_capture.h b/drivers/media/video/mxc/capture/mxc_v4l2_capture.h
+index 45a211a..50f6951 100644
+--- a/drivers/media/video/mxc/capture/mxc_v4l2_capture.h
++++ b/drivers/media/video/mxc/capture/mxc_v4l2_capture.h
+@@ -123,7 +123,7 @@ typedef struct _cam_data {
+ 	/* still image capture */
+ 	wait_queue_head_t still_queue;
+ 	int still_counter;
+-	dma_addr_t still_buf;
++	dma_addr_t still_buf[2];
+ 	void *still_buf_vaddr;
+ 
+ 	/* overlay */
+diff --git a/drivers/media/video/mxc/capture/ov3640.c b/drivers/media/video/mxc/capture/ov3640.c
+index 9fa7c3b..0169e05 100644
+--- a/drivers/media/video/mxc/capture/ov3640.c
++++ b/drivers/media/video/mxc/capture/ov3640.c
+@@ -40,8 +40,8 @@ enum ov3640_mode {
+ 	ov3640_mode_MIN = 0,
+ 	ov3640_mode_VGA_640_480 = 0,
+ 	ov3640_mode_QVGA_320_240 = 1,
+-	ov3640_mode_QXGA_2048_1536 = 2,
+-	ov3640_mode_XGA_1024_768 = 3,
++	ov3640_mode_XGA_1024_768 = 2,
++	ov3640_mode_QXGA_2048_1536 = 3,
+ 	ov3640_mode_NTSC_720_480 = 4,
+ 	ov3640_mode_PAL_720_576 = 5,
+ 	ov3640_mode_MAX = 5
+@@ -93,6 +93,44 @@ struct sensor {
+ } ov3640_data;
+ 
+ static struct reg_value ov3640_setting_15fps_QXGA_2048_1536[] = {
++#if 0
++	/* The true 15fps QXGA setting. */
++	{0x3012, 0x80, 0, 0}, {0x304d, 0x41, 0, 0}, {0x3087, 0x16, 0, 0},
++	{0x30aa, 0x45, 0, 0}, {0x30b0, 0xff, 0, 0}, {0x30b1, 0xff, 0, 0},
++	{0x30b2, 0x13, 0, 0}, {0x30d7, 0x10, 0, 0}, {0x309e, 0x00, 0, 0},
++	{0x3602, 0x26, 0, 0}, {0x3603, 0x4D, 0, 0}, {0x364c, 0x04, 0, 0},
++	{0x360c, 0x12, 0, 0}, {0x361e, 0x00, 0, 0}, {0x361f, 0x11, 0, 0},
++	{0x3633, 0x03, 0, 0}, {0x3629, 0x3c, 0, 0}, {0x300e, 0x33, 0, 0},
++	{0x300f, 0x21, 0, 0}, {0x3010, 0x20, 0, 0}, {0x3011, 0x00, 0, 0},
++	{0x304c, 0x81, 0, 0}, {0x3029, 0x47, 0, 0}, {0x3070, 0x00, 0, 0},
++	{0x3071, 0xEC, 0, 0}, {0x301C, 0x06, 0, 0}, {0x3072, 0x00, 0, 0},
++	{0x3073, 0xC5, 0, 0}, {0x301D, 0x07, 0, 0}, {0x3018, 0x38, 0, 0},
++	{0x3019, 0x30, 0, 0}, {0x301a, 0x61, 0, 0}, {0x307d, 0x00, 0, 0},
++	{0x3087, 0x02, 0, 0}, {0x3082, 0x20, 0, 0}, {0x303c, 0x08, 0, 0},
++	{0x303d, 0x18, 0, 0}, {0x303e, 0x06, 0, 0}, {0x303F, 0x0c, 0, 0},
++	{0x3030, 0x62, 0, 0}, {0x3031, 0x26, 0, 0}, {0x3032, 0xe6, 0, 0},
++	{0x3033, 0x6e, 0, 0}, {0x3034, 0xea, 0, 0}, {0x3035, 0xae, 0, 0},
++	{0x3036, 0xa6, 0, 0}, {0x3037, 0x6a, 0, 0}, {0x3015, 0x12, 0, 0},
++	{0x3014, 0x04, 0, 0}, {0x3013, 0xf7, 0, 0}, {0x3104, 0x02, 0, 0},
++	{0x3105, 0xfd, 0, 0}, {0x3106, 0x00, 0, 0}, {0x3107, 0xff, 0, 0},
++	{0x3308, 0xa5, 0, 0}, {0x3316, 0xff, 0, 0}, {0x3317, 0x00, 0, 0},
++	{0x3087, 0x02, 0, 0}, {0x3082, 0x20, 0, 0}, {0x3300, 0x13, 0, 0},
++	{0x3301, 0xd6, 0, 0}, {0x3302, 0xef, 0, 0}, {0x30b8, 0x20, 0, 0},
++	{0x30b9, 0x17, 0, 0}, {0x30ba, 0x04, 0, 0}, {0x30bb, 0x08, 0, 0},
++	{0x3100, 0x02, 0, 0}, {0x3304, 0x00, 0, 0}, {0x3400, 0x00, 0, 0},
++	{0x3404, 0x02, 0, 0}, {0x3020, 0x01, 0, 0}, {0x3021, 0x1d, 0, 0},
++	{0x3022, 0x00, 0, 0}, {0x3023, 0x0a, 0, 0}, {0x3024, 0x08, 0, 0},
++	{0x3025, 0x18, 0, 0}, {0x3026, 0x06, 0, 0}, {0x3027, 0x0c, 0, 0},
++	{0x335f, 0x68, 0, 0}, {0x3360, 0x18, 0, 0}, {0x3361, 0x0c, 0, 0},
++	{0x3362, 0x68, 0, 0}, {0x3363, 0x08, 0, 0}, {0x3364, 0x04, 0, 0},
++	{0x3403, 0x42, 0, 0}, {0x3088, 0x08, 0, 0}, {0x3089, 0x00, 0, 0},
++	{0x308a, 0x06, 0, 0}, {0x308b, 0x00, 0, 0}, {0x3507, 0x06, 0, 0},
++	{0x350a, 0x4f, 0, 0}, {0x3600, 0xc4, 0, 0},
++#endif
++	/*
++	 * Only support 7.5fps for QXGA to workaround screen tearing issue
++	 * for 15fps when capturing still image.
++	 */
+ 	{0x3012, 0x80, 0, 0}, {0x304d, 0x45, 0, 0}, {0x30a7, 0x5e, 0, 0},
+ 	{0x3087, 0x16, 0, 0}, {0x309c, 0x1a, 0, 0}, {0x30a2, 0xe4, 0, 0},
+ 	{0x30aa, 0x42, 0, 0}, {0x30b0, 0xff, 0, 0}, {0x30b1, 0xff, 0, 0},
+@@ -118,25 +156,9 @@ static struct reg_value ov3640_setting_15fps_QXGA_2048_1536[] = {
+ 	{0x30bb, 0x08, 0, 0}, {0x3507, 0x06, 0, 0}, {0x350a, 0x4f, 0, 0},
+ 	{0x3100, 0x02, 0, 0}, {0x3301, 0xde, 0, 0}, {0x3304, 0x00, 0, 0},
+ 	{0x3400, 0x00, 0, 0}, {0x3404, 0x02, 0, 0}, {0x3600, 0xc4, 0, 0},
+-	{0x3302, 0xef, 0, 0}, {0x3020, 0x01, 0, 0}, {0x3021, 0x1d, 0, 0},
+-	{0x3022, 0x00, 0, 0}, {0x3023, 0x0a, 0, 0}, {0x3024, 0x08, 0, 0},
+-	{0x3025, 0x00, 0, 0}, {0x3026, 0x06, 0, 0}, {0x3027, 0x00, 0, 0},
+-	{0x335f, 0x68, 0, 0}, {0x3360, 0x00, 0, 0}, {0x3361, 0x00, 0, 0},
+-	{0x3362, 0x68, 0, 0}, {0x3363, 0x00, 0, 0}, {0x3364, 0x00, 0, 0},
+-	{0x3403, 0x00, 0, 0}, {0x3088, 0x08, 0, 0}, {0x3089, 0x00, 0, 0},
+-	{0x308a, 0x06, 0, 0}, {0x308b, 0x00, 0, 0}, {0x307c, 0x10, 0, 0},
+-	{0x3090, 0xc0, 0, 0}, {0x304c, 0x84, 0, 0}, {0x308d, 0x04, 0, 0},
+-	{0x3086, 0x03, 0, 0}, {0x3086, 0x00, 0, 0}, {0x3012, 0x00, 0, 0},
+-	{0x3020, 0x01, 0, 0}, {0x3021, 0x1d, 0, 0}, {0x3022, 0x00, 0, 0},
+-	{0x3023, 0x0a, 0, 0}, {0x3024, 0x08, 0, 0}, {0x3025, 0x18, 0, 0},
+-	{0x3026, 0x06, 0, 0}, {0x3027, 0x0c, 0, 0}, {0x302a, 0x06, 0, 0},
+-	{0x302b, 0x20, 0, 0}, {0x3075, 0x44, 0, 0}, {0x300d, 0x00, 0, 0},
+-	{0x30d7, 0x00, 0, 0}, {0x3069, 0x40, 0, 0}, {0x303e, 0x01, 0, 0},
+-	{0x303f, 0x80, 0, 0}, {0x3302, 0x20, 0, 0}, {0x335f, 0x68, 0, 0},
+-	{0x3360, 0x18, 0, 0}, {0x3361, 0x0c, 0, 0}, {0x3362, 0x68, 0, 0},
+-	{0x3363, 0x08, 0, 0}, {0x3364, 0x04, 0, 0}, {0x3403, 0x42, 0, 0},
+ 	{0x3088, 0x08, 0, 0}, {0x3089, 0x00, 0, 0}, {0x308a, 0x06, 0, 0},
+-	{0x308b, 0x00, 0, 0},
++	{0x308b, 0x00, 0, 0}, {0x308d, 0x04, 0, 0}, {0x3086, 0x03, 0, 0},
++	{0x3086, 0x00, 0, 0}, {0x3011, 0x01, 0, 0},
+ };
+ 
+ static struct reg_value ov3640_setting_15fps_XGA_1024_768[] = {
+-- 
+1.5.4.4
+

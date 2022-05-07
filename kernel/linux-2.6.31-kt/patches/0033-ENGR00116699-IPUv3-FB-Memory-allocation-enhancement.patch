@@ -1,0 +1,32 @@
+From 495f0dea21abfaeb85674ea543d7378f1e44c23b Mon Sep 17 00:00:00 2001
+From: Liu Ying <b17645@freescale.com>
+Date: Tue, 22 Sep 2009 17:41:27 +0800
+Subject: [PATCH] ENGR00116699 IPUv3 FB:Memory allocation enhancement when initializing
+
+When framebuffer is being initialized in probe, don't allocate memory
+for FB if it has memory resource already.
+
+Signed-off-by: Liu Ying <b17645@freescale.com>
+---
+ drivers/video/mxc/mxc_ipuv3_fb.c |    5 +++--
+ 1 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/video/mxc/mxc_ipuv3_fb.c b/drivers/video/mxc/mxc_ipuv3_fb.c
+index f3ac4d2..279764d 100644
+--- a/drivers/video/mxc/mxc_ipuv3_fb.c
++++ b/drivers/video/mxc/mxc_ipuv3_fb.c
+@@ -1482,8 +1482,9 @@ static int mxcfb_probe(struct platform_device *pdev)
+ 	mxcfb_set_fix(fbi);
+ 
+ 	/* alocate fb first */
+-	if (mxcfb_map_video_memory(fbi) < 0)
+-		return -ENOMEM;
++	if (!res)
++		if (mxcfb_map_video_memory(fbi) < 0)
++			return -ENOMEM;
+ 
+ 	ret = register_framebuffer(fbi);
+ 	if (ret < 0)
+-- 
+1.5.4.4
+

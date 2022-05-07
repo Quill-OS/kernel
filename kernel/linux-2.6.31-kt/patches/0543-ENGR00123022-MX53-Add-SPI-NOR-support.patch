@@ -1,0 +1,173 @@
+From 065801c4873d35c121b206153d18e277525c58fa Mon Sep 17 00:00:00 2001
+From: Lily Zhang <r58066@freescale.com>
+Date: Thu, 29 Apr 2010 10:25:37 +0800
+Subject: [PATCH] ENGR00123022 MX53: Add SPI NOR support
+
+Add SPI NOR support in MX53 EVK
+
+Signed-off-by: Lily Zhang <r58066@freescale.com>
+---
+ arch/arm/mach-mx5/mx53_evk.c      |   36 ++++++++++++++++++---
+ arch/arm/mach-mx5/mx53_evk_gpio.c |   62 +++++++++++++++++++++++++++---------
+ 2 files changed, 77 insertions(+), 21 deletions(-)
+
+diff --git a/arch/arm/mach-mx5/mx53_evk.c b/arch/arm/mach-mx5/mx53_evk.c
+index 9e187de..98fcfdf 100644
+--- a/arch/arm/mach-mx5/mx53_evk.c
++++ b/arch/arm/mach-mx5/mx53_evk.c
+@@ -398,6 +398,35 @@ static struct i2c_board_info mxc_i2c1_board_info[] __initdata = {
+ 	 },
+ };
+ 
++static struct mtd_partition mxc_dataflash_partitions[] = {
++	{
++	 .name = "bootloader",
++	 .offset = 0,
++	 .size = 0x000100000,},
++	{
++	 .name = "kernel",
++	 .offset = MTDPART_OFS_APPEND,
++	 .size = MTDPART_SIZ_FULL,},
++};
++
++static struct flash_platform_data mxc_spi_flash_data[] = {
++	{
++	 .name = "mxc_dataflash",
++	 .parts = mxc_dataflash_partitions,
++	 .nr_parts = ARRAY_SIZE(mxc_dataflash_partitions),
++	 .type = "at45db321d",}
++};
++
++
++static struct spi_board_info mxc_dataflash_device[] __initdata = {
++	{
++	 .modalias = "mxc_dataflash",
++	 .max_speed_hz = 25000000,	/* max spi clock (SCK) speed in HZ */
++	 .bus_num = 1,
++	 .chip_select = 1,
++	 .platform_data = &mxc_spi_flash_data[0],},
++};
++
+ static int sdhc_write_protect(struct device *dev)
+ {
+ 	unsigned short rc = 0;
+@@ -668,11 +697,8 @@ static void __init mxc_board_init(void)
+ 	mxc_register_device(&mxc_alsa_spdif_device, &mxc_spdif_data);
+ 	*/
+ 	mxc_register_device(&mxc_fec_device, NULL);
+-/*
+-	spi_register_board_info(mxc_spi_nor_device,
+-					ARRAY_SIZE(mxc_spi_nor_device));
+-*/
+-
++	spi_register_board_info(mxc_dataflash_device,
++				ARRAY_SIZE(mxc_dataflash_device));
+ 	i2c_register_board_info(0, mxc_i2c0_board_info,
+ 				ARRAY_SIZE(mxc_i2c0_board_info));
+ 	i2c_register_board_info(1, mxc_i2c1_board_info,
+diff --git a/arch/arm/mach-mx5/mx53_evk_gpio.c b/arch/arm/mach-mx5/mx53_evk_gpio.c
+index 295983f..49fa5d4 100644
+--- a/arch/arm/mach-mx5/mx53_evk_gpio.c
++++ b/arch/arm/mach-mx5/mx53_evk_gpio.c
+@@ -50,15 +50,21 @@ static struct mxc_iomux_pin_cfg __initdata mxc_iomux_pins[] = {
+ 	 },
+ 	{
+ 	 MX53_PIN_EIM_D16, IOMUX_CONFIG_ALT4,
++	 PAD_CTL_HYS_ENABLE | PAD_CTL_DRV_HIGH,
++	 MUX_IN_ECSPI1_IPP_CSPI_CLK_IN_SELECT_INPUT,
++	 INPUT_CTL_PATH3,
+ 	 },
+ 	{
+ 	 MX53_PIN_EIM_D17, IOMUX_CONFIG_ALT4,
++	 PAD_CTL_HYS_ENABLE | PAD_CTL_DRV_HIGH,
++	 MUX_IN_ECSPI1_IPP_IND_MISO_SELECT_INPUT,
++	 INPUT_CTL_PATH3,
+ 	 },
+ 	{
+-	 MX53_PIN_EIM_D18, IOMUX_CONFIG_ALT2,
+-	 },
+-	{
+-	 MX53_PIN_EIM_D19, IOMUX_CONFIG_ALT2,
++	 MX53_PIN_EIM_D18, IOMUX_CONFIG_ALT4,
++	 PAD_CTL_HYS_ENABLE | PAD_CTL_DRV_HIGH,
++	 MUX_IN_ECSPI1_IPP_IND_MOSI_SELECT_INPUT,
++	 INPUT_CTL_PATH3,
+ 	 },
+ 	{
+ 	 MX53_PIN_EIM_D20, IOMUX_CONFIG_ALT3,
+@@ -879,26 +885,45 @@ void __init mx53_evk_io_init(void)
+ void mx53_evk_gpio_spi_chipselect_active(int cspi_mode, int status,
+ 					     int chipselect)
+ {
+-	u32 gpio;
+-
+ 	switch (cspi_mode) {
+ 	case 1:
+ 		switch (chipselect) {
+ 		case 0x1:
+-			mxc_request_iomux(MX53_PIN_EIM_D19,
+-					  IOMUX_CONFIG_ALT4);
++			/* de-select SS1 of instance: ecspi1. */
++			mxc_request_iomux(MX53_PIN_EIM_D19, IOMUX_CONFIG_ALT1);
+ 			mxc_iomux_set_pad(MX53_PIN_EIM_D19,
+ 					  PAD_CTL_HYS_ENABLE |
+ 					  PAD_CTL_PKE_ENABLE |
+-					  PAD_CTL_DRV_HIGH | PAD_CTL_SRE_FAST);
++					  PAD_CTL_PUE_PULL |
++					  PAD_CTL_100K_PU |
++					  PAD_CTL_DRV_HIGH);
++
++			/* mux mode: ALT4 mux port: SS0 of instance: ecspi1. */
++			mxc_request_iomux(MX53_PIN_EIM_EB2, IOMUX_CONFIG_ALT4);
++			mxc_iomux_set_pad(MX53_PIN_EIM_EB2,
++					  PAD_CTL_HYS_ENABLE |
++					  PAD_CTL_DRV_HIGH);
++			mxc_iomux_set_input(
++				MUX_IN_ECSPI1_IPP_IND_SS_B_1_SELECT_INPUT,
++					  INPUT_CTL_PATH3);
+ 			break;
+ 		case 0x2:
+-			gpio = IOMUX_TO_GPIO(MX53_PIN_EIM_D19);
+-			mxc_request_iomux(MX53_PIN_EIM_D19,
+-					  IOMUX_CONFIG_GPIO);
+-			gpio_request(gpio, "cspi1_ss1");
+-			gpio_direction_output(gpio, 0);
+-			gpio_set_value(gpio, 1 & (~status));
++			/* de-select SS0 of instance: ecspi1. */
++			mxc_request_iomux(MX53_PIN_EIM_EB2, IOMUX_CONFIG_ALT1);
++			mxc_iomux_set_pad(MX53_PIN_EIM_EB2,
++					  PAD_CTL_HYS_ENABLE |
++					  PAD_CTL_PKE_ENABLE |
++					  PAD_CTL_PUE_PULL |
++					  PAD_CTL_100K_PU |
++					  PAD_CTL_DRV_HIGH);
++			mxc_request_iomux(MX53_PIN_EIM_D19, IOMUX_CONFIG_ALT4);
++			mxc_iomux_set_pad(MX53_PIN_EIM_D19,
++					  PAD_CTL_HYS_ENABLE |
++					  PAD_CTL_DRV_HIGH);
++			mxc_iomux_set_input(
++				MUX_IN_ECSPI1_IPP_IND_SS_B_1_SELECT_INPUT,
++					  INPUT_CTL_PATH3);
++
+ 			break;
+ 		default:
+ 			break;
+@@ -925,9 +950,14 @@ void mx53_evk_gpio_spi_chipselect_inactive(int cspi_mode, int status,
+ 			mxc_request_iomux(MX53_PIN_EIM_D19,
+ 					  IOMUX_CONFIG_GPIO);
+ 			mxc_free_iomux(MX53_PIN_EIM_D19, IOMUX_CONFIG_GPIO);
++			mxc_free_iomux(MX53_PIN_EIM_EB2, IOMUX_CONFIG_ALT4);
+ 			break;
+ 		case 0x2:
+-			mxc_free_iomux(MX53_PIN_EIM_D19, IOMUX_CONFIG_GPIO);
++			mxc_free_iomux(MX53_PIN_EIM_EB2, IOMUX_CONFIG_ALT4);
++			mxc_request_iomux(MX53_PIN_EIM_EB2,
++					  IOMUX_CONFIG_GPIO);
++			mxc_free_iomux(MX53_PIN_EIM_EB2, IOMUX_CONFIG_GPIO);
++			mxc_free_iomux(MX53_PIN_EIM_D19, IOMUX_CONFIG_ALT4);
+ 			break;
+ 		default:
+ 			break;
+-- 
+1.5.4.4
+

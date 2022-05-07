@@ -1,0 +1,59 @@
+From c5d468e8bb020e38b2da2365fc12d025a49314f5 Mon Sep 17 00:00:00 2001
+From: Frank Li <Frank.Li@freescale.com>
+Date: Fri, 5 Feb 2010 13:19:12 +0800
+Subject: [PATCH] ENGR00120698 iMX28 add usb write register work around
+
+mx28 require read arc register before write.
+
+Signed-off-by: Frank Li <Frank.Li@freescale.com>
+---
+ drivers/usb/gadget/Kconfig      |    8 ++++++++
+ drivers/usb/gadget/arcotg_udc.c |   10 ++++++++++
+ 2 files changed, 18 insertions(+), 0 deletions(-)
+
+diff --git a/drivers/usb/gadget/Kconfig b/drivers/usb/gadget/Kconfig
+index 6bbf50e..a19d737 100644
+--- a/drivers/usb/gadget/Kconfig
++++ b/drivers/usb/gadget/Kconfig
+@@ -489,6 +489,14 @@ config USB_ARC
+ 	default USB_GADGET
+ 	select USB_GADGET_SELECTED
+ 
++config WORKAROUND_ARCUSB_REG_RW
++        bool "work around mx28 arch register write"
++        depends on ARCH_MX28 && USB_ARC
++        default ARCH_MX28
++        help
++           MX28 require read ARC register before write. Use SWP intructure to
++           implement this requirement.
++
+ config USB_GADGET_LANGWELL
+ 	boolean "Intel Langwell USB Device Controller"
+ 	depends on PCI
+diff --git a/drivers/usb/gadget/arcotg_udc.c b/drivers/usb/gadget/arcotg_udc.c
+index 69a18fe..2f7612d 100644
+--- a/drivers/usb/gadget/arcotg_udc.c
++++ b/drivers/usb/gadget/arcotg_udc.c
+@@ -119,9 +119,19 @@ dr_wake_up_enable(struct fsl_udc *udc, bool enable)
+ 		pdata->wake_up_enable(pdata, enable);
+ }
+ 
++#ifdef CONFIG_WORKAROUND_ARCUSB_REG_RW
++static void safe_writel(u32 val32, void *addr)
++{
++	__asm__ ("swp %0, %0, [%1]" : : "r"(val32), "r"(addr));
++}
++#endif
++
+ #ifdef CONFIG_PPC32
+ #define fsl_readl(addr)		in_le32((addr))
+ #define fsl_writel(addr, val32) out_le32((val32), (addr))
++#elif defined (CONFIG_WORKAROUND_ARCUSB_REG_RW)
++#define fsl_readl(addr)		readl((addr))
++#define fsl_writel(val32, addr) safe_writel(val32, addr)
+ #else
+ #define fsl_readl(addr)		readl((addr))
+ #define fsl_writel(addr, val32) writel((addr), (val32))
+-- 
+1.5.4.4
+

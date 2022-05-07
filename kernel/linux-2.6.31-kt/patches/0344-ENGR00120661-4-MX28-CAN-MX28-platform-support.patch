@@ -1,0 +1,47 @@
+From 9fbe3dd92f0ae6d020b09df7e0ae51b8def1811d Mon Sep 17 00:00:00 2001
+From: William Lai <b04597@freescale.com>
+Date: Tue, 9 Feb 2010 11:21:10 +0800
+Subject: [PATCH] ENGR00120661-4 MX28 CAN: MX28 platform support
+
+Build Flexcan driver as module by default.
+
+Signed-off-by: William Lai <b04597@freescale.com>
+---
+ arch/arm/configs/imx28evk_defconfig |   14 ++++++++++++--
+ 1 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm/configs/imx28evk_defconfig b/arch/arm/configs/imx28evk_defconfig
+index b454af8..c8d2fef 100644
+--- a/arch/arm/configs/imx28evk_defconfig
++++ b/arch/arm/configs/imx28evk_defconfig
+@@ -1,7 +1,7 @@
+ #
+ # Automatically generated make config: don't edit
+ # Linux kernel version: 2.6.31
+-# Tue Feb  2 10:56:43 2010
++# Tue Feb  9 10:32:39 2010
+ #
+ CONFIG_ARM=y
+ CONFIG_SYS_SUPPORTS_APM_EMULATION=y
+@@ -404,7 +404,17 @@ CONFIG_NETWORK_SECMARK=y
+ # CONFIG_NET_TCPPROBE is not set
+ # CONFIG_NET_DROP_MONITOR is not set
+ # CONFIG_HAMRADIO is not set
+-# CONFIG_CAN is not set
++CONFIG_CAN=y
++CONFIG_CAN_RAW=y
++# CONFIG_CAN_BCM is not set
++
++#
++# CAN Device Drivers
++#
++# CONFIG_CAN_VCAN is not set
++# CONFIG_CAN_DEV is not set
++# CONFIG_CAN_DEBUG_DEVICES is not set
++CONFIG_CAN_FLEXCAN=m
+ # CONFIG_IRDA is not set
+ # CONFIG_BT is not set
+ # CONFIG_AF_RXRPC is not set
+-- 
+1.5.4.4
+

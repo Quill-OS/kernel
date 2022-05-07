@@ -1,0 +1,32 @@
+From c9656b773f3d63342be7aaba6e840afb0c2a1d03 Mon Sep 17 00:00:00 2001
+From: Guoqing Jiang <b22156@freescale.com>
+Date: Thu, 19 Nov 2009 17:11:26 +0800
+Subject: [PATCH] ENGR00118562 MX25: Fix audio cannot work with sgtl5000 revision 16.
+
+Delete VDDD setting for sgtl5000 chip, make sure it's correspondence
+with schematic.
+
+Signed-off-by: Guoqing Jiang <b22156@freescale.com>
+---
+ arch/arm/mach-mx25/mx25_3stack_pmic_mc34704.c |    5 -----
+ 1 files changed, 0 insertions(+), 5 deletions(-)
+
+diff --git a/arch/arm/mach-mx25/mx25_3stack_pmic_mc34704.c b/arch/arm/mach-mx25/mx25_3stack_pmic_mc34704.c
+index fdb9113..577aa0d 100644
+--- a/arch/arm/mach-mx25/mx25_3stack_pmic_mc34704.c
++++ b/arch/arm/mach-mx25/mx25_3stack_pmic_mc34704.c
+@@ -41,11 +41,6 @@ static struct regulator_consumer_supply rcpu_consumers[] = {
+ 		.supply = "VDDA",
+ 		.dev_name = "0-000a",
+ 	},
+-	{
+-		/* sgtl5000 */
+-		.supply = "VDDD",
+-		.dev_name = "0-000a",
+-	},
+ };
+ 
+ static struct regulator_consumer_supply rddr_consumers[] = {
+-- 
+1.5.4.4
+

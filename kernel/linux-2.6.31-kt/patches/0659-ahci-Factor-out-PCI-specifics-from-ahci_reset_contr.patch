@@ -1,0 +1,64 @@
+From 03824dbf4a5ced2f2d0075fb3bea678edc12e076 Mon Sep 17 00:00:00 2001
+From: Anton Vorontsov <avorontsov@ru.mvista.com>
+Date: Wed, 3 Mar 2010 20:17:39 +0300
+Subject: [PATCH] ahci: Factor out PCI specifics from ahci_reset_controller()
+
+Move PCI stuff into ahci_pci_reset_controller().
+
+Signed-off-by: Anton Vorontsov <avorontsov@ru.mvista.com>
+Signed-off-by: Jeff Garzik <jgarzik@redhat.com>
+---
+ drivers/ata/ahci.c |   15 ++++++++++++---
+ 1 files changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/ata/ahci.c b/drivers/ata/ahci.c
+index d96b7af..f0c26e5 100644
+--- a/drivers/ata/ahci.c
++++ b/drivers/ata/ahci.c
+@@ -1329,7 +1329,6 @@ static int ahci_deinit_port(struct ata_port *ap, const char **emsg)
+ 
+ static int ahci_reset_controller(struct ata_host *host)
+ {
+-	struct pci_dev *pdev = to_pci_dev(host->dev);
+ 	struct ahci_host_priv *hpriv = host->private_data;
+ 	void __iomem *mmio = hpriv->mmio;
+ 	u32 tmp;
+@@ -1373,7 +1372,17 @@ static int ahci_reset_controller(struct ata_host *host)
+ 		dev_printk(KERN_INFO, host->dev,
+ 			   "skipping global host reset\n");
+ 
++	return 0;
++}
++
++static int ahci_pci_reset_controller(struct ata_host *host)
++{
++	struct pci_dev *pdev = to_pci_dev(host->dev);
++
++	ahci_reset_controller(host);
++
+ 	if (pdev->vendor == PCI_VENDOR_ID_INTEL) {
++		struct ahci_host_priv *hpriv = host->private_data;
+ 		u16 tmp16;
+ 
+ 		/* configure PCS */
+@@ -2667,7 +2676,7 @@ static int ahci_pci_device_resume(struct pci_dev *pdev)
+ 		return rc;
+ 
+ 	if (pdev->dev.power.power_state.event == PM_EVENT_SUSPEND) {
+-		rc = ahci_reset_controller(host);
++		rc = ahci_pci_reset_controller(host);
+ 		if (rc)
+ 			return rc;
+ 
+@@ -3334,7 +3343,7 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
+ 	if (rc)
+ 		return rc;
+ 
+-	rc = ahci_reset_controller(host);
++	rc = ahci_pci_reset_controller(host);
+ 	if (rc)
+ 		return rc;
+ 
+-- 
+1.5.4.4
+

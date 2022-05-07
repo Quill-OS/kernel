@@ -1,0 +1,118 @@
+From acabb1a9a1c3221e18e0af66a26a7f688ddd36dd Mon Sep 17 00:00:00 2001
+From: Frank Li <Frank.Li@freescale.com>
+Date: Fri, 29 Jan 2010 16:18:58 +0800
+Subject: [PATCH] ENGR00120612 MX23 Mfg firmware crash when transfer big size file
+
+There are out of memory when transfer big size file.
+There reason is kernel alloc a memory to get data from usb and put to a list,
+and wake up uuc to read it. The problem is that read slower than usb transfer
+So list become more and more till out of memory
+
+Signed-off-by: Frank Li <Frank.Li@freescale.com>
+---
+ drivers/usb/gadget/stmp_updater.c |   25 ++++++++++++++++++++++++-
+ drivers/usb/gadget/stmp_updater.h |    3 ++-
+ 2 files changed, 26 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/usb/gadget/stmp_updater.c b/drivers/usb/gadget/stmp_updater.c
+index 0c74f35..99d7a46 100644
+--- a/drivers/usb/gadget/stmp_updater.c
++++ b/drivers/usb/gadget/stmp_updater.c
+@@ -1,7 +1,7 @@
+ /*
+  * Freescale STMP378X UUT driver
+  *
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  * Copyright 2008-2009 Embedded Alley Solutions, Inc All Rights Reserved.
+  */
+ 
+@@ -22,9 +22,12 @@ static u64 get_be64(u8 *buf)
+ static int utp_init(struct fsg_dev *fsg)
+ {
+ 	init_waitqueue_head(&utp_context.wq);
++	init_waitqueue_head(&utp_context.list_full_wq);
++
+ 	INIT_LIST_HEAD(&utp_context.read);
+ 	INIT_LIST_HEAD(&utp_context.write);
+ 	mutex_init(&utp_context.lock);
++
+ 	utp_context.buffer = vmalloc(0x10000);
+ 	if (!utp_context.buffer)
+ 		return -EIO;
+@@ -53,10 +56,24 @@ static struct utp_user_data *utp_user_data_alloc(size_t size)
+ 
+ static void utp_user_data_free(struct utp_user_data *uud)
+ {
++	mutex_lock(&utp_context.lock);
+ 	list_del(&uud->link);
++	mutex_unlock(&utp_context.lock);
+ 	kfree(uud);
+ }
+ 
++static u32 count_list(struct list_head *l)
++{
++	u32 count = 0;
++	struct list_head *tmp;
++
++	list_for_each(tmp, l) {
++		count++;
++	}
++
++	return count;
++}
++
+ #define WAIT_ACTIVITY(queue) \
+  wait_event_interruptible(utp_context.wq, !list_empty(&utp_context.queue))
+ 
+@@ -75,6 +92,7 @@ static ssize_t utp_file_read(struct file *file,
+ 	uud = list_first_entry(&utp_context.read, struct utp_user_data, link);
+ 	mutex_unlock(&utp_context.lock);
+ 	size_to_put = uud->data.size;
++
+ 	if (size >= size_to_put)
+ 		free = !0;
+ 	if (copy_to_user(buf, &uud->data, size_to_put))
+@@ -90,6 +108,8 @@ static ssize_t utp_file_read(struct file *file,
+ 			"need to put %d\n", size, size_to_put);
+ 	}
+ 
++	wake_up(&utp_context.list_full_wq);
++
+ 	return size_to_put;
+ }
+ 
+@@ -470,6 +490,9 @@ static int utp_handle_message(struct fsg_dev *fsg,
+ 		mutex_unlock(&UTP_CTX(fsg)->lock);
+ 		wake_up(&UTP_CTX(fsg)->wq);
+ 		UTP_SS_PASS(fsg);
++
++		wait_event_interruptible(UTP_CTX(fsg)->list_full_wq,
++			count_list(&UTP_CTX(fsg)->read) < 7);
+ 		break;
+ 	}
+ 
+diff --git a/drivers/usb/gadget/stmp_updater.h b/drivers/usb/gadget/stmp_updater.h
+index e1248d1..810e5f9 100644
+--- a/drivers/usb/gadget/stmp_updater.h
++++ b/drivers/usb/gadget/stmp_updater.h
+@@ -1,7 +1,7 @@
+ /*
+  * Freescale STMP378X UUT driver
+  *
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  * Copyright 2008-2009 Embedded Alley Solutions, Inc All Rights Reserved.
+  */
+ 
+@@ -82,6 +82,7 @@ enum utp_msg_type {
+ 
+ static struct utp_context {
+ 	wait_queue_head_t wq;
++	wait_queue_head_t list_full_wq;
+ 	struct mutex lock;
+ 	struct list_head read;
+ 	struct list_head write;
+-- 
+1.5.4.4
+

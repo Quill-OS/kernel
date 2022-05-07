@@ -1,0 +1,33 @@
+From af5569b47267abf4682543eb3799ebe63d4ced97 Mon Sep 17 00:00:00 2001
+From: Bryan Wu <bryan.wu@canonical.com>
+Date: Thu, 22 Apr 2010 13:43:33 +0800
+Subject: [PATCH] netdev/fec: fix compiling warning
+
+BugLink: http://bugs.launchpad.net/bugs/457878
+
+Missed to set .ndo_do_ioctl as fec_enet_ioctl, so will generate a compiling
+warning due to nobody uses fec_enet_ioctl. This patch fixed that.
+
+Signed-off-by: Bryan Wu <bryan.wu@canonical.com>
+Acked-by: Amit Kucheria <amit.kucheria@canonical.com>
+Acked-by: Colin King <colin.king@canonical.com>
+Signed-off-by: Stefan Bader <stefan.bader@canonical.com>
+---
+ drivers/net/fec.c |    1 +
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+
+diff --git a/drivers/net/fec.c b/drivers/net/fec.c
+index 95c4577..34556b5 100644
+--- a/drivers/net/fec.c
++++ b/drivers/net/fec.c
+@@ -1091,6 +1091,7 @@ static const struct net_device_ops fec_netdev_ops = {
+ 	.ndo_validate_addr	= eth_validate_addr,
+ 	.ndo_tx_timeout		= fec_timeout,
+ 	.ndo_set_mac_address	= fec_set_mac_address,
++	.ndo_do_ioctl           = fec_enet_ioctl,
+ };
+ #ifdef CONFIG_ARCH_MXS
+ 
+-- 
+1.5.4.4
+

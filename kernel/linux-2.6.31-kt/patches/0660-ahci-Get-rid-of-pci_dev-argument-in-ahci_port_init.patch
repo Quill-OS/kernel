@@ -1,0 +1,49 @@
+From 2d7bace335b5ce7ff0efe4d1594230427fe47b11 Mon Sep 17 00:00:00 2001
+From: Anton Vorontsov <avorontsov@ru.mvista.com>
+Date: Wed, 3 Mar 2010 20:17:40 +0300
+Subject: [PATCH] ahci: Get rid of pci_dev argument in ahci_port_init()
+
+To make the function bus-independand we have to get rid of
+"struct pci_dev *", so let's pass just "struct devce *".
+
+Signed-off-by: Anton Vorontsov <avorontsov@ru.mvista.com>
+Signed-off-by: Jeff Garzik <jgarzik@redhat.com>
+---
+ drivers/ata/ahci.c |    7 +++----
+ 1 files changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/ata/ahci.c b/drivers/ata/ahci.c
+index f0c26e5..3590862 100644
+--- a/drivers/ata/ahci.c
++++ b/drivers/ata/ahci.c
+@@ -1624,7 +1624,7 @@ static ssize_t ahci_activity_show(struct ata_device *dev, char *buf)
+ 	return sprintf(buf, "%d\n", emp->blink_policy);
+ }
+ 
+-static void ahci_port_init(struct pci_dev *pdev, struct ata_port *ap,
++static void ahci_port_init(struct device *dev, struct ata_port *ap,
+ 			   int port_no, void __iomem *mmio,
+ 			   void __iomem *port_mmio)
+ {
+@@ -1635,8 +1635,7 @@ static void ahci_port_init(struct pci_dev *pdev, struct ata_port *ap,
+ 	/* make sure port is not active */
+ 	rc = ahci_deinit_port(ap, &emsg);
+ 	if (rc)
+-		dev_printk(KERN_WARNING, &pdev->dev,
+-			   "%s (%d)\n", emsg, rc);
++		dev_warn(dev, "%s (%d)\n", emsg, rc);
+ 
+ 	/* clear SError */
+ 	tmp = readl(port_mmio + PORT_SCR_ERR);
+@@ -1685,7 +1684,7 @@ static void ahci_init_controller(struct ata_host *host)
+ 		if (ata_port_is_dummy(ap))
+ 			continue;
+ 
+-		ahci_port_init(pdev, ap, i, mmio, port_mmio);
++		ahci_port_init(host->dev, ap, i, mmio, port_mmio);
+ 	}
+ 
+ 	tmp = readl(mmio + HOST_CTL);
+-- 
+1.5.4.4
+

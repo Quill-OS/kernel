@@ -1,0 +1,253 @@
+From 803a43d45727f2db726228ec4154e5c74c55d0f1 Mon Sep 17 00:00:00 2001
+From: Russell King <rmk+kernel@arm.linux.org.uk>
+Date: Fri, 18 Dec 2009 11:10:03 +0000
+Subject: [PATCH] ARM: Add caller information to ioremap
+
+This allows the procfs vmallocinfo file to show who created the ioremap
+regions.  Note: __builtin_return_address(0) doesn't do what's expected
+if its used in an inline function, so we leave __arm_ioremap callers
+in such places alone.
+
+Signed-off-by: Russell King <rmk+kernel@arm.linux.org.uk>
+---
+ arch/arm/include/asm/io.h  |   11 +++++++-
+ arch/arm/mach-davinci/io.c |    2 +-
+ arch/arm/mach-iop13xx/io.c |    7 +++--
+ arch/arm/mach-msm/io.c     |    3 +-
+ arch/arm/mm/ioremap.c      |   57 ++++++++++++++++++++++++++-----------------
+ arch/arm/mm/nommu.c        |   12 +++++++++
+ arch/arm/plat-iop/io.c     |    3 +-
+ arch/arm/plat-omap/io.c    |    2 +-
+ 8 files changed, 65 insertions(+), 32 deletions(-)
+
+diff --git a/arch/arm/include/asm/io.h b/arch/arm/include/asm/io.h
+index d2a59cf..c980156 100644
+--- a/arch/arm/include/asm/io.h
++++ b/arch/arm/include/asm/io.h
+@@ -69,9 +69,16 @@ extern void __raw_readsl(const void __iomem *addr, void *data, int longlen);
+ /*
+  * __arm_ioremap takes CPU physical address.
+  * __arm_ioremap_pfn takes a Page Frame Number and an offset into that page
++ * The _caller variety takes a __builtin_return_address(0) value for
++ * /proc/vmalloc to use - and should only be used in non-inline functions.
+  */
+-extern void __iomem * __arm_ioremap_pfn(unsigned long, unsigned long, size_t, unsigned int);
+-extern void __iomem * __arm_ioremap(unsigned long, size_t, unsigned int);
++extern void __iomem *__arm_ioremap_pfn_caller(unsigned long, unsigned long,
++	size_t, unsigned int, void *);
++extern void __iomem *__arm_ioremap_caller(unsigned long, size_t, unsigned int,
++	void *);
++
++extern void __iomem *__arm_ioremap_pfn(unsigned long, unsigned long, size_t, unsigned int);
++extern void __iomem *__arm_ioremap(unsigned long, size_t, unsigned int);
+ extern void __iounmap(volatile void __iomem *addr);
+ 
+ /*
+diff --git a/arch/arm/mach-davinci/io.c b/arch/arm/mach-davinci/io.c
+index 49912b4..a1c0b6b 100644
+--- a/arch/arm/mach-davinci/io.c
++++ b/arch/arm/mach-davinci/io.c
+@@ -24,7 +24,7 @@ void __iomem *davinci_ioremap(unsigned long p, size_t size, unsigned int type)
+ 	if (BETWEEN(p, IO_PHYS, IO_SIZE))
+ 		return XLATE(p, IO_PHYS, IO_VIRT);
+ 
+-	return __arm_ioremap(p, size, type);
++	return __arm_ioremap_caller(p, size, type, __builtin_return_address(0));
+ }
+ EXPORT_SYMBOL(davinci_ioremap);
+ 
+diff --git a/arch/arm/mach-iop13xx/io.c b/arch/arm/mach-iop13xx/io.c
+index 5295809..48642e6 100644
+--- a/arch/arm/mach-iop13xx/io.c
++++ b/arch/arm/mach-iop13xx/io.c
+@@ -61,9 +61,9 @@ void * __iomem __iop13xx_ioremap(unsigned long cookie, size_t size,
+ 			         (cookie - IOP13XX_PCIE_LOWER_MEM_RA));
+ 		break;
+ 	case IOP13XX_PBI_LOWER_MEM_RA ... IOP13XX_PBI_UPPER_MEM_RA:
+-		retval = __arm_ioremap(IOP13XX_PBI_LOWER_MEM_PA +
++		retval = __arm_ioremap_caller(IOP13XX_PBI_LOWER_MEM_PA +
+ 				       (cookie - IOP13XX_PBI_LOWER_MEM_RA),
+-				       size, mtype);
++				       size, mtype, __builtin_return_address(0));
+ 		break;
+ 	case IOP13XX_PCIE_LOWER_IO_PA ... IOP13XX_PCIE_UPPER_IO_PA:
+ 		retval = (void *) IOP13XX_PCIE_IO_PHYS_TO_VIRT(cookie);
+@@ -75,7 +75,8 @@ void * __iomem __iop13xx_ioremap(unsigned long cookie, size_t size,
+ 		retval = (void *) IOP13XX_PMMR_PHYS_TO_VIRT(cookie);
+ 		break;
+ 	default:
+-		retval = __arm_ioremap(cookie, size, mtype);
++		retval = __arm_ioremap_caller(cookie, size, mtype,
++				__builtin_return_address(0));
+ 	}
+ 
+ 	return retval;
+diff --git a/arch/arm/mach-msm/io.c b/arch/arm/mach-msm/io.c
+index 6e7692f..0c6f831 100644
+--- a/arch/arm/mach-msm/io.c
++++ b/arch/arm/mach-msm/io.c
+@@ -73,5 +73,6 @@ __msm_ioremap(unsigned long phys_addr, size_t size, unsigned int mtype)
+ 			mtype = MT_DEVICE_NONSHARED;
+ 	}
+ 
+-	return __arm_ioremap(phys_addr, size, mtype);
++	return __arm_ioremap_caller(phys_addr, size, mtype,
++		__builtin_return_address(0));
+ }
+diff --git a/arch/arm/mm/ioremap.c b/arch/arm/mm/ioremap.c
+index 0ab75c6..28c8b95 100644
+--- a/arch/arm/mm/ioremap.c
++++ b/arch/arm/mm/ioremap.c
+@@ -139,8 +139,8 @@ void __check_kvm_seq(struct mm_struct *mm)
+  * which requires the new ioremap'd region to be referenced, the CPU will
+  * reference the _old_ region.
+  *
+- * Note that get_vm_area() allocates a guard 4K page, so we need to mask
+- * the size back to 1MB aligned or we will overflow in the loop below.
++ * Note that get_vm_area_caller() allocates a guard 4K page, so we need to
++ * mask the size back to 1MB aligned or we will overflow in the loop below.
+  */
+ static void unmap_area_sections(unsigned long virt, unsigned long size)
+ {
+@@ -254,22 +254,8 @@ remap_area_supersections(unsigned long virt, unsigned long pfn,
+ }
+ #endif
+ 
+-
+-/*
+- * Remap an arbitrary physical address space into the kernel virtual
+- * address space. Needed when the kernel wants to access high addresses
+- * directly.
+- *
+- * NOTE! We need to allow non-page-aligned mappings too: we will obviously
+- * have to convert them into an offset in a page-aligned mapping, but the
+- * caller shouldn't need to know that small detail.
+- *
+- * 'flags' are the extra L_PTE_ flags that you want to specify for this
+- * mapping.  See <asm/pgtable.h> for more information.
+- */
+-void __iomem *
+-__arm_ioremap_pfn(unsigned long pfn, unsigned long offset, size_t size,
+-		  unsigned int mtype)
++void __iomem * __arm_ioremap_pfn_caller(unsigned long pfn,
++	unsigned long offset, size_t size, unsigned int mtype, void *caller)
+ {
+ 	const struct mem_type *type;
+ 	int err;
+@@ -291,7 +277,7 @@ __arm_ioremap_pfn(unsigned long pfn, unsigned long offset, size_t size,
+ 	 */
+ 	size = PAGE_ALIGN(offset + size);
+ 
+- 	area = get_vm_area(size, VM_IOREMAP);
++	area = get_vm_area_caller(size, VM_IOREMAP, caller);
+  	if (!area)
+  		return NULL;
+  	addr = (unsigned long)area->addr;
+@@ -318,10 +304,9 @@ __arm_ioremap_pfn(unsigned long pfn, unsigned long offset, size_t size,
+ 	flush_cache_vmap(addr, addr + size);
+ 	return (void __iomem *) (offset + addr);
+ }
+-EXPORT_SYMBOL(__arm_ioremap_pfn);
+ 
+-void __iomem *
+-__arm_ioremap(unsigned long phys_addr, size_t size, unsigned int mtype)
++void __iomem *__arm_ioremap_caller(unsigned long phys_addr, size_t size,
++	unsigned int mtype, void *caller)
+ {
+ 	unsigned long last_addr;
+  	unsigned long offset = phys_addr & ~PAGE_MASK;
+@@ -334,7 +319,33 @@ __arm_ioremap(unsigned long phys_addr, size_t size, unsigned int mtype)
+ 	if (!size || last_addr < phys_addr)
+ 		return NULL;
+ 
+- 	return __arm_ioremap_pfn(pfn, offset, size, mtype);
++	return __arm_ioremap_pfn_caller(pfn, offset, size, mtype,
++			caller);
++}
++
++/*
++ * Remap an arbitrary physical address space into the kernel virtual
++ * address space. Needed when the kernel wants to access high addresses
++ * directly.
++ *
++ * NOTE! We need to allow non-page-aligned mappings too: we will obviously
++ * have to convert them into an offset in a page-aligned mapping, but the
++ * caller shouldn't need to know that small detail.
++ */
++void __iomem *
++__arm_ioremap_pfn(unsigned long pfn, unsigned long offset, size_t size,
++		  unsigned int mtype)
++{
++	return __arm_ioremap_pfn_caller(pfn, offset, size, mtype,
++			__builtin_return_address(0));
++}
++EXPORT_SYMBOL(__arm_ioremap_pfn);
++
++void __iomem *
++__arm_ioremap(unsigned long phys_addr, size_t size, unsigned int mtype)
++{
++	return __arm_ioremap_caller(phys_addr, size, mtype,
++			__builtin_return_address(0));
+ }
+ EXPORT_SYMBOL(__arm_ioremap);
+ 
+diff --git a/arch/arm/mm/nommu.c b/arch/arm/mm/nommu.c
+index ad7bacc..5c50cd7 100644
+--- a/arch/arm/mm/nommu.c
++++ b/arch/arm/mm/nommu.c
+@@ -73,6 +73,12 @@ void __iomem *__arm_ioremap_pfn(unsigned long pfn, unsigned long offset,
+ }
+ EXPORT_SYMBOL(__arm_ioremap_pfn);
+ 
++void __iomem *__arm_ioremap_pfn_caller(unsigned long pfn, unsigned long offset,
++			   size_t size, unsigned int mtype, void *caller)
++{
++	return __arm_ioremap_pfn(pfn, offset, size, mtype);
++}
++
+ void __iomem *__arm_ioremap(unsigned long phys_addr, size_t size,
+ 			    unsigned int mtype)
+ {
+@@ -80,6 +86,12 @@ void __iomem *__arm_ioremap(unsigned long phys_addr, size_t size,
+ }
+ EXPORT_SYMBOL(__arm_ioremap);
+ 
++void __iomem *__arm_ioremap(unsigned long phys_addr, size_t size,
++			    unsigned int mtype, void *caller)
++{
++	return __arm_ioremap(phys_addr, size, mtype);
++}
++
+ void __iounmap(volatile void __iomem *addr)
+ {
+ }
+diff --git a/arch/arm/plat-iop/io.c b/arch/arm/plat-iop/io.c
+index ed0bbec..e15bc17 100644
+--- a/arch/arm/plat-iop/io.c
++++ b/arch/arm/plat-iop/io.c
+@@ -34,7 +34,8 @@ void * __iomem __iop3xx_ioremap(unsigned long cookie, size_t size,
+ 		retval = (void *) IOP3XX_PMMR_PHYS_TO_VIRT(cookie);
+ 		break;
+ 	default:
+-		retval = __arm_ioremap(cookie, size, mtype);
++		retval = __arm_ioremap_caller(cookie, size, mtype,
++				__builtin_return_address(0));
+ 	}
+ 
+ 	return retval;
+diff --git a/arch/arm/plat-omap/io.c b/arch/arm/plat-omap/io.c
+index 9b42d72..1ae338b 100644
+--- a/arch/arm/plat-omap/io.c
++++ b/arch/arm/plat-omap/io.c
+@@ -120,7 +120,7 @@ void __iomem *omap_ioremap(unsigned long p, size_t size, unsigned int type)
+ 			return XLATE(p, L4_EMU_44XX_PHYS, L4_EMU_44XX_VIRT);
+ 	}
+ #endif
+-	return __arm_ioremap(p, size, type);
++	return __arm_ioremap_caller(p, size, type, __builtin_return_address(0));
+ }
+ EXPORT_SYMBOL(omap_ioremap);
+ 
+-- 
+1.5.4.4
+

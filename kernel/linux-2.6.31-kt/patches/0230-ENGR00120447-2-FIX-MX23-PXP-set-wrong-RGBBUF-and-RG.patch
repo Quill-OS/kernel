@@ -1,0 +1,129 @@
+From ded1dfce417fc7ab024934cbc3be29e0ab10be84 Mon Sep 17 00:00:00 2001
+From: Robby Cai <R63905@freescale.com>
+Date: Tue, 26 Jan 2010 10:48:34 +0800
+Subject: [PATCH] ENGR00120447-2 FIX: MX23 PXP set wrong RGBBUF and RGBSIZE after TV/LCD switch
+
+After TV/LCD switch, PXP uses wrong old FB info to set RGBBUF/RGBSIZE.
+This patch fixes this problem by notifying PXP to adjust when FB changed.
+
+Signed-off-by: Robby Cai <R63905@freescale.com>
+---
+ arch/arm/mach-stmp378x/tvenc.c |    3 ++-
+ drivers/media/video/pxp.c      |   21 ++++++++++++++++++++-
+ drivers/media/video/pxp.h      |    5 ++++-
+ 3 files changed, 26 insertions(+), 3 deletions(-)
+
+diff --git a/arch/arm/mach-stmp378x/tvenc.c b/arch/arm/mach-stmp378x/tvenc.c
+index e409511..6f93a8e 100644
+--- a/arch/arm/mach-stmp378x/tvenc.c
++++ b/arch/arm/mach-stmp378x/tvenc.c
+@@ -76,7 +76,6 @@ enum {
+ 				 DVI_V_LINES(m))
+ 
+ static struct clk *lcd_clk;
+-static struct clk *clk_ref_vid;
+ static struct clk *clk_tv108M_ng;
+ static struct clk *clk_tv27M;
+ 
+@@ -185,6 +184,7 @@ static int init_panel(struct device *dev, dma_addr_t phys, int memsize,
+ 			DVI_F2_START(tvenc_mode), DVI_F2_END(tvenc_mode));
+ 
+ 	ret = stmp3xxx_lcdif_dma_init(dev, phys, memsize, 1);
++	stmp3xxx_lcdif_notify_clients(STMP3XXX_LCDIF_PANEL_INIT, pentry);
+ 
+ 	return ret;
+ }
+@@ -192,6 +192,7 @@ static int init_panel(struct device *dev, dma_addr_t phys, int memsize,
+ static void release_panel(struct device *dev,
+ 			  struct stmp3xxx_platform_fb_entry *pentry)
+ {
++	stmp3xxx_lcdif_notify_clients(STMP3XXX_LCDIF_PANEL_RELEASE, pentry);
+ 	release_dvi_panel();
+ 
+ 	stmp3xxx_lcdif_dma_release();
+diff --git a/drivers/media/video/pxp.c b/drivers/media/video/pxp.c
+index 1029cad..0aaa93a 100644
+--- a/drivers/media/video/pxp.c
++++ b/drivers/media/video/pxp.c
+@@ -3,7 +3,7 @@
+  *
+  * Author: Matt Porter <mporter@embeddedalley.com>
+  *
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2008-2010 Freescale Semiconductor, Inc.
+  * Copyright 2008-2009 Embedded Alley Solutions, Inc All Rights Reserved.
+  */
+ 
+@@ -35,6 +35,7 @@
+ 
+ #include <mach/platform.h>
+ #include <mach/regs-pxp.h>
++#include <mach/lcdif.h>
+ 
+ #include "pxp.h"
+ 
+@@ -1199,6 +1200,21 @@ out:
+ 	return IRQ_HANDLED;
+ }
+ 
++static int pxp_notifier_callback(struct notifier_block *self,
++		       unsigned long event, void *data)
++{
++	struct pxps *pxp = container_of(self, struct pxps, nb);
++
++	switch (event) {
++	case STMP3XXX_LCDIF_PANEL_INIT:
++		pxp_set_fbinfo(pxp);
++		break;
++	default:
++		break;
++	}
++	return 0;
++}
++
+ static int pxp_probe(struct platform_device *pdev)
+ {
+ 	struct pxps *pxp;
+@@ -1279,6 +1295,8 @@ static int pxp_probe(struct platform_device *pdev)
+ 		goto freevdev;
+ 	}
+ 
++	pxp->nb.notifier_call = pxp_notifier_callback,
++	stmp3xxx_lcdif_register_client(&pxp->nb);
+ 	dev_info(&pdev->dev, "initialized\n");
+ 
+ exit:
+@@ -1303,6 +1321,7 @@ static int __devexit pxp_remove(struct platform_device *pdev)
+ {
+ 	struct pxps *pxp = platform_get_drvdata(pdev);
+ 
++	stmp3xxx_lcdif_unregister_client(&pxp->nb);
+ 	video_unregister_device(pxp->vdev);
+ 	video_device_release(pxp->vdev);
+ 
+diff --git a/drivers/media/video/pxp.h b/drivers/media/video/pxp.h
+index 3173142..11b41dc 100644
+--- a/drivers/media/video/pxp.h
++++ b/drivers/media/video/pxp.h
+@@ -3,7 +3,7 @@
+  *
+  * Author: Matt Porter <mporter@embeddedalley.com>
+  *
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2008-2010 Freescale Semiconductor, Inc.
+  * Copyright 2008-2009 Embedded Alley Solutions, Inc All Rights Reserved.
+  */
+ 
+@@ -112,6 +112,9 @@ struct pxps {
+ 	struct pxp_registers *regs_virt;
+ 	wait_queue_head_t done;
+ 	int next_queue_ended;
++
++	/* notifier for PXP when fb changed */
++	struct notifier_block nb;
+ };
+ 
+ struct pxp_data_format {
+-- 
+1.5.4.4
+

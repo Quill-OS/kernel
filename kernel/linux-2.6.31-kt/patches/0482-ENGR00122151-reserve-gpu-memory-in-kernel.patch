@@ -1,0 +1,250 @@
+From 4c443d7f74f3f8f09b5b6c3149c88f2fe2275db0 Mon Sep 17 00:00:00 2001
+From: Wu Guoxing <b02248@freescale.com>
+Date: Fri, 9 Apr 2010 16:57:55 +0800
+Subject: [PATCH] ENGR00122151 reserve gpu memory in kernel
+
+add a new kernel command "gpu_memory" to reserve gpu memory in kernel
+
+Signed-off-by:Wu Guoxing <b02248@freescale.com>
+---
+ arch/arm/mach-mx5/devices.c      |    6 +++
+ arch/arm/mach-mx5/mx51_babbage.c |   68 ++++++++++++++++++++++++++--------
+ arch/arm/mach-mx5/mx53_evk.c     |   75 +++++++++++++++++++++++++++-----------
+ drivers/video/mxc/mxc_ipuv3_fb.c |    4 +-
+ 4 files changed, 113 insertions(+), 40 deletions(-)
+
+diff --git a/arch/arm/mach-mx5/devices.c b/arch/arm/mach-mx5/devices.c
+index 84133a9..df433a8 100644
+--- a/arch/arm/mach-mx5/devices.c
++++ b/arch/arm/mach-mx5/devices.c
+@@ -930,6 +930,12 @@ static struct resource mxc_gpu_resources[] = {
+ 		.name = "gpu_graphics_mem",
+ 		.flags = IORESOURCE_MEM,
+ 	},
++	{
++		.start = 0,
++		.end = 0,
++		.name = "gpu_reserved_mem",
++		.flags = IORESOURCE_MEM,
++	},
+ };
+ 
+ struct platform_device gpu_device = {
+diff --git a/arch/arm/mach-mx5/mx51_babbage.c b/arch/arm/mach-mx5/mx51_babbage.c
+index 2e55830..4a962ab 100644
+--- a/arch/arm/mach-mx5/mx51_babbage.c
++++ b/arch/arm/mach-mx5/mx51_babbage.c
+@@ -798,36 +798,72 @@ static void __init fixup_mxc_board(struct machine_desc *desc, struct tag *tags,
+ 				   char **cmdline, struct meminfo *mi)
+ {
+ 	char *str;
+-	int size = SZ_512M - SZ_32M;
+ 	struct tag *t;
++	struct tag *mem_tag = 0;
++	int total_mem = SZ_512M;
++	int left_mem = 0;
++	int gpu_mem = SZ_64M;
++	int fb_mem = SZ_32M;
+ 
+ 	mxc_set_cpu_type(MXC_CPU_MX51);
+ 
+ 	get_cpu_wp = mx51_babbage_get_cpu_wp;
+ 	set_num_cpu_wp = mx51_babbage_set_num_cpu_wp;
+ 
+-	for_each_tag(t, tags) {
+-		if (t->hdr.tag != ATAG_CMDLINE)
+-			continue;
+-		str = t->u.cmdline.cmdline;
+-		str = strstr(str, "mem=");
+-		if (str != NULL) {
+-			str += 4;
+-			size = memparse(str, &str);
+-			if (size == 0 || size == SZ_512M)
+-				return;
++	for_each_tag(mem_tag, tags) {
++		if (mem_tag->hdr.tag == ATAG_MEM) {
++			total_mem = mem_tag->u.mem.size;
++			left_mem = total_mem - gpu_mem - fb_mem;
++			break;
+ 		}
+ 	}
+ 
+ 	for_each_tag(t, tags) {
+-		if (t->hdr.tag != ATAG_MEM)
+-			continue;
++		if (t->hdr.tag == ATAG_CMDLINE) {
++			str = t->u.cmdline.cmdline;
++			str = strstr(str, "mem=");
++			if (str != NULL) {
++				str += 4;
++				left_mem = memparse(str, &str);
++				if (left_mem == 0 || left_mem > total_mem)
++					left_mem = total_mem - gpu_mem - fb_mem;
++			}
++
++			str = t->u.cmdline.cmdline;
++			str = strstr(str, "gpu_memory=");
++			if (str != NULL) {
++				str += 11;
++				gpu_mem = memparse(str, &str);
++			}
++
++			break;
++		}
++	}
+ 
+-		t->u.mem.size = size;
++	if (mem_tag) {
++		fb_mem = total_mem - left_mem - gpu_mem;
++		if (fb_mem < 0) {
++			gpu_mem = total_mem - left_mem;
++			fb_mem = 0;
++		}
++		mem_tag->u.mem.size = left_mem;
++
++		/*reserve memory for gpu*/
++		gpu_device.resource[5].start =
++				mem_tag->u.mem.start + left_mem;
++		gpu_device.resource[5].end =
++				gpu_device.resource[5].start + gpu_mem - 1;
+ #if defined(CONFIG_FB_MXC_SYNC_PANEL) || \
+ 	defined(CONFIG_FB_MXC_SYNC_PANEL_MODULE)
+-		mxcfb_resources[0].start = t->u.mem.start + size;
+-		mxcfb_resources[0].end = t->u.mem.start + SZ_512M - 1;
++		if (fb_mem) {
++			mxcfb_resources[0].start =
++				gpu_device.resource[5].end + 1;
++			mxcfb_resources[0].end =
++				mxcfb_resources[0].start + fb_mem - 1;
++		} else {
++			mxcfb_resources[0].start = 0;
++			mxcfb_resources[0].end = 0;
++		}
+ #endif
+ 	}
+ }
+diff --git a/arch/arm/mach-mx5/mx53_evk.c b/arch/arm/mach-mx5/mx53_evk.c
+index 7cb9830..1064f11 100644
+--- a/arch/arm/mach-mx5/mx53_evk.c
++++ b/arch/arm/mach-mx5/mx53_evk.c
+@@ -473,42 +473,73 @@ static struct platform_device mxc_sgtl5000_device = {
+ static void __init fixup_mxc_board(struct machine_desc *desc, struct tag *tags,
+ 				   char **cmdline, struct meminfo *mi)
+ {
+-	char *str;
+-	int size = 0;
+-	unsigned long orig_size;
+ 	struct tag *t;
++	struct tag *mem_tag = 0;
++	int total_mem = SZ_1G;
++	int left_mem = 0;
++	int gpu_mem = SZ_128M;
++	int fb_mem = SZ_32M;
++	char *str;
+ 
+ 	mxc_set_cpu_type(MXC_CPU_MX53);
+ 
+ 	get_cpu_wp = mx53_evk_get_cpu_wp;
+ 	set_num_cpu_wp = mx53_evk_set_num_cpu_wp;
+ 
+-	for_each_tag(t, tags) {
+-		if (t->hdr.tag != ATAG_CMDLINE)
+-			continue;
+-		str = t->u.cmdline.cmdline;
+-		str = strstr(str, "mem=");
+-		if (str != NULL) {
+-			str += 4;
+-			size = memparse(str, &str);
+-			if (size == 0 || size == SZ_512M)
+-				return;
++	for_each_tag(mem_tag, tags) {
++		if (mem_tag->hdr.tag == ATAG_MEM) {
++			total_mem = mem_tag->u.mem.size;
++			left_mem = total_mem - gpu_mem - fb_mem;
++			break;
+ 		}
+ 	}
+ 
+ 	for_each_tag(t, tags) {
+-		if (t->hdr.tag != ATAG_MEM)
+-			continue;
++		if (t->hdr.tag == ATAG_CMDLINE) {
++			str = t->u.cmdline.cmdline;
++			str = strstr(str, "mem=");
++			if (str != NULL) {
++				str += 4;
++				left_mem = memparse(str, &str);
++				if (left_mem == 0 || left_mem > total_mem)
++					left_mem = total_mem - gpu_mem - fb_mem;
++			}
++
++			str = t->u.cmdline.cmdline;
++			str = strstr(str, "gpu_memory=");
++			if (str != NULL) {
++				str += 11;
++				gpu_mem = memparse(str, &str);
++			}
+ 
+-		orig_size = t->u.mem.size;
+-		if (!size)
+-			size = t->u.mem.size - SZ_32M;
+-		t->u.mem.size = size;
++			break;
++		}
++	}
++
++	if (mem_tag) {
++		fb_mem = total_mem - left_mem - gpu_mem;
++		if (fb_mem < 0) {
++			gpu_mem = total_mem - left_mem;
++			fb_mem = 0;
++		}
++		mem_tag->u.mem.size = left_mem;
++
++		/*reserve memory for gpu*/
++		gpu_device.resource[5].start =
++				mem_tag->u.mem.start + left_mem;
++		gpu_device.resource[5].end =
++				gpu_device.resource[5].start + gpu_mem - 1;
+ #if defined(CONFIG_FB_MXC_SYNC_PANEL) || \
+ 	defined(CONFIG_FB_MXC_SYNC_PANEL_MODULE)
+-		mxcfb_resources[0].start = t->u.mem.start + size;
+-		mxcfb_resources[0].end = t->u.mem.start + orig_size - 1;
+-		break;
++		if (fb_mem) {
++			mxcfb_resources[0].start =
++				gpu_device.resource[5].end + 1;
++			mxcfb_resources[0].end =
++				mxcfb_resources[0].start + fb_mem - 1;
++		} else {
++			mxcfb_resources[0].start = 0;
++			mxcfb_resources[0].end = 0;
++		}
+ #endif
+ 	}
+ }
+diff --git a/drivers/video/mxc/mxc_ipuv3_fb.c b/drivers/video/mxc/mxc_ipuv3_fb.c
+index 150e593..3d62025 100644
+--- a/drivers/video/mxc/mxc_ipuv3_fb.c
++++ b/drivers/video/mxc/mxc_ipuv3_fb.c
+@@ -1557,7 +1557,7 @@ static int mxcfb_probe(struct platform_device *pdev)
+ 	ipu_disable_irq(mxcfbi->ipu_ch_irq);
+ 
+ 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+-	if (res) {
++	if (res && res->end) {
+ 		fbi->fix.smem_len = res->end - res->start + 1;
+ 		fbi->fix.smem_start = res->start;
+ 		fbi->screen_base = ioremap(fbi->fix.smem_start, fbi->fix.smem_len);
+@@ -1589,7 +1589,7 @@ static int mxcfb_probe(struct platform_device *pdev)
+ 	mxcfb_set_fix(fbi);
+ 
+ 	/* alocate fb first */
+-	if (!res)
++	if (!res || !res->end)
+ 		if (mxcfb_map_video_memory(fbi) < 0)
+ 			return -ENOMEM;
+ 
+-- 
+1.5.4.4
+

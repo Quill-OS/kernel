@@ -1,0 +1,77 @@
+From ce7e48b68b37b25fd083f042c1aecb3e8538dc3b Mon Sep 17 00:00:00 2001
+From: Jun Li <r65092@freescale.com>
+Date: Fri, 4 Dec 2009 23:07:39 +0800
+Subject: [PATCH] ENGR00119024 USB OTG nobody cared IRQ when add gadget driver.
+
+When add usb gadget driver in OTG mode, cause nobody cared irq,
+this pach disable usbintr in udc driver probe.
+
+Signed-off-by: Li Jun <r65092@freescale.com>
+---
+ arch/arm/mach-mx25/usb_h2.c     |    5 +----
+ drivers/usb/gadget/arcotg_udc.c |   16 +++++++++++-----
+ 2 files changed, 12 insertions(+), 9 deletions(-)
+
+diff --git a/arch/arm/mach-mx25/usb_h2.c b/arch/arm/mach-mx25/usb_h2.c
+index 23f6a61..8548cca 100644
+--- a/arch/arm/mach-mx25/usb_h2.c
++++ b/arch/arm/mach-mx25/usb_h2.c
+@@ -88,13 +88,10 @@ EXPORT_SYMBOL(usbh2_put_xcvr_power);
+ 
+ static int __init usbh2_init(void)
+ {
+-	struct platform_device *pdev;
+ 	pr_debug("%s: \n", __func__);
+ 
+-	pdev = host_pdev_register(usbh2_resources, ARRAY_SIZE(usbh2_resources),
++	host_pdev_register(usbh2_resources, ARRAY_SIZE(usbh2_resources),
+ 			   &usbh2_config);
+-	if (pdev)
+-		device_init_wakeup(&(pdev->dev), 1);
+ 	return 0;
+ }
+ module_init(usbh2_init);
+diff --git a/drivers/usb/gadget/arcotg_udc.c b/drivers/usb/gadget/arcotg_udc.c
+index 7772c39..4fac792 100644
+--- a/drivers/usb/gadget/arcotg_udc.c
++++ b/drivers/usb/gadget/arcotg_udc.c
+@@ -109,10 +109,11 @@ dr_wake_up_enable(struct fsl_udc *udc, bool enable)
+ 	struct fsl_usb2_platform_data *pdata;
+ 	pdata = udc->pdata;
+ 
+-	if (device_may_wakeup(udc_controller->gadget.dev.parent)) {
+-		if (pdata->wake_up_enable)
+-			pdata->wake_up_enable(pdata, enable);
+-	}
++	if (enable && (!device_may_wakeup(udc_controller->gadget.dev.parent)))
++		return;
++
++	if (pdata->wake_up_enable)
++		pdata->wake_up_enable(pdata, enable);
+ }
+ 
+ #ifdef CONFIG_PPC32
+@@ -2855,6 +2856,9 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
+ 	last_free_td = NULL;
+ #endif
+ 
++	/* disable all INTR */
++	fsl_writel(0, &dr_regs->usbintr);
++
+ 	dr_wake_up_enable(udc_controller, false);
+ 	udc_controller->stopped = 1;
+ 
+@@ -2993,7 +2997,9 @@ out:
+  -----------------------------------------------------------------*/
+ static int fsl_udc_suspend(struct platform_device *pdev, pm_message_t state)
+ {
+-	if ((udc_controller->usb_state > USB_STATE_POWERED) &&
++	if (((!(udc_controller->gadget.is_otg)) ||
++			(fsl_readl(&dr_regs->otgsc) & OTGSC_STS_USB_ID)) &&
++			(udc_controller->usb_state > USB_STATE_POWERED) &&
+ 			(udc_controller->usb_state < USB_STATE_SUSPENDED))
+ 		return -EBUSY;
+ 
+-- 
+1.5.4.4
+

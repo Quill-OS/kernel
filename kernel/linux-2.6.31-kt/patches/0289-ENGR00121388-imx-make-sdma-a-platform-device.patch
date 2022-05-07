@@ -1,0 +1,445 @@
+From 73a3ddf6db672ea65d7d3cbcfd703e42b6414cd4 Mon Sep 17 00:00:00 2001
+From: Rob Herring <r.herring@freescale.com>
+Date: Mon, 8 Mar 2010 15:23:58 -0600
+Subject: [PATCH] ENGR00121388 imx: make sdma a platform device
+
+Convert sdma to a platform device and driver.
+
+Signed-off-by: Rob Herring <r.herring@freescale.com>
+---
+ arch/arm/mach-mx25/devices.c     |   40 ++++++++++++++++++++++-----------
+ arch/arm/mach-mx3/devices.c      |   40 ++++++++++++++++++++++-----------
+ arch/arm/mach-mx35/devices.c     |   40 ++++++++++++++++++++++-----------
+ arch/arm/mach-mx37/devices.c     |   40 ++++++++++++++++++++++-----------
+ arch/arm/mach-mx5/devices.c      |   22 ++++++++++++++++++
+ arch/arm/mach-mx5/devices.h      |    1 +
+ arch/arm/mach-mx5/mx51_3stack.c  |    1 +
+ arch/arm/mach-mx5/mx51_babbage.c |    1 +
+ arch/arm/plat-mxc/sdma/sdma.c    |   45 +++++++++++++++++++++++++------------
+ 9 files changed, 163 insertions(+), 67 deletions(-)
+
+diff --git a/arch/arm/mach-mx25/devices.c b/arch/arm/mach-mx25/devices.c
+index 0d9c0f1..093e8e1 100644
+--- a/arch/arm/mach-mx25/devices.c
++++ b/arch/arm/mach-mx25/devices.c
+@@ -14,6 +14,7 @@
+ #include <linux/kernel.h>
+ #include <linux/init.h>
+ #include <linux/io.h>
++#include <linux/dma-mapping.h>
+ #include <linux/platform_device.h>
+ #include <linux/clk.h>
+ #include <linux/spi/spi.h>
+@@ -76,6 +77,32 @@ void mxc_sdma_get_script_info(sdma_script_start_addrs * sdma_script_addr)
+ 	sdma_script_addr->mxc_sdma_ram_code_start_addr = RAM_CODE_START_ADDR;
+ }
+ 
++static struct resource sdma_resources[] = {
++	{
++		.start = SDMA_BASE_ADDR,
++		.end = SDMA_BASE_ADDR + SZ_4K - 1,
++		.flags = IORESOURCE_MEM,
++	},
++	{
++		.start = MXC_INT_SDMA,
++		.flags = IORESOURCE_IRQ,
++	},
++};
++
++static struct platform_device mxc_dma_device = {
++	.name = "mxc_sdma",
++	.dev = {
++		.coherent_dma_mask = DMA_BIT_MASK(32),
++		},
++	.num_resources = ARRAY_SIZE(sdma_resources),
++	.resource = sdma_resources,
++};
++
++static inline void mxc_init_dma(void)
++{
++	(void)platform_device_register(&mxc_dma_device);
++}
++
+ static void mxc_nop_release(struct device *dev)
+ {
+ 	/* Nothing */
+@@ -435,19 +462,6 @@ int __init mxc_register_gpios(void)
+ 	return mxc_gpio_init(mxc_gpio_ports, ARRAY_SIZE(mxc_gpio_ports));
+ }
+ 
+-static struct platform_device mxc_dma_device = {
+-	.name = "mxc_dma",
+-	.id = 0,
+-	.dev = {
+-		.release = mxc_nop_release,
+-		},
+-};
+-
+-static inline void mxc_init_dma(void)
+-{
+-	(void)platform_device_register(&mxc_dma_device);
+-}
+-
+ /* imx adc driver */
+ #if defined(CONFIG_IMX_ADC) || defined(CONFIG_IMX_ADC_MODULE)
+ 
+diff --git a/arch/arm/mach-mx3/devices.c b/arch/arm/mach-mx3/devices.c
+index 8124741..a5eafff 100644
+--- a/arch/arm/mach-mx3/devices.c
++++ b/arch/arm/mach-mx3/devices.c
+@@ -15,6 +15,7 @@
+ #include <linux/kernel.h>
+ #include <linux/init.h>
+ #include <linux/io.h>
++#include <linux/dma-mapping.h>
+ #include <linux/platform_device.h>
+ #include <linux/clk.h>
+ #include <linux/pmic_external.h>
+@@ -116,6 +117,32 @@ void mxc_sdma_get_script_info(sdma_script_start_addrs * sdma_script_addr)
+ 	}
+ }
+ 
++static struct resource sdma_resources[] = {
++	{
++		.start = SDMA_BASE_ADDR,
++		.end = SDMA_BASE_ADDR + SZ_4K - 1,
++		.flags = IORESOURCE_MEM,
++	},
++	{
++		.start = MXC_INT_SDMA,
++		.flags = IORESOURCE_IRQ,
++	},
++};
++
++static struct platform_device mxc_dma_device = {
++	.name = "mxc_sdma",
++	.dev = {
++		.coherent_dma_mask = DMA_BIT_MASK(32),
++		},
++	.num_resources = ARRAY_SIZE(sdma_resources),
++	.resource = sdma_resources,
++};
++
++static inline void mxc_init_dma(void)
++{
++	(void)platform_device_register(&mxc_dma_device);
++}
++
+ static void mxc_nop_release(struct device *dev)
+ {
+ 	/* Nothing */
+@@ -697,19 +724,6 @@ static inline void mxc_init_hmp4e(void)
+ }
+ #endif
+ 
+-static struct platform_device mxc_dma_device = {
+-	.name = "mxc_dma",
+-	.id = 0,
+-	.dev = {
+-		.release = mxc_nop_release,
+-		},
+-};
+-
+-static inline void mxc_init_dma(void)
+-{
+-	(void)platform_device_register(&mxc_dma_device);
+-}
+-
+ /*!
+  * Resource definition for the DPTC LP
+  */
+diff --git a/arch/arm/mach-mx35/devices.c b/arch/arm/mach-mx35/devices.c
+index cf01caa..7687d0e 100644
+--- a/arch/arm/mach-mx35/devices.c
++++ b/arch/arm/mach-mx35/devices.c
+@@ -14,6 +14,7 @@
+ #include <linux/kernel.h>
+ #include <linux/init.h>
+ #include <linux/io.h>
++#include <linux/dma-mapping.h>
+ #include <linux/platform_device.h>
+ #include <linux/clk.h>
+ #include <linux/spi/spi.h>
+@@ -138,6 +139,32 @@ void mxc_sdma_get_script_info(sdma_script_start_addrs * sdma_script_addr)
+ 	}
+ }
+ 
++static struct resource sdma_resources[] = {
++	{
++		.start = SDMA_BASE_ADDR,
++		.end = SDMA_BASE_ADDR + SZ_4K - 1,
++		.flags = IORESOURCE_MEM,
++	},
++	{
++		.start = MXC_INT_SDMA,
++		.flags = IORESOURCE_IRQ,
++	},
++};
++
++static struct platform_device mxc_dma_device = {
++	.name = "mxc_sdma",
++	.dev = {
++		.coherent_dma_mask = DMA_BIT_MASK(32),
++		},
++	.num_resources = ARRAY_SIZE(sdma_resources),
++	.resource = sdma_resources,
++};
++
++static inline void mxc_init_dma(void)
++{
++	(void)platform_device_register(&mxc_dma_device);
++}
++
+ static void mxc_nop_release(struct device *dev)
+ {
+ 	/* Nothing */
+@@ -514,19 +541,6 @@ int __init mxc_register_gpios(void)
+ 	return mxc_gpio_init(mxc_gpio_ports, ARRAY_SIZE(mxc_gpio_ports));
+ }
+ 
+-static struct platform_device mxc_dma_device = {
+-	.name = "mxc_dma",
+-	.id = 0,
+-	.dev = {
+-		.release = mxc_nop_release,
+-		},
+-};
+-
+-static inline void mxc_init_dma(void)
+-{
+-	(void)platform_device_register(&mxc_dma_device);
+-}
+-
+ static struct resource spdif_resources[] = {
+ 	{
+ 	 .start = SPDIF_BASE_ADDR,
+diff --git a/arch/arm/mach-mx37/devices.c b/arch/arm/mach-mx37/devices.c
+index dd92bfa..6c8ee6f 100644
+--- a/arch/arm/mach-mx37/devices.c
++++ b/arch/arm/mach-mx37/devices.c
+@@ -15,6 +15,7 @@
+ #include <linux/kernel.h>
+ #include <linux/init.h>
+ #include <linux/io.h>
++#include <linux/dma-mapping.h>
+ #include <linux/platform_device.h>
+ #include <linux/clk.h>
+ #include <linux/mxc_scc2_driver.h>
+@@ -71,6 +72,32 @@ void mxc_sdma_get_script_info(sdma_script_start_addrs * sdma_script_addr)
+ 	sdma_script_addr->mxc_sdma_mcu_2_spdif_addr = mcu_2_spdif_marley_ADDR;
+ }
+ 
++static struct resource sdma_resources[] = {
++	{
++		.start = SDMA_BASE_ADDR,
++		.end = SDMA_BASE_ADDR + SZ_4K - 1,
++		.flags = IORESOURCE_MEM,
++	},
++	{
++		.start = MXC_INT_SDMA,
++		.flags = IORESOURCE_IRQ,
++	},
++};
++
++static struct platform_device mxc_dma_device = {
++	.name = "mxc_sdma",
++	.dev = {
++		.coherent_dma_mask = DMA_BIT_MASK(32),
++		},
++	.num_resources = ARRAY_SIZE(sdma_resources),
++	.resource = sdma_resources,
++};
++
++static inline void mxc_init_dma(void)
++{
++	(void)platform_device_register(&mxc_dma_device);
++}
++
+ static void mxc_nop_release(struct device *dev)
+ {
+ 	/* Nothing */
+@@ -846,19 +873,6 @@ static inline void mxc_init_vpu(void)
+ }
+ #endif
+ 
+-static struct platform_device mxc_dma_device = {
+-	.name = "mxc_dma",
+-	.id = 0,
+-	.dev = {
+-		.release = mxc_nop_release,
+-		},
+-};
+-
+-static inline void mxc_init_dma(void)
+-{
+-	(void)platform_device_register(&mxc_dma_device);
+-}
+-
+ static struct resource spdif_resources[] = {
+ 	{
+ 	 .start = SPDIF_BASE_ADDR,
+diff --git a/arch/arm/mach-mx5/devices.c b/arch/arm/mach-mx5/devices.c
+index ff78f3c..bcf7da7 100644
+--- a/arch/arm/mach-mx5/devices.c
++++ b/arch/arm/mach-mx5/devices.c
+@@ -95,6 +95,28 @@ void mxc_sdma_get_script_info(sdma_script_start_addrs * sdma_script_addr)
+ 	sdma_script_addr->mxc_sdma_ram_code_size = RAM_CODE_SIZE;
+ }
+ 
++static struct resource sdma_resources[] = {
++	{
++		.start = SDMA_BASE_ADDR,
++		.end = SDMA_BASE_ADDR + SZ_4K - 1,
++		.flags = IORESOURCE_MEM,
++	},
++	{
++		.start = MXC_INT_SDMA,
++		.flags = IORESOURCE_IRQ,
++	},
++};
++
++struct platform_device mxc_dma_device = {
++	.name = "mxc_sdma",
++	.id = -1,
++	.dev = {
++		.coherent_dma_mask = DMA_BIT_MASK(32),
++		},
++	.num_resources = ARRAY_SIZE(sdma_resources),
++	.resource = sdma_resources,
++};
++
+ static struct resource mxc_w1_master_resources[] = {
+ 	{
+ 		.start = OWIRE_BASE_ADDR,
+diff --git a/arch/arm/mach-mx5/devices.h b/arch/arm/mach-mx5/devices.h
+index 52b07e8..5a60052 100644
+--- a/arch/arm/mach-mx5/devices.h
++++ b/arch/arm/mach-mx5/devices.h
+@@ -17,6 +17,7 @@
+  * MA 02110-1301, USA.
+  */
+ 
++extern struct platform_device mxc_dma_device;
+ extern struct platform_device mxc_w1_master_device;
+ extern struct platform_device mxc_keypad_device;
+ extern struct platform_device mxc_rtc_device;
+diff --git a/arch/arm/mach-mx5/mx51_3stack.c b/arch/arm/mach-mx5/mx51_3stack.c
+index d91a964..995cd36 100644
+--- a/arch/arm/mach-mx5/mx51_3stack.c
++++ b/arch/arm/mach-mx5/mx51_3stack.c
+@@ -884,6 +884,7 @@ static void __init mxc_board_init(void)
+ 	mxc_register_gpios();
+ 	mx51_3stack_io_init();
+ 
++	mxc_register_device(&mxc_dma_device, NULL);
+ 	mxc_register_device(&mxc_wdt_device, NULL);
+ 	mxc_register_device(&mxcspi1_device, &mxcspi1_data);
+ 	mxc_register_device(&mxci2c_devices[0], &mxci2c_data);
+diff --git a/arch/arm/mach-mx5/mx51_babbage.c b/arch/arm/mach-mx5/mx51_babbage.c
+index 4ebe93e..c3f896a 100644
+--- a/arch/arm/mach-mx5/mx51_babbage.c
++++ b/arch/arm/mach-mx5/mx51_babbage.c
+@@ -890,6 +890,7 @@ static void __init mxc_board_init(void)
+ 	mxc_register_gpios();
+ 	mx51_babbage_io_init();
+ 
++	mxc_register_device(&mxc_dma_device, NULL);
+ 	mxc_register_device(&mxc_wdt_device, NULL);
+ 	mxc_register_device(&mxcspi1_device, &mxcspi1_data);
+ 	mxc_register_device(&mxci2c_devices[0], &mxci2c_data);
+diff --git a/arch/arm/plat-mxc/sdma/sdma.c b/arch/arm/plat-mxc/sdma/sdma.c
+index 8ad2603..fdcbac0 100644
+--- a/arch/arm/plat-mxc/sdma/sdma.c
++++ b/arch/arm/plat-mxc/sdma/sdma.c
+@@ -28,6 +28,7 @@
+ #include <linux/semaphore.h>
+ #include <linux/spinlock.h>
+ #include <linux/device.h>
++#include <linux/platform_device.h>
+ #include <linux/dma-mapping.h>
+ #include <linux/proc_fs.h>
+ 
+@@ -1379,12 +1380,11 @@ static int __init init_super_gem(void)
+ }
+ #endif
+ 
+-/*!
+- * Initializes dma
+- */
+-int __init sdma_init(void)
++int sdma_probe(struct platform_device *pdev)
+ {
+ 	int res = 0;
++	int irq;
++	struct resource *rsrc;
+ 	configs_data confreg_data;
+ 
+ 	/* Initialize to the default values */
+@@ -1405,13 +1405,23 @@ int __init sdma_init(void)
+ 
+ 	init_sdma_pool();
+ 
+-	res = request_irq(MXC_INT_SDMA, sdma_int_handler, 0, "mxcsdma", 0);
++	irq = platform_get_irq(pdev, 0);
++	if (irq <= 0) {
++		res = -ENODEV;
++		goto sdma_init_fail;
++	}
++	res = request_irq(MXC_INT_SDMA, sdma_int_handler, 0, dev_name(&pdev->dev), 0);
+ 
+ 	if (res < 0) {
+ 		goto sdma_init_fail;
+ 	}
+ 
+-	sdma_base = ioremap(SDMA_BASE_ADDR, SZ_4K);
++	rsrc = platform_get_resource(pdev, IORESOURCE_MEM, 0);
++	if (rsrc < 0) {
++		res = -ENODEV;
++		goto sdma_init_fail;
++	}
++	sdma_base = ioremap(rsrc->start, SZ_4K);
+ 	if (sdma_base == NULL)
+ 		goto sdma_init_fail;
+ 
+@@ -1435,14 +1445,6 @@ int __init sdma_init(void)
+ 
+ 	init_event_table();
+ 
+-#if defined(CONFIG_MXC_SUPER_GEM)
+-	res = init_super_gem();
+-	if (res < 0) {
+-		free_irq(MXC_INT_SDMA, 0);
+-		goto sdma_init_fail;
+-	}
+-#endif
+-
+ 	init_proc_fs();
+ 
+ 	printk(KERN_INFO "MXC DMA API initialized\n");
+@@ -1456,9 +1458,22 @@ int __init sdma_init(void)
+ 	clk_disable(mxc_sdma_ahb_clk);
+ 	clk_disable(mxc_sdma_ipg_clk);
+ 	return res;
+-
+ }
+ 
++static struct platform_driver sdma_driver = {
++	.driver = {
++		.name = "mxc_sdma",
++	},
++	.probe = sdma_probe,
++};
++
++/*!
++ * Initializes dma
++ */
++int __init sdma_init(void)
++{
++	return platform_driver_register(&sdma_driver);
++}
+ arch_initcall(sdma_init);
+ 
+ EXPORT_SYMBOL(mxc_request_dma);
+-- 
+1.5.4.4
+

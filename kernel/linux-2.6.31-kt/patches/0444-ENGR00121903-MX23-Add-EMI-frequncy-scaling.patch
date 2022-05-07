@@ -1,0 +1,2082 @@
+From 0fc366c8cf1190553ee5243e5c217e9697244aa6 Mon Sep 17 00:00:00 2001
+From: Nancy Chen <Nancy.Chen@freescale.com>
+Date: Thu, 25 Mar 2010 13:10:21 -0500
+Subject: [PATCH] ENGR00121903 MX23: Add EMI frequncy scaling
+
+Add EMI frequncy scaling.
+
+Signed-off-by: Nancy Chen <Nancy.Chen@freescale.com>
+---
+ arch/arm/configs/imx23evk_defconfig        |    2 +
+ arch/arm/mach-mx23/Makefile                |    1 +
+ arch/arm/mach-mx23/emi.S                   |  231 +++++++
+ arch/arm/mach-mx23/emi.inc                 |  633 ++++++++++++++++++++
+ arch/arm/mach-mx23/include/mach/regs-emi.h |  234 ++++++++
+ arch/arm/mach-mx23/regs-dram.h             |  890 ++++++++++++++++++++++++++++
+ arch/arm/plat-mxs/Kconfig                  |   13 +
+ 7 files changed, 2004 insertions(+), 0 deletions(-)
+
+diff --git a/arch/arm/configs/imx23evk_defconfig b/arch/arm/configs/imx23evk_defconfig
+index ed25cdb..1d40688 100644
+--- a/arch/arm/configs/imx23evk_defconfig
++++ b/arch/arm/configs/imx23evk_defconfig
+@@ -213,6 +213,8 @@ CONFIG_MXS_AUART1_DEVICE_ENABLE=y
+ # CONFIG_MXS_AUART4_DEVICE_ENABLE is not set
+ # CONFIG_MXS_AUART4_DMA_ENABLE is not set
+ CONFIG_MXS_RAM_FREQ_SCALING=y
++# CONFIG_MXS_RAM_MDDR is not set
++CONFIG_MXS_RAM_DDR=y
+ 
+ #
+ # Processor Type
+diff --git a/arch/arm/mach-mx23/Makefile b/arch/arm/mach-mx23/Makefile
+index 603d558..83bafa1 100644
+--- a/arch/arm/mach-mx23/Makefile
++++ b/arch/arm/mach-mx23/Makefile
+@@ -6,6 +6,7 @@ obj-y += pinctrl.o clock.o device.o serial.o power.o
+ # Board select
+ obj-$(CONFIG_MACH_MX23EVK) += mx23evk.o mx23evk_pins.o
+ obj-$(CONFIG_GENERIC_GPIO) += gpio.o
++obj-$(CONFIG_MXS_RAM_FREQ_SCALING) +=emi.o
+ 
+ # USB support
+ ifneq ($(strip $(CONFIG_USB_GADGET_ARC) $(CONFIG_USB_EHCI_ARC_OTG)),)
+diff --git a/arch/arm/mach-mx23/emi.S b/arch/arm/mach-mx23/emi.S
+new file mode 100644
+index 0000000..fd63a2a
+--- /dev/null
++++ b/arch/arm/mach-mx23/emi.S
+@@ -0,0 +1,231 @@
++/*
++ * Freescale MX23 low level RAM frequency manipulation
++ *
++ * Author: Vitaly Wool <vital@embeddedalley.com>
++ *
++ * Copyright 2008-2010 Freescale Semiconductor, Inc.
++ * Copyright 2008 Embedded Alley Solutions, Inc All Rights Reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License along
++ * with this program; if not, write to the Free Software Foundation, Inc.,
++ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
++ */
++#include <linux/linkage.h>
++#include <asm/assembler.h>
++#include <asm/system.h>
++#include <asm/pgtable-hwdef.h>
++#include <mach/hardware.h>
++#include <mach/regs-power.h>
++#include <mach/regs-emi.h>
++#include "regs-clkctrl.h"
++#include "regs-dram.h"
++#include "regs-digctl.h"
++
++/* TODO should be move to clock.h */
++#define SCALING_DATA_EMI_DIV_OFFSET     0
++#define SCALING_DATA_FRAC_DIV_OFFSET    4
++#define SCALING_DATA_CUR_FREQ_OFFSET    8
++#define SCALING_DATA_NEW_FREQ_OFFSET    12
++#define REGS_CLKCTRL_BASE MX23_SOC_IO_ADDRESS(CLKCTRL_PHYS_ADDR)
++#define HW_CLKCTRL_EMI_ADDR (REGS_CLKCTRL_BASE + HW_CLKCTRL_EMI)
++#define HW_CLKCTRL_FRAC_ADDR (REGS_CLKCTRL_BASE + HW_CLKCTRL_FRAC)
++#define HW_EMI_CTRL_ADDR MX23_SOC_IO_ADDRESS(REGS_EMI_PHYS + HW_CLKCTRL_FRAC)
++#define HW_DRAM_CTL04_ADDR (REGS_CLKCTRL_BASE + HW_DRAM_CTL04)
++
++.global cpu_arm926_switch_mm
++
++.align 8
++ENTRY(mxs_ram_freq_scale)
++	stmfd	sp!, {r1 - r9, lr}
++
++	ldr	r5, [r0, #SCALING_DATA_NEW_FREQ_OFFSET]
++	ldr	r6, [r0, #SCALING_DATA_CUR_FREQ_OFFSET]
++	ldr	r7, [r0, #SCALING_DATA_EMI_DIV_OFFSET]
++	ldr	r8, [r0, #SCALING_DATA_FRAC_DIV_OFFSET]
++
++	adr	r9, __mxs_temp_stack
++
++	@ clean cache
++	ldr	r1, __mxs_flush_cache_addr
++	mov	lr, pc
++	mov	pc, r1
++
++	@ put DRAM into self refresh
++	ldr	r0, __mx23_dram_ctl00
++	ldr	r1, [r0, #0x20]
++	orr	r1, r1, #(1 << 8)
++	str	r1, [r0, #0x20]
++	@ wait for it to actually happen
++	ldr	r0, __mx23_dram_emi00
++1:	ldr	r1, [r0, #0x10]
++	tst	r1, #(1 << 1)
++	beq	1b
++	nop
++
++	@ prepare for change
++	cmp	r5, #24
++	bgt	2f
++	bl	mx23_ram_24M_set_timings
++	b	100f
++2:	cmp	r5, #48
++	bgt	3f
++	bl	mx23_ram_48M_set_timings
++	b	100f
++3:	cmp	r5, #60
++	bgt	4f
++	bl	mx23_ram_60M_set_timings
++	b	100f
++4:	cmp	r5, #80
++	bgt	5f
++	bl	mx23_ram_80M_set_timings
++	b	100f
++5:	cmp	r5, #96
++	bgt	6f
++	bl	mx23_ram_96M_set_timings
++	b	100f
++6:	cmp	r5, #120
++	bgt	7f
++	bl	mx23_ram_120M_set_timings
++	b	100f
++7:	cmp     r5, #133
++	bgt	8f
++	bl	mx23_ram_133M_set_timings
++	b	100f
++8:	bl	mx23_ram_150M_set_timings
++
++100:
++	@ RAM to clk from xtal
++	mov	r0, #(MX23_SOC_IO_ADDRESS(CLKCTRL_PHYS_ADDR) & 0x000000FF)
++	orr	r0, r0, #(MX23_SOC_IO_ADDRESS(CLKCTRL_PHYS_ADDR) & 0x0000FF00)
++	orr	r0, r0, #(MX23_SOC_IO_ADDRESS(CLKCTRL_PHYS_ADDR) & 0x00FF0000)
++	orr	r0, r0, #(MX23_SOC_IO_ADDRESS(CLKCTRL_PHYS_ADDR) & 0xFF000000)
++	mov	r1, #(1<<6)
++	str	r1, [r0, #4]
++	mov	r0, #(HW_CLKCTRL_EMI_ADDR & 0x000000FF)
++	orr	r0, r0, #(HW_CLKCTRL_EMI_ADDR & 0x0000FF00)
++	orr	r0, r0, #(HW_CLKCTRL_EMI_ADDR & 0x00FF0000)
++	orr	r0, r0, #(HW_CLKCTRL_EMI_ADDR & 0xFF000000)
++101:	ldr     r1, [r0]
++	tst     r1, #BM_CLKCTRL_EMI_BUSY_REF_XTAL
++	bne     101b
++
++	@When are using the DLL, reset the DRAM controller and DLL
++	@start point logic (via DLL_SHIFT_RESET and DLL_RESET).
++	@After changing clock dividers and loading
++	@the new HW_DRAM_CTL* parameters, we will wait for a new DLL_LOCK
++
++	@todo - for DRAM's that will use DLL bypass (non DDR1)
++	@	we should not use DLL_RESET and DLL_SHIFT_RESET.
++
++	mov     r0,     #(HW_EMI_CTRL_ADDR & 0x000000FF)
++	orr     r0, r0, #(HW_EMI_CTRL_ADDR & 0x0000FF00)
++	orr     r0, r0, #(HW_EMI_CTRL_ADDR & 0x00FF0000)
++	orr     r0, r0, #(HW_EMI_CTRL_ADDR & 0xFF000000)
++	ldr     r1, [r0]            @read values of HW_EMI_CTRL into R1
++	orr r1, r1, #BM_EMI_CTRL_DLL_SHIFT_RESET    @Set these 2 fields.
++	orr r1, r1, #BM_EMI_CTRL_DLL_RESET
++	str     r1, [r0]            @write back values to HW_EMI_CTRL register.
++
++	bl	__mx23_emi_set_values
++
++	@ EMI back to PLL
++	mov	r0, #(MX23_SOC_IO_ADDRESS(CLKCTRL_PHYS_ADDR) & 0x000000FF)
++	orr	r0, r0, #(MX23_SOC_IO_ADDRESS(CLKCTRL_PHYS_ADDR) & 0x0000FF00)
++	orr	r0, r0, #(MX23_SOC_IO_ADDRESS(CLKCTRL_PHYS_ADDR) & 0x00FF0000)
++	orr	r0, r0, #(MX23_SOC_IO_ADDRESS(CLKCTRL_PHYS_ADDR) & 0xFF000000)
++	mov	r1, #(1<<6)
++	str	r1, [r0, #8]
++
++	@ Wait for BUSY_REF_EMI, to assure new clock dividers
++	@ are done transferring
++	mov	r0, #(HW_CLKCTRL_EMI_ADDR & 0x000000FF)
++	orr	r0, r0, #(HW_CLKCTRL_EMI_ADDR & 0x0000FF00)
++	orr	r0, r0, #(HW_CLKCTRL_EMI_ADDR & 0x00FF0000)
++	orr	r0, r0, #(HW_CLKCTRL_EMI_ADDR & 0xFF000000)
++1:	ldr	r1, [r0]
++	tst	r1, #BM_CLKCTRL_EMI_BUSY_REF_EMI
++	bne	1b
++	str	r1, [r0]
++
++@todo - for DRAM's that will use DLL bypass (non DDR1)
++@we should not use DLL_RESET and DLL_SHIFT_RESET.
++@	if(HW_DRAM_CTL04.B.DLL_BYPASS_MODE==0)
++@	{
++@
++@	    Clear the DLL_RESET and DLL_SHIFT_RESET bitfields
++@	    (\todo - is that necessary?
++@	     they were already set previously to reset
++@            the controller/DLL start point,
++@	     so clearing should have no effect..)
++@
++@	     BF_CS2(EMI_CTRL, DLL_RESET, 0, DLL_SHIFT_RESET, 0);
++
++	mov     r0,     #(HW_EMI_CTRL_ADDR & 0x000000FF)
++	orr     r0, r0, #(HW_EMI_CTRL_ADDR & 0x0000FF00)
++	orr     r0, r0, #(HW_EMI_CTRL_ADDR & 0x00FF0000)
++	orr     r0, r0, #(HW_EMI_CTRL_ADDR & 0xFF000000)
++	ldr     r1, [r0]
++	bic r1, #BM_EMI_CTRL_DLL_SHIFT_RESET
++	bic r1, #BM_EMI_CTRL_DLL_RESET
++	str     r1, [r0]
++
++@Wait for BUSY_REF_EMI, to assure new clock dividers are done transferring.
++@(\todo is that necessary.  we already did this above.
++	mov     r0,     #(HW_CLKCTRL_EMI_ADDR & 0x000000FF)
++	orr     r0, r0, #(HW_CLKCTRL_EMI_ADDR & 0x0000FF00)
++	orr     r0, r0, #(HW_CLKCTRL_EMI_ADDR & 0x00FF0000)
++	orr     r0, r0, #(HW_CLKCTRL_EMI_ADDR & 0xFF000000)
++66:	ldr     r1, [r0]
++	tst     r1, #BM_CLKCTRL_EMI_BUSY_REF_EMI
++	bne     66b
++
++@ Wait for DLL locking.
++@        while(HW_DRAM_CTL04.B.DLLLOCKREG==0);
++
++	mov     r0,     #(HW_DRAM_CTL04_ADDR & 0x000000FF)
++	orr     r0, r0, #(HW_DRAM_CTL04_ADDR & 0x0000FF00)
++	orr     r0, r0, #(HW_DRAM_CTL04_ADDR & 0x00FF0000)
++	orr     r0, r0, #(HW_DRAM_CTL04_ADDR & 0xFF000000)
++77:	ldr     r1, [r0]
++	tst     r1, #BM_DRAM_CTL04_DLLLOCKREG
++	beq     77b
++
++
++	@ resttore normal DRAM mode
++        ldr     r0, __mx23_dram_ctl00
++        ldr     r1, [r0, #0x20]
++        bic     r1, r1, #(1 << 8)
++        str     r1, [r0, #0x20]
++
++        @ wait for it to actually happen
++        ldr     r0, __mx23_dram_emi00
++102:    ldr     r1, [r0, #0x10]
++        tst     r1, #(1 << 1)
++        bne     102b
++
++@ restore regs and return
++	ldmfd   sp!, {r1 - r9, lr}
++	mov	pc, lr
++
++	.space	0x100
++__mxs_temp_stack:
++	.word	0
++
++#include "emi.inc"
++
++__mxs_flush_cache_addr:
++	.word	arm926_flush_kern_cache_all
++
++ENTRY(mx23_ram_funcs_sz)
++	.word	. - mxs_ram_freq_scale
++
+diff --git a/arch/arm/mach-mx23/emi.inc b/arch/arm/mach-mx23/emi.inc
+new file mode 100644
+index 0000000..7d55648
+--- /dev/null
++++ b/arch/arm/mach-mx23/emi.inc
+@@ -0,0 +1,633 @@
++/*
++ * Freescale MX23 low level RAM timings tables for Micron mDDR
++ *
++ * Author: Vitaly Wool <vital@embeddedalley.com>
++ *
++ * Copyright 2008-2010 Freescale Semiconductor, Inc.
++ * Copyright 2008 Embedded Alley Solutions, Inc All Rights Reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License along
++ * with this program; if not, write to the Free Software Foundation, Inc.,
++ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
++ */
++__mx23_emi_set_values:
++	stmfd	r9!, {r0 - r4, lr}
++	mov	r1, #(HW_CLKCTRL_EMI_ADDR & 0x000000FF)
++	orr	r1, r1, #(HW_CLKCTRL_EMI_ADDR & 0x0000FF00)
++	orr	r1, r1, #(HW_CLKCTRL_EMI_ADDR & 0x00FF0000)
++	orr	r1, r1, #(HW_CLKCTRL_EMI_ADDR & 0xFF000000)
++
++@	DDC_RESNCY is deprecated at mx23
++@	mov	r3, #BM_CLKCTRL_EMI_DCC_RESYNC_ENABLE
++
++	mov	r0, #(HW_CLKCTRL_FRAC_ADDR & 0x000000FF)
++	orr	r0, r0, #(HW_CLKCTRL_FRAC_ADDR & 0x0000FF00)
++	orr	r0, r0, #(HW_CLKCTRL_FRAC_ADDR & 0x00FF0000)
++	orr	r0, r0, #(HW_CLKCTRL_FRAC_ADDR & 0xFF000000)
++	ldr	r2, [r0]
++
++	and	r4, r2, #BM_CLKCTRL_FRAC_EMIFRAC
++	lsr	r4, r4, #8
++	/* new pll div > cur pll div? */
++	cmp	r4, r8
++	bgt	1f
++	bic	r4, r2, #BM_CLKCTRL_FRAC_EMIFRAC
++	orr	r4, r4, r8, lsl #8
++	str	r4, [r0]
++	nop
++	nop
++	nop
++
++@ Change integer/fractional dividers.
++
++@ The fractional divider and integer divider must be written in such
++@  an order to guarantee that when going from a lower frequency to a
++@  higher frequency that any intermediate frequencies do not exceed
++@  the final frequency. For this reason, we must make sure to check
++@  the current divider values with the new divider values and write
++@  them in the correct order.
++
++1:	ldr	r4, [r1]
++	and	r4, r4, #BM_CLKCTRL_EMI_DIV_EMI
++	/* new emi div > cur emi div? */
++	cmp	r4, r7
++	bgt	2f
++	mov	r4, r7
++	orr	r4, r4, #0x100
++
++@ This was for DCC_RESYNC_ENABLE, which is deprecated in mx23
++@	orr	r4, r4, r3
++
++	str	r4, [r1]
++11:	ldr	r4, [r1]
++	tst	r4, #BM_CLKCTRL_EMI_BUSY_REF_EMI
++	bne	11b
++	tst	r4, #BM_CLKCTRL_EMI_BUSY_REF_XTAL
++	bne	11b
++
++2:	ldr	r2, [r0]
++
++	and	r4, r2, #BM_CLKCTRL_FRAC_EMIFRAC
++	lsr	r4, r4, #8
++	/* new pll div != cur pll div? */
++	cmp	r4, r8
++	beq	3f
++	bic	r4, r2, #BM_CLKCTRL_FRAC_EMIFRAC
++	orr	r4, r4, r8, lsl #8
++	str	r4, [r0]
++	nop
++	nop
++	nop
++
++3:	ldr	r4, [r1]
++	and	r4, r4, #BM_CLKCTRL_EMI_DIV_EMI
++	/* new emi div != cur emi div? */
++	cmp	r4, r7
++	beq	4f
++	mov	r4, r7
++	orr	r4, r4, #0x100
++
++@ This was for DCC_RESYNC_ENABLE, which is deprecated in mx23
++@	orr	r4, r4, r3
++	str	r4, [r1]
++31:	ldr	r4, [r1]
++	tst	r4, #BM_CLKCTRL_EMI_BUSY_REF_EMI
++	bne	31b
++	tst	r4, #BM_CLKCTRL_EMI_BUSY_REF_XTAL
++	bne	31b
++
++4:	ldmfd	r9!, {r0 - r4, lr}
++	mov	pc, lr
++
++mx23_ram_24M_set_timings:
++	ldr	r0, __mx23_dram_ctl00
++#ifdef CONFIG_MXS_RAM_MDDR
++	adr	r1, __mx23_dram_24M_values
++#else
++//  96MHz is the lowest frequency supported for DDR1.
++	adr	r1, __mx23_dram_96M_values
++#endif
++1:	ldr	r2, [r1]
++	ldr	r3, [r1, #4]
++	mov	r4, r2, lsl #2
++	str	r3, [r0, r4]
++	add	r1, r1, #8
++	cmp	r2, #40
++	bne	1b
++	mov	pc, lr
++
++mx23_ram_48M_set_timings:
++	ldr	r0, __mx23_dram_ctl00
++#ifdef CONFIG_MXS_RAM_MDDR
++	adr	r1, __mx23_dram_48M_values
++#else
++//  96MHz is the lowest frequency supported for DDR1.
++	adr	r1, __mx23_dram_96M_values
++#endif
++1:	ldr	r2, [r1]
++	ldr	r3, [r1, #4]
++	mov	r4, r2, lsl #2
++	str	r3, [r0, r4]
++	add	r1, r1, #8
++	cmp	r2, #40
++	bne	1b
++	mov	pc, lr
++
++mx23_ram_60M_set_timings:
++	ldr	r0, __mx23_dram_ctl00
++#ifdef CONFIG_MXS_RAM_MDDR
++	adr	r1, __mx23_dram_60M_values
++#else
++//  96MHz is the lowest frequency supported for DDR1.
++	adr	r1, __mx23_dram_96M_values
++#endif
++1:	ldr	r2, [r1]
++	ldr	r3, [r1, #4]
++	mov	r4, r2, lsl #2
++	str	r3, [r0, r4]
++	add	r1, r1, #8
++	cmp	r2, #40
++	bne	1b
++	mov	pc, lr
++
++mx23_ram_80M_set_timings:
++	ldr	r0, __mx23_dram_ctl00
++#ifdef CONFIG_MXS_RAM_MDDR
++	adr	r1, __mx23_dram_80M_values
++#else
++//  96MHz is the lowest frequency supported for DDR1.
++	adr	r1, __mx23_dram_96M_values
++#endif
++1:	ldr	r2, [r1]
++	ldr	r3, [r1, #4]
++	mov	r4, r2, lsl #2
++	str	r3, [r0, r4]
++	add	r1, r1, #8
++	cmp	r2, #40
++	bne	1b
++	mov	pc, lr
++
++mx23_ram_96M_set_timings:
++	ldr	r0, __mx23_dram_ctl00
++	adr	r1, __mx23_dram_96M_values
++1:	ldr	r2, [r1]
++	ldr	r3, [r1, #4]
++	mov	r4, r2, lsl #2
++	str	r3, [r0, r4]
++	add	r1, r1, #8
++	cmp	r2, #40
++	bne	1b
++	mov	pc, lr
++
++mx23_ram_120M_set_timings:
++	ldr	r0, __mx23_dram_ctl00
++	adr	r1, __mx23_dram_120M_values
++1:	ldr	r2, [r1]
++	ldr	r3, [r1, #4]
++	mov	r4, r2, lsl #2
++	str	r3, [r0, r4]
++	add	r1, r1, #8
++	cmp	r2, #40
++	bne	1b
++	mov	pc, lr
++
++mx23_ram_133M_set_timings:
++	ldr	r0, __mx23_dram_ctl00
++	adr	r1, __mx23_dram_133M_values
++1:	ldr	r2, [r1]
++	ldr	r3, [r1, #4]
++	str	r3, [r0, r2, lsl #2]
++	add	r1, r1, #8
++	cmp	r2, #40
++	bne	1b
++	mov	pc, lr
++
++mx23_ram_150M_set_timings:
++	ldr	r0, __mx23_dram_ctl00
++	adr	r1, __mx23_dram_150M_values
++1:	ldr	r2, [r1]
++	ldr	r3, [r1, #4]
++	str	r3, [r0, r2, lsl #2]
++	add	r1, r1, #8
++	cmp	r2, #40
++	bne	1b
++	mov	pc, lr
++
++__mx23_dram_ctl00:
++@	.word	IO_ADDRESS(0x800E0000)
++	.word	0xF00E0000
++
++__mx23_dram_emi00:
++@	.word	IO_ADDRESS(0x80020000)
++	.word	0xF0020000
++__mx23_power_vdddctrl:
++@	.word	IO_ADDRESS(0x80044040)
++	.word	0xF0044040
++
++mx23_ram_save_timings:
++	ldr	r0, __mx23_dram_ctl00
++	adr	r1, __mx23_dram_saved_values
++1:	ldr	r2, [r1]
++	mov	r4, r2, lsl #2
++	ldr	r3, [r0, r4]
++	str	r3, [r1, #4]
++	add	r1, r1, #8
++	cmp	r2, #40
++	bne	1b
++	mov	pc, lr
++
++#ifdef CONFIG_MXS_RAM_MDDR
++__mx23_dram_24M_values:
++	.word    4
++	.word    0x01000101
++	.word    7
++	.word    0x01000101
++	.word    12
++	.word    0x02010002
++	.word    13
++	.word    0x06060a02
++	.word    15
++	.word    0x01030000
++	.word    17
++	.word    0x2d000102
++	.word    18
++	.word    0x20200000
++	.word    19
++	.word    0x027f1414
++	.word    20
++	.word    0x01021608
++	.word    21
++	.word    0x00000002
++	.word    26
++	.word    0x000000b3
++	.word    32
++	.word    0x00030687
++	.word    33
++	.word    0x00000003
++	.word    34
++	.word    0x000012c1
++	.word    40
++	.word    0x00010000
++
++__mx23_dram_48M_values:
++	.word    4
++	.word    0x01000101
++	.word    7
++	.word    0x01000101
++	.word    13
++	.word    0x06060a02
++	.word    12
++	.word    0x02010002
++	.word    15
++	.word    0x02040000
++	.word    17
++	.word    0x2d000104
++	.word    18
++	.word    0x1f1f0000
++	.word    19
++	.word    0x027f0a0a
++	.word    20
++	.word    0x02030a10
++	.word    21
++	.word    0x00000004
++	.word    26
++	.word    0x0000016f
++	.word    32
++	.word    0x00060d17
++	.word    33
++	.word    0x00000006
++	.word    34
++	.word    0x00002582
++	.word    40
++	.word    0x00020000
++
++__mx23_dram_60M_values:
++__mx23_dram_80M_values:
++	.word    4
++	.word    0x01000101
++	.word    7
++	.word    0x01000101
++	.word    12
++	.word    0x02020002
++	.word    13
++	.word    0x06060a02
++	.word    15
++	.word    0x02040000
++	.word    17
++	.word    0x2d000005
++	.word    18
++	.word    0x1f1f0000
++	.word    19
++	.word    0x027f0a0a
++	.word    20
++	.word    0x02040a10
++	.word    21
++	.word    0x00000006
++	.word    26
++	.word    0x000001cc
++	.word    32
++	.word    0x00081060
++	.word    33
++	.word    0x00000008
++	.word    34
++	.word    0x00002ee5
++	.word    40
++	.word    0x00020000
++
++__mx23_dram_96M_values:
++	.word    4
++	.word    0x00000101
++	.word    7
++	.word    0x01000001
++	.word    12
++	.word    0x02020002
++	.word    13
++	.word    0x06070a02
++	.word    15
++	.word    0x03050000
++	.word    17
++	.word    0x2d000808
++	.word    18
++	.word    0x1f1f0000
++	.word    19
++	.word    0x020c1010
++	.word    20
++	.word    0x0305101c
++	.word    21
++	.word    0x00000007
++	.word    26
++	.word    0x000002e6
++	.word    32
++	.word    0x000c1a3b
++	.word    33
++	.word    0x0000000c
++	.word    34
++	.word    0x00004b0d
++	.word    40
++	.word    0x00030000
++
++__mx23_dram_120M_values:
++	.word    4
++	.word    0x00000101
++	.word    7
++	.word    0x01000001
++	.word    12
++	.word    0x02020002
++	.word    13
++	.word    0x06070a02
++	.word    15
++	.word    0x03050000
++	.word    17
++	.word    0x2300080a
++	.word    18
++	.word    0x1f1f0000
++	.word    19
++	.word    0x020c1010
++	.word    20
++	.word    0x0306101c
++	.word    21
++	.word    0x00000009
++	.word    26
++	.word    0x000003a1
++	.word    32
++	.word    0x000f20ca
++	.word    33
++	.word    0x0000000f
++	.word    34
++	.word    0x00005dca
++	.word    40
++	.word    0x00040000
++
++__mx23_dram_133M_values:
++__mx23_dram_150M_values:
++	.word    4
++	.word    0x00000101
++	.word    7
++	.word    0x01000001
++	.word    12
++	.word    0x02020002
++	.word    13
++	.word    0x06070a02
++	.word    15
++	.word    0x03050000
++	.word    17
++	.word    0x2000080a
++	.word    18
++	.word    0x1f1f0000
++	.word    19
++	.word    0x020c1010
++	.word    20
++	.word    0x0306101c
++	.word    21
++	.word    0x0000000a
++	.word    26
++	.word    0x00000408
++	.word    32
++	.word    0x0010245f
++	.word    33
++	.word    0x00000010
++	.word    34
++	.word    0x00006808
++	.word    40
++	.word    0x00040000
++
++#elif CONFIG_MXS_RAM_DDR
++
++__mx23_dram_96M_values:
++	.word	4
++	.word	0x00000101
++	.word	7
++	.word	0x01000001
++	.word	11
++	.word	0x00070202
++	.word	12
++	.word	0x02020000 @ t_wr 2, t_rrd 2, t_cke 0
++	.word	13
++	.word	0x04040a01 @ t_wtr 1
++	.word	15
++	.word	0x02040000 @ t_rp 2, t_dal 4
++	.word	17
++	.word	0x2f001706 @ dll_start_point 0x2f, dll_increment 0x17, t_rc 6
++	.word	19
++	.word	0x027f1a1a
++	.word	20
++	.word	0x02051c21 @ t_rcd 2, t_rasmin 5, wr_dqs_shift 0x22
++	.word	21
++	.word	0x00000007 @ t_rfc 7
++	.word	26
++	.word	0x000002e6 /* 0x347b */ @ t_ref
++	.word	32
++	.word	0x00081a3e @ t_xsnr 8, t_rasmax 0x1a3e
++	.word	33
++	.word	0x000000c8 @ t_xsr 0xc8
++	.word	34
++	.word	0x00004b0d @ t_init
++	.word	40
++	.word	0x00010000
++
++__mx23_dram_120M_values:
++	.word	4
++	.word	0x00000101
++	.word	7
++	.word	0x01000001
++	.word	11
++	.word	0x00070202
++	.word	12
++	.word	0x02020000 @ t_wr 2, t_rrd 2, t_cke 0
++	.word	13
++	.word	0x04040a01 @ t_wtr 1
++	.word	15
++	.word	0x02040000 @ t_rp 2, t_dal 4
++	.word	17
++	.word	0x26001308 @ dll_start_point 0x26, dll_increment 0x13, t_rc 8
++	.word	19
++	.word	0x027f1a1a
++	.word	20
++	.word	0x02061c23 @ t_rcd 2, t_rasmin 6
++	.word	21
++	.word	0x00000009 @ t_rfc 9
++	.word	26
++	.word	0x000003a1 /* 0x41a6 */ @ t_ref
++	.word	32
++	.word	0x000a20ca @ t_xsnr 9, t_rasmax 0x20ca
++	.word	33
++	.word	0x000000c8 @ t_xsr 0xc8
++	.word	34
++	.word	0x00005dca @ t_init
++	.word	40
++	.word	0x00010000
++
++__mx23_dram_133M_values:
++	.word	4
++	.word	0x00000101
++	.word	7
++	.word	0x01000001
++	.word	11
++	.word	0x00070202
++	.word	12
++	.word	0x02020000
++	.word	13
++	.word	0x04040a01
++	.word	15
++	.word	0x02040000
++	.word	17
++	.word	0x19000f08 @ t_rc 0xa
++	.word	19
++	.word	0x02021313
++	.word	20
++	.word	0x02061521
++	.word	21
++	.word	0x0000000a
++	.word	26
++	.word	0x000003f7 /* 0x48b9 */
++	.word	32
++	.word	0x000a23cd
++	.word	33
++	.word	0x000000c8 @ t_xsr 0xc8
++	.word	34
++	.word	0x00006665
++	.word	40
++	.word	0x00010000
++
++__mx23_dram_150M_values:
++	.word	4
++	.word	0x00000101
++	.word	7
++	.word	0x01000001
++/*
++Note that CASLAT of 0x06 means 2.5 cycles.  This is needed to operate at this
++frequency. HOWEVER, we would need to implement the setting of WRITEMODEREG
++after setting CAS latency to assure that the new CAS latency is actually
++being used in the EMI controller.  Otherwise, the controller will still be
++using whatever was set the first time the EMI controller was initialized.
++Also, a CASLAT of 2.5 needs caslat_lin and caslat_lin_gate of 0x05
++(also 2.5 cycles).
++*/
++	.word	11
++	.word	0x00070206
++	.word	12
++	.word	0x02020000 @ t_wr 2, t_rrd 2, t_cke 0
++/*
++	caslat_lin and caslat_lin_gate of 0x05 since CASLAT is 0x06 (2.5 cycles).  See above note.
++*/
++	.word	13
++	.word	0x05050a02 @ t_wtr 2
++	.word	15
++	.word	0x03060000 @ t_rp 3, t_dal 6
++	.word	17
++	.word	0x18000d0c @ dll_start_point 0x18, dll_increment 0xd, t_rc 0xc
++	.word	19
++	.word	0x027f0f0f
++	.word	20
++	.word	0x03071121 @ t_rcd 3, t_rasmin 7
++	.word	21
++	.word	0x0000000c @ t_rfc 0xc
++	.word	26
++	.word	0x000001cc /* 0x20cd */ @ t_ref
++	.word	32
++	.word	0x000c2860 @ t_xsnr 0xc, t_rasmax 0x2860
++	.word	33
++	.word	0x000000c8 @ t_xsr 0xc8
++	.word	34
++	.word	0x00007554 @ t_init
++	.word	40
++	.word	0x00010000
++
++#else
++#error RAM chip not defined
++#endif
++
++mx23_ram_restore_timings:
++	ldr	r0, __mx23_dram_ctl00
++	adr	r1, __mx23_dram_saved_values
++1:	ldr	r2, [r1]
++	ldr	r3, [r1, #4]
++	mov	r4, r2, lsl #2
++	str	r3, [r0, r4]
++	add	r1, r1, #8
++	cmp	r2, #40
++	bne	1b
++	mov	pc, lr
++
++__mx23_dram_saved_values:
++	.word	4
++	.word	0
++	.word	7
++	.word	0
++	.word	12
++	.word	0
++	.word	13
++	.word	0
++	.word	15
++	.word	0
++	.word	17
++	.word	0
++	.word	18
++	.word	0
++	.word	19
++	.word	0
++	.word	20
++	.word	0
++	.word	21
++	.word	0
++	.word	26
++	.word	0
++	.word	32
++	.word	0
++	.word	33
++	.word	0
++	.word	34
++	.word	0
++	.word	40
++	.word	0
++
+diff --git a/arch/arm/mach-mx23/include/mach/regs-emi.h b/arch/arm/mach-mx23/include/mach/regs-emi.h
+new file mode 100644
+index 0000000..bf3adff
+--- /dev/null
++++ b/arch/arm/mach-mx23/include/mach/regs-emi.h
+@@ -0,0 +1,234 @@
++/*
++ * Freescale EMI Register Definitions
++ *
++ * Copyright 2008 Embedded Alley Solutions, Inc All Rights Reserved.
++ * Copyright 2008-2010 Freescale Semiconductor, Inc.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
++ *
++ * This file is created by xml file. Don't Edit it.
++ */
++
++#ifndef __ARCH_ARM___EMI_H
++#define __ARCH_ARM___EMI_H  1
++
++#define REGS_EMI_PHYS (0x80020000)
++#define REGS_EMI_SIZE 0x00002000
++
++#define HW_EMI_CTRL	(0x00000000)
++#define HW_EMI_CTRL_SET	(0x00000004)
++#define HW_EMI_CTRL_CLR	(0x00000008)
++#define HW_EMI_CTRL_TOG	(0x0000000c)
++
++#define BM_EMI_CTRL_SFTRST	0x80000000
++#define BM_EMI_CTRL_CLKGATE	0x40000000
++#define BM_EMI_CTRL_TRAP_SR	0x20000000
++#define BM_EMI_CTRL_TRAP_INIT	0x10000000
++#define BP_EMI_CTRL_AXI_DEPTH	26
++#define BM_EMI_CTRL_AXI_DEPTH	0x0C000000
++#define BF_EMI_CTRL_AXI_DEPTH(v)  \
++		(((v) << 26) & BM_EMI_CTRL_AXI_DEPTH)
++#define BV_EMI_CTRL_AXI_DEPTH__ONE   0x0
++#define BV_EMI_CTRL_AXI_DEPTH__TWO   0x1
++#define BV_EMI_CTRL_AXI_DEPTH__THREE 0x2
++#define BV_EMI_CTRL_AXI_DEPTH__FOUR  0x3
++#define BM_EMI_CTRL_DLL_SHIFT_RESET	0x02000000
++#define BM_EMI_CTRL_DLL_RESET	0x01000000
++#define BP_EMI_CTRL_ARB_MODE	22
++#define BM_EMI_CTRL_ARB_MODE	0x00C00000
++#define BF_EMI_CTRL_ARB_MODE(v)  \
++		(((v) << 22) & BM_EMI_CTRL_ARB_MODE)
++#define BV_EMI_CTRL_ARB_MODE__TIMESTAMP     0x0
++#define BV_EMI_CTRL_ARB_MODE__WRITE_HYBRID  0x1
++#define BV_EMI_CTRL_ARB_MODE__PORT_PRIORITY 0x2
++#define BM_EMI_CTRL_RSVD3	0x00200000
++#define BP_EMI_CTRL_PORT_PRIORITY_ORDER	16
++#define BM_EMI_CTRL_PORT_PRIORITY_ORDER	0x001F0000
++#define BF_EMI_CTRL_PORT_PRIORITY_ORDER(v)  \
++		(((v) << 16) & BM_EMI_CTRL_PORT_PRIORITY_ORDER)
++#define BV_EMI_CTRL_PORT_PRIORITY_ORDER__PORT0123 0x00
++#define BV_EMI_CTRL_PORT_PRIORITY_ORDER__PORT0312 0x01
++#define BV_EMI_CTRL_PORT_PRIORITY_ORDER__PORT0231 0x02
++#define BV_EMI_CTRL_PORT_PRIORITY_ORDER__PORT0321 0x03
++#define BV_EMI_CTRL_PORT_PRIORITY_ORDER__PORT0213 0x04
++#define BV_EMI_CTRL_PORT_PRIORITY_ORDER__PORT0132 0x05
++#define BV_EMI_CTRL_PORT_PRIORITY_ORDER__PORT1023 0x06
++#define BV_EMI_CTRL_PORT_PRIORITY_ORDER__PORT1302 0x07
++#define BV_EMI_CTRL_PORT_PRIORITY_ORDER__PORT1230 0x08
++#define BV_EMI_CTRL_PORT_PRIORITY_ORDER__PORT1320 0x09
++#define BV_EMI_CTRL_PORT_PRIORITY_ORDER__PORT1203 0x0A
++#define BV_EMI_CTRL_PORT_PRIORITY_ORDER__PORT1032 0x0B
++#define BV_EMI_CTRL_PORT_PRIORITY_ORDER__PORT2013 0x0C
++#define BV_EMI_CTRL_PORT_PRIORITY_ORDER__PORT2301 0x0D
++#define BV_EMI_CTRL_PORT_PRIORITY_ORDER__PORT2130 0x0E
++#define BV_EMI_CTRL_PORT_PRIORITY_ORDER__PORT2310 0x0F
++#define BV_EMI_CTRL_PORT_PRIORITY_ORDER__PORT2103 0x10
++#define BV_EMI_CTRL_PORT_PRIORITY_ORDER__PORT2031 0x11
++#define BV_EMI_CTRL_PORT_PRIORITY_ORDER__PORT3012 0x12
++#define BV_EMI_CTRL_PORT_PRIORITY_ORDER__PORT3201 0x13
++#define BV_EMI_CTRL_PORT_PRIORITY_ORDER__PORT3120 0x14
++#define BV_EMI_CTRL_PORT_PRIORITY_ORDER__PORT3210 0x15
++#define BV_EMI_CTRL_PORT_PRIORITY_ORDER__PORT3102 0x16
++#define BV_EMI_CTRL_PORT_PRIORITY_ORDER__PORT3021 0x17
++#define BM_EMI_CTRL_RSVD2	0x00008000
++#define BP_EMI_CTRL_PRIORITY_WRITE_ITER	12
++#define BM_EMI_CTRL_PRIORITY_WRITE_ITER	0x00007000
++#define BF_EMI_CTRL_PRIORITY_WRITE_ITER(v)  \
++		(((v) << 12) & BM_EMI_CTRL_PRIORITY_WRITE_ITER)
++#define BM_EMI_CTRL_RSVD1	0x00000800
++#define BP_EMI_CTRL_HIGH_PRIORITY_WRITE	8
++#define BM_EMI_CTRL_HIGH_PRIORITY_WRITE	0x00000700
++#define BF_EMI_CTRL_HIGH_PRIORITY_WRITE(v)  \
++		(((v) << 8) & BM_EMI_CTRL_HIGH_PRIORITY_WRITE)
++#define BM_EMI_CTRL_RSVD0	0x00000080
++#define BM_EMI_CTRL_MEM_WIDTH	0x00000040
++#define BM_EMI_CTRL_WRITE_PROTECT	0x00000020
++#define BM_EMI_CTRL_RESET_OUT	0x00000010
++#define BP_EMI_CTRL_CE_SELECT	0
++#define BM_EMI_CTRL_CE_SELECT	0x0000000F
++#define BF_EMI_CTRL_CE_SELECT(v)  \
++		(((v) << 0) & BM_EMI_CTRL_CE_SELECT)
++#define BV_EMI_CTRL_CE_SELECT__NONE 0x0
++#define BV_EMI_CTRL_CE_SELECT__CE0  0x1
++#define BV_EMI_CTRL_CE_SELECT__CE1  0x2
++#define BV_EMI_CTRL_CE_SELECT__CE2  0x4
++#define BV_EMI_CTRL_CE_SELECT__CE3  0x8
++
++#define HW_EMI_STAT	(0x00000010)
++
++#define BM_EMI_STAT_DRAM_PRESENT	0x80000000
++#define BM_EMI_STAT_NOR_PRESENT	0x40000000
++#define BM_EMI_STAT_LARGE_DRAM_ENABLED	0x20000000
++#define BP_EMI_STAT_RSVD0	2
++#define BM_EMI_STAT_RSVD0	0x1FFFFFFC
++#define BF_EMI_STAT_RSVD0(v)  \
++		(((v) << 2) & BM_EMI_STAT_RSVD0)
++#define BM_EMI_STAT_DRAM_HALTED	0x00000002
++#define BV_EMI_STAT_DRAM_HALTED__NOT_HALTED 0x0
++#define BV_EMI_STAT_DRAM_HALTED__HALTED     0x1
++#define BM_EMI_STAT_NOR_BUSY	0x00000001
++#define BV_EMI_STAT_NOR_BUSY__NOT_BUSY 0x0
++#define BV_EMI_STAT_NOR_BUSY__BUSY     0x1
++
++#define HW_EMI_TIME	(0x00000020)
++#define HW_EMI_TIME_SET	(0x00000024)
++#define HW_EMI_TIME_CLR	(0x00000028)
++#define HW_EMI_TIME_TOG	(0x0000002c)
++
++#define BP_EMI_TIME_RSVD4	28
++#define BM_EMI_TIME_RSVD4	0xF0000000
++#define BF_EMI_TIME_RSVD4(v) \
++		(((v) << 28) & BM_EMI_TIME_RSVD4)
++#define BP_EMI_TIME_THZ	24
++#define BM_EMI_TIME_THZ	0x0F000000
++#define BF_EMI_TIME_THZ(v)  \
++		(((v) << 24) & BM_EMI_TIME_THZ)
++#define BP_EMI_TIME_RSVD2	20
++#define BM_EMI_TIME_RSVD2	0x00F00000
++#define BF_EMI_TIME_RSVD2(v)  \
++		(((v) << 20) & BM_EMI_TIME_RSVD2)
++#define BP_EMI_TIME_TDH	16
++#define BM_EMI_TIME_TDH	0x000F0000
++#define BF_EMI_TIME_TDH(v)  \
++		(((v) << 16) & BM_EMI_TIME_TDH)
++#define BP_EMI_TIME_RSVD1	13
++#define BM_EMI_TIME_RSVD1	0x0000E000
++#define BF_EMI_TIME_RSVD1(v)  \
++		(((v) << 13) & BM_EMI_TIME_RSVD1)
++#define BP_EMI_TIME_TDS	8
++#define BM_EMI_TIME_TDS	0x00001F00
++#define BF_EMI_TIME_TDS(v)  \
++		(((v) << 8) & BM_EMI_TIME_TDS)
++#define BP_EMI_TIME_RSVD0	4
++#define BM_EMI_TIME_RSVD0	0x000000F0
++#define BF_EMI_TIME_RSVD0(v)  \
++		(((v) << 4) & BM_EMI_TIME_RSVD0)
++#define BP_EMI_TIME_TAS	0
++#define BM_EMI_TIME_TAS	0x0000000F
++#define BF_EMI_TIME_TAS(v)  \
++		(((v) << 0) & BM_EMI_TIME_TAS)
++
++#define HW_EMI_DDR_TEST_MODE_CSR	(0x00000030)
++#define HW_EMI_DDR_TEST_MODE_CSR_SET	(0x00000034)
++#define HW_EMI_DDR_TEST_MODE_CSR_CLR	(0x00000038)
++#define HW_EMI_DDR_TEST_MODE_CSR_TOG	(0x0000003c)
++
++#define BP_EMI_DDR_TEST_MODE_CSR_RSVD1	2
++#define BM_EMI_DDR_TEST_MODE_CSR_RSVD1	0xFFFFFFFC
++#define BF_EMI_DDR_TEST_MODE_CSR_RSVD1(v) \
++		(((v) << 2) & BM_EMI_DDR_TEST_MODE_CSR_RSVD1)
++#define BM_EMI_DDR_TEST_MODE_CSR_DONE	0x00000002
++#define BM_EMI_DDR_TEST_MODE_CSR_START	0x00000001
++
++#define HW_EMI_DEBUG	(0x00000080)
++
++#define BP_EMI_DEBUG_RSVD1	4
++#define BM_EMI_DEBUG_RSVD1	0xFFFFFFF0
++#define BF_EMI_DEBUG_RSVD1(v) \
++		(((v) << 4) & BM_EMI_DEBUG_RSVD1)
++#define BP_EMI_DEBUG_NOR_STATE	0
++#define BM_EMI_DEBUG_NOR_STATE	0x0000000F
++#define BF_EMI_DEBUG_NOR_STATE(v)  \
++		(((v) << 0) & BM_EMI_DEBUG_NOR_STATE)
++
++#define HW_EMI_DDR_TEST_MODE_STATUS0	(0x00000090)
++
++#define BP_EMI_DDR_TEST_MODE_STATUS0_RSVD1	13
++#define BM_EMI_DDR_TEST_MODE_STATUS0_RSVD1	0xFFFFE000
++#define BF_EMI_DDR_TEST_MODE_STATUS0_RSVD1(v) \
++		(((v) << 13) & BM_EMI_DDR_TEST_MODE_STATUS0_RSVD1)
++#define BP_EMI_DDR_TEST_MODE_STATUS0_ADDR0	0
++#define BM_EMI_DDR_TEST_MODE_STATUS0_ADDR0	0x00001FFF
++#define BF_EMI_DDR_TEST_MODE_STATUS0_ADDR0(v)  \
++		(((v) << 0) & BM_EMI_DDR_TEST_MODE_STATUS0_ADDR0)
++
++#define HW_EMI_DDR_TEST_MODE_STATUS1	(0x000000a0)
++
++#define BP_EMI_DDR_TEST_MODE_STATUS1_RSVD1	13
++#define BM_EMI_DDR_TEST_MODE_STATUS1_RSVD1	0xFFFFE000
++#define BF_EMI_DDR_TEST_MODE_STATUS1_RSVD1(v) \
++		(((v) << 13) & BM_EMI_DDR_TEST_MODE_STATUS1_RSVD1)
++#define BP_EMI_DDR_TEST_MODE_STATUS1_ADDR1	0
++#define BM_EMI_DDR_TEST_MODE_STATUS1_ADDR1	0x00001FFF
++#define BF_EMI_DDR_TEST_MODE_STATUS1_ADDR1(v)  \
++		(((v) << 0) & BM_EMI_DDR_TEST_MODE_STATUS1_ADDR1)
++
++#define HW_EMI_DDR_TEST_MODE_STATUS2	(0x000000b0)
++
++#define BP_EMI_DDR_TEST_MODE_STATUS2_DATA0	0
++#define BM_EMI_DDR_TEST_MODE_STATUS2_DATA0	0xFFFFFFFF
++#define BF_EMI_DDR_TEST_MODE_STATUS2_DATA0(v)	(v)
++
++#define HW_EMI_DDR_TEST_MODE_STATUS3	(0x000000c0)
++
++#define BP_EMI_DDR_TEST_MODE_STATUS3_DATA1	0
++#define BM_EMI_DDR_TEST_MODE_STATUS3_DATA1	0xFFFFFFFF
++#define BF_EMI_DDR_TEST_MODE_STATUS3_DATA1(v)	(v)
++
++#define HW_EMI_VERSION	(0x000000f0)
++
++#define BP_EMI_VERSION_MAJOR	24
++#define BM_EMI_VERSION_MAJOR	0xFF000000
++#define BF_EMI_VERSION_MAJOR(v) \
++		(((v) << 24) & BM_EMI_VERSION_MAJOR)
++#define BP_EMI_VERSION_MINOR	16
++#define BM_EMI_VERSION_MINOR	0x00FF0000
++#define BF_EMI_VERSION_MINOR(v)  \
++		(((v) << 16) & BM_EMI_VERSION_MINOR)
++#define BP_EMI_VERSION_STEP	0
++#define BM_EMI_VERSION_STEP	0x0000FFFF
++#define BF_EMI_VERSION_STEP(v)  \
++		(((v) << 0) & BM_EMI_VERSION_STEP)
++#endif /* __ARCH_ARM___EMI_H */
+diff --git a/arch/arm/mach-mx23/regs-dram.h b/arch/arm/mach-mx23/regs-dram.h
+new file mode 100644
+index 0000000..be2fcfa
+--- /dev/null
++++ b/arch/arm/mach-mx23/regs-dram.h
+@@ -0,0 +1,890 @@
++/*
++ * Freescale DRAM Register Definitions
++ *
++ * Copyright 2008 Embedded Alley Solutions, Inc All Rights Reserved.
++ * Copyright 2008-2010 Freescale Semiconductor, Inc.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
++ *
++ * This file is created by xml file. Don't Edit it.
++ */
++
++#ifndef __ARCH_ARM___DRAM_H
++#define __ARCH_ARM___DRAM_H  1
++
++#define REGS_DRAM_PHYS (0x800E0000)
++#define REGS_DRAM_SIZE 0x00002000
++
++#define HW_DRAM_CTL00	(0x00000000)
++
++#define BP_DRAM_CTL00_RSVD4	25
++#define BM_DRAM_CTL00_RSVD4	0xFE000000
++#define BF_DRAM_CTL00_RSVD4(v) \
++		(((v) << 25) & BM_DRAM_CTL00_RSVD4)
++#define BM_DRAM_CTL00_AHB0_W_PRIORITY	0x01000000
++#define BP_DRAM_CTL00_RSVD3	17
++#define BM_DRAM_CTL00_RSVD3	0x00FE0000
++#define BF_DRAM_CTL00_RSVD3(v)  \
++		(((v) << 17) & BM_DRAM_CTL00_RSVD3)
++#define BM_DRAM_CTL00_AHB0_R_PRIORITY	0x00010000
++#define BP_DRAM_CTL00_RSVD2	9
++#define BM_DRAM_CTL00_RSVD2	0x0000FE00
++#define BF_DRAM_CTL00_RSVD2(v)  \
++		(((v) << 9) & BM_DRAM_CTL00_RSVD2)
++#define BM_DRAM_CTL00_AHB0_FIFO_TYPE_REG	0x00000100
++#define BP_DRAM_CTL00_RSVD1	1
++#define BM_DRAM_CTL00_RSVD1	0x000000FE
++#define BF_DRAM_CTL00_RSVD1(v)  \
++		(((v) << 1) & BM_DRAM_CTL00_RSVD1)
++#define BM_DRAM_CTL00_ADDR_CMP_EN	0x00000001
++
++#define HW_DRAM_CTL01	(0x00000004)
++
++#define BP_DRAM_CTL01_RSVD4	25
++#define BM_DRAM_CTL01_RSVD4	0xFE000000
++#define BF_DRAM_CTL01_RSVD4(v) \
++		(((v) << 25) & BM_DRAM_CTL01_RSVD4)
++#define BM_DRAM_CTL01_AHB2_FIFO_TYPE_REG	0x01000000
++#define BP_DRAM_CTL01_RSVD3	17
++#define BM_DRAM_CTL01_RSVD3	0x00FE0000
++#define BF_DRAM_CTL01_RSVD3(v)  \
++		(((v) << 17) & BM_DRAM_CTL01_RSVD3)
++#define BM_DRAM_CTL01_AHB1_W_PRIORITY	0x00010000
++#define BP_DRAM_CTL01_RSVD2	9
++#define BM_DRAM_CTL01_RSVD2	0x0000FE00
++#define BF_DRAM_CTL01_RSVD2(v)  \
++		(((v) << 9) & BM_DRAM_CTL01_RSVD2)
++#define BM_DRAM_CTL01_AHB1_R_PRIORITY	0x00000100
++#define BP_DRAM_CTL01_RSVD1	1
++#define BM_DRAM_CTL01_RSVD1	0x000000FE
++#define BF_DRAM_CTL01_RSVD1(v)  \
++		(((v) << 1) & BM_DRAM_CTL01_RSVD1)
++#define BM_DRAM_CTL01_AHB1_FIFO_TYPE_REG	0x00000001
++
++#define HW_DRAM_CTL02	(0x00000008)
++
++#define BP_DRAM_CTL02_RSVD4	25
++#define BM_DRAM_CTL02_RSVD4	0xFE000000
++#define BF_DRAM_CTL02_RSVD4(v) \
++		(((v) << 25) & BM_DRAM_CTL02_RSVD4)
++#define BM_DRAM_CTL02_AHB3_R_PRIORITY	0x01000000
++#define BP_DRAM_CTL02_RSVD3	17
++#define BM_DRAM_CTL02_RSVD3	0x00FE0000
++#define BF_DRAM_CTL02_RSVD3(v)  \
++		(((v) << 17) & BM_DRAM_CTL02_RSVD3)
++#define BM_DRAM_CTL02_AHB3_FIFO_TYPE_REG	0x00010000
++#define BP_DRAM_CTL02_RSVD2	9
++#define BM_DRAM_CTL02_RSVD2	0x0000FE00
++#define BF_DRAM_CTL02_RSVD2(v)  \
++		(((v) << 9) & BM_DRAM_CTL02_RSVD2)
++#define BM_DRAM_CTL02_AHB2_W_PRIORITY	0x00000100
++#define BP_DRAM_CTL02_RSVD1	1
++#define BM_DRAM_CTL02_RSVD1	0x000000FE
++#define BF_DRAM_CTL02_RSVD1(v)  \
++		(((v) << 1) & BM_DRAM_CTL02_RSVD1)
++#define BM_DRAM_CTL02_AHB2_R_PRIORITY	0x00000001
++
++#define HW_DRAM_CTL03	(0x0000000c)
++
++#define BP_DRAM_CTL03_RSVD4	25
++#define BM_DRAM_CTL03_RSVD4	0xFE000000
++#define BF_DRAM_CTL03_RSVD4(v) \
++		(((v) << 25) & BM_DRAM_CTL03_RSVD4)
++#define BM_DRAM_CTL03_AUTO_REFRESH_MODE	0x01000000
++#define BP_DRAM_CTL03_RSVD3	17
++#define BM_DRAM_CTL03_RSVD3	0x00FE0000
++#define BF_DRAM_CTL03_RSVD3(v)  \
++		(((v) << 17) & BM_DRAM_CTL03_RSVD3)
++#define BM_DRAM_CTL03_AREFRESH	0x00010000
++#define BP_DRAM_CTL03_RSVD2	9
++#define BM_DRAM_CTL03_RSVD2	0x0000FE00
++#define BF_DRAM_CTL03_RSVD2(v)  \
++		(((v) << 9) & BM_DRAM_CTL03_RSVD2)
++#define BM_DRAM_CTL03_AP	0x00000100
++#define BP_DRAM_CTL03_RSVD1	1
++#define BM_DRAM_CTL03_RSVD1	0x000000FE
++#define BF_DRAM_CTL03_RSVD1(v)  \
++		(((v) << 1) & BM_DRAM_CTL03_RSVD1)
++#define BM_DRAM_CTL03_AHB3_W_PRIORITY	0x00000001
++
++#define HW_DRAM_CTL04	(0x00000010)
++
++#define BP_DRAM_CTL04_RSVD4	25
++#define BM_DRAM_CTL04_RSVD4	0xFE000000
++#define BF_DRAM_CTL04_RSVD4(v) \
++		(((v) << 25) & BM_DRAM_CTL04_RSVD4)
++#define BM_DRAM_CTL04_DLL_BYPASS_MODE	0x01000000
++#define BP_DRAM_CTL04_RSVD3	17
++#define BM_DRAM_CTL04_RSVD3	0x00FE0000
++#define BF_DRAM_CTL04_RSVD3(v)  \
++		(((v) << 17) & BM_DRAM_CTL04_RSVD3)
++#define BM_DRAM_CTL04_DLLLOCKREG	0x00010000
++#define BP_DRAM_CTL04_RSVD2	9
++#define BM_DRAM_CTL04_RSVD2	0x0000FE00
++#define BF_DRAM_CTL04_RSVD2(v)  \
++		(((v) << 9) & BM_DRAM_CTL04_RSVD2)
++#define BM_DRAM_CTL04_CONCURRENTAP	0x00000100
++#define BP_DRAM_CTL04_RSVD1	1
++#define BM_DRAM_CTL04_RSVD1	0x000000FE
++#define BF_DRAM_CTL04_RSVD1(v)  \
++		(((v) << 1) & BM_DRAM_CTL04_RSVD1)
++#define BM_DRAM_CTL04_BANK_SPLIT_EN	0x00000001
++
++#define HW_DRAM_CTL05	(0x00000014)
++
++#define BP_DRAM_CTL05_RSVD4	25
++#define BM_DRAM_CTL05_RSVD4	0xFE000000
++#define BF_DRAM_CTL05_RSVD4(v) \
++		(((v) << 25) & BM_DRAM_CTL05_RSVD4)
++#define BM_DRAM_CTL05_INTRPTREADA	0x01000000
++#define BP_DRAM_CTL05_RSVD3	17
++#define BM_DRAM_CTL05_RSVD3	0x00FE0000
++#define BF_DRAM_CTL05_RSVD3(v)  \
++		(((v) << 17) & BM_DRAM_CTL05_RSVD3)
++#define BM_DRAM_CTL05_INTRPTAPBURST	0x00010000
++#define BP_DRAM_CTL05_RSVD2	9
++#define BM_DRAM_CTL05_RSVD2	0x0000FE00
++#define BF_DRAM_CTL05_RSVD2(v)  \
++		(((v) << 9) & BM_DRAM_CTL05_RSVD2)
++#define BM_DRAM_CTL05_FAST_WRITE	0x00000100
++#define BP_DRAM_CTL05_RSVD1	1
++#define BM_DRAM_CTL05_RSVD1	0x000000FE
++#define BF_DRAM_CTL05_RSVD1(v)  \
++		(((v) << 1) & BM_DRAM_CTL05_RSVD1)
++#define BM_DRAM_CTL05_EN_LOWPOWER_MODE	0x00000001
++
++#define HW_DRAM_CTL06	(0x00000018)
++
++#define BP_DRAM_CTL06_RSVD4	25
++#define BM_DRAM_CTL06_RSVD4	0xFE000000
++#define BF_DRAM_CTL06_RSVD4(v) \
++		(((v) << 25) & BM_DRAM_CTL06_RSVD4)
++#define BM_DRAM_CTL06_POWER_DOWN	0x01000000
++#define BP_DRAM_CTL06_RSVD3	17
++#define BM_DRAM_CTL06_RSVD3	0x00FE0000
++#define BF_DRAM_CTL06_RSVD3(v)  \
++		(((v) << 17) & BM_DRAM_CTL06_RSVD3)
++#define BM_DRAM_CTL06_PLACEMENT_EN	0x00010000
++#define BP_DRAM_CTL06_RSVD2	9
++#define BM_DRAM_CTL06_RSVD2	0x0000FE00
++#define BF_DRAM_CTL06_RSVD2(v)  \
++		(((v) << 9) & BM_DRAM_CTL06_RSVD2)
++#define BM_DRAM_CTL06_NO_CMD_INIT	0x00000100
++#define BP_DRAM_CTL06_RSVD1	1
++#define BM_DRAM_CTL06_RSVD1	0x000000FE
++#define BF_DRAM_CTL06_RSVD1(v)  \
++		(((v) << 1) & BM_DRAM_CTL06_RSVD1)
++#define BM_DRAM_CTL06_INTRPTWRITEA	0x00000001
++
++#define HW_DRAM_CTL07	(0x0000001c)
++
++#define BP_DRAM_CTL07_RSVD4	25
++#define BM_DRAM_CTL07_RSVD4	0xFE000000
++#define BF_DRAM_CTL07_RSVD4(v) \
++		(((v) << 25) & BM_DRAM_CTL07_RSVD4)
++#define BM_DRAM_CTL07_RW_SAME_EN	0x01000000
++#define BP_DRAM_CTL07_RSVD3	17
++#define BM_DRAM_CTL07_RSVD3	0x00FE0000
++#define BF_DRAM_CTL07_RSVD3(v)  \
++		(((v) << 17) & BM_DRAM_CTL07_RSVD3)
++#define BM_DRAM_CTL07_REG_DIMM_ENABLE	0x00010000
++#define BP_DRAM_CTL07_RSVD2	9
++#define BM_DRAM_CTL07_RSVD2	0x0000FE00
++#define BF_DRAM_CTL07_RSVD2(v)  \
++		(((v) << 9) & BM_DRAM_CTL07_RSVD2)
++#define BM_DRAM_CTL07_RD2RD_TURN	0x00000100
++#define BP_DRAM_CTL07_RSVD1	1
++#define BM_DRAM_CTL07_RSVD1	0x000000FE
++#define BF_DRAM_CTL07_RSVD1(v)  \
++		(((v) << 1) & BM_DRAM_CTL07_RSVD1)
++#define BM_DRAM_CTL07_PRIORITY_EN	0x00000001
++
++#define HW_DRAM_CTL08	(0x00000020)
++
++#define BP_DRAM_CTL08_RSVD4	25
++#define BM_DRAM_CTL08_RSVD4	0xFE000000
++#define BF_DRAM_CTL08_RSVD4(v) \
++		(((v) << 25) & BM_DRAM_CTL08_RSVD4)
++#define BM_DRAM_CTL08_TRAS_LOCKOUT	0x01000000
++#define BP_DRAM_CTL08_RSVD3	17
++#define BM_DRAM_CTL08_RSVD3	0x00FE0000
++#define BF_DRAM_CTL08_RSVD3(v)  \
++		(((v) << 17) & BM_DRAM_CTL08_RSVD3)
++#define BM_DRAM_CTL08_START	0x00010000
++#define BP_DRAM_CTL08_RSVD2	9
++#define BM_DRAM_CTL08_RSVD2	0x0000FE00
++#define BF_DRAM_CTL08_RSVD2(v)  \
++		(((v) << 9) & BM_DRAM_CTL08_RSVD2)
++#define BM_DRAM_CTL08_SREFRESH	0x00000100
++#define BP_DRAM_CTL08_RSVD1	1
++#define BM_DRAM_CTL08_RSVD1	0x000000FE
++#define BF_DRAM_CTL08_RSVD1(v)  \
++		(((v) << 1) & BM_DRAM_CTL08_RSVD1)
++#define BM_DRAM_CTL08_SDR_MODE	0x00000001
++
++#define HW_DRAM_CTL09	(0x00000024)
++
++#define BP_DRAM_CTL09_RSVD4	26
++#define BM_DRAM_CTL09_RSVD4	0xFC000000
++#define BF_DRAM_CTL09_RSVD4(v) \
++		(((v) << 26) & BM_DRAM_CTL09_RSVD4)
++#define BP_DRAM_CTL09_OUT_OF_RANGE_TYPE	24
++#define BM_DRAM_CTL09_OUT_OF_RANGE_TYPE	0x03000000
++#define BF_DRAM_CTL09_OUT_OF_RANGE_TYPE(v)  \
++		(((v) << 24) & BM_DRAM_CTL09_OUT_OF_RANGE_TYPE)
++#define BP_DRAM_CTL09_RSVD3	18
++#define BM_DRAM_CTL09_RSVD3	0x00FC0000
++#define BF_DRAM_CTL09_RSVD3(v)  \
++		(((v) << 18) & BM_DRAM_CTL09_RSVD3)
++#define BP_DRAM_CTL09_OUT_OF_RANGE_SOURCE_ID	16
++#define BM_DRAM_CTL09_OUT_OF_RANGE_SOURCE_ID	0x00030000
++#define BF_DRAM_CTL09_OUT_OF_RANGE_SOURCE_ID(v)  \
++		(((v) << 16) & BM_DRAM_CTL09_OUT_OF_RANGE_SOURCE_ID)
++#define BP_DRAM_CTL09_RSVD2	9
++#define BM_DRAM_CTL09_RSVD2	0x0000FE00
++#define BF_DRAM_CTL09_RSVD2(v)  \
++		(((v) << 9) & BM_DRAM_CTL09_RSVD2)
++#define BM_DRAM_CTL09_WRITE_MODEREG	0x00000100
++#define BP_DRAM_CTL09_RSVD1	1
++#define BM_DRAM_CTL09_RSVD1	0x000000FE
++#define BF_DRAM_CTL09_RSVD1(v)  \
++		(((v) << 1) & BM_DRAM_CTL09_RSVD1)
++#define BM_DRAM_CTL09_WRITEINTERP	0x00000001
++
++#define HW_DRAM_CTL10	(0x00000028)
++
++#define BP_DRAM_CTL10_RSVD4	27
++#define BM_DRAM_CTL10_RSVD4	0xF8000000
++#define BF_DRAM_CTL10_RSVD4(v) \
++		(((v) << 27) & BM_DRAM_CTL10_RSVD4)
++#define BP_DRAM_CTL10_AGE_COUNT	24
++#define BM_DRAM_CTL10_AGE_COUNT	0x07000000
++#define BF_DRAM_CTL10_AGE_COUNT(v)  \
++		(((v) << 24) & BM_DRAM_CTL10_AGE_COUNT)
++#define BP_DRAM_CTL10_RSVD3	19
++#define BM_DRAM_CTL10_RSVD3	0x00F80000
++#define BF_DRAM_CTL10_RSVD3(v)  \
++		(((v) << 19) & BM_DRAM_CTL10_RSVD3)
++#define BP_DRAM_CTL10_ADDR_PINS	16
++#define BM_DRAM_CTL10_ADDR_PINS	0x00070000
++#define BF_DRAM_CTL10_ADDR_PINS(v)  \
++		(((v) << 16) & BM_DRAM_CTL10_ADDR_PINS)
++#define BP_DRAM_CTL10_RSVD2	10
++#define BM_DRAM_CTL10_RSVD2	0x0000FC00
++#define BF_DRAM_CTL10_RSVD2(v)  \
++		(((v) << 10) & BM_DRAM_CTL10_RSVD2)
++#define BP_DRAM_CTL10_TEMRS	8
++#define BM_DRAM_CTL10_TEMRS	0x00000300
++#define BF_DRAM_CTL10_TEMRS(v)  \
++		(((v) << 8) & BM_DRAM_CTL10_TEMRS)
++#define BP_DRAM_CTL10_RSVD1	2
++#define BM_DRAM_CTL10_RSVD1	0x000000FC
++#define BF_DRAM_CTL10_RSVD1(v)  \
++		(((v) << 2) & BM_DRAM_CTL10_RSVD1)
++#define BP_DRAM_CTL10_Q_FULLNESS	0
++#define BM_DRAM_CTL10_Q_FULLNESS	0x00000003
++#define BF_DRAM_CTL10_Q_FULLNESS(v)  \
++		(((v) << 0) & BM_DRAM_CTL10_Q_FULLNESS)
++
++#define HW_DRAM_CTL11	(0x0000002c)
++
++#define BP_DRAM_CTL11_RSVD4	27
++#define BM_DRAM_CTL11_RSVD4	0xF8000000
++#define BF_DRAM_CTL11_RSVD4(v) \
++		(((v) << 27) & BM_DRAM_CTL11_RSVD4)
++#define BP_DRAM_CTL11_MAX_CS_REG	24
++#define BM_DRAM_CTL11_MAX_CS_REG	0x07000000
++#define BF_DRAM_CTL11_MAX_CS_REG(v)  \
++		(((v) << 24) & BM_DRAM_CTL11_MAX_CS_REG)
++#define BP_DRAM_CTL11_RSVD3	19
++#define BM_DRAM_CTL11_RSVD3	0x00F80000
++#define BF_DRAM_CTL11_RSVD3(v)  \
++		(((v) << 19) & BM_DRAM_CTL11_RSVD3)
++#define BP_DRAM_CTL11_COMMAND_AGE_COUNT	16
++#define BM_DRAM_CTL11_COMMAND_AGE_COUNT	0x00070000
++#define BF_DRAM_CTL11_COMMAND_AGE_COUNT(v)  \
++		(((v) << 16) & BM_DRAM_CTL11_COMMAND_AGE_COUNT)
++#define BP_DRAM_CTL11_RSVD2	11
++#define BM_DRAM_CTL11_RSVD2	0x0000F800
++#define BF_DRAM_CTL11_RSVD2(v)  \
++		(((v) << 11) & BM_DRAM_CTL11_RSVD2)
++#define BP_DRAM_CTL11_COLUMN_SIZE	8
++#define BM_DRAM_CTL11_COLUMN_SIZE	0x00000700
++#define BF_DRAM_CTL11_COLUMN_SIZE(v)  \
++		(((v) << 8) & BM_DRAM_CTL11_COLUMN_SIZE)
++#define BP_DRAM_CTL11_RSVD1	3
++#define BM_DRAM_CTL11_RSVD1	0x000000F8
++#define BF_DRAM_CTL11_RSVD1(v)  \
++		(((v) << 3) & BM_DRAM_CTL11_RSVD1)
++#define BP_DRAM_CTL11_CASLAT	0
++#define BM_DRAM_CTL11_CASLAT	0x00000007
++#define BF_DRAM_CTL11_CASLAT(v)  \
++		(((v) << 0) & BM_DRAM_CTL11_CASLAT)
++
++#define HW_DRAM_CTL12	(0x00000030)
++
++#define BP_DRAM_CTL12_RSVD3	27
++#define BM_DRAM_CTL12_RSVD3	0xF8000000
++#define BF_DRAM_CTL12_RSVD3(v) \
++		(((v) << 27) & BM_DRAM_CTL12_RSVD3)
++#define BP_DRAM_CTL12_TWR_INT	24
++#define BM_DRAM_CTL12_TWR_INT	0x07000000
++#define BF_DRAM_CTL12_TWR_INT(v)  \
++		(((v) << 24) & BM_DRAM_CTL12_TWR_INT)
++#define BP_DRAM_CTL12_RSVD2	19
++#define BM_DRAM_CTL12_RSVD2	0x00F80000
++#define BF_DRAM_CTL12_RSVD2(v)  \
++		(((v) << 19) & BM_DRAM_CTL12_RSVD2)
++#define BP_DRAM_CTL12_TRRD	16
++#define BM_DRAM_CTL12_TRRD	0x00070000
++#define BF_DRAM_CTL12_TRRD(v)  \
++		(((v) << 16) & BM_DRAM_CTL12_TRRD)
++#define BP_DRAM_CTL12_OBSOLETE	8
++#define BM_DRAM_CTL12_OBSOLETE	0x0000FF00
++#define BF_DRAM_CTL12_OBSOLETE(v)  \
++		(((v) << 8) & BM_DRAM_CTL12_OBSOLETE)
++#define BP_DRAM_CTL12_RSVD1	3
++#define BM_DRAM_CTL12_RSVD1	0x000000F8
++#define BF_DRAM_CTL12_RSVD1(v)  \
++		(((v) << 3) & BM_DRAM_CTL12_RSVD1)
++#define BP_DRAM_CTL12_TCKE	0
++#define BM_DRAM_CTL12_TCKE	0x00000007
++#define BF_DRAM_CTL12_TCKE(v)  \
++		(((v) << 0) & BM_DRAM_CTL12_TCKE)
++
++#define HW_DRAM_CTL13	(0x00000034)
++
++#define BP_DRAM_CTL13_RSVD4	28
++#define BM_DRAM_CTL13_RSVD4	0xF0000000
++#define BF_DRAM_CTL13_RSVD4(v) \
++		(((v) << 28) & BM_DRAM_CTL13_RSVD4)
++#define BP_DRAM_CTL13_CASLAT_LIN_GATE	24
++#define BM_DRAM_CTL13_CASLAT_LIN_GATE	0x0F000000
++#define BF_DRAM_CTL13_CASLAT_LIN_GATE(v)  \
++		(((v) << 24) & BM_DRAM_CTL13_CASLAT_LIN_GATE)
++#define BP_DRAM_CTL13_RSVD3	20
++#define BM_DRAM_CTL13_RSVD3	0x00F00000
++#define BF_DRAM_CTL13_RSVD3(v)  \
++		(((v) << 20) & BM_DRAM_CTL13_RSVD3)
++#define BP_DRAM_CTL13_CASLAT_LIN	16
++#define BM_DRAM_CTL13_CASLAT_LIN	0x000F0000
++#define BF_DRAM_CTL13_CASLAT_LIN(v)  \
++		(((v) << 16) & BM_DRAM_CTL13_CASLAT_LIN)
++#define BP_DRAM_CTL13_RSVD2	12
++#define BM_DRAM_CTL13_RSVD2	0x0000F000
++#define BF_DRAM_CTL13_RSVD2(v)  \
++		(((v) << 12) & BM_DRAM_CTL13_RSVD2)
++#define BP_DRAM_CTL13_APREBIT	8
++#define BM_DRAM_CTL13_APREBIT	0x00000F00
++#define BF_DRAM_CTL13_APREBIT(v)  \
++		(((v) << 8) & BM_DRAM_CTL13_APREBIT)
++#define BP_DRAM_CTL13_RSVD1	3
++#define BM_DRAM_CTL13_RSVD1	0x000000F8
++#define BF_DRAM_CTL13_RSVD1(v)  \
++		(((v) << 3) & BM_DRAM_CTL13_RSVD1)
++#define BP_DRAM_CTL13_TWTR	0
++#define BM_DRAM_CTL13_TWTR	0x00000007
++#define BF_DRAM_CTL13_TWTR(v)  \
++		(((v) << 0) & BM_DRAM_CTL13_TWTR)
++
++#define HW_DRAM_CTL14	(0x00000038)
++
++#define BP_DRAM_CTL14_RSVD4	28
++#define BM_DRAM_CTL14_RSVD4	0xF0000000
++#define BF_DRAM_CTL14_RSVD4(v) \
++		(((v) << 28) & BM_DRAM_CTL14_RSVD4)
++#define BP_DRAM_CTL14_MAX_COL_REG	24
++#define BM_DRAM_CTL14_MAX_COL_REG	0x0F000000
++#define BF_DRAM_CTL14_MAX_COL_REG(v)  \
++		(((v) << 24) & BM_DRAM_CTL14_MAX_COL_REG)
++#define BP_DRAM_CTL14_RSVD3	20
++#define BM_DRAM_CTL14_RSVD3	0x00F00000
++#define BF_DRAM_CTL14_RSVD3(v)  \
++		(((v) << 20) & BM_DRAM_CTL14_RSVD3)
++#define BP_DRAM_CTL14_LOWPOWER_REFRESH_ENABLE	16
++#define BM_DRAM_CTL14_LOWPOWER_REFRESH_ENABLE	0x000F0000
++#define BF_DRAM_CTL14_LOWPOWER_REFRESH_ENABLE(v)  \
++		(((v) << 16) & BM_DRAM_CTL14_LOWPOWER_REFRESH_ENABLE)
++#define BP_DRAM_CTL14_RSVD2	12
++#define BM_DRAM_CTL14_RSVD2	0x0000F000
++#define BF_DRAM_CTL14_RSVD2(v)  \
++		(((v) << 12) & BM_DRAM_CTL14_RSVD2)
++#define BP_DRAM_CTL14_INITAREF	8
++#define BM_DRAM_CTL14_INITAREF	0x00000F00
++#define BF_DRAM_CTL14_INITAREF(v)  \
++		(((v) << 8) & BM_DRAM_CTL14_INITAREF)
++#define BP_DRAM_CTL14_RSVD1	4
++#define BM_DRAM_CTL14_RSVD1	0x000000F0
++#define BF_DRAM_CTL14_RSVD1(v)  \
++		(((v) << 4) & BM_DRAM_CTL14_RSVD1)
++#define BP_DRAM_CTL14_CS_MAP	0
++#define BM_DRAM_CTL14_CS_MAP	0x0000000F
++#define BF_DRAM_CTL14_CS_MAP(v)  \
++		(((v) << 0) & BM_DRAM_CTL14_CS_MAP)
++
++#define HW_DRAM_CTL15	(0x0000003c)
++
++#define BP_DRAM_CTL15_RSVD4	28
++#define BM_DRAM_CTL15_RSVD4	0xF0000000
++#define BF_DRAM_CTL15_RSVD4(v) \
++		(((v) << 28) & BM_DRAM_CTL15_RSVD4)
++#define BP_DRAM_CTL15_TRP	24
++#define BM_DRAM_CTL15_TRP	0x0F000000
++#define BF_DRAM_CTL15_TRP(v)  \
++		(((v) << 24) & BM_DRAM_CTL15_TRP)
++#define BP_DRAM_CTL15_RSVD3	20
++#define BM_DRAM_CTL15_RSVD3	0x00F00000
++#define BF_DRAM_CTL15_RSVD3(v)  \
++		(((v) << 20) & BM_DRAM_CTL15_RSVD3)
++#define BP_DRAM_CTL15_TDAL	16
++#define BM_DRAM_CTL15_TDAL	0x000F0000
++#define BF_DRAM_CTL15_TDAL(v)  \
++		(((v) << 16) & BM_DRAM_CTL15_TDAL)
++#define BP_DRAM_CTL15_RSVD2	12
++#define BM_DRAM_CTL15_RSVD2	0x0000F000
++#define BF_DRAM_CTL15_RSVD2(v)  \
++		(((v) << 12) & BM_DRAM_CTL15_RSVD2)
++#define BP_DRAM_CTL15_PORT_BUSY	8
++#define BM_DRAM_CTL15_PORT_BUSY	0x00000F00
++#define BF_DRAM_CTL15_PORT_BUSY(v)  \
++		(((v) << 8) & BM_DRAM_CTL15_PORT_BUSY)
++#define BP_DRAM_CTL15_RSVD1	4
++#define BM_DRAM_CTL15_RSVD1	0x000000F0
++#define BF_DRAM_CTL15_RSVD1(v)  \
++		(((v) << 4) & BM_DRAM_CTL15_RSVD1)
++#define BP_DRAM_CTL15_MAX_ROW_REG	0
++#define BM_DRAM_CTL15_MAX_ROW_REG	0x0000000F
++#define BF_DRAM_CTL15_MAX_ROW_REG(v)  \
++		(((v) << 0) & BM_DRAM_CTL15_MAX_ROW_REG)
++
++#define HW_DRAM_CTL16	(0x00000040)
++
++#define BP_DRAM_CTL16_RSVD4	29
++#define BM_DRAM_CTL16_RSVD4	0xE0000000
++#define BF_DRAM_CTL16_RSVD4(v) \
++		(((v) << 29) & BM_DRAM_CTL16_RSVD4)
++#define BP_DRAM_CTL16_TMRD	24
++#define BM_DRAM_CTL16_TMRD	0x1F000000
++#define BF_DRAM_CTL16_TMRD(v)  \
++		(((v) << 24) & BM_DRAM_CTL16_TMRD)
++#define BP_DRAM_CTL16_RSVD3	21
++#define BM_DRAM_CTL16_RSVD3	0x00E00000
++#define BF_DRAM_CTL16_RSVD3(v)  \
++		(((v) << 21) & BM_DRAM_CTL16_RSVD3)
++#define BP_DRAM_CTL16_LOWPOWER_CONTROL	16
++#define BM_DRAM_CTL16_LOWPOWER_CONTROL	0x001F0000
++#define BF_DRAM_CTL16_LOWPOWER_CONTROL(v)  \
++		(((v) << 16) & BM_DRAM_CTL16_LOWPOWER_CONTROL)
++#define BP_DRAM_CTL16_RSVD2	13
++#define BM_DRAM_CTL16_RSVD2	0x0000E000
++#define BF_DRAM_CTL16_RSVD2(v)  \
++		(((v) << 13) & BM_DRAM_CTL16_RSVD2)
++#define BP_DRAM_CTL16_LOWPOWER_AUTO_ENABLE	8
++#define BM_DRAM_CTL16_LOWPOWER_AUTO_ENABLE	0x00001F00
++#define BF_DRAM_CTL16_LOWPOWER_AUTO_ENABLE(v)  \
++		(((v) << 8) & BM_DRAM_CTL16_LOWPOWER_AUTO_ENABLE)
++#define BP_DRAM_CTL16_RSVD1	4
++#define BM_DRAM_CTL16_RSVD1	0x000000F0
++#define BF_DRAM_CTL16_RSVD1(v)  \
++		(((v) << 4) & BM_DRAM_CTL16_RSVD1)
++#define BP_DRAM_CTL16_INT_ACK	0
++#define BM_DRAM_CTL16_INT_ACK	0x0000000F
++#define BF_DRAM_CTL16_INT_ACK(v)  \
++		(((v) << 0) & BM_DRAM_CTL16_INT_ACK)
++
++#define HW_DRAM_CTL17	(0x00000044)
++
++#define BP_DRAM_CTL17_DLL_START_POINT	24
++#define BM_DRAM_CTL17_DLL_START_POINT	0xFF000000
++#define BF_DRAM_CTL17_DLL_START_POINT(v) \
++		(((v) << 24) & BM_DRAM_CTL17_DLL_START_POINT)
++#define BP_DRAM_CTL17_DLL_LOCK	16
++#define BM_DRAM_CTL17_DLL_LOCK	0x00FF0000
++#define BF_DRAM_CTL17_DLL_LOCK(v)  \
++		(((v) << 16) & BM_DRAM_CTL17_DLL_LOCK)
++#define BP_DRAM_CTL17_DLL_INCREMENT	8
++#define BM_DRAM_CTL17_DLL_INCREMENT	0x0000FF00
++#define BF_DRAM_CTL17_DLL_INCREMENT(v)  \
++		(((v) << 8) & BM_DRAM_CTL17_DLL_INCREMENT)
++#define BP_DRAM_CTL17_RSVD1	5
++#define BM_DRAM_CTL17_RSVD1	0x000000E0
++#define BF_DRAM_CTL17_RSVD1(v)  \
++		(((v) << 5) & BM_DRAM_CTL17_RSVD1)
++#define BP_DRAM_CTL17_TRC	0
++#define BM_DRAM_CTL17_TRC	0x0000001F
++#define BF_DRAM_CTL17_TRC(v)  \
++		(((v) << 0) & BM_DRAM_CTL17_TRC)
++
++#define HW_DRAM_CTL18	(0x00000048)
++
++#define BM_DRAM_CTL18_RSVD4	0x80000000
++#define BP_DRAM_CTL18_DLL_DQS_DELAY_1	24
++#define BM_DRAM_CTL18_DLL_DQS_DELAY_1	0x7F000000
++#define BF_DRAM_CTL18_DLL_DQS_DELAY_1(v)  \
++		(((v) << 24) & BM_DRAM_CTL18_DLL_DQS_DELAY_1)
++#define BM_DRAM_CTL18_RSVD3	0x00800000
++#define BP_DRAM_CTL18_DLL_DQS_DELAY_0	16
++#define BM_DRAM_CTL18_DLL_DQS_DELAY_0	0x007F0000
++#define BF_DRAM_CTL18_DLL_DQS_DELAY_0(v)  \
++		(((v) << 16) & BM_DRAM_CTL18_DLL_DQS_DELAY_0)
++#define BP_DRAM_CTL18_RSVD2	13
++#define BM_DRAM_CTL18_RSVD2	0x0000E000
++#define BF_DRAM_CTL18_RSVD2(v)  \
++		(((v) << 13) & BM_DRAM_CTL18_RSVD2)
++#define BP_DRAM_CTL18_INT_STATUS	8
++#define BM_DRAM_CTL18_INT_STATUS	0x00001F00
++#define BF_DRAM_CTL18_INT_STATUS(v)  \
++		(((v) << 8) & BM_DRAM_CTL18_INT_STATUS)
++#define BP_DRAM_CTL18_RSVD1	5
++#define BM_DRAM_CTL18_RSVD1	0x000000E0
++#define BF_DRAM_CTL18_RSVD1(v)  \
++		(((v) << 5) & BM_DRAM_CTL18_RSVD1)
++#define BP_DRAM_CTL18_INT_MASK	0
++#define BM_DRAM_CTL18_INT_MASK	0x0000001F
++#define BF_DRAM_CTL18_INT_MASK(v)  \
++		(((v) << 0) & BM_DRAM_CTL18_INT_MASK)
++
++#define HW_DRAM_CTL19	(0x0000004c)
++
++#define BP_DRAM_CTL19_DQS_OUT_SHIFT_BYPASS	24
++#define BM_DRAM_CTL19_DQS_OUT_SHIFT_BYPASS	0xFF000000
++#define BF_DRAM_CTL19_DQS_OUT_SHIFT_BYPASS(v) \
++		(((v) << 24) & BM_DRAM_CTL19_DQS_OUT_SHIFT_BYPASS)
++#define BM_DRAM_CTL19_RSVD1	0x00800000
++#define BP_DRAM_CTL19_DQS_OUT_SHIFT	16
++#define BM_DRAM_CTL19_DQS_OUT_SHIFT	0x007F0000
++#define BF_DRAM_CTL19_DQS_OUT_SHIFT(v)  \
++		(((v) << 16) & BM_DRAM_CTL19_DQS_OUT_SHIFT)
++#define BP_DRAM_CTL19_DLL_DQS_DELAY_BYPASS_1	8
++#define BM_DRAM_CTL19_DLL_DQS_DELAY_BYPASS_1	0x0000FF00
++#define BF_DRAM_CTL19_DLL_DQS_DELAY_BYPASS_1(v)  \
++		(((v) << 8) & BM_DRAM_CTL19_DLL_DQS_DELAY_BYPASS_1)
++#define BP_DRAM_CTL19_DLL_DQS_DELAY_BYPASS_0	0
++#define BM_DRAM_CTL19_DLL_DQS_DELAY_BYPASS_0	0x000000FF
++#define BF_DRAM_CTL19_DLL_DQS_DELAY_BYPASS_0(v)  \
++		(((v) << 0) & BM_DRAM_CTL19_DLL_DQS_DELAY_BYPASS_0)
++
++#define HW_DRAM_CTL20	(0x00000050)
++
++#define BP_DRAM_CTL20_TRCD_INT	24
++#define BM_DRAM_CTL20_TRCD_INT	0xFF000000
++#define BF_DRAM_CTL20_TRCD_INT(v) \
++		(((v) << 24) & BM_DRAM_CTL20_TRCD_INT)
++#define BP_DRAM_CTL20_TRAS_MIN	16
++#define BM_DRAM_CTL20_TRAS_MIN	0x00FF0000
++#define BF_DRAM_CTL20_TRAS_MIN(v)  \
++		(((v) << 16) & BM_DRAM_CTL20_TRAS_MIN)
++#define BP_DRAM_CTL20_WR_DQS_SHIFT_BYPASS	8
++#define BM_DRAM_CTL20_WR_DQS_SHIFT_BYPASS	0x0000FF00
++#define BF_DRAM_CTL20_WR_DQS_SHIFT_BYPASS(v)  \
++		(((v) << 8) & BM_DRAM_CTL20_WR_DQS_SHIFT_BYPASS)
++#define BM_DRAM_CTL20_RSVD1	0x00000080
++#define BP_DRAM_CTL20_WR_DQS_SHIFT	0
++#define BM_DRAM_CTL20_WR_DQS_SHIFT	0x0000007F
++#define BF_DRAM_CTL20_WR_DQS_SHIFT(v)  \
++		(((v) << 0) & BM_DRAM_CTL20_WR_DQS_SHIFT)
++
++#define HW_DRAM_CTL21	(0x00000054)
++
++#define BP_DRAM_CTL21_OBSOLETE	24
++#define BM_DRAM_CTL21_OBSOLETE	0xFF000000
++#define BF_DRAM_CTL21_OBSOLETE(v) \
++		(((v) << 24) & BM_DRAM_CTL21_OBSOLETE)
++#define BP_DRAM_CTL21_RSVD1	18
++#define BM_DRAM_CTL21_RSVD1	0x00FC0000
++#define BF_DRAM_CTL21_RSVD1(v)  \
++		(((v) << 18) & BM_DRAM_CTL21_RSVD1)
++#define BP_DRAM_CTL21_OUT_OF_RANGE_LENGTH	8
++#define BM_DRAM_CTL21_OUT_OF_RANGE_LENGTH	0x0003FF00
++#define BF_DRAM_CTL21_OUT_OF_RANGE_LENGTH(v)  \
++		(((v) << 8) & BM_DRAM_CTL21_OUT_OF_RANGE_LENGTH)
++#define BP_DRAM_CTL21_TRFC	0
++#define BM_DRAM_CTL21_TRFC	0x000000FF
++#define BF_DRAM_CTL21_TRFC(v)  \
++		(((v) << 0) & BM_DRAM_CTL21_TRFC)
++
++#define HW_DRAM_CTL22	(0x00000058)
++
++#define BP_DRAM_CTL22_RSVD2	27
++#define BM_DRAM_CTL22_RSVD2	0xF8000000
++#define BF_DRAM_CTL22_RSVD2(v) \
++		(((v) << 27) & BM_DRAM_CTL22_RSVD2)
++#define BP_DRAM_CTL22_AHB0_WRCNT	16
++#define BM_DRAM_CTL22_AHB0_WRCNT	0x07FF0000
++#define BF_DRAM_CTL22_AHB0_WRCNT(v)  \
++		(((v) << 16) & BM_DRAM_CTL22_AHB0_WRCNT)
++#define BP_DRAM_CTL22_RSVD1	11
++#define BM_DRAM_CTL22_RSVD1	0x0000F800
++#define BF_DRAM_CTL22_RSVD1(v)  \
++		(((v) << 11) & BM_DRAM_CTL22_RSVD1)
++#define BP_DRAM_CTL22_AHB0_RDCNT	0
++#define BM_DRAM_CTL22_AHB0_RDCNT	0x000007FF
++#define BF_DRAM_CTL22_AHB0_RDCNT(v)  \
++		(((v) << 0) & BM_DRAM_CTL22_AHB0_RDCNT)
++
++#define HW_DRAM_CTL23	(0x0000005c)
++
++#define BP_DRAM_CTL23_RSVD2	27
++#define BM_DRAM_CTL23_RSVD2	0xF8000000
++#define BF_DRAM_CTL23_RSVD2(v) \
++		(((v) << 27) & BM_DRAM_CTL23_RSVD2)
++#define BP_DRAM_CTL23_AHB1_WRCNT	16
++#define BM_DRAM_CTL23_AHB1_WRCNT	0x07FF0000
++#define BF_DRAM_CTL23_AHB1_WRCNT(v)  \
++		(((v) << 16) & BM_DRAM_CTL23_AHB1_WRCNT)
++#define BP_DRAM_CTL23_RSVD1	11
++#define BM_DRAM_CTL23_RSVD1	0x0000F800
++#define BF_DRAM_CTL23_RSVD1(v)  \
++		(((v) << 11) & BM_DRAM_CTL23_RSVD1)
++#define BP_DRAM_CTL23_AHB1_RDCNT	0
++#define BM_DRAM_CTL23_AHB1_RDCNT	0x000007FF
++#define BF_DRAM_CTL23_AHB1_RDCNT(v)  \
++		(((v) << 0) & BM_DRAM_CTL23_AHB1_RDCNT)
++
++#define HW_DRAM_CTL24	(0x00000060)
++
++#define BP_DRAM_CTL24_RSVD2	27
++#define BM_DRAM_CTL24_RSVD2	0xF8000000
++#define BF_DRAM_CTL24_RSVD2(v) \
++		(((v) << 27) & BM_DRAM_CTL24_RSVD2)
++#define BP_DRAM_CTL24_AHB2_WRCNT	16
++#define BM_DRAM_CTL24_AHB2_WRCNT	0x07FF0000
++#define BF_DRAM_CTL24_AHB2_WRCNT(v)  \
++		(((v) << 16) & BM_DRAM_CTL24_AHB2_WRCNT)
++#define BP_DRAM_CTL24_RSVD1	11
++#define BM_DRAM_CTL24_RSVD1	0x0000F800
++#define BF_DRAM_CTL24_RSVD1(v)  \
++		(((v) << 11) & BM_DRAM_CTL24_RSVD1)
++#define BP_DRAM_CTL24_AHB2_RDCNT	0
++#define BM_DRAM_CTL24_AHB2_RDCNT	0x000007FF
++#define BF_DRAM_CTL24_AHB2_RDCNT(v)  \
++		(((v) << 0) & BM_DRAM_CTL24_AHB2_RDCNT)
++
++#define HW_DRAM_CTL25	(0x00000064)
++
++#define BP_DRAM_CTL25_RSVD2	27
++#define BM_DRAM_CTL25_RSVD2	0xF8000000
++#define BF_DRAM_CTL25_RSVD2(v) \
++		(((v) << 27) & BM_DRAM_CTL25_RSVD2)
++#define BP_DRAM_CTL25_AHB3_WRCNT	16
++#define BM_DRAM_CTL25_AHB3_WRCNT	0x07FF0000
++#define BF_DRAM_CTL25_AHB3_WRCNT(v)  \
++		(((v) << 16) & BM_DRAM_CTL25_AHB3_WRCNT)
++#define BP_DRAM_CTL25_RSVD1	11
++#define BM_DRAM_CTL25_RSVD1	0x0000F800
++#define BF_DRAM_CTL25_RSVD1(v)  \
++		(((v) << 11) & BM_DRAM_CTL25_RSVD1)
++#define BP_DRAM_CTL25_AHB3_RDCNT	0
++#define BM_DRAM_CTL25_AHB3_RDCNT	0x000007FF
++#define BF_DRAM_CTL25_AHB3_RDCNT(v)  \
++		(((v) << 0) & BM_DRAM_CTL25_AHB3_RDCNT)
++
++#define HW_DRAM_CTL26	(0x00000068)
++
++#define BP_DRAM_CTL26_OBSOLETE	16
++#define BM_DRAM_CTL26_OBSOLETE	0xFFFF0000
++#define BF_DRAM_CTL26_OBSOLETE(v) \
++		(((v) << 16) & BM_DRAM_CTL26_OBSOLETE)
++#define BP_DRAM_CTL26_RSVD1	12
++#define BM_DRAM_CTL26_RSVD1	0x0000F000
++#define BF_DRAM_CTL26_RSVD1(v)  \
++		(((v) << 12) & BM_DRAM_CTL26_RSVD1)
++#define BP_DRAM_CTL26_TREF	0
++#define BM_DRAM_CTL26_TREF	0x00000FFF
++#define BF_DRAM_CTL26_TREF(v)  \
++		(((v) << 0) & BM_DRAM_CTL26_TREF)
++
++#define HW_DRAM_CTL27	(0x0000006c)
++
++#define BP_DRAM_CTL27_OBSOLETE	0
++#define BM_DRAM_CTL27_OBSOLETE	0xFFFFFFFF
++#define BF_DRAM_CTL27_OBSOLETE(v)	(v)
++
++#define HW_DRAM_CTL28	(0x00000070)
++
++#define BP_DRAM_CTL28_OBSOLETE	0
++#define BM_DRAM_CTL28_OBSOLETE	0xFFFFFFFF
++#define BF_DRAM_CTL28_OBSOLETE(v)	(v)
++
++#define HW_DRAM_CTL29	(0x00000074)
++
++#define BP_DRAM_CTL29_LOWPOWER_INTERNAL_CNT	16
++#define BM_DRAM_CTL29_LOWPOWER_INTERNAL_CNT	0xFFFF0000
++#define BF_DRAM_CTL29_LOWPOWER_INTERNAL_CNT(v) \
++		(((v) << 16) & BM_DRAM_CTL29_LOWPOWER_INTERNAL_CNT)
++#define BP_DRAM_CTL29_LOWPOWER_EXTERNAL_CNT	0
++#define BM_DRAM_CTL29_LOWPOWER_EXTERNAL_CNT	0x0000FFFF
++#define BF_DRAM_CTL29_LOWPOWER_EXTERNAL_CNT(v)  \
++		(((v) << 0) & BM_DRAM_CTL29_LOWPOWER_EXTERNAL_CNT)
++
++#define HW_DRAM_CTL30	(0x00000078)
++
++#define BP_DRAM_CTL30_LOWPOWER_REFRESH_HOLD	16
++#define BM_DRAM_CTL30_LOWPOWER_REFRESH_HOLD	0xFFFF0000
++#define BF_DRAM_CTL30_LOWPOWER_REFRESH_HOLD(v) \
++		(((v) << 16) & BM_DRAM_CTL30_LOWPOWER_REFRESH_HOLD)
++#define BP_DRAM_CTL30_LOWPOWER_POWER_DOWN_CNT	0
++#define BM_DRAM_CTL30_LOWPOWER_POWER_DOWN_CNT	0x0000FFFF
++#define BF_DRAM_CTL30_LOWPOWER_POWER_DOWN_CNT(v)  \
++		(((v) << 0) & BM_DRAM_CTL30_LOWPOWER_POWER_DOWN_CNT)
++
++#define HW_DRAM_CTL31	(0x0000007c)
++
++#define BP_DRAM_CTL31_TDLL	16
++#define BM_DRAM_CTL31_TDLL	0xFFFF0000
++#define BF_DRAM_CTL31_TDLL(v) \
++		(((v) << 16) & BM_DRAM_CTL31_TDLL)
++#define BP_DRAM_CTL31_LOWPOWER_SELF_REFRESH_CNT	0
++#define BM_DRAM_CTL31_LOWPOWER_SELF_REFRESH_CNT	0x0000FFFF
++#define BF_DRAM_CTL31_LOWPOWER_SELF_REFRESH_CNT(v)  \
++		(((v) << 0) & BM_DRAM_CTL31_LOWPOWER_SELF_REFRESH_CNT)
++
++#define HW_DRAM_CTL32	(0x00000080)
++
++#define BP_DRAM_CTL32_TXSNR	16
++#define BM_DRAM_CTL32_TXSNR	0xFFFF0000
++#define BF_DRAM_CTL32_TXSNR(v) \
++		(((v) << 16) & BM_DRAM_CTL32_TXSNR)
++#define BP_DRAM_CTL32_TRAS_MAX	0
++#define BM_DRAM_CTL32_TRAS_MAX	0x0000FFFF
++#define BF_DRAM_CTL32_TRAS_MAX(v)  \
++		(((v) << 0) & BM_DRAM_CTL32_TRAS_MAX)
++
++#define HW_DRAM_CTL33	(0x00000084)
++
++#define BP_DRAM_CTL33_VERSION	16
++#define BM_DRAM_CTL33_VERSION	0xFFFF0000
++#define BF_DRAM_CTL33_VERSION(v) \
++		(((v) << 16) & BM_DRAM_CTL33_VERSION)
++#define BP_DRAM_CTL33_TXSR	0
++#define BM_DRAM_CTL33_TXSR	0x0000FFFF
++#define BF_DRAM_CTL33_TXSR(v)  \
++		(((v) << 0) & BM_DRAM_CTL33_TXSR)
++
++#define HW_DRAM_CTL34	(0x00000088)
++
++#define BP_DRAM_CTL34_RSVD1	24
++#define BM_DRAM_CTL34_RSVD1	0xFF000000
++#define BF_DRAM_CTL34_RSVD1(v) \
++		(((v) << 24) & BM_DRAM_CTL34_RSVD1)
++#define BP_DRAM_CTL34_TINIT	0
++#define BM_DRAM_CTL34_TINIT	0x00FFFFFF
++#define BF_DRAM_CTL34_TINIT(v)  \
++		(((v) << 0) & BM_DRAM_CTL34_TINIT)
++
++#define HW_DRAM_CTL35	(0x0000008c)
++
++#define BM_DRAM_CTL35_RSVD1	0x80000000
++#define BP_DRAM_CTL35_OUT_OF_RANGE_ADDR	0
++#define BM_DRAM_CTL35_OUT_OF_RANGE_ADDR	0x7FFFFFFF
++#define BF_DRAM_CTL35_OUT_OF_RANGE_ADDR(v)  \
++		(((v) << 0) & BM_DRAM_CTL35_OUT_OF_RANGE_ADDR)
++
++#define HW_DRAM_CTL36	(0x00000090)
++
++#define BP_DRAM_CTL36_RSVD4	25
++#define BM_DRAM_CTL36_RSVD4	0xFE000000
++#define BF_DRAM_CTL36_RSVD4(v) \
++		(((v) << 25) & BM_DRAM_CTL36_RSVD4)
++#define BM_DRAM_CTL36_PWRUP_SREFRESH_EXIT	0x01000000
++#define BP_DRAM_CTL36_RSVD3	17
++#define BM_DRAM_CTL36_RSVD3	0x00FE0000
++#define BF_DRAM_CTL36_RSVD3(v)  \
++		(((v) << 17) & BM_DRAM_CTL36_RSVD3)
++#define BM_DRAM_CTL36_ENABLE_QUICK_SREFRESH	0x00010000
++#define BP_DRAM_CTL36_RSVD2	9
++#define BM_DRAM_CTL36_RSVD2	0x0000FE00
++#define BF_DRAM_CTL36_RSVD2(v)  \
++		(((v) << 9) & BM_DRAM_CTL36_RSVD2)
++#define BM_DRAM_CTL36_BUS_SHARE_ENABLE	0x00000100
++#define BP_DRAM_CTL36_RSVD1	1
++#define BM_DRAM_CTL36_RSVD1	0x000000FE
++#define BF_DRAM_CTL36_RSVD1(v)  \
++		(((v) << 1) & BM_DRAM_CTL36_RSVD1)
++#define BM_DRAM_CTL36_ACTIVE_AGING	0x00000001
++
++#define HW_DRAM_CTL37	(0x00000094)
++
++#define BP_DRAM_CTL37_OBSOLETE	24
++#define BM_DRAM_CTL37_OBSOLETE	0xFF000000
++#define BF_DRAM_CTL37_OBSOLETE(v) \
++		(((v) << 24) & BM_DRAM_CTL37_OBSOLETE)
++#define BP_DRAM_CTL37_RSVD2	18
++#define BM_DRAM_CTL37_RSVD2	0x00FC0000
++#define BF_DRAM_CTL37_RSVD2(v)  \
++		(((v) << 18) & BM_DRAM_CTL37_RSVD2)
++#define BP_DRAM_CTL37_BUS_SHARE_TIMEOUT	8
++#define BM_DRAM_CTL37_BUS_SHARE_TIMEOUT	0x0003FF00
++#define BF_DRAM_CTL37_BUS_SHARE_TIMEOUT(v)  \
++		(((v) << 8) & BM_DRAM_CTL37_BUS_SHARE_TIMEOUT)
++#define BP_DRAM_CTL37_RSVD1	1
++#define BM_DRAM_CTL37_RSVD1	0x000000FE
++#define BF_DRAM_CTL37_RSVD1(v)  \
++		(((v) << 1) & BM_DRAM_CTL37_RSVD1)
++#define BM_DRAM_CTL37_TREF_ENABLE	0x00000001
++
++#define HW_DRAM_CTL38	(0x00000098)
++
++#define BP_DRAM_CTL38_RSVD2	29
++#define BM_DRAM_CTL38_RSVD2	0xE0000000
++#define BF_DRAM_CTL38_RSVD2(v) \
++		(((v) << 29) & BM_DRAM_CTL38_RSVD2)
++#define BP_DRAM_CTL38_EMRS2_DATA_0	16
++#define BM_DRAM_CTL38_EMRS2_DATA_0	0x1FFF0000
++#define BF_DRAM_CTL38_EMRS2_DATA_0(v)  \
++		(((v) << 16) & BM_DRAM_CTL38_EMRS2_DATA_0)
++#define BP_DRAM_CTL38_RSVD1	13
++#define BM_DRAM_CTL38_RSVD1	0x0000E000
++#define BF_DRAM_CTL38_RSVD1(v)  \
++		(((v) << 13) & BM_DRAM_CTL38_RSVD1)
++#define BP_DRAM_CTL38_EMRS1_DATA	0
++#define BM_DRAM_CTL38_EMRS1_DATA	0x00001FFF
++#define BF_DRAM_CTL38_EMRS1_DATA(v)  \
++		(((v) << 0) & BM_DRAM_CTL38_EMRS1_DATA)
++
++#define HW_DRAM_CTL39	(0x0000009c)
++
++#define BP_DRAM_CTL39_RSVD2	29
++#define BM_DRAM_CTL39_RSVD2	0xE0000000
++#define BF_DRAM_CTL39_RSVD2(v) \
++		(((v) << 29) & BM_DRAM_CTL39_RSVD2)
++#define BP_DRAM_CTL39_EMRS2_DATA_2	16
++#define BM_DRAM_CTL39_EMRS2_DATA_2	0x1FFF0000
++#define BF_DRAM_CTL39_EMRS2_DATA_2(v)  \
++		(((v) << 16) & BM_DRAM_CTL39_EMRS2_DATA_2)
++#define BP_DRAM_CTL39_RSVD1	13
++#define BM_DRAM_CTL39_RSVD1	0x0000E000
++#define BF_DRAM_CTL39_RSVD1(v)  \
++		(((v) << 13) & BM_DRAM_CTL39_RSVD1)
++#define BP_DRAM_CTL39_EMRS2_DATA_1	0
++#define BM_DRAM_CTL39_EMRS2_DATA_1	0x00001FFF
++#define BF_DRAM_CTL39_EMRS2_DATA_1(v)  \
++		(((v) << 0) & BM_DRAM_CTL39_EMRS2_DATA_1)
++
++#define HW_DRAM_CTL40	(0x000000a0)
++
++#define BP_DRAM_CTL40_TPDEX	16
++#define BM_DRAM_CTL40_TPDEX	0xFFFF0000
++#define BF_DRAM_CTL40_TPDEX(v) \
++		(((v) << 16) & BM_DRAM_CTL40_TPDEX)
++#define BP_DRAM_CTL40_RSVD1	13
++#define BM_DRAM_CTL40_RSVD1	0x0000E000
++#define BF_DRAM_CTL40_RSVD1(v)  \
++		(((v) << 13) & BM_DRAM_CTL40_RSVD1)
++#define BP_DRAM_CTL40_EMRS2_DATA_3	0
++#define BM_DRAM_CTL40_EMRS2_DATA_3	0x00001FFF
++#define BF_DRAM_CTL40_EMRS2_DATA_3(v)  \
++		(((v) << 0) & BM_DRAM_CTL40_EMRS2_DATA_3)
++#endif /* __ARCH_ARM___DRAM_H */
+diff --git a/arch/arm/plat-mxs/Kconfig b/arch/arm/plat-mxs/Kconfig
+index d44a42b..dd6689e 100644
+--- a/arch/arm/plat-mxs/Kconfig
++++ b/arch/arm/plat-mxs/Kconfig
+@@ -154,6 +154,19 @@ config MXS_RAM_FREQ_SCALING
+         depends on ARCH_MXS
+         default y
+ 
++choice
++	prompt "Select MXS RAM chip"
++	depends on MXS_RAM_FREQ_SCALING
++
++config MXS_RAM_MDDR
++	bool "mDDR SDRAM"
++	depends on ARCH_MX23
++config MXS_RAM_DDR
++	bool "DDR SDRAM"
++	depends on ARCH_MX23
++
++endchoice
++
+ config IRAM_ALLOC
+         bool
+         default y
+-- 
+1.5.4.4
+

@@ -1,0 +1,69 @@
+From 35c16362aa3dd41a0eb7b017bb531fcb00b5a44a Mon Sep 17 00:00:00 2001
+From: Jeremy.Yao <r65161@freescale.com>
+Date: Tue, 20 Apr 2010 11:32:09 +0800
+Subject: [PATCH] ENGR00122683: iMX28 Add Kernel Wifi Config in defconfig
+
+enable wifi in defconfig for mx28/mx23
+
+Signed-off-by : Jeremy Yao <r65161@freescale.com>
+---
+ arch/arm/configs/imx23evk_defconfig |    8 +++++---
+ arch/arm/configs/imx28evk_defconfig |   15 +++++++++++++--
+ 2 files changed, 18 insertions(+), 5 deletions(-)
+
+diff --git a/arch/arm/configs/imx23evk_defconfig b/arch/arm/configs/imx23evk_defconfig
+index 31a22aa..111b0a0 100644
+--- a/arch/arm/configs/imx23evk_defconfig
++++ b/arch/arm/configs/imx23evk_defconfig
+@@ -456,8 +456,9 @@ CONFIG_NETFILTER_ADVANCED=y
+ # CONFIG_AF_RXRPC is not set
+ CONFIG_WIRELESS=y
+ # CONFIG_CFG80211 is not set
+-# CONFIG_WIRELESS_OLD_REGULATORY is not set
+-# CONFIG_WIRELESS_EXT is not set
++CONFIG_WIRELESS_OLD_REGULATORY=y
++CONFIG_WIRELESS_EXT=y
++CONFIG_WIRELESS_EXT_SYSFS=y
+ # CONFIG_LIB80211 is not set
+ 
+ #
+@@ -465,7 +466,8 @@ CONFIG_WIRELESS=y
+ #
+ CONFIG_MAC80211_DEFAULT_PS_VALUE=0
+ # CONFIG_WIMAX is not set
+-# CONFIG_RFKILL is not set
++CONFIG_RFKILL=y
++CONFIG_RFKILL_INPUT=y
+ # CONFIG_NET_9P is not set
+ 
+ #
+diff --git a/arch/arm/configs/imx28evk_defconfig b/arch/arm/configs/imx28evk_defconfig
+index 44cfd4d..9103778 100644
+--- a/arch/arm/configs/imx28evk_defconfig
++++ b/arch/arm/configs/imx28evk_defconfig
+@@ -438,9 +438,20 @@ CONFIG_CAN_FLEXCAN=m
+ # CONFIG_IRDA is not set
+ # CONFIG_BT is not set
+ # CONFIG_AF_RXRPC is not set
+-# CONFIG_WIRELESS is not set
++CONFIG_WIRELESS=y
++# CONFIG_CFG80211 is not set
++CONFIG_WIRELESS_OLD_REGULATORY=y
++CONFIG_WIRELESS_EXT=y
++CONFIG_WIRELESS_EXT_SYSFS=y
++# CONFIG_LIB80211 is not set
++
++#
++# CFG80211 needs to be enabled for MAC80211
++#
++CONFIG_MAC80211_DEFAULT_PS_VALUE=0
+ # CONFIG_WIMAX is not set
+-# CONFIG_RFKILL is not set
++CONFIG_RFKILL=y
++CONFIG_RFKILL_INPUT=y
+ # CONFIG_NET_9P is not set
+ 
+ #
+-- 
+1.5.4.4
+

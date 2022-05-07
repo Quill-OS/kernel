@@ -1,0 +1,53 @@
+From f5731f72cfe55f6faff8aae4748925c37f1b9671 Mon Sep 17 00:00:00 2001
+From: William Lai <b04597@freescale.com>
+Date: Tue, 26 Jan 2010 15:57:24 +0800
+Subject: [PATCH] ENGR00120455-2 CAN: Pass the default setting through platform_data
+
+Add the predefined parameters' definition in the
+flexcan_platform_data structure.
+
+Signed-off-by: William Lai <b04597@freescale.com>
+---
+ arch/arm/plat-mxc/include/mach/mxc.h |   26 ++++++++++++++++++++++++++
+ 1 files changed, 26 insertions(+), 0 deletions(-)
+
+diff --git a/arch/arm/plat-mxc/include/mach/mxc.h b/arch/arm/plat-mxc/include/mach/mxc.h
+index b6afe38..19d8f4d 100644
+--- a/arch/arm/plat-mxc/include/mach/mxc.h
++++ b/arch/arm/plat-mxc/include/mach/mxc.h
+@@ -410,6 +410,32 @@ struct flexcan_platform_data {
+ 	void (*xcvr_enable) (int id, int en);
+ 	void (*active) (int id);
+ 	void (*inactive) (int id);
++	/* word 1 */
++	unsigned int br_presdiv:8;
++	unsigned int br_rjw:2;
++	unsigned int br_propseg:3;
++	unsigned int br_pseg1:3;
++	unsigned int br_pseg2:3;
++	unsigned int maxmb:6;
++	unsigned int xmit_maxmb:6;
++	unsigned int wd1_resv:1;
++
++	/* word 2 */
++	unsigned int fifo:1;
++	unsigned int wakeup:1;
++	unsigned int srx_dis:1;
++	unsigned int wak_src:1;
++	unsigned int bcc:1;
++	unsigned int lprio:1;
++	unsigned int abort:1;
++	unsigned int br_clksrc:1;
++	unsigned int loopback:1;
++	unsigned int smp:1;
++	unsigned int boff_rec:1;
++	unsigned int tsyn:1;
++	unsigned int listen:1;
++	unsigned int ext_msg:1;
++	unsigned int std_msg:1;
+ };
+ 
+ struct mxc_srtc_platform_data {
+-- 
+1.5.4.4
+

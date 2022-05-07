@@ -1,0 +1,2088 @@
+From 2ee74726689426fc578b59cbc64f733caca9f610 Mon Sep 17 00:00:00 2001
+From: Lionel Xu <Lionel.Xu@freescale.com>
+Date: Mon, 8 Mar 2010 17:54:48 +0800
+Subject: [PATCH] ENGR00117750 MX28 ALSA:Support audio playback through SAIF
+
+Porting from mxc sound asoc driver, to support audio playback on mx28 through
+saif
+
+Signed-off-by: Lionel Xu <r63889@freescale.com>
+---
+ arch/arm/mach-mx28/clock.c              |  141 +++++++-
+ arch/arm/mach-mx28/device.c             |   77 ++++
+ arch/arm/mach-mx28/mx28evk.c            |   12 +
+ arch/arm/mach-mx28/mx28evk_pins.c       |   43 +++
+ arch/arm/plat-mxs/device.c              |   21 +
+ arch/arm/plat-mxs/include/mach/device.h |   18 +
+ drivers/i2c/busses/i2c-mxs.c            |    1 +
+ sound/soc/Kconfig                       |    1 +
+ sound/soc/Makefile                      |    1 +
+ sound/soc/codecs/sgtl5000.c             |   14 +-
+ sound/soc/mxs/Kconfig                   |   49 +++
+ sound/soc/mxs/Makefile                  |   12 +
+ sound/soc/mxs/mxs-dai.c                 |  624 +++++++++++++++++++++++++++++++
+ sound/soc/mxs/mxs-dai.h                 |   37 ++
+ sound/soc/mxs/mxs-devb.c                |  281 ++++++++++++++
+ sound/soc/mxs/mxs-pcm.c                 |  425 +++++++++++++++++++++
+ sound/soc/mxs/mxs-pcm.h                 |   31 ++
+ 17 files changed, 1784 insertions(+), 4 deletions(-)
+
+diff --git a/arch/arm/mach-mx28/clock.c b/arch/arm/mach-mx28/clock.c
+index fd4695e..e7ab14d 100644
+--- a/arch/arm/mach-mx28/clock.c
++++ b/arch/arm/mach-mx28/clock.c
+@@ -28,7 +28,14 @@
+ 
+ #include "regs-clkctrl.h"
+ #include "regs-digctl.h"
+-
++#define HW_SAIF_CTRL    (0x00000000)
++#define HW_SAIF_STAT    (0x00000010)
++#define SAIF0_CTRL (IO_ADDRESS(SAIF0_PHYS_ADDR) + HW_SAIF_CTRL)
++#define SAIF0_STAT (IO_ADDRESS(SAIF0_PHYS_ADDR) + HW_SAIF_STAT)
++#define SAIF1_CTRL (IO_ADDRESS(SAIF1_PHYS_ADDR) + HW_SAIF_CTRL)
++#define SAIF1_STAT (IO_ADDRESS(SAIF1_PHYS_ADDR) + HW_SAIF_STAT)
++#define BM_SAIF_CTRL_RUN        0x00000001
++#define BM_SAIF_STAT_BUSY       0x00000001
+ #define CLKCTRL_BASE_ADDR IO_ADDRESS(CLKCTRL_PHYS_ADDR)
+ #define DIGCTRL_BASE_ADDR IO_ADDRESS(DIGCTL_PHYS_ADDR)
+ 
+@@ -873,7 +880,7 @@ static int ssp_set_rate(struct clk *clk, unsigned long rate)
+ 
+ out:
+ 	if (ret != 0)
+-		printk(KERN_ERR "%s: error %d\n", __func__, ret);
++		pr_err("%s: error %d\n", __func__, ret);
+ 	return ret;
+ }
+ 
+@@ -1217,6 +1224,9 @@ static struct clk gpmi_clk = {
+ };
+ 
+ static unsigned long saif_get_rate(struct clk *clk);
++static unsigned long saif_set_rate(struct clk *clk, unsigned int rate);
++static unsigned long saif_set_parent(struct clk *clk, struct clk *parent);
++
+ static struct clk saif_clk[] = {
+ 	{
+ 	 .parent = &pll_clk[0],
+@@ -1225,6 +1235,14 @@ static struct clk saif_clk[] = {
+ 	 .disable = mx28_raw_disable,
+ 	 .enable_reg = CLKCTRL_BASE_ADDR + HW_CLKCTRL_SAIF0,
+ 	 .enable_bits = BM_CLKCTRL_SAIF0_CLKGATE,
++	 .scale_reg = CLKCTRL_BASE_ADDR + HW_CLKCTRL_SAIF0,
++	 .scale_bits = 0,
++	 .busy_reg = CLKCTRL_BASE_ADDR + HW_CLKCTRL_SAIF0,
++	 .busy_bits = 29,
++	 .bypass_reg = CLKCTRL_BASE_ADDR + HW_CLKCTRL_CLKSEQ,
++	 .bypass_bits = 0,
++	 .set_rate = saif_set_rate,
++	 .set_parent = saif_set_parent,
+ 	 },
+ 	{
+ 	 .parent = &pll_clk[0],
+@@ -1233,6 +1251,14 @@ static struct clk saif_clk[] = {
+ 	 .disable = mx28_raw_disable,
+ 	 .enable_reg = CLKCTRL_BASE_ADDR + HW_CLKCTRL_SAIF1,
+ 	 .enable_bits = BM_CLKCTRL_SAIF1_CLKGATE,
++	 .scale_reg = CLKCTRL_BASE_ADDR + HW_CLKCTRL_SAIF1,
++	 .scale_bits = 0,
++	 .busy_reg = CLKCTRL_BASE_ADDR + HW_CLKCTRL_SAIF1,
++	 .busy_bits = 29,
++	 .bypass_reg = CLKCTRL_BASE_ADDR + HW_CLKCTRL_CLKSEQ,
++	 .bypass_bits = 1,
++	 .set_rate = saif_set_rate,
++	 .set_parent = saif_set_parent,
+ 	 },
+ };
+ 
+@@ -1253,6 +1279,109 @@ static unsigned long saif_get_rate(struct clk *clk)
+ 	return (clk->parent->get_rate(clk->parent) / 0x10000) * div;
+ }
+ 
++static unsigned long saif_set_rate(struct clk *clk, unsigned int rate)
++{
++	u16 div = 0;
++	u32 clkctrl_saif;
++	u64 rates;
++	struct clk *parent = clk->parent;
++
++	pr_debug("%s: rate %d, parent rate %d\n", __func__, rate,
++			clk_get_rate(parent));
++
++	if (rate > clk_get_rate(parent))
++		return -EINVAL;
++	/*saif clock always use frac div*/
++	rates = 65536 * (u64)rate;
++	rates = rates + (u64)(clk_get_rate(parent) / 2);
++	do_div(rates, clk_get_rate(parent));
++	div = rates;
++
++	pr_debug("%s: div calculated is %d\n", __func__, div);
++	if (!div)
++		return -EINVAL;
++
++	clkctrl_saif = __raw_readl(clk->scale_reg);
++	clkctrl_saif &= ~BM_CLKCTRL_SAIF0_DIV_FRAC_EN;
++	clkctrl_saif &= ~BM_CLKCTRL_SAIF0_DIV;
++	clkctrl_saif |= div;
++	clkctrl_saif |= BM_CLKCTRL_SAIF0_DIV_FRAC_EN;
++	clkctrl_saif &= ~BM_CLKCTRL_SAIF0_CLKGATE;
++	__raw_writel(clkctrl_saif, clk->scale_reg);
++	if (clk->busy_reg) {
++		int i;
++		for (i = 10000; i; i--)
++			if (!clk_is_busy(clk))
++				break;
++		if (!i) {
++			pr_err("couldn't set up SAIF clk divisor\n");
++			return -ETIMEDOUT;
++		}
++	}
++	return 0;
++}
++
++static unsigned long saif_set_parent(struct clk *clk, struct clk *parent)
++{
++	int ret = -EINVAL;
++	int shift = 4;
++	/*bypass*/
++	if (parent == &pll_clk[0])
++		shift = 8;
++	if (clk->bypass_reg) {
++		__raw_writel(1 << clk->bypass_bits, clk->bypass_reg + shift);
++		ret = 0;
++	}
++	return ret;
++}
++
++static int saif_mclk_enable(struct clk *clk)
++{
++	/*Check if enabled already*/
++	if (__raw_readl(clk->busy_reg) & clk->busy_bits)
++		return 0;
++	 /*Enable saif to enable mclk*/
++	__raw_writel(0x1, clk->enable_reg);
++	mdelay(1);
++	__raw_writel(0x1, clk->enable_reg);
++	mdelay(1);
++	return 0;
++}
++
++static int saif_mclk_disable(struct clk *clk)
++{
++	/*Check if disabled already*/
++	if (!(__raw_readl(clk->busy_reg) & clk->busy_bits))
++		return 0;
++	 /*Disable saif to disable mclk*/
++	__raw_writel(0x0, clk->enable_reg);
++	mdelay(1);
++	__raw_writel(0x0, clk->enable_reg);
++	mdelay(1);
++	return 0;
++}
++
++static struct clk saif_mclk[] = {
++	{
++	 .parent = &saif_clk[0],
++	 .enable = saif_mclk_enable,
++	 .disable = saif_mclk_disable,
++	 .enable_reg = SAIF0_CTRL,
++	 .enable_bits = BM_SAIF_CTRL_RUN,
++	 .busy_reg = SAIF0_STAT,
++	 .busy_bits = BM_SAIF_STAT_BUSY,
++	 },
++	{
++	 .parent = &saif_clk[1],
++	 .enable = saif_mclk_enable,
++	 .disable = saif_mclk_disable,
++	 .enable_reg = SAIF1_CTRL,
++	 .enable_bits = BM_SAIF_CTRL_RUN,
++	 .busy_reg = SAIF1_STAT,
++	 .busy_bits = BM_SAIF_STAT_BUSY,
++	 },
++};
++
+ static unsigned long pcmspdif_get_rate(struct clk *clk)
+ {
+ 	return clk->parent->get_rate(clk->parent) / 4;
+@@ -1456,6 +1585,14 @@ static struct clk_lookup onchip_clocks[] = {
+ 	.con_id = "fec_clk",
+ 	.clk = &enet_out_clk,
+ 	},
++	{
++	.con_id = "saif_mclk.0",
++	.clk = &saif_mclk[0],
++	},
++	{
++	.con_id = "saif_mclk.1",
++	.clk = &saif_mclk[1],
++	}
+ };
+ 
+ static void mx28_clock_scan(void)
+diff --git a/arch/arm/mach-mx28/device.c b/arch/arm/mach-mx28/device.c
+index e1e447e..4e07d52 100644
+--- a/arch/arm/mach-mx28/device.c
++++ b/arch/arm/mach-mx28/device.c
+@@ -40,6 +40,7 @@
+ #include <mach/lcdif.h>
+ #include <mach/ddi_bc.h>
+ 
++#include "regs-digctl.h"
+ #include "device.h"
+ #include "mx28_pins.h"
+ 
+@@ -1004,6 +1005,81 @@ static void __init mx28_init_dcp(void)
+ }
+ #endif
+ 
++#if defined(CONFIG_SND_MXS_SOC_DAI) || defined(CONFIG_SND_MXS_SOC_DAI_MODULE)
++static int audio_clk_init(void)
++{
++	struct clk *saif_clk;
++	struct clk *pll_clk;
++	int ret = -EINVAL;
++	saif_clk = clk_get(NULL, "saif.0");
++	if (IS_ERR(saif_clk)) {
++		pr_err("%s:failed to get saif_clk\n", __func__);
++		goto err_clk_init;
++	}
++	pll_clk = clk_get(NULL, "pll.0");
++	if (IS_ERR(pll_clk)) {
++		pr_err("%s:failed to get pll_clk\n", __func__);
++		goto err_clk_init;
++	}
++	ret = clk_set_parent(saif_clk, pll_clk);
++	if (ret) {
++		pr_err("%s:failed to set parent clk\n", __func__);
++		goto err_clk_init;
++	}
++	ret = 0;
++	/*set a default freq 12M to sgtl5000*/
++	clk_set_rate(saif_clk, 12000000);
++	clk_enable(saif_clk);
++	/*set the saif clk mux*/
++	__raw_writel(BF_DIGCTL_CTRL_SAIF_CLKMUX_SEL(0x0), \
++			IO_ADDRESS(DIGCTL_PHYS_ADDR) + HW_DIGCTL_CTRL);
++err_clk_init:
++	return ret;
++}
++
++static int audio_clk_finit(void)
++{
++	struct clk *saif_clk;
++	int ret = 0;
++	saif_clk = clk_get(NULL, "saif.0");
++	if (IS_ERR(saif_clk)) {
++		pr_err("%s:failed to get saif_clk\n", __func__);
++		ret = -EINVAL;
++		goto err_clk_finit;
++	}
++	clk_disable(saif_clk);
++err_clk_finit:
++	return ret;
++}
++
++static struct mxs_audio_platform_data audio_plat_data = {
++#if defined(CONFIG_SND_MXS_SOC_SAIF0_SELECT)
++	.saif0_select = 1,
++#endif
++#if defined(CONFIG_SND_MXS_SOC_SAIF1_SELECT)
++	.saif1_select = 1,
++#endif
++	.init = audio_clk_init,
++	.finit = audio_clk_finit,
++};
++#endif
++
++#if defined(CONFIG_SND_SOC_SGTL5000) || defined(CONFIG_SND_SOC_SGTL5000_MODULE)
++void __init mx28_init_audio(void)
++{	struct platform_device *pdev;
++	pdev = mxs_get_device("mxs-sgtl5000", 0);
++	if (pdev == NULL || IS_ERR(pdev))
++		return;
++	mxs_add_device(pdev, 3);
++	pdev->dev.platform_data = &audio_plat_data;
++}
++#else
++void __init mx28_init_audio(void)
++{
++}
++#endif
++
++
+ int __init mx28_device_init(void)
+ {
+ 	mx28_init_dma();
+@@ -1018,6 +1094,7 @@ int __init mx28_device_init(void)
+ 	mx28_init_flexcan();
+ 	mx28_init_kbd();
+ 	mx28_init_ts();
++	mx28_init_audio();
+ 	mx28_init_lcdif();
+ 	mx28_init_pxp();
+ 	mx28_init_dcp();
+diff --git a/arch/arm/mach-mx28/mx28evk.c b/arch/arm/mach-mx28/mx28evk.c
+index a449571..c3254e3 100644
+--- a/arch/arm/mach-mx28/mx28evk.c
++++ b/arch/arm/mach-mx28/mx28evk.c
+@@ -22,6 +22,7 @@
+ #include <linux/err.h>
+ #include <linux/clk.h>
+ #include <linux/platform_device.h>
++#include <linux/i2c.h>
+ 
+ #include <asm/setup.h>
+ #include <asm/mach-types.h>
+@@ -34,6 +35,16 @@
+ #include "device.h"
+ #include "mx28evk.h"
+ 
++static struct i2c_board_info __initdata mxs_i2c_device[] = {
++	{ I2C_BOARD_INFO("sgtl5000-i2c", 0x14), .flags = I2C_M_TEN }
++};
++
++static void i2c_device_init(void)
++{
++	mxs_i2c_device[0].platform_data = (void *)clk_get(NULL, "saif_mclk.0");
++	i2c_register_board_info(0, mxs_i2c_device, ARRAY_SIZE(mxs_i2c_device));
++}
++
+ static void __init fixup_board(struct machine_desc *desc, struct tag *tags,
+ 			       char **cmdline, struct meminfo *mi)
+ {
+@@ -86,6 +97,7 @@ static void __init mx28evk_init_leds(void)
+ static void __init mx28evk_device_init(void)
+ {
+ 	/* Add mx28evk special code */
++	i2c_device_init();
+ 	mx28evk_init_leds();
+ }
+ 
+diff --git a/arch/arm/mach-mx28/mx28evk_pins.c b/arch/arm/mach-mx28/mx28evk_pins.c
+index faefa61..8bddbeb 100644
+--- a/arch/arm/mach-mx28/mx28evk_pins.c
++++ b/arch/arm/mach-mx28/mx28evk_pins.c
+@@ -748,6 +748,49 @@ static struct pin_desc mx28evk_fixed_pins[] = {
+ 	 .pull          = 1,
+ 	 },
+ #endif
++#if defined(CONFIG_SND_MXS_SOC_DAI) || defined(CONFIG_SND_MXS_SOC_DAI_MODULE)
++	/* Configurations of SAIF0 port pins */
++	{
++	 .name	= "SAIF0_MCLK",
++	 .id	= PINID_SAIF0_MCLK,
++	 .fun	= PIN_FUN1,
++	 .strength	= PAD_12MA,
++	 .voltage	= PAD_3_3V,
++	 .pullup	= 1,
++	 .drive 	= 1,
++	 .pull 		= 1,
++	 },
++	{
++	 .name	= "SAIF0_LRCLK",
++	 .id	= PINID_SAIF0_LRCLK,
++	 .fun	= PIN_FUN1,
++	 .strength	= PAD_12MA,
++	 .voltage	= PAD_3_3V,
++	 .pullup	= 1,
++	 .drive 	= 1,
++	 .pull 		= 1,
++	 },
++	{
++	 .name	= "SAIF0_BITCLK",
++	 .id	= PINID_SAIF0_BITCLK,
++	 .fun	= PIN_FUN1,
++	 .strength	= PAD_12MA,
++	 .voltage	= PAD_3_3V,
++	 .pullup	= 1,
++	 .drive 	= 1,
++	 .pull 		= 1,
++	 },
++	{
++	 .name	= "SAIF0_SDATA0",
++	 .id	= PINID_SAIF0_SDATA0,
++	 .fun	= PIN_FUN1,
++	 .strength	= PAD_12MA,
++	 .voltage	= PAD_3_3V,
++	 .pullup	= 1,
++	 .drive 	= 1,
++	 .pull 		= 1,
++	 },
++#endif
+ };
+ 
+ #if defined(CONFIG_FEC) || defined(CONFIG_FEC_MODULE)
+diff --git a/arch/arm/plat-mxs/device.c b/arch/arm/plat-mxs/device.c
+index f078414..4cd1b0f 100644
+--- a/arch/arm/plat-mxs/device.c
++++ b/arch/arm/plat-mxs/device.c
+@@ -373,6 +373,19 @@ static struct platform_device mxs_battery = {
+ };
+ #endif
+ 
++#if defined(CONFIG_SND_SOC_SGTL5000) || \
++	defined(CONFIG_SND_SOC_SGTL5000_MODULE)
++static struct platform_device mxs_sgtl5000[] = {
++	{
++	.name = "mxs-sgtl5000",
++	.id = 0,
++	.dev =	{
++		.release = mxs_nop_release,
++		},
++	},
++};
++#endif
++
+ static struct mxs_dev_lookup dev_lookup[] = {
+ #if defined(CONFIG_SERIAL_MXS_DUART) || \
+ 	defined(CONFIG_SERIAL_MXS_DUART_MODULE)
+@@ -521,6 +534,14 @@ static struct mxs_dev_lookup dev_lookup[] = {
+ 	},
+ #endif
+ 
++#if defined(CONFIG_SND_SOC_SGTL5000) || \
++	defined(CONFIG_SND_SOC_SGTL5000_MODULE)
++	{
++	.name = "mxs-sgtl5000",
++	.size = ARRAY_SIZE(mxs_sgtl5000),
++	.pdev = mxs_sgtl5000,
++	},
++#endif
+ };
+ 
+ struct platform_device *mxs_get_device(char *name, int id)
+diff --git a/arch/arm/plat-mxs/include/mach/device.h b/arch/arm/plat-mxs/include/mach/device.h
+index fa4c312..e6a5baa 100644
+--- a/arch/arm/plat-mxs/include/mach/device.h
++++ b/arch/arm/plat-mxs/include/mach/device.h
+@@ -144,6 +144,24 @@ struct flexcan_platform_data {
+ 	unsigned int std_msg:1;
+ };
+ 
++struct mxs_audio_platform_data {
++	int saif0_select;
++	int saif1_select;
++	int intr_id_hp;
++	int ext_ram;
++	struct clk *saif_clock;
++
++	int hp_irq;
++	int (*hp_status) (void);
++
++	int sysclk;
++
++	int (*init) (void);	/* board specific init */
++	int (*amp_enable) (int enable);
++	int (*finit) (void);	/* board specific finit */
++	void *priv;		/* used by board specific functions */
++};
++
+ extern void mxs_timer_init(struct mxs_sys_timer *timer);
+ extern void mxs_nomatch_timer_init(struct mxs_sys_timer *timer);
+ 
+diff --git a/drivers/i2c/busses/i2c-mxs.c b/drivers/i2c/busses/i2c-mxs.c
+index db20f6f..705512b 100644
+--- a/drivers/i2c/busses/i2c-mxs.c
++++ b/drivers/i2c/busses/i2c-mxs.c
+@@ -208,6 +208,7 @@ static void hw_i2c_dma_setup_write(u8 addr, void *buff, int len, int flags)
+ 	desc[2]->cmd.cmd.bits.command = DMA_READ;
+ 	desc[2]->cmd.address = i2c_buf_phys;
+ 	desc[2]->cmd.pio_words[0] = CMD_I2C_WRITE;
++	desc[2]->cmd.pio_words[0] |= BM_I2C_CTRL0_POST_SEND_STOP;
+ 	desc[2]->cmd.pio_words[0] |= BF_I2C_CTRL0_XFER_COUNT(len + 1) | flags;
+ 
+ 	i2c_buf_virt[0] = addr | I2C_WRITE;
+diff --git a/sound/soc/Kconfig b/sound/soc/Kconfig
+index 09c8827..ba22486 100644
+--- a/sound/soc/Kconfig
++++ b/sound/soc/Kconfig
+@@ -37,6 +37,7 @@ source "sound/soc/sh/Kconfig"
+ source "sound/soc/txx9/Kconfig"
+ source "sound/soc/imx/Kconfig"
+ source "sound/soc/stmp3xxx/Kconfig"
++source "sound/soc/mxs/Kconfig"
+ 
+ # Supported codecs
+ source "sound/soc/codecs/Kconfig"
+diff --git a/sound/soc/Makefile b/sound/soc/Makefile
+index ccb1fa6..9545c56 100644
+--- a/sound/soc/Makefile
++++ b/sound/soc/Makefile
+@@ -15,3 +15,4 @@ obj-$(CONFIG_SND_SOC)	+= sh/
+ obj-$(CONFIG_SND_SOC)	+= txx9/
+ obj-$(CONFIG_SND_SOC)	+= imx/
+ obj-$(CONFIG_SND_SOC)	+= stmp3xxx/
++obj-$(CONFIG_SND_SOC)	+= mxs/
+diff --git a/sound/soc/codecs/sgtl5000.c b/sound/soc/codecs/sgtl5000.c
+index 1d5843e..f9f9a1a 100644
+--- a/sound/soc/codecs/sgtl5000.c
++++ b/sound/soc/codecs/sgtl5000.c
+@@ -1,7 +1,7 @@
+ /*
+  * sgtl5000.c  --  SGTL5000 ALSA SoC Audio driver
+  *
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License version 2 as
+@@ -14,6 +14,7 @@
+ #include <linux/delay.h>
+ #include <linux/pm.h>
+ #include <linux/i2c.h>
++#include <linux/clk.h>
+ #include <linux/platform_device.h>
+ #include <linux/regulator/consumer.h>
+ #include <sound/core.h>
+@@ -655,11 +656,12 @@ static int sgtl5000_pcm_hw_params(struct snd_pcm_substream *substream,
+ 	else
+ #endif
+ 	{
++		/*
+ 		if (!sgtl5000->master) {
+ 			pr_err("%s: PLL not supported in slave mode\n",
+ 			       __func__);
+ 			return -EINVAL;
+-		}
++		}*/
+ 		clk_ctl |= SGTL5000_MCLK_FREQ_PLL << SGTL5000_MCLK_FREQ_SHIFT;
+ 	}
+ 
+@@ -1050,9 +1052,11 @@ static int sgtl5000_probe(struct platform_device *pdev)
+ 	    SGTL5000_DAC_MUTE_RIGHT | SGTL5000_DAC_MUTE_LEFT;
+ 	sgtl5000_write(codec, SGTL5000_CHIP_ADCDAC_CTRL, reg);
+ 
++#ifdef CONFIG_ARCH_MXC
+ 	if (cpu_is_mx25())
+ 		sgtl5000_write(codec, SGTL5000_CHIP_PAD_STRENGTH, 0x01df);
+ 	else
++#endif
+ 		sgtl5000_write(codec, SGTL5000_CHIP_PAD_STRENGTH, 0x015f);
+ 
+ 	reg = sgtl5000_read(codec, SGTL5000_CHIP_ANA_ADC_CTRL);
+@@ -1120,6 +1124,9 @@ static __devinit int sgtl5000_i2c_probe(struct i2c_client *client,
+ 	int ret = 0;
+ 	u32 val;
+ 
++	if (client->dev.platform_data)
++		clk_enable((struct clk *)client->dev.platform_data);
++
+ 	if (sgtl5000_codec) {
+ 		dev_err(&client->dev,
+ 			"Multiple SGTL5000 devices not supported\n");
+@@ -1242,6 +1249,9 @@ static __devexit int sgtl5000_i2c_remove(struct i2c_client *client)
+ 	struct snd_soc_codec *codec = i2c_get_clientdata(client);
+ 	struct sgtl5000_priv *sgtl5000 = codec->private_data;
+ 
++	if (client->dev.platform_data)
++		clk_disable((struct clk *)client->dev.platform_data);
++
+ 	snd_soc_unregister_dai(&sgtl5000_dai);
+ 	snd_soc_unregister_codec(codec);
+ 
+diff --git a/sound/soc/mxs/Kconfig b/sound/soc/mxs/Kconfig
+new file mode 100644
+index 0000000..0e5bc1b
+--- /dev/null
++++ b/sound/soc/mxs/Kconfig
+@@ -0,0 +1,49 @@
++config SND_MXS_SOC
++	tristate "SoC Audio for the MXS chips"
++	depends on ARCH_MXS && SND_SOC
++	select SND_PCM
++	help
++	  Say Y or M if you want to add support for codecs attached to
++	  the MXS I2S or SSP interface.
++
++
++config SND_MXS_SOC_SPDIF_DAI
++	tristate
++
++config SND_MXS_SOC_EVK_DEVB
++	tristate "SoC Audio support for MXS-EVK SGTL5000"
++	depends on SND_MXS_SOC && ARCH_MX28
++	select SND_SOC_SGTL5000
++	help
++	  Say Y if you want to add support for SoC audio on mx28 EVK development
++	  board with the sgtl5000 codec.
++
++config SND_MXS_SOC_DAI
++	tristate "MXS Digital Audio Interface SAIF"
++	default y
++	depends on SND_MXS_SOC_EVK_DEVB
++	help
++	   Enable MXS Digital Audio Interface SAIF
++
++config SND_MXS_SOC_SAIF0_SELECT
++	bool "Enable SAIF0 module"
++	default y
++	depends on SND_MXS_SOC_DAI
++	help
++	  Enable MXS SAIF0 Module
++
++config SND_MXS_SOC_SAIF1_SELECT
++	bool "Enable SAIF1 module"
++	depends on SND_MXS_SOC_DAI
++	help
++	  Enable MXS SAIF1 Module
++
++
++config SND_MXS_SOC_EVK_DEVB_SPDIF
++	tristate "SoC SPDIF support for MX28 EVK Development Board"
++	depends on SND_MXS_SOC && ARCH_MX28
++	select SND_MXS_SOC_SPDIF_DAI
++	select SND_SOC_MXS_SPDIF
++	help
++	  Say Y if you want to add support for SoC audio on mx28 EVK development
++	  board with the SPDIF transmitter.
+diff --git a/sound/soc/mxs/Makefile b/sound/soc/mxs/Makefile
+new file mode 100644
+index 0000000..6a8ce0e
+--- /dev/null
++++ b/sound/soc/mxs/Makefile
+@@ -0,0 +1,12 @@
++# MXS platfrom support
++snd-soc-mxs-objs := mxs-pcm.o
++snd-soc-mxs-dai-objs := mxs-dai.o
++snd-soc-mxs-spdif-dai-objs := mxs-spdif-dai.o
++snd-soc-mxs-devb-objs := mxs-devb.o
++snd-soc-mxs-devb-spdif-objs := mxs-devb-spdif.o
++
++obj-$(CONFIG_SND_MXS_SOC) += snd-soc-mxs.o
++obj-$(CONFIG_SND_MXS_SOC_DAI) += snd-soc-mxs-dai.o
++obj-$(CONFIG_SND_MXS_SOC_SPDIF_DAI) += snd-soc-mxs-spdif-dai.o
++obj-$(CONFIG_SND_MXS_SOC_EVK_DEVB) += snd-soc-mxs-devb.o
++obj-$(CONFIG_SND_MXS_SOC_EVK_DEVB_SPDIF) += snd-soc-mxs-devb-spdif.o
+diff --git a/sound/soc/mxs/mxs-dai.c b/sound/soc/mxs/mxs-dai.c
+new file mode 100644
+index 0000000..de759b5
+--- /dev/null
++++ b/sound/soc/mxs/mxs-dai.c
+@@ -0,0 +1,624 @@
++/*
++ * Copyright (C) 2010 Freescale Semiconductor, Inc. All Rights Reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License along
++ * with this program; if not, write to the Free Software Foundation, Inc.,
++ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
++ */
++
++#include <linux/module.h>
++#include <linux/init.h>
++#include <linux/platform_device.h>
++#include <linux/slab.h>
++#include <linux/dma-mapping.h>
++#include <linux/clk.h>
++#include <linux/delay.h>
++#include <sound/core.h>
++#include <sound/pcm.h>
++#include <sound/pcm_params.h>
++#include <sound/soc.h>
++#include <mach/dma.h>
++#include <asm/mach-types.h>
++#include <mach/hardware.h>
++
++#include <mach/mx28.h>
++
++#include "mxs-pcm.h"
++#include "mxs-dai.h"
++
++#define SAIF0_CTRL (IO_ADDRESS(SAIF0_PHYS_ADDR) + HW_SAIF_CTRL)
++#define SAIF1_CTRL (IO_ADDRESS(SAIF1_PHYS_ADDR) + HW_SAIF_CTRL)
++#define SAIF0_CTRL_SET (IO_ADDRESS(SAIF0_PHYS_ADDR) + HW_SAIF_CTRL_SET)
++#define SAIF1_CTRL_SET (IO_ADDRESS(SAIF1_PHYS_ADDR) + HW_SAIF_CTRL_SET)
++#define SAIF0_CTRL_CLR (IO_ADDRESS(SAIF0_PHYS_ADDR) + HW_SAIF_CTRL_CLR)
++#define SAIF1_CTRL_CLR (IO_ADDRESS(SAIF1_PHYS_ADDR) + HW_SAIF_CTRL_CLR)
++
++#define SAIF0_STAT (IO_ADDRESS(SAIF0_PHYS_ADDR) + HW_SAIF_STAT)
++#define SAIF1_STAT (IO_ADDRESS(SAIF1_PHYS_ADDR) + HW_SAIF_STAT)
++#define SAIF0_STAT_SET (IO_ADDRESS(SAIF0_PHYS_ADDR) + HW_SAIF_STAT_SET)
++#define SAIF1_STAT_SET (IO_ADDRESS(SAIF1_PHYS_ADDR) + HW_SAIF_STAT_SET)
++#define SAIF0_STAT_CLR (IO_ADDRESS(SAIF0_PHYS_ADDR) + HW_SAIF_STAT_CLR)
++#define SAIF1_STAT_CLR (IO_ADDRESS(SAIF1_PHYS_ADDR) + HW_SAIF_STAT_CLR)
++
++#define SAIF0_DATA (IO_ADDRESS(SAIF0_PHYS_ADDR) + HW_SAIF_DATA)
++#define SAIF1_DATA (IO_ADDRESS(SAIF1_PHYS_ADDR) + HW_SAIF_DATA)
++#define SAIF0_DATA_SET (IO_ADDRESS(SAIF0_PHYS_ADDR) + HW_SAIF_DATA_SET)
++#define SAIF1_DATA_SET (IO_ADDRESS(SAIF1_PHYS_ADDR) + HW_SAIF_DATA_SET)
++#define SAIF0_DATA_CLR (IO_ADDRESS(SAIF0_PHYS_ADDR) + HW_SAIF_DATA_CLR)
++#define SAIF1_DATA_CLR (IO_ADDRESS(SAIF1_PHYS_ADDR) + HW_SAIF_DATA_CLR)
++
++#define SAIF0_VERSION (IO_ADDRESS(SAIF0_PHYS_ADDR) + HW_SAIF_VERSION)
++#define SAIF1_VERSION (IO_ADDRESS(SAIF1_PHYS_ADDR) + HW_SAIF_VERSION)
++
++#define HW_SAIF_CTRL	(0x00000000)
++#define HW_SAIF_CTRL_SET	(0x00000004)
++#define HW_SAIF_CTRL_CLR	(0x00000008)
++#define HW_SAIF_CTRL_TOG	(0x0000000c)
++
++#define BM_SAIF_CTRL_SFTRST	0x80000000
++#define BM_SAIF_CTRL_CLKGATE	0x40000000
++#define BP_SAIF_CTRL_BITCLK_MULT_RATE	27
++#define BM_SAIF_CTRL_BITCLK_MULT_RATE	0x38000000
++#define BF_SAIF_CTRL_BITCLK_MULT_RATE(v)  \
++		(((v) << 27) & BM_SAIF_CTRL_BITCLK_MULT_RATE)
++#define BM_SAIF_CTRL_BITCLK_BASE_RATE	0x04000000
++#define BM_SAIF_CTRL_FIFO_ERROR_IRQ_EN	0x02000000
++#define BM_SAIF_CTRL_FIFO_SERVICE_IRQ_EN	0x01000000
++#define BP_SAIF_CTRL_RSRVD2	21
++#define BM_SAIF_CTRL_RSRVD2	0x00E00000
++#define BF_SAIF_CTRL_RSRVD2(v)  \
++		(((v) << 21) & BM_SAIF_CTRL_RSRVD2)
++#define BP_SAIF_CTRL_DMAWAIT_COUNT	16
++#define BM_SAIF_CTRL_DMAWAIT_COUNT	0x001F0000
++#define BF_SAIF_CTRL_DMAWAIT_COUNT(v)  \
++		(((v) << 16) & BM_SAIF_CTRL_DMAWAIT_COUNT)
++#define BP_SAIF_CTRL_CHANNEL_NUM_SELECT	14
++#define BM_SAIF_CTRL_CHANNEL_NUM_SELECT	0x0000C000
++#define BF_SAIF_CTRL_CHANNEL_NUM_SELECT(v)  \
++		(((v) << 14) & BM_SAIF_CTRL_CHANNEL_NUM_SELECT)
++#define BM_SAIF_CTRL_LRCLK_PULSE	0x00002000
++#define BM_SAIF_CTRL_BIT_ORDER	0x00001000
++#define BM_SAIF_CTRL_DELAY	0x00000800
++#define BM_SAIF_CTRL_JUSTIFY	0x00000400
++#define BM_SAIF_CTRL_LRCLK_POLARITY	0x00000200
++#define BM_SAIF_CTRL_BITCLK_EDGE	0x00000100
++#define BP_SAIF_CTRL_WORD_LENGTH	4
++#define BM_SAIF_CTRL_WORD_LENGTH	0x000000F0
++#define BF_SAIF_CTRL_WORD_LENGTH(v)  \
++		(((v) << 4) & BM_SAIF_CTRL_WORD_LENGTH)
++#define BM_SAIF_CTRL_BITCLK_48XFS_ENABLE	0x00000008
++#define BM_SAIF_CTRL_SLAVE_MODE	0x00000004
++#define BM_SAIF_CTRL_READ_MODE	0x00000002
++#define BM_SAIF_CTRL_RUN	0x00000001
++
++#define HW_SAIF_STAT	(0x00000010)
++#define HW_SAIF_STAT_SET	(0x00000014)
++#define HW_SAIF_STAT_CLR	(0x00000018)
++#define HW_SAIF_STAT_TOG	(0x0000001c)
++
++#define BM_SAIF_STAT_PRESENT	0x80000000
++#define BP_SAIF_STAT_RSRVD2	17
++#define BM_SAIF_STAT_RSRVD2	0x7FFE0000
++#define BF_SAIF_STAT_RSRVD2(v)  \
++		(((v) << 17) & BM_SAIF_STAT_RSRVD2)
++#define BM_SAIF_STAT_DMA_PREQ	0x00010000
++#define BP_SAIF_STAT_RSRVD1	7
++#define BM_SAIF_STAT_RSRVD1	0x0000FF80
++#define BF_SAIF_STAT_RSRVD1(v)  \
++		(((v) << 7) & BM_SAIF_STAT_RSRVD1)
++#define BM_SAIF_STAT_FIFO_UNDERFLOW_IRQ	0x00000040
++#define BM_SAIF_STAT_FIFO_OVERFLOW_IRQ	0x00000020
++#define BM_SAIF_STAT_FIFO_SERVICE_IRQ	0x00000010
++#define BP_SAIF_STAT_RSRVD0	1
++#define BM_SAIF_STAT_RSRVD0	0x0000000E
++#define BF_SAIF_STAT_RSRVD0(v)  \
++		(((v) << 1) & BM_SAIF_STAT_RSRVD0)
++#define BM_SAIF_STAT_BUSY	0x00000001
++
++#define HW_SAIF_DATA	(0x00000020)
++#define HW_SAIF_DATA_SET	(0x00000024)
++#define HW_SAIF_DATA_CLR	(0x00000028)
++#define HW_SAIF_DATA_TOG	(0x0000002c)
++
++#define BP_SAIF_DATA_PCM_RIGHT	16
++#define BM_SAIF_DATA_PCM_RIGHT	0xFFFF0000
++#define BF_SAIF_DATA_PCM_RIGHT(v) \
++		(((v) << 16) & BM_SAIF_DATA_PCM_RIGHT)
++#define BP_SAIF_DATA_PCM_LEFT	0
++#define BM_SAIF_DATA_PCM_LEFT	0x0000FFFF
++#define BF_SAIF_DATA_PCM_LEFT(v)  \
++		(((v) << 0) & BM_SAIF_DATA_PCM_LEFT)
++
++#define HW_SAIF_VERSION	(0x00000030)
++
++#define BP_SAIF_VERSION_MAJOR	24
++#define BM_SAIF_VERSION_MAJOR	0xFF000000
++#define BF_SAIF_VERSION_MAJOR(v) \
++		(((v) << 24) & BM_SAIF_VERSION_MAJOR)
++#define BP_SAIF_VERSION_MINOR	16
++#define BM_SAIF_VERSION_MINOR	0x00FF0000
++#define BF_SAIF_VERSION_MINOR(v)  \
++		(((v) << 16) & BM_SAIF_VERSION_MINOR)
++#define BP_SAIF_VERSION_STEP	0
++#define BM_SAIF_VERSION_STEP	0x0000FFFF
++#define BF_SAIF_VERSION_STEP(v)  \
++		(((v) << 0) & BM_SAIF_VERSION_STEP)
++/* debug */
++#define MXS_SAIF_DEBUG 0
++#if MXS_SAIF_DEBUG
++#define dbg(format, arg...) printk(format, ## arg)
++#else
++#define dbg(format, arg...)
++#endif
++
++#define MXS_SAIF_DUMP 0
++#if MXS_SAIF_DUMP
++#define SAIF_DUMP() \
++	do { \
++		printk(KERN_INFO "dump @ %s\n", __func__);\
++		printk(KERN_INFO "scr %x\t, %x\n", \
++			__raw_readl(SAIF0_CTRL), __raw_readl(SAIF1_CTRL));\
++		printk(KERN_INFO "stat %x\t, %x\n", \
++			__raw_readl(SAIF0_STAT), __raw_readl(SAIF1_STAT));\
++		printk(KERN_INFO "data %x\t, %x\n", \
++			__raw_readl(SAIF0_DATA), __raw_readl(SAIF1_DATA));\
++		printk(KERN_INFO "version %x\t, %x\n", \
++			__raw_readl(SAIF0_VERSION), __raw_readl(SAIF1_VERSION));
++	} while (0);
++#else
++#define SAIF_DUMP()
++#endif
++
++#define SAIF0_PORT	0
++#define SAIF1_PORT	1
++
++#define MXS_DAI_SAIF0 0
++#define MXS_DAI_SAIF1 1
++
++static int saif_active[2] = { 0, 0 };
++
++struct mxs_pcm_dma_params mxs_saif_0 = {
++	.name = "mxs-saif-0",
++	.dma_ch	= MXS_DMA_CHANNEL_AHB_APBX_SAIF0,
++	.irq = IRQ_SAIF0_DMA,
++};
++
++struct mxs_pcm_dma_params mxs_saif_1 = {
++	.name = "mxs-saif-1",
++	.dma_ch	= MXS_DMA_CHANNEL_AHB_APBX_SAIF1,
++	.irq = IRQ_SAIF1_DMA,
++};
++
++/*
++* SAIF system clock configuration.
++* Should only be called when port is inactive.
++*/
++static int mxs_saif_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
++				  int clk_id, unsigned int freq, int dir)
++{
++	u32 scr;
++	struct clk *saif_clk;
++
++	if (cpu_dai->id == MXS_DAI_SAIF0) {
++		scr = __raw_readl(SAIF0_CTRL);
++		saif_clk = clk_get(NULL, "saif.0");
++	} else {
++		scr = __raw_readl(SAIF1_CTRL);
++		saif_clk = clk_get(NULL, "saif.1");
++	}
++
++	switch (clk_id) {
++	case IMX_SSP_SYS_CLK:
++		clk_set_rate(saif_clk, freq);
++		clk_enable(saif_clk);
++		break;
++	default:
++		return -EINVAL;
++	}
++	return 0;
++}
++
++/*
++ * SAIF Clock dividers
++ * Should only be called when port is inactive.
++ */
++static int mxs_saif_set_dai_clkdiv(struct snd_soc_dai *cpu_dai,
++				  int div_id, int div)
++{
++	return 0;
++}
++
++/*
++ * SAIF DAI format configuration.
++ * Should only be called when port is inactive.
++ * Note: We don't use the I2S modes but instead manually configure the
++ * SAIF for I2S.
++ */
++static int mxs_saif_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
++{
++	u32 scr, stat;
++
++	if (cpu_dai->id == MXS_DAI_SAIF0) {
++		scr = __raw_readl(SAIF0_CTRL);
++		stat = __raw_readl(SAIF0_STAT);
++	} else {
++		scr = __raw_readl(SAIF1_CTRL);
++		stat = __raw_readl(SAIF1_STAT);
++	}
++
++	if (stat & BM_SAIF_STAT_BUSY)
++		return 0;
++
++	/* DAI mode */
++	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
++	case SND_SOC_DAIFMT_I2S:
++		/* data frame low 1clk before data */
++		scr |= BM_SAIF_CTRL_DELAY;
++		scr &= ~BM_SAIF_CTRL_LRCLK_POLARITY;
++		break;
++	case SND_SOC_DAIFMT_LEFT_J:
++		/* data frame high with data */
++		scr &= ~BM_SAIF_CTRL_DELAY;
++		scr &= ~BM_SAIF_CTRL_LRCLK_POLARITY;
++		scr &= ~BM_SAIF_CTRL_JUSTIFY;
++		break;
++	}
++
++	/* DAI clock inversion */
++	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
++	case SND_SOC_DAIFMT_IB_IF:
++		scr |= BM_SAIF_CTRL_BITCLK_EDGE;
++		scr |= BM_SAIF_CTRL_LRCLK_POLARITY;
++		break;
++	case SND_SOC_DAIFMT_IB_NF:
++		scr |= BM_SAIF_CTRL_BITCLK_EDGE;
++		scr &= ~BM_SAIF_CTRL_LRCLK_POLARITY;
++		break;
++	case SND_SOC_DAIFMT_NB_IF:
++		scr &= ~BM_SAIF_CTRL_BITCLK_EDGE;
++		scr |= BM_SAIF_CTRL_LRCLK_POLARITY;
++		break;
++	case SND_SOC_DAIFMT_NB_NF:
++		scr &= ~BM_SAIF_CTRL_BITCLK_EDGE;
++		scr &= ~BM_SAIF_CTRL_LRCLK_POLARITY;
++		break;
++	}
++
++	/* DAI clock master masks */
++	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
++	case SND_SOC_DAIFMT_CBS_CFS:
++		scr &= ~BM_SAIF_CTRL_SLAVE_MODE;
++		break;
++	case SND_SOC_DAIFMT_CBM_CFS:
++		break;
++	case SND_SOC_DAIFMT_CBS_CFM:
++		break;
++	case SND_SOC_DAIFMT_CBM_CFM:
++		scr |= BM_SAIF_CTRL_SLAVE_MODE;
++		break;
++	}
++
++
++	if (cpu_dai->id == MXS_DAI_SAIF0)
++		__raw_writel(scr, SAIF0_CTRL);
++	else
++		__raw_writel(scr, SAIF1_CTRL);
++
++	SAIF_DUMP();
++	return 0;
++}
++
++static int mxs_saif_startup(struct snd_pcm_substream *substream,
++			   struct snd_soc_dai *cpu_dai)
++{
++	/* we cant really change any saif values after saif is enabled
++	 * need to fix in software for max flexibility - lrg */
++	if (cpu_dai->playback.active || cpu_dai->capture.active)
++		return 0;
++
++	/* reset the SAIF port - Sect 45.4.4 */
++	if (cpu_dai->id == MXS_DAI_SAIF0)
++		if (saif_active[SAIF0_PORT]++)
++			return 0;
++	if (cpu_dai->id == MXS_DAI_SAIF1)
++		if (saif_active[SAIF1_PORT]++)
++			return 0;
++
++	if (cpu_dai->id == MXS_DAI_SAIF0)
++		cpu_dai->dma_data = &mxs_saif_0;
++	else
++		cpu_dai->dma_data = &mxs_saif_1;
++	SAIF_DUMP();
++	return 0;
++}
++
++/*
++ * Should only be called when port is inactive.
++ * although can be called multiple times by upper layers.
++ */
++static int mxs_saif_hw_params(struct snd_pcm_substream *substream,
++			     struct snd_pcm_hw_params *params,
++			     struct snd_soc_dai *cpu_dai)
++{
++	int id;
++	u32 scr, stat;
++	id = cpu_dai->id;
++
++	if (cpu_dai->id == MXS_DAI_SAIF0) {
++		scr = __raw_readl(SAIF0_CTRL);
++		stat = __raw_readl(SAIF0_STAT);
++	} else {
++		scr = __raw_readl(SAIF1_CTRL);
++		stat = __raw_readl(SAIF1_STAT);
++	}
++
++	/* cant change any parameters when SAIF is running */
++	/* DAI data (word) size */
++	scr &= ~BM_SAIF_CTRL_WORD_LENGTH;
++	scr &= ~BM_SAIF_CTRL_BITCLK_48XFS_ENABLE;
++	switch (params_format(params)) {
++	case SNDRV_PCM_FORMAT_S16_LE:
++		scr |= BF_SAIF_CTRL_WORD_LENGTH(0);
++		break;
++	case SNDRV_PCM_FORMAT_S20_3LE:
++		scr |= BF_SAIF_CTRL_WORD_LENGTH(4);
++		scr |= BM_SAIF_CTRL_BITCLK_48XFS_ENABLE;
++		break;
++	case SNDRV_PCM_FORMAT_S24_LE:
++		scr |= BF_SAIF_CTRL_WORD_LENGTH(8);
++		scr |= BM_SAIF_CTRL_BITCLK_48XFS_ENABLE;
++		break;
++	}
++
++	/* Tx/Rx config */
++	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
++		/* enable TX mode */
++		scr &= ~BM_SAIF_CTRL_READ_MODE;
++	} else {
++		/* enable RX mode */
++		scr |= BM_SAIF_CTRL_READ_MODE;
++	}
++
++	if (cpu_dai->id == MXS_DAI_SAIF0)
++		__raw_writel(scr, SAIF0_CTRL);
++	else
++		__raw_writel(scr, SAIF1_CTRL);
++
++	return 0;
++}
++
++static int mxs_saif_prepare(struct snd_pcm_substream *substream,
++			   struct snd_soc_dai *cpu_dai)
++{
++	if (cpu_dai->id == MXS_DAI_SAIF0)
++		__raw_writel(BM_SAIF_CTRL_CLKGATE, SAIF0_CTRL_CLR);
++	else
++		__raw_writel(BM_SAIF_CTRL_CLKGATE, SAIF1_CTRL_CLR);
++
++	/* enable the saif port, note that no other port config
++	 * should happen after SSIEN is set */
++	SAIF_DUMP();
++	return 0;
++}
++
++static int mxs_saif_trigger(struct snd_pcm_substream *substream, int cmd,
++			   struct snd_soc_dai *cpu_dai)
++{
++	u32 scr;
++	if (cpu_dai->id == MXS_DAI_SAIF0)
++		scr = __raw_readl(SAIF0_CTRL);
++	else
++		scr = __raw_readl(SAIF1_CTRL);
++
++	switch (cmd) {
++	case SNDRV_PCM_TRIGGER_START:
++	case SNDRV_PCM_TRIGGER_RESUME:
++	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
++		/*write a data to saif data register to trigger the transfer*/
++		__raw_writel(0x0, SAIF0_DATA);
++		break;
++	case SNDRV_PCM_TRIGGER_SUSPEND:
++	case SNDRV_PCM_TRIGGER_STOP:
++	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
++		scr &= ~BM_SAIF_CTRL_RUN;
++		break;
++	default:
++		return -EINVAL;
++	}
++	SAIF_DUMP();
++	return 0;
++}
++
++static void mxs_saif_shutdown(struct snd_pcm_substream *substream,
++			     struct snd_soc_dai *cpu_dai)
++{
++	int id;
++
++	id = cpu_dai->id;
++
++	/* shutdown SAIF if neither Tx or Rx is active */
++	if (cpu_dai->playback.active || cpu_dai->capture.active)
++		return;
++
++	if (id == MXS_DAI_SAIF0) {
++		if (--saif_active[SAIF0_PORT] > 1)
++			return;
++	} else {
++		if (--saif_active[SAIF1_PORT])
++			return;
++	}
++}
++
++#ifdef CONFIG_PM
++static int mxs_saif_suspend(struct snd_soc_dai *dai)
++{
++	if (!dai->active)
++		return 0;
++	/* do we need to disable any clocks? */
++	return 0;
++}
++
++static int mxs_saif_resume(struct snd_soc_dai *dai)
++{
++	if (!dai->active)
++		return 0;
++	/* do we need to enable any clocks? */
++	return 0;
++}
++#else
++#define mxs_saif_suspend	NULL
++#define mxs_saif_resume	NULL
++#endif
++
++static int fifo_err_counter;
++
++static irqreturn_t saif0_irq(int irq, void *dev_id)
++{
++	if (fifo_err_counter++ % 100 == 0)
++		printk(KERN_ERR "saif0_irq SAIF_STAT %x SAIF_CTRL %x fifo_errs=\
++			%d\n",
++		       __raw_readl(SAIF0_STAT),
++		       __raw_readl(SAIF0_CTRL),
++		       fifo_err_counter);
++	__raw_writel(BM_SAIF_STAT_FIFO_UNDERFLOW_IRQ | \
++			BM_SAIF_STAT_FIFO_OVERFLOW_IRQ, SAIF0_STAT_CLR);
++	return IRQ_HANDLED;
++}
++
++static irqreturn_t saif1_irq(int irq, void *dev_id)
++{
++	if (fifo_err_counter++ % 100 == 0)
++		printk(KERN_ERR "saif1_irq SAIF_STAT %x SAIF_CTRL %x \
++			fifo_errs=%d\n",
++		       __raw_readl(SAIF1_STAT),
++		       __raw_readl(SAIF1_CTRL),
++		       fifo_err_counter);
++	__raw_writel(BM_SAIF_STAT_FIFO_UNDERFLOW_IRQ | \
++			BM_SAIF_STAT_FIFO_OVERFLOW_IRQ, SAIF1_STAT_CLR);
++	return IRQ_HANDLED;
++}
++
++static int mxs_saif_probe(struct platform_device *pdev, struct snd_soc_dai *dai)
++{
++	printk("in mxs_saif_probe\n");
++	if (!strcmp(dai->name, "mxs-saif-0"))
++		if (request_irq(IRQ_SAIF0, saif0_irq, 0, "saif0", dai)) {
++			printk(KERN_ERR "%s: failure requesting irq %s\n",
++			       __func__, "saif0");
++			return -EBUSY;
++		}
++
++	if (!strcmp(dai->name, "mxs-saif-1"))
++		if (request_irq(IRQ_SAIF1, saif1_irq, 0, "saif1", dai)) {
++			printk(KERN_ERR "%s: failure requesting irq %s\n",
++			       __func__, "saif1");
++			return -EBUSY;
++		}
++
++	return 0;
++}
++
++static void mxs_saif_remove(struct platform_device *pdev,
++			   struct snd_soc_dai *dai)
++{
++	if (!strcmp(dai->name, "mxs-saif-0"))
++		free_irq(IRQ_SAIF0, dai);
++
++	if (!strcmp(dai->name, "mxs-saif-1"))
++		free_irq(IRQ_SAIF1, dai);
++}
++
++#define MXS_SAIF_RATES \
++	(SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 | \
++	SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_22050 | \
++	SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 | \
++	SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 | \
++	SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_176400 | \
++	SNDRV_PCM_RATE_192000)
++
++#define MXS_SAIF_FORMATS \
++	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
++	SNDRV_PCM_FMTBIT_S24_LE)
++
++static struct snd_soc_dai_ops mxs_saif_dai_ops = {
++	.startup = mxs_saif_startup,
++	.shutdown = mxs_saif_shutdown,
++	.trigger = mxs_saif_trigger,
++	.prepare = mxs_saif_prepare,
++	.hw_params = mxs_saif_hw_params,
++	.set_sysclk = mxs_saif_set_dai_sysclk,
++	.set_clkdiv = mxs_saif_set_dai_clkdiv,
++	.set_fmt = mxs_saif_set_dai_fmt,
++};
++
++struct snd_soc_dai mxs_saif_dai[] = {
++	{
++	.name = "mxs-saif-0",
++	.id = MXS_DAI_SAIF0,
++	.probe = mxs_saif_probe,
++	.remove = mxs_saif_remove,
++	.suspend = mxs_saif_suspend,
++	.resume = mxs_saif_resume,
++	.playback = {
++		.channels_min = 2,
++		.channels_max = 2,
++		.rates = MXS_SAIF_RATES,
++		.formats = MXS_SAIF_FORMATS,
++	},
++	.capture = {
++		.channels_min = 2,
++		.channels_max = 2,
++		.rates = MXS_SAIF_RATES,
++		.formats = MXS_SAIF_FORMATS,
++	},
++	.ops = &mxs_saif_dai_ops,
++	},
++	{
++	.name = "mxs-saif-1",
++	.id = MXS_DAI_SAIF1,
++	.probe = mxs_saif_probe,
++	.remove = mxs_saif_remove,
++	.suspend = mxs_saif_suspend,
++	.resume = mxs_saif_resume,
++	.playback = {
++		.channels_min = 2,
++		.channels_max = 2,
++		.rates = MXS_SAIF_RATES,
++		.formats = MXS_SAIF_FORMATS,
++	},
++	.capture = {
++		.channels_min = 2,
++		.channels_max = 2,
++		.rates = MXS_SAIF_RATES,
++		.formats = MXS_SAIF_FORMATS,
++	},
++	.ops = &mxs_saif_dai_ops,
++	}
++};
++EXPORT_SYMBOL_GPL(mxs_saif_dai);
++
++static int __init mxs_saif_init(void)
++{
++	return snd_soc_register_dais(mxs_saif_dai, ARRAY_SIZE(mxs_saif_dai));
++}
++
++static void __exit mxs_saif_exit(void)
++{
++	snd_soc_unregister_dais(mxs_saif_dai, ARRAY_SIZE(mxs_saif_dai));
++}
++
++module_init(mxs_saif_init);
++module_exit(mxs_saif_exit);
++MODULE_AUTHOR("Freescale Semiconductor, Inc.");
++MODULE_DESCRIPTION("i.MX28 ASoC I2S driver");
++MODULE_LICENSE("GPL");
+diff --git a/sound/soc/mxs/mxs-dai.h b/sound/soc/mxs/mxs-dai.h
+new file mode 100644
+index 0000000..93b4038
+--- /dev/null
++++ b/sound/soc/mxs/mxs-dai.h
+@@ -0,0 +1,37 @@
++/*
++ * Copyright (C) 2009-2010 Freescale Semiconductor, Inc. All Rights Reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License along
++ * with this program; if not, write to the Free Software Foundation, Inc.,
++ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
++ */
++
++#ifndef _MXS_SAIF_H
++#define _MXS_SAIF_H
++
++#include <mach/hardware.h>
++
++/* SSI clock sources */
++#define IMX_SSP_SYS_CLK			0
++
++
++/* SSI Div 2 */
++#define IMX_SSI_DIV_2_OFF		(~SSI_STCCR_DIV2)
++#define IMX_SSI_DIV_2_ON		SSI_STCCR_DIV2
++
++#define IMX_DAI_AC97_1 0
++#define IMX_DAI_AC97_2 1
++
++extern struct snd_soc_dai mxs_saif_dai[];
++
++#endif
+diff --git a/sound/soc/mxs/mxs-devb.c b/sound/soc/mxs/mxs-devb.c
+new file mode 100644
+index 0000000..e92f99b
+--- /dev/null
++++ b/sound/soc/mxs/mxs-devb.c
+@@ -0,0 +1,281 @@
++/*
++ * Copyright (C) 2010 Freescale Semiconductor, Inc. All Rights Reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License along
++ * with this program; if not, write to the Free Software Foundation, Inc.,
++ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
++ */
++
++#include <linux/module.h>
++#include <linux/moduleparam.h>
++#include <linux/init.h>
++#include <linux/delay.h>
++#include <linux/pm.h>
++#include <linux/bitops.h>
++#include <linux/platform_device.h>
++#include <linux/i2c.h>
++#include <linux/err.h>
++#include <linux/irq.h>
++#include <linux/io.h>
++#include <linux/clk.h>
++#include <sound/core.h>
++#include <sound/pcm.h>
++#include <sound/pcm_params.h>
++#include <sound/soc.h>
++#include <sound/soc-dapm.h>
++#include <sound/initval.h>
++
++#include <mach/dma.h>
++#include <mach/device.h>
++
++#include "mxs-dai.h"
++#include "mxs-pcm.h"
++#include "../codecs/sgtl5000.h"
++
++/* SAIF BCLK and LRC master */
++#define SGTL5000_SAIF_MASTER	0
++
++struct mxs_evk_priv {
++	int sysclk;
++	int hw;
++	struct platform_device *pdev;
++};
++
++static struct mxs_evk_priv card_priv;
++
++static int mxs_evk_audio_hw_params(struct snd_pcm_substream *substream,
++				      struct snd_pcm_hw_params *params)
++{
++	struct snd_soc_pcm_runtime *rtd = substream->private_data;
++	struct snd_soc_dai_link *machine = rtd->dai;
++	struct snd_soc_dai *cpu_dai = machine->cpu_dai;
++	struct snd_soc_dai *codec_dai = machine->codec_dai;
++	struct mxs_evk_priv *priv = &card_priv;
++	unsigned int rate = params_rate(params);
++	int ret = 0;
++
++	u32 dai_format;
++
++	/* only need to do this once as capture and playback are sync */
++	if (priv->hw)
++		return 0;
++	priv->hw = 1;
++	priv->sysclk = 512 * rate;
++
++	snd_soc_dai_set_sysclk(codec_dai, SGTL5000_SYSCLK, priv->sysclk, 0);
++	snd_soc_dai_set_sysclk(codec_dai, SGTL5000_LRCLK, rate, 0);
++
++#if SGTL5000_SAIF_MASTER
++	dai_format = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
++	    SND_SOC_DAIFMT_CBM_CFM;
++#else
++	dai_format = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
++	    SND_SOC_DAIFMT_CBS_CFS;
++#endif
++
++	/* set codec DAI configuration */
++	ret = snd_soc_dai_set_fmt(codec_dai, dai_format);
++	if (ret < 0)
++		return ret;
++
++	/* set cpu DAI configuration */
++	ret = snd_soc_dai_set_fmt(cpu_dai, dai_format);
++	if (ret < 0)
++		return ret;
++
++	/* set the SAIF system clock as output */
++	snd_soc_dai_set_sysclk(cpu_dai, IMX_SSP_SYS_CLK, priv->sysclk, \
++		SND_SOC_CLOCK_OUT);
++
++	return 0;
++}
++
++static int mxs_evk_startup(struct snd_pcm_substream *substream)
++{
++	return 0;
++}
++
++static void mxs_evk_shutdown(struct snd_pcm_substream *substream)
++{
++	struct mxs_evk_priv *priv = &card_priv;
++	priv->hw = 0;
++}
++
++/*
++ * mxs_evk SGTL5000 audio DAI opserations.
++ */
++static struct snd_soc_ops mxs_evk_ops = {
++	.startup = mxs_evk_startup,
++	.shutdown = mxs_evk_shutdown,
++	.hw_params = mxs_evk_audio_hw_params,
++};
++
++/* mxs_evk machine connections to the codec pins */
++static const struct snd_soc_dapm_route audio_map[] = {
++
++	/* Mic Jack --> MIC_IN (with automatic bias) */
++	{"MIC_IN", NULL, "Mic Jack"},
++
++	/* Line in Jack --> LINE_IN */
++	{"LINE_IN", NULL, "Line In Jack"},
++
++	/* HP_OUT --> Headphone Jack */
++	{"Headphone Jack", NULL, "HP_OUT"},
++
++	/* LINE_OUT --> Ext Speaker */
++	{"Ext Spk", NULL, "LINE_OUT"},
++};
++
++static const char *jack_function[] = { "off", "on"};
++
++static const char *spk_function[] = { "off", "on" };
++
++static const char *line_in_function[] = { "off", "on" };
++
++static const struct soc_enum sgtl5000_enum[] = {
++	SOC_ENUM_SINGLE_EXT(2, jack_function),
++	SOC_ENUM_SINGLE_EXT(2, spk_function),
++	SOC_ENUM_SINGLE_EXT(2, line_in_function),
++};
++
++/* mxs_evk card dapm widgets */
++static const struct snd_soc_dapm_widget mxs_evk_dapm_widgets[] = {
++	SND_SOC_DAPM_MIC("Mic Jack", NULL),
++	SND_SOC_DAPM_LINE("Line In Jack", NULL),
++	SND_SOC_DAPM_HP("Headphone Jack", NULL),
++};
++
++static int mxs_evk_sgtl5000_init(struct snd_soc_codec *codec)
++{
++	/* Add mxs_evk specific widgets */
++	snd_soc_dapm_new_controls(codec, mxs_evk_dapm_widgets,
++				  ARRAY_SIZE(mxs_evk_dapm_widgets));
++
++	/* Set up mxs_evk specific audio path audio_map */
++	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
++
++	snd_soc_dapm_disable_pin(codec, "Line In Jack");
++
++	snd_soc_dapm_sync(codec);
++
++	return 0;
++}
++
++/* mxs_evk digital audio interface glue - connects codec <--> CPU */
++static struct snd_soc_dai_link mxs_evk_dai = {
++	.name = "SGTL5000",
++	.stream_name = "SGTL5000",
++	.codec_dai = &sgtl5000_dai,
++	.init = mxs_evk_sgtl5000_init,
++	.ops = &mxs_evk_ops,
++};
++
++static int mxs_evk_card_remove(struct platform_device *pdev)
++{
++	struct mxs_evk_priv *priv = &card_priv;
++	struct mxs_audio_platform_data *plat;
++	if (priv->pdev) {
++		plat = priv->pdev->dev.platform_data;
++		if (plat->finit)
++			plat->finit();
++	}
++
++	return 0;
++}
++
++static struct snd_soc_card snd_soc_card_mxs_evk = {
++	.name = "mxs-evk",
++	.platform = &mxs_soc_platform,
++	.dai_link = &mxs_evk_dai,
++	.num_links = 1,
++	.remove = mxs_evk_card_remove,
++};
++
++static struct snd_soc_device mxs_evk_snd_devdata = {
++	.card = &snd_soc_card_mxs_evk,
++	.codec_dev = &soc_codec_dev_sgtl5000,
++};
++
++static int __devinit mxs_evk_sgtl5000_probe(struct platform_device *pdev)
++{
++	struct mxs_audio_platform_data *plat = pdev->dev.platform_data;
++
++	int ret = -EINVAL;
++	/*init the clk*/
++	if (plat->init && plat->init())
++		goto err_plat_init;
++
++	if (plat->saif0_select == 1)
++		mxs_evk_dai.cpu_dai = &mxs_saif_dai[0];
++	else
++		mxs_evk_dai.cpu_dai = &mxs_saif_dai[1];
++	return 0;
++err_plat_init:
++	if (plat->finit)
++		plat->finit();
++	return ret;
++}
++
++static int mxs_evk_sgtl5000_remove(struct platform_device *pdev)
++{
++	struct mxs_audio_platform_data *plat = pdev->dev.platform_data;
++
++	if (plat->finit)
++		plat->finit();
++	return 0;
++}
++
++static struct platform_driver mxs_evk_sgtl5000_audio_driver = {
++	.probe = mxs_evk_sgtl5000_probe,
++	.remove = mxs_evk_sgtl5000_remove,
++	.driver = {
++		   .name = "mxs-sgtl5000",
++		   },
++};
++
++static struct platform_device *mxs_evk_snd_device;
++
++static int __init mxs_evk_init(void)
++{
++	int ret;
++
++	ret = platform_driver_register(&mxs_evk_sgtl5000_audio_driver);
++	if (ret)
++		return -ENOMEM;
++
++	mxs_evk_snd_device = platform_device_alloc("soc-audio", 1);
++	if (!mxs_evk_snd_device)
++		return -ENOMEM;
++
++	platform_set_drvdata(mxs_evk_snd_device, &mxs_evk_snd_devdata);
++	mxs_evk_snd_devdata.dev = &mxs_evk_snd_device->dev;
++	ret = platform_device_add(mxs_evk_snd_device);
++
++	if (ret)
++		platform_device_put(mxs_evk_snd_device);
++
++	return ret;
++}
++
++static void __exit mxs_evk_exit(void)
++{
++	platform_driver_unregister(&mxs_evk_sgtl5000_audio_driver);
++	platform_device_unregister(mxs_evk_snd_device);
++}
++
++module_init(mxs_evk_init);
++module_exit(mxs_evk_exit);
++
++MODULE_AUTHOR("Freescale Semiconductor, Inc.");
++MODULE_DESCRIPTION("SGTL5000 Driver for MXS EVK");
++MODULE_LICENSE("GPL");
+diff --git a/sound/soc/mxs/mxs-pcm.c b/sound/soc/mxs/mxs-pcm.c
+new file mode 100644
+index 0000000..2bb58b5
+--- /dev/null
++++ b/sound/soc/mxs/mxs-pcm.c
+@@ -0,0 +1,425 @@
++/*
++ * Copyright (C) 2010 Freescale Semiconductor, Inc. All Rights Reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License along
++ * with this program; if not, write to the Free Software Foundation, Inc.,
++ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
++ */
++
++#include <linux/module.h>
++#include <linux/init.h>
++#include <linux/platform_device.h>
++#include <linux/slab.h>
++#include <linux/interrupt.h>
++#include <linux/dma-mapping.h>
++
++#include <sound/core.h>
++#include <sound/pcm.h>
++#include <sound/pcm_params.h>
++#include <sound/soc.h>
++
++#include <mach/dma.h>
++#include <mach/hardware.h>
++#include <mach/dmaengine.h>
++
++#include "mxs-pcm.h"
++static const struct snd_pcm_hardware mxs_pcm_hardware = {
++	.info			= SNDRV_PCM_INFO_MMAP |
++				  SNDRV_PCM_INFO_MMAP_VALID |
++				  SNDRV_PCM_INFO_PAUSE |
++				  SNDRV_PCM_INFO_RESUME |
++				  SNDRV_PCM_INFO_INTERLEAVED,
++	.formats		= SNDRV_PCM_FMTBIT_S16_LE |
++				  SNDRV_PCM_FMTBIT_S32_LE,
++	.channels_min		= 2,
++	.channels_max		= 2,
++	.period_bytes_min	= 32,
++	.period_bytes_max	= 8192,
++	.periods_min		= 1,
++	.periods_max		= 255,
++	.buffer_bytes_max	= 64 * 1024,
++	.fifo_size		= 32,
++};
++
++/*
++ * Required to request DMA channels
++ */
++struct device *mxs_pcm_dev;
++
++struct mxs_runtime_data {
++	u32 dma_ch;
++	u32 dma_period;
++	u32 dma_totsize;
++
++	struct mxs_pcm_dma_params *params;
++	struct mxs_dma_desc *dma_desc_array[255];
++};
++
++static irqreturn_t mxs_pcm_dma_irq(int irq, void *dev_id)
++{
++	struct snd_pcm_substream *substream = dev_id;
++	struct mxs_runtime_data *prtd = substream->runtime->private_data;
++	struct mxs_dma_info dma_info;
++
++	mxs_dma_get_info(prtd->dma_ch, &dma_info);
++
++	if (dma_info.status) {
++		printk(KERN_WARNING "%s: DMA audio channel %d (%s) error\n",
++			__func__, prtd->params->dma_ch, prtd->params->name);
++		mxs_dma_ack_irq(prtd->dma_ch);
++	} else {
++		mxs_dma_ack_irq(prtd->dma_ch);
++		snd_pcm_period_elapsed(substream);
++	}
++	return IRQ_HANDLED;
++}
++
++/*
++ * Make a circular DMA descriptor list
++ */
++static int mxs_pcm_prepare(struct snd_pcm_substream *substream)
++{
++	struct snd_pcm_runtime *runtime = substream->runtime;
++	struct mxs_runtime_data *prtd = runtime->private_data;
++	dma_addr_t dma_buffer_phys;
++	int periods_num, playback, i;
++
++	playback = substream->stream == SNDRV_PCM_STREAM_PLAYBACK ? 1 : 0;
++	periods_num = prtd->dma_totsize / prtd->dma_period;
++
++	dma_buffer_phys = runtime->dma_addr;
++
++	/* Reset DMA channel, enable interrupt */
++	mxs_dma_reset(prtd->dma_ch);
++
++	/* Set up a DMA chain to sent DMA buffer */
++	for (i = 0; i < periods_num; i++) {
++		int ret;
++		/* Link with previous command */
++		prtd->dma_desc_array[i]->cmd.cmd.bits.bytes = prtd->dma_period;
++		prtd->dma_desc_array[i]->cmd.cmd.bits.irq = 1;
++		prtd->dma_desc_array[i]->cmd.cmd.bits.chain = 1;
++		/* Set DMA direction */
++		if (playback)
++			prtd->dma_desc_array[i]->cmd.cmd.bits.command = \
++				DMA_READ;
++		else
++			prtd->dma_desc_array[i]->cmd.cmd.bits.command = \
++				DMA_WRITE;
++
++		prtd->dma_desc_array[i]->cmd.address = dma_buffer_phys;
++
++		ret = mxs_dma_desc_append(prtd->dma_ch, \
++			prtd->dma_desc_array[i]);
++		if (ret) {
++			printk(KERN_ERR "%s: Failed to append DMA descriptor\n",
++		       __func__);
++			return ret;
++		}
++		/* Next data chunk */
++		dma_buffer_phys += prtd->dma_period;
++	}
++
++	return 0;
++}
++
++/*
++ * Stop circular DMA descriptor list
++ * We should not stop DMA in a middle of current transaction once we receive
++ * stop request from ALSA core. This function finds the next DMA descriptor
++ * and set it up to decrement DMA channel semaphore. So the current transaction
++ * is the last data transfer.
++ */
++static void mxs_pcm_stop(struct snd_pcm_substream *substream)
++{
++	struct snd_pcm_runtime *runtime = substream->runtime;
++	struct mxs_runtime_data *prtd = runtime->private_data;
++	struct mxs_dma_info dma_info;
++	int desc;
++
++	/* Freez DMA channel for a moment */
++	mxs_dma_freeze(prtd->dma_ch);
++	mxs_dma_get_info(prtd->dma_ch, &dma_info);
++
++	desc = (dma_info.buf_addr - runtime->dma_addr) / prtd->dma_period;
++
++	/* Set up the next descriptor to decrement DMA channel sempahore */
++	prtd->dma_desc_array[(desc + 1)%8]->cmd.cmd.bits.bytes = 0;
++	prtd->dma_desc_array[(desc + 1)%8]->cmd.cmd.bits.pio_words = 0;
++	prtd->dma_desc_array[(desc + 1)%8]->cmd.cmd.bits.dec_sem = 1;
++	prtd->dma_desc_array[(desc + 1)%8]->cmd.cmd.bits.irq = 0;
++	prtd->dma_desc_array[(desc + 1)%8]->cmd.cmd.bits.command = NO_DMA_XFER;
++
++	mxs_dma_unfreeze(prtd->dma_ch);
++}
++
++static int mxs_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
++{
++	struct mxs_runtime_data *prtd = substream->runtime->private_data;
++	int ret = 0;
++	switch (cmd) {
++
++	case SNDRV_PCM_TRIGGER_START:
++		mxs_dma_enable(prtd->dma_ch);
++		break;
++
++	case SNDRV_PCM_TRIGGER_STOP:
++		mxs_pcm_stop(substream);
++		break;
++
++	case SNDRV_PCM_TRIGGER_RESUME:
++	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
++		mxs_dma_unfreeze(prtd->dma_ch);
++		break;
++
++	case SNDRV_PCM_TRIGGER_SUSPEND:
++	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
++		mxs_dma_freeze(prtd->dma_ch);
++		break;
++
++	default:
++		ret = -EINVAL;
++		break;
++	}
++
++	return ret;
++}
++
++static snd_pcm_uframes_t
++mxs_pcm_pointer(struct snd_pcm_substream *substream)
++{
++	struct snd_pcm_runtime *runtime = substream->runtime;
++	struct mxs_runtime_data *prtd = runtime->private_data;
++	struct mxs_dma_info dma_info;
++	unsigned int offset;
++	dma_addr_t pos;
++
++	mxs_dma_get_info(prtd->params->dma_ch, &dma_info);
++	pos = dma_info.buf_addr;
++
++	offset = bytes_to_frames(runtime, pos - runtime->dma_addr);
++
++	if (offset >= runtime->buffer_size)
++		offset = 0;
++
++	return offset;
++}
++
++static int mxs_pcm_hw_params(struct snd_pcm_substream *substream,
++				  struct snd_pcm_hw_params *hw_params)
++{
++	struct mxs_runtime_data *prtd = substream->runtime->private_data;
++
++	prtd->dma_period = params_period_bytes(hw_params);
++	prtd->dma_totsize = params_buffer_bytes(hw_params);
++
++	return snd_pcm_lib_malloc_pages(substream,
++					params_buffer_bytes(hw_params));
++}
++
++static int mxs_pcm_hw_free(struct snd_pcm_substream *substream)
++{
++	return snd_pcm_lib_free_pages(substream);
++}
++
++static int mxs_pcm_dma_request(struct snd_pcm_substream *substream)
++{
++	struct snd_pcm_runtime *runtime = substream->runtime;
++	struct snd_soc_pcm_runtime *rtd = substream->private_data;
++	struct mxs_runtime_data *prtd = runtime->private_data;
++	struct mxs_pcm_dma_params *dma_data = rtd->dai->cpu_dai->dma_data;
++	int desc_num = mxs_pcm_hardware.periods_max;
++	int desc;
++	int ret;
++
++	if (!dma_data)
++		return -ENODEV;
++
++	prtd->params = dma_data;
++	prtd->dma_ch = dma_data->dma_ch;
++
++	ret = mxs_dma_request(prtd->dma_ch, mxs_pcm_dev,
++				   prtd->params->name);
++	if (ret) {
++		printk(KERN_ERR "%s: Failed to request DMA channel (%d:%d)\n",
++		       __func__, dma_data->dma_bus, dma_data->dma_ch);
++		return ret;
++	}
++
++	/* Allocate memory for data and pio DMA descriptors */
++	for (desc = 0; desc < desc_num; desc++) {
++		prtd->dma_desc_array[desc] = mxs_dma_alloc_desc();
++		if (prtd->dma_desc_array[desc] == NULL) {
++			printk(KERN_ERR"%s Unable to allocate DMA command %d\n",
++			       __func__, desc);
++			goto err;
++		}
++	}
++
++	ret = request_irq(prtd->params->irq, mxs_pcm_dma_irq, 0,
++			  "MXS PCM DMA", substream);
++	if (ret) {
++		printk(KERN_ERR "%s: Unable to request DMA irq %d\n", __func__,
++		       prtd->params->irq);
++		goto err;
++	}
++	/* Enable completion interrupt */
++	mxs_dma_ack_irq(prtd->dma_ch);
++	mxs_dma_enable_irq(prtd->dma_ch, 1);
++
++	return 0;
++
++err:
++	while (--desc >= 0)
++		mxs_dma_free_desc(prtd->dma_desc_array[desc]);
++	mxs_dma_release(prtd->dma_ch, mxs_pcm_dev);
++
++	return ret;
++}
++
++static int mxs_pcm_open(struct snd_pcm_substream *substream)
++{
++	struct snd_pcm_runtime *runtime = substream->runtime;
++	struct mxs_runtime_data *prtd;
++	int ret;
++
++	/* Ensure that buffer size is a multiple of the period size */
++	ret = snd_pcm_hw_constraint_integer(runtime,
++					SNDRV_PCM_HW_PARAM_PERIODS);
++	if (ret < 0)
++		return ret;
++
++	snd_soc_set_runtime_hwparams(substream, &mxs_pcm_hardware);
++
++	prtd = kzalloc(sizeof(struct mxs_runtime_data), GFP_KERNEL);
++	if (prtd == NULL)
++		return -ENOMEM;
++
++	runtime->private_data = prtd;
++
++	ret = mxs_pcm_dma_request(substream);
++	if (ret) {
++		printk(KERN_ERR "mxs_pcm: Failed to request channels\n");
++		kfree(prtd);
++		return ret;
++	}
++	return 0;
++}
++
++static int mxs_pcm_close(struct snd_pcm_substream *substream)
++{
++	struct snd_pcm_runtime *runtime = substream->runtime;
++	struct mxs_runtime_data *prtd = runtime->private_data;
++	int desc_num = mxs_pcm_hardware.periods_max;
++	int desc;
++
++	static LIST_HEAD(list);
++	mxs_dma_disable(prtd->dma_ch);
++	/* Free DMA irq */
++	free_irq(prtd->params->irq, substream);
++	mxs_dma_get_cooked(prtd->dma_ch, &list);
++	/* Free DMA channel*/
++	for (desc = 0; desc < desc_num; desc++)
++		mxs_dma_free_desc(prtd->dma_desc_array[desc]);
++	mxs_dma_release(prtd->dma_ch, mxs_pcm_dev);
++
++	/* Free private runtime data */
++	kfree(prtd);
++	return 0;
++}
++
++static int mxs_pcm_mmap(struct snd_pcm_substream *substream,
++			     struct vm_area_struct *vma)
++{
++	struct snd_pcm_runtime *runtime = substream->runtime;
++
++	return dma_mmap_coherent(NULL, vma, runtime->dma_area,
++				 runtime->dma_addr, runtime->dma_bytes);
++}
++
++struct snd_pcm_ops mxs_pcm_ops = {
++	.open		= mxs_pcm_open,
++	.close		= mxs_pcm_close,
++	.ioctl		= snd_pcm_lib_ioctl,
++	.hw_params	= mxs_pcm_hw_params,
++	.hw_free	= mxs_pcm_hw_free,
++	.prepare	= mxs_pcm_prepare,
++	.trigger	= mxs_pcm_trigger,
++	.pointer	= mxs_pcm_pointer,
++	.mmap		= mxs_pcm_mmap,
++};
++
++static u64 mxs_pcm_dma_mask = DMA_BIT_MASK(32);
++
++static int mxs_pcm_new(struct snd_card *card,
++			    struct snd_soc_dai *dai, struct snd_pcm *pcm)
++{
++	size_t size = mxs_pcm_hardware.buffer_bytes_max;
++
++	if (!card->dev->dma_mask)
++		card->dev->dma_mask = &mxs_pcm_dma_mask;
++
++	if (!card->dev->coherent_dma_mask)
++		card->dev->coherent_dma_mask = DMA_BIT_MASK(32);
++
++	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV, NULL,
++					      size, size);
++
++	return 0;
++}
++
++static void mxs_pcm_free(struct snd_pcm *pcm)
++{
++	snd_pcm_lib_preallocate_free_for_all(pcm);
++}
++
++/*
++ * We need probe/remove callbacks to setup mxs_pcm_dev
++ */
++static int mxs_pcm_probe(struct platform_device *pdev)
++{
++	mxs_pcm_dev = &pdev->dev;
++	return 0;
++}
++
++static int mxs_pcm_remove(struct platform_device *pdev)
++{
++	mxs_pcm_dev = NULL;
++	return 0;
++}
++
++struct snd_soc_platform mxs_soc_platform = {
++	.name		= "MXS Audio",
++	.pcm_ops	= &mxs_pcm_ops,
++	.probe		= mxs_pcm_probe,
++	.remove		= mxs_pcm_remove,
++	.pcm_new	= mxs_pcm_new,
++	.pcm_free	= mxs_pcm_free,
++};
++EXPORT_SYMBOL_GPL(mxs_soc_platform);
++
++static int __init mxs_pcm_init(void)
++{
++	return snd_soc_register_platform(&mxs_soc_platform);
++}
++
++static void __exit mxs_pcm_exit(void)
++{
++	snd_soc_unregister_platform(&mxs_soc_platform);
++}
++module_init(mxs_pcm_init);
++module_exit(mxs_pcm_exit);
++
++MODULE_AUTHOR("Freescale Semiconductor, Inc.");
++MODULE_DESCRIPTION("MXS DMA Module");
++MODULE_LICENSE("GPL");
+diff --git a/sound/soc/mxs/mxs-pcm.h b/sound/soc/mxs/mxs-pcm.h
+new file mode 100644
+index 0000000..08a9d92
+--- /dev/null
++++ b/sound/soc/mxs/mxs-pcm.h
+@@ -0,0 +1,31 @@
++/*
++ * Copyright (C) 2009-2010 Freescale Semiconductor, Inc. All Rights Reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License along
++ * with this program; if not, write to the Free Software Foundation, Inc.,
++ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
++ */
++
++#ifndef _MXS_PCM_H
++#define _MXS_PCM_H
++
++struct mxs_pcm_dma_params {
++	char *name;
++	int dma_bus;	/* DMA bus */
++	int dma_ch;	/* DMA channel number */
++	int irq;	/* DMA interrupt number */
++};
++
++extern struct snd_soc_platform mxs_soc_platform;
++
++#endif
+-- 
+1.5.4.4
+

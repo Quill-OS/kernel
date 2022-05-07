@@ -1,0 +1,79 @@
+From 8a48f705c2069e1778a534d2dab08ec1cba58247 Mon Sep 17 00:00:00 2001
+From: Niu Xule <b23300@freescale.com>
+Date: Wed, 10 Mar 2010 15:33:10 +0800
+Subject: [PATCH] ENGR00119078 MX25:Fix a USB remote wakeup issue
+
+The Host2 USB controller On mx25 platform
+is no path available from internal USB FS
+PHY to FS PHY wake up interrupt, So to
+remove the function of USB Remote Wakeup on Host2.
+
+Signed-off-by: Niu Xule <b23300@freescale.com>
+---
+ arch/arm/mach-mx25/usb_h2.c    |   11 +----------
+ arch/arm/plat-mxc/usb_common.c |    8 ++++++++
+ 2 files changed, 9 insertions(+), 10 deletions(-)
+
+diff --git a/arch/arm/mach-mx25/usb_h2.c b/arch/arm/mach-mx25/usb_h2.c
+index 8548cca..6009d2a 100644
+--- a/arch/arm/mach-mx25/usb_h2.c
++++ b/arch/arm/mach-mx25/usb_h2.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2005-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2005-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -21,14 +21,6 @@
+ #include <mach/arc_otg.h>
+ #include "usb.h"
+ 
+-static void _wake_up_enable(struct fsl_usb2_platform_data *pdata, bool enable)
+-{
+-	if (enable)
+-		USBCTRL |= UCTRL_H2WIE;
+-	else
+-		USBCTRL &= ~UCTRL_H2WIE;
+-}
+-
+ static struct fsl_usb2_platform_data usbh2_config = {
+ 	.name              = "Host 2",
+ 	.platform_init     = fsl_usb_host_init,
+@@ -39,7 +31,6 @@ static struct fsl_usb2_platform_data usbh2_config = {
+ 	.gpio_usb_active   = gpio_usbh2_active,
+ 	.gpio_usb_inactive = gpio_usbh2_inactive,
+ 	.transceiver       = "serial",		/* on-chip */
+-	.wake_up_enable = _wake_up_enable,
+ };
+ 
+ static struct resource usbh2_resources[] = {
+diff --git a/arch/arm/plat-mxc/usb_common.c b/arch/arm/plat-mxc/usb_common.c
+index 7efd609..8b69ad9 100644
+--- a/arch/arm/plat-mxc/usb_common.c
++++ b/arch/arm/plat-mxc/usb_common.c
+@@ -361,6 +361,7 @@ static void usbh2_set_serial_xcvr(void)
+  */
+ static int usb_register_remote_wakeup(struct platform_device *pdev)
+ {
++	struct fsl_usb2_platform_data *pdata = pdev->dev.platform_data;
+ 	struct resource *res;
+ 	int irq;
+ 
+@@ -368,6 +369,13 @@ static int usb_register_remote_wakeup(struct platform_device *pdev)
+ 	if (!cpu_is_mx51() && !cpu_is_mx25())
+ 		return -ECANCELED;
+ 
++	/* The Host2 USB controller On mx25 platform
++	 * is no path available from internal USB FS
++	 * PHY to FS PHY wake up interrupt, So to
++	 * remove the function of USB Remote Wakeup on Host2 */
++	if (cpu_is_mx25() && (!strcmp("Host 2", pdata->name)))
++		return -ECANCELED;
++
+ 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+ 	if (!res) {
+ 		dev_err(&pdev->dev,
+-- 
+1.5.4.4
+

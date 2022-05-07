@@ -1,0 +1,340 @@
+From 416e97d4e3053314eae4b28696d51c85ffaf61ae Mon Sep 17 00:00:00 2001
+From: Zhou Jingyu <b02241@freescale.com>
+Date: Thu, 22 Apr 2010 17:57:38 +0800
+Subject: [PATCH] ENGR00122783 Enable pmu brownout features for imx23 &imx28
+
+Enable pmu brownout features for imx23 &imx28
+
+Signed-off-by: Zhou Jingyu <Jingyu.Zhou@freescale.com>
+---
+ arch/arm/mach-mx23/Kconfig             |    6 ++++++
+ arch/arm/mach-mx23/clock.c             |   17 +++++++++--------
+ arch/arm/mach-mx23/include/mach/mx23.h |    5 +++++
+ arch/arm/mach-mx23/mx23evk.c           |    5 +++++
+ arch/arm/mach-mx28/Kconfig             |    7 +++++++
+ arch/arm/mach-mx28/clock.c             |   12 +++++++++++-
+ arch/arm/mach-mx28/include/mach/mx28.h |    5 +++++
+ arch/arm/mach-mx28/mx28evk.c           |    5 +++++
+ arch/arm/plat-mxs/Kconfig              |    1 +
+ drivers/power/mxs/Makefile             |    2 +-
+ drivers/power/mxs/ddi_power_battery.c  |    4 +++-
+ drivers/power/mxs/fiq.S                |    6 ++----
+ drivers/power/mxs/linux.c              |    6 +++---
+ 13 files changed, 63 insertions(+), 18 deletions(-)
+
+diff --git a/arch/arm/mach-mx23/Kconfig b/arch/arm/mach-mx23/Kconfig
+index 0a122b0..452b62f 100644
+--- a/arch/arm/mach-mx23/Kconfig
++++ b/arch/arm/mach-mx23/Kconfig
+@@ -7,3 +7,9 @@ config MACH_MX23EVK
+ 	select USB_ARCH_HAS_EHCI
+ 
+ endchoice
++
++config VECTORS_PHY_ADDR
++	int "vectors address"
++	default 0
++	help
++	  This config set vectors table is located which physical address
+diff --git a/arch/arm/mach-mx23/clock.c b/arch/arm/mach-mx23/clock.c
+index 957a702..2459503 100644
+--- a/arch/arm/mach-mx23/clock.c
++++ b/arch/arm/mach-mx23/clock.c
+@@ -22,6 +22,7 @@
+ #include <linux/io.h>
+ #include <linux/clk.h>
+ #include <linux/delay.h>
++#include <linux/iram_alloc.h>
+ #include <linux/platform_device.h>
+ 
+ #include <mach/clock.h>
+@@ -729,14 +730,19 @@ static int emi_set_rate(struct clk *clk, unsigned long rate)
+ 	else {
+ 		int i;
+ 		struct mxs_emi_scaling_data sc_data;
++		unsigned long iram_phy;
+ 		int (*scale)(struct mxs_emi_scaling_data *) =
+-			(void *)(MX23_OCRAM_BASE + 0x1000);
+-		void *saved_ocram;
++			iram_alloc(0x1000, &iram_phy);
++
+ 		unsigned long clkctrl_emi;
+ 		unsigned long clkctrl_frac;
+ 		int div = 1;
+ 		unsigned long root_rate =
+ 			clk->parent->parent->get_rate(clk->parent->parent);
++		if (NULL == scale) {
++			pr_err("%s Not enough iram\n", __func__);
++			return -ENOMEM;
++		}
+ 		/*
+ 		 * We've been setting div to HW_CLKCTRL_CPU_RD() & 0x3f so far.
+ 		 * TODO: verify 1 is still valid.
+@@ -764,10 +770,6 @@ static int emi_set_rate(struct clk *clk, unsigned long rate)
+ 		pr_debug("%s: clkctrl_emi %ld, clkctrl_frac %ld\n",
+ 			__func__, clkctrl_emi, clkctrl_frac);
+ 
+-		saved_ocram = kmalloc(mxs_ram_funcs_sz, GFP_KERNEL);
+-		if (!saved_ocram)
+-			return -ENOMEM;
+-		memcpy(saved_ocram, scale, mxs_ram_funcs_sz);
+ 		memcpy(scale, mxs_ram_freq_scale, mxs_ram_funcs_sz);
+ 
+ 		sc_data.emi_div = clkctrl_emi;
+@@ -777,6 +779,7 @@ static int emi_set_rate(struct clk *clk, unsigned long rate)
+ 
+ 		local_irq_disable();
+ 		local_fiq_disable();
++		iram_free(iram_phy, 0x1000);
+ 
+ 		scale(&sc_data);
+ 
+@@ -786,8 +789,6 @@ static int emi_set_rate(struct clk *clk, unsigned long rate)
+ 		for (i = 10000; i; i--)
+ 			if (!clk_is_busy(clk))
+ 				break;
+-		memcpy(scale, saved_ocram, mxs_ram_funcs_sz);
+-		kfree(saved_ocram);
+ 
+ 		if (!i) {
+ 			printk(KERN_ERR "couldn't set up EMI divisor\n");
+diff --git a/arch/arm/mach-mx23/include/mach/mx23.h b/arch/arm/mach-mx23/include/mach/mx23.h
+index 0926952..d64b42f 100644
+--- a/arch/arm/mach-mx23/include/mach/mx23.h
++++ b/arch/arm/mach-mx23/include/mach/mx23.h
+@@ -72,12 +72,17 @@
+ #define MX23_SOC_IO_ADDRESS(x) \
+ 	((x) - MX23_SOC_IO_PHYS_BASE + MX23_SOC_IO_VIRT_BASE)
+ 
++#ifdef __ASSEMBLER__
++#define IO_ADDRESS(x)		\
++		MX23_SOC_IO_ADDRESS(x)
++#else
+ #define IO_ADDRESS(x)		\
+ 	(void __force __iomem *) 	\
+ 	(((x) >= (unsigned long)MX23_SOC_IO_PHYS_BASE) && \
+ 	 ((x) < (unsigned long)MX23_SOC_IO_PHYS_BASE + \
+ 				MX23_SOC_IO_AREA_SIZE) ? \
+ 		MX23_SOC_IO_ADDRESS(x) : 0xDEADBEEF)
++#endif
+ 
+ #ifdef CONFIG_MXS_EARLY_CONSOLE
+ #define MXS_DEBUG_CONSOLE_PHYS DUART_PHYS_ADDR
+diff --git a/arch/arm/mach-mx23/mx23evk.c b/arch/arm/mach-mx23/mx23evk.c
+index 2a5f0b3..6ce1583 100644
+--- a/arch/arm/mach-mx23/mx23evk.c
++++ b/arch/arm/mach-mx23/mx23evk.c
+@@ -130,7 +130,12 @@ static void __init mx23evk_init_machine(void)
+ 	mx23_pinctrl_init();
+ 
+ 	/* Init iram allocate */
++#ifdef CONFIG_VECTORS_PHY_ADDR
++	/* reserve the first page for irq vectors table*/
++	iram_init(MX23_OCRAM_PHBASE + PAGE_SIZE, MX23_OCRAM_SIZE - PAGE_SIZE);
++#else
+ 	iram_init(MX23_OCRAM_PHBASE, MX23_OCRAM_SIZE);
++#endif
+ 
+ 	mx23_gpio_init();
+ 	mx23evk_pins_init();
+diff --git a/arch/arm/mach-mx28/Kconfig b/arch/arm/mach-mx28/Kconfig
+index 7ea1a91..8cbcb85 100644
+--- a/arch/arm/mach-mx28/Kconfig
++++ b/arch/arm/mach-mx28/Kconfig
+@@ -11,3 +11,10 @@ config MXS_TIMER_WITH_MACH
+ 	default y
+ 
+ endchoice
++
++config VECTORS_PHY_ADDR
++	int "vectors address"
++	default 0
++	help
++	  This config set vectors table is located which physical address
++
+diff --git a/arch/arm/mach-mx28/clock.c b/arch/arm/mach-mx28/clock.c
+index 8e7adea..8eda8b0 100644
+--- a/arch/arm/mach-mx28/clock.c
++++ b/arch/arm/mach-mx28/clock.c
+@@ -22,6 +22,7 @@
+ #include <linux/io.h>
+ #include <linux/clk.h>
+ #include <linux/delay.h>
++#include <linux/iram_alloc.h>
+ #include <linux/platform_device.h>
+ 
+ #include <mach/clock.h>
+@@ -824,8 +825,14 @@ static int emi_set_rate(struct clk *clk, unsigned long rate)
+ {
+ 	int i;
+ 	struct mxs_emi_scaling_data emi;
++	unsigned long iram_phy;
+ 	void (*f) (struct mxs_emi_scaling_data *, unsigned int *);
+-	f = (void *)MX28_OCRAM_BASE;
++	f = iram_alloc((unsigned int)mxs_ram_freq_scale_end -
++		(unsigned int)mxs_ram_freq_scale, &iram_phy);
++	if (NULL == f) {
++		pr_err("%s Not enough iram\n", __func__);
++		return -ENOMEM;
++	}
+ 	memcpy(f, mxs_ram_freq_scale,
+ 	       (unsigned int)mxs_ram_freq_scale_end -
+ 	       (unsigned int)mxs_ram_freq_scale);
+@@ -852,6 +859,9 @@ static int emi_set_rate(struct clk *clk, unsigned long rate)
+ 	f(&emi, get_current_emidata());
+ 	local_fiq_enable();
+ 	local_irq_enable();
++	iram_free(iram_phy,
++		(unsigned int)mxs_ram_freq_scale_end -
++	       (unsigned int)mxs_ram_freq_scale);
+ 
+ 	for (i = 10000; i; i--)
+ 		if (!clk_is_busy(clk))
+diff --git a/arch/arm/mach-mx28/include/mach/mx28.h b/arch/arm/mach-mx28/include/mach/mx28.h
+index f74b894..0972532 100644
+--- a/arch/arm/mach-mx28/include/mach/mx28.h
++++ b/arch/arm/mach-mx28/include/mach/mx28.h
+@@ -226,12 +226,17 @@
+ #define MX28_SOC_IO_ADDRESS(x) \
+ 	((x) - MX28_SOC_IO_PHYS_BASE + MX28_SOC_IO_VIRT_BASE)
+ 
++#ifdef __ASSEMBLER__
++#define IO_ADDRESS(x)		\
++		MX28_SOC_IO_ADDRESS(x)
++#else
+ #define IO_ADDRESS(x)		\
+ 	(void __force __iomem *) 	\
+ 	(((x) >= (unsigned long)MX28_SOC_IO_PHYS_BASE) && \
+ 	 ((x) < (unsigned long)MX28_SOC_IO_PHYS_BASE + \
+ 				MX28_SOC_IO_AREA_SIZE) ? \
+ 		MX28_SOC_IO_ADDRESS(x) : 0xDEADBEEF)
++#endif
+ 
+ #ifdef CONFIG_MXS_EARLY_CONSOLE
+ #define MXS_DEBUG_CONSOLE_PHYS DUART_PHYS_ADDR
+diff --git a/arch/arm/mach-mx28/mx28evk.c b/arch/arm/mach-mx28/mx28evk.c
+index 650d16a..768b21a 100644
+--- a/arch/arm/mach-mx28/mx28evk.c
++++ b/arch/arm/mach-mx28/mx28evk.c
+@@ -104,7 +104,12 @@ static void __init mx28evk_init_machine(void)
+ {
+ 	mx28_pinctrl_init();
+ 	/* Init iram allocate */
++#ifdef CONFIG_VECTORS_PHY_ADDR
++	/* reserve the first page for irq vector table*/
++	iram_init(MX28_OCRAM_PHBASE + PAGE_SIZE, MX28_OCRAM_SIZE - PAGE_SIZE);
++#else
+ 	iram_init(MX28_OCRAM_PHBASE, MX28_OCRAM_SIZE);
++#endif
+ 
+ 	mx28_gpio_init();
+ 	mx28evk_pins_init();
+diff --git a/arch/arm/plat-mxs/Kconfig b/arch/arm/plat-mxs/Kconfig
+index dd6689e..63768f8 100644
+--- a/arch/arm/plat-mxs/Kconfig
++++ b/arch/arm/plat-mxs/Kconfig
+@@ -19,6 +19,7 @@ config ARCH_MX28
+ config ARCH_MX23
+ 	bool "Freescale MX23"
+ 	select CPU_ARM926T
++	select FIQ
+ 	select ZONE_DMA
+ 	select MXS_ICOLL
+ 	select MXS_DMA_ENGINE
+diff --git a/drivers/power/mxs/Makefile b/drivers/power/mxs/Makefile
+index 6662def..c7675a9 100644
+--- a/drivers/power/mxs/Makefile
++++ b/drivers/power/mxs/Makefile
+@@ -5,5 +5,5 @@
+ obj-$(CONFIG_BATTERY_MXS) += mxs-battery.o
+ 
+ mxs-battery-objs := ddi_bc_api.o ddi_bc_hw.o ddi_bc_init.o \
+-		         ddi_bc_ramp.o ddi_bc_sm.o ddi_power_battery.o linux.o
++		         ddi_bc_ramp.o ddi_bc_sm.o ddi_power_battery.o linux.o fiq.o
+ 
+diff --git a/drivers/power/mxs/ddi_power_battery.c b/drivers/power/mxs/ddi_power_battery.c
+index 6e2119a..762f29b 100644
+--- a/drivers/power/mxs/ddi_power_battery.c
++++ b/drivers/power/mxs/ddi_power_battery.c
+@@ -1805,9 +1805,11 @@ void ddi_power_enable_vddio_interrupt(bool enable)
+ 
+ }
+ 
++
+ void ddi_power_handle_vddio_brnout(void)
+ {
+-	if (ddi_power_GetPmu5vStatus() == new_5v_connection) {
++	if (ddi_power_GetPmu5vStatus() == new_5v_connection ||
++		(ddi_power_GetPmu5vStatus() == new_5v_disconnection)) {
+ 		ddi_power_enable_vddio_interrupt(false);
+ 	} else {
+ #ifdef DEBUG_IRQS
+diff --git a/drivers/power/mxs/fiq.S b/drivers/power/mxs/fiq.S
+index ee71730..1ad380d 100644
+--- a/drivers/power/mxs/fiq.S
++++ b/drivers/power/mxs/fiq.S
+@@ -19,11 +19,10 @@
+ 
+ #include <linux/linkage.h>
+ #include <asm/assembler.h>
+-#include <mach/platform.h>
+ #include <mach/hardware.h>
+ #include <asm/pgtable-hwdef.h>
+ #include <mach/regs-power.h>
+-#include <mach/regs-clkctrl.h>
++#include <mach/../../regs-clkctrl.h>
+ #include <mach/regs-timrot.h>
+ 
+ 	.align 5
+@@ -33,7 +32,6 @@
+ 	.globl lock_vector_tlb
+ 
+ power_fiq_start:
+-
+ 	ldr 	r8,power_reg
+ 	ldr	r9,[r8,#HW_POWER_CTRL ]
+ 	ldr	r10,power_off
+@@ -101,7 +99,7 @@ check_dcdc4p2:
+ 	subs    pc,lr, #4
+ 
+ power_reg:
+-	.long REGS_POWER_BASE
++	.long IO_ADDRESS(POWER_PHYS_ADDR)
+ power_off:
+ 	.long 0x3e770001
+ power_bo:
+diff --git a/drivers/power/mxs/linux.c b/drivers/power/mxs/linux.c
+index 6a31724..80eecf0 100644
+--- a/drivers/power/mxs/linux.c
++++ b/drivers/power/mxs/linux.c
+@@ -102,7 +102,7 @@ struct mxs_info {
+ #define IRQ_DCDC4P2_BRNOUT IRQ_DCDC4P2_BO
+ #endif
+ 
+-/* #define  POWER_FIQ */
++#define  POWER_FIQ
+ 
+ /* #define DEBUG_IRQS */
+ 
+@@ -129,9 +129,7 @@ void init_protection(struct mxs_info *info)
+ 	battery_voltage = ddi_power_GetBattery();
+ 
+ 	/* InitializeFiqSystem(); */
+-#ifdef CONFIG_ARCH_MX23
+ 	ddi_power_InitOutputBrownouts();
+-#endif
+ 
+ 
+ 	/* if we start the kernel with 4p2 already started
+@@ -659,6 +657,8 @@ static irqreturn_t mxs_irq_batt_brnout(int irq, void *cookie)
+ #endif
+ 	return IRQ_HANDLED;
+ }
++
++
+ static irqreturn_t mxs_irq_vddd_brnout(int irq, void *cookie)
+ {
+ #ifdef DEBUG_IRQS
+-- 
+1.5.4.4
+

@@ -1,0 +1,48 @@
+From c418a553cb4367a991c00c7b1e5ea43bb2ac94c9 Mon Sep 17 00:00:00 2001
+From: Xinyu Chen <xinyu.chen@freescale.com>
+Date: Tue, 18 May 2010 14:51:18 +0800
+Subject: [PATCH] ENGR00123559 Android lowmemorykiller judges the number of free pages incorrect.
+
+low memory killer has problem to judge the current free pages in system.
+It gets total reclaimable anon cache and free pages as it's judging data.
+But on our platforms, we have DMA zone there, and normal process can not
+allocate memory from DMA. So here, just remove the DMA's
+free/anon pages from this data. Let low memory killer works well.
+
+Signed-off-by: Xinyu Chen <xinyu.chen@freescale.com>
+---
+ drivers/staging/android/lowmemorykiller.c |   11 +++++++++++
+ 1 files changed, 11 insertions(+), 0 deletions(-)
+
+diff --git a/drivers/staging/android/lowmemorykiller.c b/drivers/staging/android/lowmemorykiller.c
+index 803b891..ae41f79 100644
+--- a/drivers/staging/android/lowmemorykiller.c
++++ b/drivers/staging/android/lowmemorykiller.c
+@@ -18,6 +18,8 @@
+ #include <linux/mm.h>
+ #include <linux/oom.h>
+ #include <linux/sched.h>
++#include <linux/nodemask.h>
++#include <linux/vmstat.h>
+ 
+ static int lowmem_shrink(int nr_to_scan, gfp_t gfp_mask);
+ 
+@@ -67,6 +69,15 @@ static int lowmem_shrink(int nr_to_scan, gfp_t gfp_mask)
+ 	int array_size = ARRAY_SIZE(lowmem_adj);
+ 	int other_free = global_page_state(NR_FREE_PAGES);
+ 	int other_file = global_page_state(NR_FILE_PAGES);
++	int node;
++
++	for_each_node_state(node, N_HIGH_MEMORY) {
++		struct zone *z =
++			&NODE_DATA(node)->node_zones[ZONE_DMA];
++
++		other_free -= zone_page_state(z, NR_FREE_PAGES);
++		other_file -= zone_page_state(z, NR_FILE_PAGES);
++	}
+ 
+ 	if (lowmem_adj_size < array_size)
+ 		array_size = lowmem_adj_size;
+-- 
+1.5.4.4
+

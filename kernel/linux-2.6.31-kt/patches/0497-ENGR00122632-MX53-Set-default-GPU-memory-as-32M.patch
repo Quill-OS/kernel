@@ -1,0 +1,35 @@
+From cf848bba851157fb7c28ad2abd21f8210a4b0831 Mon Sep 17 00:00:00 2001
+From: Lily Zhang <r58066@freescale.com>
+Date: Sat, 17 Apr 2010 21:18:39 +0800
+Subject: [PATCH] ENGR00122632 MX53: Set default GPU memory as 32M
+
+The virtual space of ioremap is reduced after high_memory size is
+increased. If GPU uses large memory, ioremap reports error. Before
+re-layout the kernel virtual space, set the default GPU memory as
+32M to avoid passing command options.
+GPU memory can be also adjusted by command options. For example,
+the command options "mem=960M gpu_memory=32M" means:
+gpu_memory for GPU usage is 32M
+fb_mem for X-Acceleration is SZ_1G - <mem> - <gpu_memory> (32M)
+
+Signed-off-by: Lily Zhang <r58066@freescale.com>
+---
+ arch/arm/mach-mx5/mx53_evk.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/arch/arm/mach-mx5/mx53_evk.c b/arch/arm/mach-mx5/mx53_evk.c
+index 104e5f9..ba96549 100644
+--- a/arch/arm/mach-mx5/mx53_evk.c
++++ b/arch/arm/mach-mx5/mx53_evk.c
+@@ -492,7 +492,7 @@ static void __init fixup_mxc_board(struct machine_desc *desc, struct tag *tags,
+ 	struct tag *mem_tag = 0;
+ 	int total_mem = SZ_1G;
+ 	int left_mem = 0;
+-	int gpu_mem = SZ_128M;
++	int gpu_mem = SZ_32M;
+ 	int fb_mem = SZ_32M;
+ 	char *str;
+ 
+-- 
+1.5.4.4
+

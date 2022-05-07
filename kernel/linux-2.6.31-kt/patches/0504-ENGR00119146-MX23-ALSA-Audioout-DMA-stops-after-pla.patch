@@ -1,0 +1,79 @@
+From e00856a262e8c19f7a3181af835ee2c1ef6728b9 Mon Sep 17 00:00:00 2001
+From: Lionel Xu <Lionel.Xu@freescale.com>
+Date: Tue, 20 Apr 2010 14:41:40 +0800
+Subject: [PATCH] ENGR00119146 MX23 ALSA: Audioout DMA stops after play/stop many times
+
+DMA will stop working after playback/stop many times, especially for those
+high bitrate wav sound, use another way to trigger the audioout playback
+can resolve this issue.
+
+Signed-off-by: Lionel Xu <r63889@freescale.com>
+---
+ sound/soc/codecs/mxs-adc-codec.c |    6 ++++++
+ sound/soc/mxs/mxs-adc.c          |   13 +++++++------
+ 2 files changed, 13 insertions(+), 6 deletions(-)
+
+diff --git a/sound/soc/codecs/mxs-adc-codec.c b/sound/soc/codecs/mxs-adc-codec.c
+index 246dab3..baf0417 100644
+--- a/sound/soc/codecs/mxs-adc-codec.c
++++ b/sound/soc/codecs/mxs-adc-codec.c
+@@ -585,11 +585,17 @@ mxs_codec_dac_power_on(struct mxs_codec_priv *mxs_adc)
+ 	/* Mute speaker amp */
+ 	__raw_writel(BM_AUDIOOUT_SPEAKERCTRL_MUTE,
+ 		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_SPEAKERCTRL_SET);
++	/* Enable the audioout */
++	 __raw_writel(BM_AUDIOOUT_CTRL_RUN,
++			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL_SET);
+ }
+ 
+ static void
+ mxs_codec_dac_power_down(struct mxs_codec_priv *mxs_adc)
+ {
++	/* Disable the audioout */
++	 __raw_writel(BM_AUDIOOUT_CTRL_RUN,
++		REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL_CLR);
+ 	/* Disable class AB */
+ 	__raw_writel(BM_AUDIOOUT_ANACTRL_HP_CLASSAB,
+ 			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_ANACTRL_CLR);
+diff --git a/sound/soc/mxs/mxs-adc.c b/sound/soc/mxs/mxs-adc.c
+index e8bb425..15e3fea 100644
+--- a/sound/soc/mxs/mxs-adc.c
++++ b/sound/soc/mxs/mxs-adc.c
+@@ -120,9 +120,12 @@ static int mxs_adc_trigger(struct snd_pcm_substream *substream,
+ 				BM_AUDIOOUT_HPVOL_VOL_RIGHT;
+ 			__raw_writel(reg1, REGS_AUDIOOUT_BASE + \
+ 				HW_AUDIOOUT_HPVOL);
+-
+-			__raw_writel(BM_AUDIOOUT_CTRL_RUN,
++			/* enable the fifo error interrupt */
++			__raw_writel(BM_AUDIOOUT_CTRL_FIFO_ERROR_IRQ_EN,
+ 				REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL_SET);
++			/* write a data to data reg to trigger the transfer */
++			__raw_writel(0x0,
++				REGS_AUDIOOUT_BASE + HW_AUDIOOUT_DATA);
+ 			__raw_writel(BM_AUDIOOUT_ANACTRL_HP_HOLD_GND,
+ 				REGS_AUDIOOUT_BASE + HW_AUDIOOUT_ANACTRL_CLR);
+ 
+@@ -159,8 +162,8 @@ static int mxs_adc_trigger(struct snd_pcm_substream *substream,
+ 				REGS_AUDIOOUT_BASE + HW_AUDIOOUT_ANACTRL_SET);
+ 			__raw_writel(BM_AUDIOOUT_SPEAKERCTRL_MUTE,
+ 			    REGS_AUDIOOUT_BASE + HW_AUDIOOUT_SPEAKERCTRL_SET);
+-
+-			__raw_writel(BM_AUDIOOUT_CTRL_RUN,
++			/* disable the fifo error interrupt */
++			__raw_writel(BM_AUDIOOUT_CTRL_FIFO_ERROR_IRQ_EN,
+ 				REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL_CLR);
+ 		}
+ 		else
+@@ -211,8 +214,6 @@ static int mxs_adc_startup(struct snd_pcm_substream *substream,
+ 				REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL_CLR);
+ 		__raw_writel(BM_AUDIOOUT_CTRL_FIFO_UNDERFLOW_IRQ,
+ 				REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL_CLR);
+-		__raw_writel(BM_AUDIOOUT_CTRL_FIFO_ERROR_IRQ_EN,
+-			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL_SET);
+ 	} else {
+ 		__raw_writel(BM_AUDIOIN_CTRL_FIFO_OVERFLOW_IRQ,
+ 			REGS_AUDIOIN_BASE + HW_AUDIOIN_CTRL_CLR);
+-- 
+1.5.4.4
+

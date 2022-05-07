@@ -1,0 +1,33 @@
+From ee11693ea22bfb125e31a41d7caa212bca377e18 Mon Sep 17 00:00:00 2001
+From: Lily Zhang <r58066@freescale.com>
+Date: Thu, 25 Mar 2010 13:08:47 +0800
+Subject: [PATCH] ENGR00121963-2 SDHC: support "no card detection signal" case
+
+SDHC3 slot in ARM2 CPU board doesn't have card detection signal.
+For this case, set card state as "PRESENT" always. Please ensure
+the card is inserted in ARM2 SDHC3 slot if using it.
+
+Signed-off-by: Lily Zhang <r58066@freescale.com>
+---
+ drivers/mmc/host/mx_sdhci.c |    5 ++++-
+ 1 files changed, 4 insertions(+), 1 deletions(-)
+
+diff --git a/drivers/mmc/host/mx_sdhci.c b/drivers/mmc/host/mx_sdhci.c
+index 4a6e43c..6f5d5ef 100644
+--- a/drivers/mmc/host/mx_sdhci.c
++++ b/drivers/mmc/host/mx_sdhci.c
+@@ -1769,7 +1769,10 @@ static int __devinit sdhci_probe_slot(struct platform_device
+ 	}
+ 	host->detect_irq = platform_get_irq(pdev, 1);
+ 	if (!host->detect_irq) {
+-		host->flags &= ~SDHCI_CD_PRESENT;
++		if (mmc_plat->card_inserted_state)
++			host->flags |= SDHCI_CD_PRESENT;
++		else
++			host->flags &= ~SDHCI_CD_PRESENT;
+ 		if ((pdev->id >= 0) && (pdev->id < MXC_SDHCI_NUM))
+ 			mxc_fix_chips[pdev->id] = chip;
+ 		goto no_detect_irq;
+-- 
+1.5.4.4
+

@@ -1,0 +1,35 @@
+From 5c47a7f7c1dc45e767526b88a98142a9d3a350da Mon Sep 17 00:00:00 2001
+From: Lily Zhang <r58066@freescale.com>
+Date: Thu, 25 Mar 2010 13:35:41 +0800
+Subject: [PATCH] ENGR00121963-3 MX53: Remove standby voltage setting
+
+Remove standby voltage settings which was copied from MX51.
+Correct print information.
+
+Signed-off-by: Lily Zhang <r58066@freescale.com>
+---
+ arch/arm/mach-mx5/mx53_evk_pmic_mc13892.c |    8 +-------
+ 1 files changed, 1 insertions(+), 7 deletions(-)
+
+diff --git a/arch/arm/mach-mx5/mx53_evk_pmic_mc13892.c b/arch/arm/mach-mx5/mx53_evk_pmic_mc13892.c
+index 681618b..f8ec651 100644
+--- a/arch/arm/mach-mx5/mx53_evk_pmic_mc13892.c
++++ b/arch/arm/mach-mx5/mx53_evk_pmic_mc13892.c
+@@ -281,13 +281,7 @@ static int mc13892_regulator_init(struct mc13892 *mc13892)
+ 	pmic_event_callback_t power_key_event;
+ 	int register_mask;
+ 
+-	printk("Initializing regulators for 3-stack.\n");
+-	if (mxc_cpu_is_rev(CHIP_REV_2_0) < 0)
+-		sw2_init.constraints.state_mem.uV = 1100000;
+-	else if (mxc_cpu_is_rev(CHIP_REV_2_0) == 1) {
+-		sw2_init.constraints.state_mem.uV = 1250000;
+-		sw1_init.constraints.state_mem.uV = 1000000;
+-	}
++	pr_info("Initializing regulators for MX53 EVK \n");
+ 
+ 	/* subscribe PWRON1 event to enable ON_OFF key */
+ 	power_key_event.param = NULL;
+-- 
+1.5.4.4
+

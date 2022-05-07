@@ -1,0 +1,55 @@
+From 9eb6b19b69d6c88c8e07d2deeeff4c1561b7919f Mon Sep 17 00:00:00 2001
+From: Jason Chen <b02280@freescale.com>
+Date: Fri, 25 Jun 2010 11:33:57 +0800
+Subject: [PATCH] ENGR00124653 ipuv3 fb: pan display issue
+
+Call pan display frequently, after a long time, it has chance to show
+below error msg:
+
+Error updating SDC buf ....
+
+check buffer busy before update buffer function call to avoid such
+issue.
+
+Signed-off-by: Jason Chen <b02280@freescale.com>
+---
+ drivers/video/mxc/mxc_ipuv3_fb.c |   15 +++++++++++++++
+ 1 files changed, 15 insertions(+), 0 deletions(-)
+
+diff --git a/drivers/video/mxc/mxc_ipuv3_fb.c b/drivers/video/mxc/mxc_ipuv3_fb.c
+index 7a15bd2..cc119b1 100644
+--- a/drivers/video/mxc/mxc_ipuv3_fb.c
++++ b/drivers/video/mxc/mxc_ipuv3_fb.c
+@@ -1174,7 +1174,18 @@ mxcfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
+ 	down(&mxc_fbi->flip_sem);
+ 	init_completion(&mxc_fbi->vsync_complete);
+ 
++	i = 0;
+ 	mxc_fbi->cur_ipu_buf = !mxc_fbi->cur_ipu_buf;
++	while (ipu_check_buffer_busy(mxc_fbi->ipu_ch,
++			IPU_INPUT_BUFFER, mxc_fbi->cur_ipu_buf) && (i < 3)) {
++		/* Not ready for update, wait vsync again */
++		dev_dbg(info->device, "Not ready for update, wait vsync again\n");
++		ipu_clear_irq(mxc_fbi->ipu_ch_irq);
++		ipu_enable_irq(mxc_fbi->ipu_ch_irq);
++		down(&mxc_fbi->flip_sem);
++		init_completion(&mxc_fbi->vsync_complete);
++		i++;
++	}
+ 	if (ipu_update_channel_buffer(mxc_fbi->ipu_ch, IPU_INPUT_BUFFER,
+ 				      mxc_fbi->cur_ipu_buf, base) == 0) {
+ 		/* Update the DP local alpha buffer only for graphic plane */
+@@ -1196,6 +1207,10 @@ mxcfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
+ 		dev_err(info->device,
+ 			"Error updating SDC buf %d to address=0x%08lX\n",
+ 			mxc_fbi->cur_ipu_buf, base);
++		mxc_fbi->cur_ipu_buf = !mxc_fbi->cur_ipu_buf;
++		ipu_clear_irq(mxc_fbi->ipu_ch_irq);
++		ipu_enable_irq(mxc_fbi->ipu_ch_irq);
++		return -EBUSY;
+ 	}
+ 
+ 	dev_dbg(info->device, "Update complete\n");
+-- 
+1.5.4.4
+

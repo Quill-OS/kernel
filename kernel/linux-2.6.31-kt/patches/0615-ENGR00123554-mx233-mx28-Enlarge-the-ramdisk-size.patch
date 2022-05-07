@@ -1,0 +1,54 @@
+From d17feebffa7cf7e5cb4d7351dfab6413503b5054 Mon Sep 17 00:00:00 2001
+From: Peter Chen <b29397@freescale.com>
+Date: Wed, 19 May 2010 15:33:58 +0800
+Subject: [PATCH] ENGR00123554 mx233/mx28: Enlarge the ramdisk size
+
+The WindowsXP can only recognize the ramdisk size above 8MiB.
+
+Signed-off-by: Peter Chen <b29397@freescale.com>
+---
+ arch/arm/configs/imx23evk_defconfig |    5 +++--
+ arch/arm/configs/imx28evk_defconfig |    3 ++-
+ 2 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/arch/arm/configs/imx23evk_defconfig b/arch/arm/configs/imx23evk_defconfig
+index 49729e9..fa3b822 100644
+--- a/arch/arm/configs/imx23evk_defconfig
++++ b/arch/arm/configs/imx23evk_defconfig
+@@ -593,11 +593,12 @@ CONFIG_MTD_UBI_BLOCK=y
+ CONFIG_BLK_DEV=y
+ # CONFIG_BLK_DEV_COW_COMMON is not set
+ # CONFIG_BLK_DEV_LOOP is not set
++CONFIG_BLK_DEV_LOOP=y
+ # CONFIG_BLK_DEV_NBD is not set
+ # CONFIG_BLK_DEV_UB is not set
+ CONFIG_BLK_DEV_RAM=y
+-CONFIG_BLK_DEV_RAM_COUNT=16
+-CONFIG_BLK_DEV_RAM_SIZE=4096
++CONFIG_BLK_DEV_RAM_COUNT=4
++CONFIG_BLK_DEV_RAM_SIZE=16384
+ # CONFIG_BLK_DEV_XIP is not set
+ # CONFIG_CDROM_PKTCDVD is not set
+ # CONFIG_ATA_OVER_ETH is not set
+diff --git a/arch/arm/configs/imx28evk_defconfig b/arch/arm/configs/imx28evk_defconfig
+index 0b0801d..89cd273 100644
+--- a/arch/arm/configs/imx28evk_defconfig
++++ b/arch/arm/configs/imx28evk_defconfig
+@@ -567,12 +567,13 @@ CONFIG_MTD_UBI_BLOCK=y
+ # CONFIG_PARPORT is not set
+ CONFIG_BLK_DEV=y
+ # CONFIG_BLK_DEV_COW_COMMON is not set
++CONFIG_BLK_DEV_LOOP=y
+ # CONFIG_BLK_DEV_LOOP is not set
+ # CONFIG_BLK_DEV_NBD is not set
+ # CONFIG_BLK_DEV_UB is not set
+ CONFIG_BLK_DEV_RAM=y
+ CONFIG_BLK_DEV_RAM_COUNT=4
+-CONFIG_BLK_DEV_RAM_SIZE=8192
++CONFIG_BLK_DEV_RAM_SIZE=16384
+ # CONFIG_BLK_DEV_XIP is not set
+ # CONFIG_CDROM_PKTCDVD is not set
+ # CONFIG_ATA_OVER_ETH is not set
+-- 
+1.5.4.4
+

@@ -1,0 +1,28 @@
+From c799893dc9f3408200466de8bc7b6ed5ea89844d Mon Sep 17 00:00:00 2001
+From: Zhou Jingyu <b02241@freescale.com>
+Date: Mon, 16 Nov 2009 16:55:37 +0800
+Subject: [PATCH] ENGR00118228 i.mx35: fix SD/MMC card detection
+
+fix mcu driver irq handler for SD/MMC card detection
+
+Signed-off-by: Zhou Jingyu <Jingyu.Zhou@freescale.com>
+---
+ arch/arm/mach-mx35/mx35_3stack_irq.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/arch/arm/mach-mx35/mx35_3stack_irq.c b/arch/arm/mach-mx35/mx35_3stack_irq.c
+index ad77204..fd5872f 100644
+--- a/arch/arm/mach-mx35/mx35_3stack_irq.c
++++ b/arch/arm/mach-mx35/mx35_3stack_irq.c
+@@ -222,7 +222,7 @@ static void mcu_event_delay(unsigned long data)
+  */
+ static irqreturn_t mcu_irq_handler(int irq, void *dev_id)
+ {
+-	disable_irq(IOMUX_TO_IRQ(MX35_PIN_GPIO1_0));
++	disable_irq_nosync(IOMUX_TO_IRQ(MX35_PIN_GPIO1_0));
+ 	if (pseudo_suspend)
+ 		mod_timer(&mcu_delay_timer, jiffies + HZ);
+ 	else
+-- 
+1.5.4.4
+

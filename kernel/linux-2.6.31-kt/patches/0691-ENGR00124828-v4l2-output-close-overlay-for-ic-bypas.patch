@@ -1,0 +1,48 @@
+From e35bbd2b5b77c206bdfe92a0a52f565a157db61a Mon Sep 17 00:00:00 2001
+From: Jason Chen <b02280@freescale.com>
+Date: Mon, 5 Jul 2010 14:40:21 +0800
+Subject: [PATCH] ENGR00124828 v4l2 output: close overlay for ic bypass mode
+
+After streamoff, ic bypass mode should close overlay like others
+
+Signed-off-by: Jason Chen <b02280@freescale.com>
+---
+ drivers/media/video/mxc/output/mxc_v4l2_output.c |   15 ++++++++++++++-
+ 1 files changed, 14 insertions(+), 1 deletions(-)
+
+diff --git a/drivers/media/video/mxc/output/mxc_v4l2_output.c b/drivers/media/video/mxc/output/mxc_v4l2_output.c
+index a593305..d5d2672 100644
+--- a/drivers/media/video/mxc/output/mxc_v4l2_output.c
++++ b/drivers/media/video/mxc/output/mxc_v4l2_output.c
+@@ -1558,7 +1558,19 @@ static int mxc_v4l2out_streamoff(vout_data * vout)
+ 		}
+ 	}
+ 
+-	if (vout->post_proc_ch == MEM_PP_MEM ||
++	if (vout->ic_bypass) {
++		fbi->var.activate |= FB_ACTIVATE_FORCE;
++		fb_set_var(fbi, &fbi->var);
++
++		if (vout->display_ch == MEM_FG_SYNC) {
++			acquire_console_sem();
++			fb_blank(fbi, FB_BLANK_POWERDOWN);
++			release_console_sem();
++		}
++
++		vout->display_bufs[0] = 0;
++		vout->display_bufs[1] = 0;
++	} else if (vout->post_proc_ch == MEM_PP_MEM ||
+ 	    vout->post_proc_ch == MEM_PRP_VF_MEM) {
+ 		/* SDC with Rotation */
+ 		if (!ipu_can_rotate_in_place(vout->rotate)) {
+@@ -1637,6 +1649,7 @@ static int mxc_v4l2out_streamoff(vout_data * vout)
+ 		vout->v4l2_bufs[i].timestamp.tv_usec = 0;
+ 	}
+ 
++	vout->post_proc_ch = CHAN_NONE;
+ 	vout->state = STATE_STREAM_OFF;
+ 
+ 	return retval;
+-- 
+1.5.4.4
+

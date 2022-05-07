@@ -1,0 +1,48 @@
+From 9b518b4f6c93b55096a66f5440fcb69e84feae80 Mon Sep 17 00:00:00 2001
+From: Jason Chen <b02280@freescale.com>
+Date: Wed, 28 Apr 2010 14:28:30 +0800
+Subject: [PATCH] ENGR00122966 ipuv3 fb: set correct stride for nonstand fmt
+
+Set correct stride for non-interleave fmt, if not, will cause v4l output
+play uncorrectly for ic_bypass mode.
+
+Signed-off-by: Jason Chen <b02280@freescale.com>
+---
+ drivers/video/mxc/mxc_ipuv3_fb.c |   14 +++++++++++++-
+ 1 files changed, 13 insertions(+), 1 deletions(-)
+
+diff --git a/drivers/video/mxc/mxc_ipuv3_fb.c b/drivers/video/mxc/mxc_ipuv3_fb.c
+index 3d62025..76c6d52 100644
+--- a/drivers/video/mxc/mxc_ipuv3_fb.c
++++ b/drivers/video/mxc/mxc_ipuv3_fb.c
+@@ -198,6 +198,18 @@ static int _setup_disp_channel2(struct fb_info *fbi)
+ {
+ 	int retval = 0;
+ 	struct mxcfb_info *mxc_fbi = (struct mxcfb_info *)fbi->par;
++	int fb_stride;
++
++	switch (bpp_to_pixfmt(fbi)) {
++	case V4L2_PIX_FMT_YUV420:
++	case V4L2_PIX_FMT_YVU420:
++	case V4L2_PIX_FMT_NV12:
++	case V4L2_PIX_FMT_YUV422P:
++		fb_stride = fbi->var.xres_virtual;
++		break;
++	default:
++		fb_stride = fbi->fix.line_length;
++	}
+ 
+ 	mxc_fbi->cur_ipu_buf = 1;
+ 	sema_init(&mxc_fbi->flip_sem, 1);
+@@ -210,7 +222,7 @@ static int _setup_disp_channel2(struct fb_info *fbi)
+ 	retval = ipu_init_channel_buffer(mxc_fbi->ipu_ch, IPU_INPUT_BUFFER,
+ 					 bpp_to_pixfmt(fbi),
+ 					 fbi->var.xres, fbi->var.yres,
+-					 fbi->fix.line_length,
++					 fb_stride,
+ 					 IPU_ROTATE_NONE,
+ 					 fbi->fix.smem_start +
+ 					 (fbi->fix.line_length * fbi->var.yres),
+-- 
+1.5.4.4
+

@@ -1,0 +1,121 @@
+From 302fe03204b973ff61fdcb514ca760caf69f3046 Mon Sep 17 00:00:00 2001
+From: Xinyu Chen <xinyu.chen@freescale.com>
+Date: Mon, 7 Jun 2010 10:21:38 +0800
+Subject: [PATCH] ENGR00124103 TVE fb driver probe for mode incorrectly
+
+When passing di1_primay to cmdline on BBG, the modes
+matching in TVE probe are successful with fb0's modes.
+This causes mode match, enable TVE and do set var to fb0.
+Then the fbcon var is set incorrect, fb0 var works incorrect
+after resume from suspend when doing fbcon switch.
+Just simply add TVE's own mode list to resolve.
+
+Signed-off-by: Xinyu Chen <xinyu.chen@freescale.com>
+---
+ drivers/video/mxc/tve.c |   32 ++++++++++++++------------------
+ 1 files changed, 14 insertions(+), 18 deletions(-)
+
+diff --git a/drivers/video/mxc/tve.c b/drivers/video/mxc/tve.c
+index 52a6a20..2453abf 100644
+--- a/drivers/video/mxc/tve.c
++++ b/drivers/video/mxc/tve.c
+@@ -68,6 +68,7 @@ static int enabled;		/* enable power on or not */
+ DEFINE_SPINLOCK(tve_lock);
+ 
+ static struct fb_info *tve_fbi;
++static struct fb_modelist tve_modelist;
+ 
+ struct tve_data {
+ 	struct platform_device *pdev;
+@@ -515,9 +516,9 @@ int tve_fb_event(struct notifier_block *nb, unsigned long val, void *v)
+ 			break;
+ 
+ 		tve_fbi = fbi;
+-		fb_add_videomode(&video_modes[0], &tve_fbi->modelist);
+-		fb_add_videomode(&video_modes[1], &tve_fbi->modelist);
+-		fb_add_videomode(&video_modes[2], &tve_fbi->modelist);
++		fb_add_videomode(&video_modes[0], &tve_modelist.list);
++		fb_add_videomode(&video_modes[1], &tve_modelist.list);
++		fb_add_videomode(&video_modes[2], &tve_modelist.list);
+ 		break;
+ 	case FB_EVENT_MODE_CHANGE:
+ 	{
+@@ -531,7 +532,7 @@ int tve_fb_event(struct notifier_block *nb, unsigned long val, void *v)
+ 
+ 		fb_var_to_videomode(&cur_mode, &fbi->var);
+ 
+-		list_for_each(pos, &tve_fbi->modelist) {
++		list_for_each(pos, &tve_modelist.list) {
+ 			modelist = list_entry(pos, struct fb_modelist, list);
+ 			mode = &modelist->mode;
+ 			if (fb_mode_is_equal(&cur_mode, mode)) {
+@@ -658,6 +659,8 @@ static int tve_probe(struct platform_device *pdev)
+ 	struct tve_platform_data *plat_data = pdev->dev.platform_data;
+ 	u32 conf_reg;
+ 
++	INIT_LIST_HEAD(&tve_modelist.list);
++
+ 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+ 	if (res == NULL)
+ 		return -ENOMEM;
+@@ -682,12 +685,8 @@ static int tve_probe(struct platform_device *pdev)
+ 	for (i = 0; i < num_registered_fb; i++) {
+ 		if (strcmp(registered_fb[i]->fix.id, "DISP3 BG - DI1") == 0) {
+ 			tve_fbi = registered_fb[i];
+-			if (i == 0) {
++			if (i == 0)
+ 				primary = 1;
+-				acquire_console_sem();
+-				fb_blank(tve_fbi, FB_BLANK_POWERDOWN);
+-				release_console_sem();
+-			}
+ 			break;
+ 		}
+ 	}
+@@ -705,9 +704,9 @@ static int tve_probe(struct platform_device *pdev)
+ 	}
+ 
+ 	if (tve_fbi != NULL) {
+-		fb_add_videomode(&video_modes[0], &tve_fbi->modelist);
+-		fb_add_videomode(&video_modes[1], &tve_fbi->modelist);
+-		fb_add_videomode(&video_modes[2], &tve_fbi->modelist);
++		fb_add_videomode(&video_modes[0], &tve_modelist.list);
++		fb_add_videomode(&video_modes[1], &tve_modelist.list);
++		fb_add_videomode(&video_modes[2], &tve_modelist.list);
+ 	}
+ 
+ 	tve.dac_reg = regulator_get(&pdev->dev, plat_data->dac_reg);
+@@ -764,13 +763,13 @@ static int tve_probe(struct platform_device *pdev)
+ 		const struct fb_videomode *mode;
+ 
+ 		memset(&var, 0, sizeof(var));
+-		mode = fb_match_mode(&tve_fbi->var, &tve_fbi->modelist);
++		mode = fb_match_mode(&tve_fbi->var, &tve_modelist.list);
+ 		if (mode) {
+ 			pr_debug("TVE: fb mode found\n");
+ 			fb_videomode_to_var(&var, mode);
+ 		} else {
+ 			pr_warning("TVE: can not find video mode\n");
+-			goto err2;
++			goto done;
+ 		}
+ 		acquire_console_sem();
+ 		tve_fbi->flags |= FBINFO_MISC_USEREVENT;
+@@ -778,13 +777,10 @@ static int tve_probe(struct platform_device *pdev)
+ 		tve_fbi->flags &= ~FBINFO_MISC_USEREVENT;
+ 		release_console_sem();
+ 
+-		acquire_console_sem();
+-		fb_blank(tve_fbi, FB_BLANK_UNBLANK);
+-		release_console_sem();
+ 		fb_show_logo(tve_fbi, 0);
+ 	}
+ 
+-
++done:
+ 	return 0;
+ err2:
+ 	device_remove_file(&pdev->dev, &dev_attr_headphone);
+-- 
+1.5.4.4
+

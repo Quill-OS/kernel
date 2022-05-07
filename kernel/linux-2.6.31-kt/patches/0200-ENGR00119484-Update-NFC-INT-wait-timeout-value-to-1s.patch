@@ -1,0 +1,31 @@
+From fdb4c14588bbaa65dcd5d81caa561ec66eae1058 Mon Sep 17 00:00:00 2001
+From: Jason <r64343@freescale.com>
+Date: Fri, 18 Dec 2009 16:11:37 +0800
+Subject: [PATCH] ENGR00119484 Update NFC INT wait timeout value to 1s
+
+Update NFC INT wait timeout value to 1s.
+1s should be enough for all platforms.
+If INT bit not set for 1s timeout value, this
+should be high potential of IC issues.
+
+Signed-off-by:Jason Liu <r64343@freescale.com>
+---
+ drivers/mtd/nand/mxc_nd2.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/drivers/mtd/nand/mxc_nd2.c b/drivers/mtd/nand/mxc_nd2.c
+index 84eb9b2..db431a4 100644
+--- a/drivers/mtd/nand/mxc_nd2.c
++++ b/drivers/mtd/nand/mxc_nd2.c
+@@ -45,7 +45,7 @@ static struct mxc_mtd_s *mxc_nand_data;
+ /*
+  * Define delay timeout value
+  */
+-#define TROP_US_DELAY   (200 * 1000)
++#define TROP_US_DELAY   (1000 * 1000)
+ 
+ struct nand_info {
+ 	bool bStatusRequest;
+-- 
+1.5.4.4
+

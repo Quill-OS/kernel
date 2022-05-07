@@ -1,0 +1,59 @@
+From d5663659e0d2321839bccb9be24c45aa6063b11a Mon Sep 17 00:00:00 2001
+From: William Lai <b04597@freescale.com>
+Date: Tue, 26 Jan 2010 16:03:38 +0800
+Subject: [PATCH] ENGR00120455-4 CAN: Pass the default setting through platform_data
+
+Define the parameters's default value for MX35.
+
+Signed-off-by: William Lai <b04597@freescale.com>
+---
+ arch/arm/mach-mx35/mx35_3stack.c |   28 ++++++++++++++++++++++++++--
+ 1 files changed, 26 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm/mach-mx35/mx35_3stack.c b/arch/arm/mach-mx35/mx35_3stack.c
+index 9b4efdb..8aba744 100644
+--- a/arch/arm/mach-mx35/mx35_3stack.c
++++ b/arch/arm/mach-mx35/mx35_3stack.c
+@@ -1063,13 +1063,37 @@ struct flexcan_platform_data flexcan_data[] = {
+ 	 .io_reg = NULL,
+ 	 .xcvr_enable = flexcan_xcvr_enable,
+ 	 .active = gpio_can_active,
+-	 .inactive = gpio_can_inactive,},
++	 .inactive = gpio_can_inactive,
++	 .br_clksrc = 1,
++	 .br_rjw = 2,
++	 .br_presdiv = 6,
++	 .br_propseg = 4,
++	 .br_pseg1 = 4,
++	 .br_pseg2 = 7,
++	 .bcc = 1,
++	 .srx_dis = 1,
++	 .smp = 1,
++	 .boff_rec = 1,
++	 .ext_msg = 1,
++	 .std_msg = 1,},
+ 	{
+ 	 .core_reg = "GPO2",
+ 	 .io_reg = NULL,
+ 	 .xcvr_enable = flexcan_xcvr_enable,
+ 	 .active = gpio_can_active,
+-	 .inactive = gpio_can_inactive,},
++	 .inactive = gpio_can_inactive,
++	 .br_clksrc = 1,
++	 .br_rjw = 2,
++	 .br_presdiv = 6,
++	 .br_propseg = 4,
++	 .br_pseg1 = 4,
++	 .br_pseg2 = 7,
++	 .bcc = 1,
++	 .srx_dis = 1,
++	 .smp = 1,
++	 .boff_rec = 1,
++	 .ext_msg = 1,
++	 .std_msg = 1,},
+ };
+ #endif
+ 
+-- 
+1.5.4.4
+

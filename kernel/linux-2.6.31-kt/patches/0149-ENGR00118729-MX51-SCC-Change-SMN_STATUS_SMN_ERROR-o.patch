@@ -1,0 +1,28 @@
+From a68aa25f652b89b70660d24bcd6adf520cf46a04 Mon Sep 17 00:00:00 2001
+From: Anish Trivedi <anish@freescale.com>
+Date: Tue, 24 Nov 2009 13:43:45 -0600
+Subject: [PATCH] ENGR00118729 MX51 SCC: Change SMN_STATUS_SMN_ERROR offset to 0x4000
+
+Changed bit definition from 0x8000 to 0x4000
+
+Signed-off-by: Anish Trivedi <anish@freescale.com>
+---
+ include/linux/mxc_scc2_driver.h |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/include/linux/mxc_scc2_driver.h b/include/linux/mxc_scc2_driver.h
+index ba305c1..3302447 100644
+--- a/include/linux/mxc_scc2_driver.h
++++ b/include/linux/mxc_scc2_driver.h
+@@ -648,7 +648,7 @@ scc_verify_slot_access(uint64_t owner_id, uint32_t slot, uint32_t access_len);*/
+ /** Some security peripheral is initializing */
+ #define SMN_STATUS_PERIP_INIT             0x00010000
+ /** Internal error detected in SMN. */
+-#define SMN_STATUS_SMN_ERROR              0x00008000
++#define SMN_STATUS_SMN_ERROR              0x00004000
+ /** SMN has an outstanding interrupt. */
+ #define SMN_STATUS_SMN_STATUS_IRQ         0x00004000
+ /** Software Alarm was triggered. */
+-- 
+1.5.4.4
+

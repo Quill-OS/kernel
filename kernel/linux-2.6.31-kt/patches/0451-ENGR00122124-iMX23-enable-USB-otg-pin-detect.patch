@@ -1,0 +1,396 @@
+From aac51a3783d15b06df17d1cd884bbe9152d92020 Mon Sep 17 00:00:00 2001
+From: Frank Li <Frank.Li@freescale.com>
+Date: Wed, 24 Mar 2010 17:58:45 +0800
+Subject: [PATCH] ENGR00122124 iMX23 enable USB otg pin detect
+
+iMX23 evk RevC using gpio as usb id.
+usb_id pin is conflict with mmcsd detection pin
+
+Signed-off-by: Frank Li <Frank.Li@freescale.com>
+---
+ arch/arm/mach-mx23/gpio.c                |    2 -
+ arch/arm/mach-mx23/mx23evk_pins.c        |   19 +++++-
+ arch/arm/mach-mx23/usb_dr.c              |   30 ++++------
+ arch/arm/mach-mx28/gpio.c                |    2 -
+ arch/arm/mach-mx28/mx28evk_pins.c        |   11 ++-
+ arch/arm/plat-mxs/include/mach/pinctrl.h |    2 +-
+ drivers/usb/otg/fsl_otg.c                |   93 +++++++++++++++++++++++++++--
+ include/linux/fsl_devices.h              |    1 +
+ 8 files changed, 123 insertions(+), 37 deletions(-)
+
+diff --git a/arch/arm/mach-mx23/gpio.c b/arch/arm/mach-mx23/gpio.c
+index 9774664..fca4534 100644
+--- a/arch/arm/mach-mx23/gpio.c
++++ b/arch/arm/mach-mx23/gpio.c
+@@ -125,8 +125,6 @@ static void mx23_gpio_ack_irq(struct mxs_gpio_port *port, int pin)
+ 	unsigned int mask;
+ 	void __iomem *base = PINCTRL_BASE_ADDR + 0x10 * port->id;
+ 	mask = 1 << pin;
+-	mask &= __raw_readl(base + HW_PINCTRL_IRQSTAT0);
+-	mask &= __raw_readl(base + HW_PINCTRL_IRQEN0);
+ 	if (mask)
+ 		__raw_writel(mask, base + HW_PINCTRL_IRQSTAT0_CLR);
+ }
+diff --git a/arch/arm/mach-mx23/mx23evk_pins.c b/arch/arm/mach-mx23/mx23evk_pins.c
+index 06c005c..459c6df 100644
+--- a/arch/arm/mach-mx23/mx23evk_pins.c
++++ b/arch/arm/mach-mx23/mx23evk_pins.c
+@@ -487,6 +487,17 @@ static struct pin_desc mx23evk_fixed_pins[] = {
+ 	 .drive	= 1,
+ 	 },
+ #endif
++#if defined(CONFIG_USB_OTG)
++	{
++	 .name = "USB_OTG_ID",
++	 .id   = PINID_ROTARYA,
++	 .fun  = PIN_GPIO,
++	 .pull = 1,
++	 .pullup = 1,
++	 .voltage = PAD_3_3V,
++	},
++#endif
++
+ };
+ 
+ #if defined(CONFIG_FEC) || defined(CONFIG_FEC_MODULE)
+@@ -527,11 +538,11 @@ void __init mx23evk_pins_init(void)
+ 		if (pin->pull)
+ 			mxs_set_pullup(pin->id, pin->pullup, pin->name);
+ 		if (pin->fun == PIN_GPIO) {
+-			if (pin->input)
+-				gpio_direction_input(MXS_PIN_TO_GPIO(pin->id));
+-			else
++			if (pin->output)
+ 				gpio_direction_output(MXS_PIN_TO_GPIO(pin->id),
+-						      pin->data);
++							pin->data);
++			else
++				gpio_direction_input(MXS_PIN_TO_GPIO(pin->id));
+ 		}
+ 	}
+ }
+diff --git a/arch/arm/mach-mx23/usb_dr.c b/arch/arm/mach-mx23/usb_dr.c
+index 385c25a..1a196e7 100644
+--- a/arch/arm/mach-mx23/usb_dr.c
++++ b/arch/arm/mach-mx23/usb_dr.c
+@@ -28,6 +28,7 @@
+ #include "mx23_pins.h"
+ 
+ #define USB_POWER_ENABLE MXS_PIN_TO_GPIO(PINID_GMPI_CE2N)
++#define USB_ID_PIN	 MXS_PIN_TO_GPIO(PINID_ROTARYA)
+ 
+ static void usb_host_phy_resume(struct fsl_usb2_platform_data *plat)
+ {
+@@ -59,6 +60,7 @@ static struct fsl_usb2_platform_data __maybe_unused dr_utmi_config = {
+ 	.platform_resume = usb_host_phy_resume,
+ 	.transceiver       = "utmi",
+ 	.phy_regs          = USBPHY_PHYS_ADDR,
++	.id_gpio	   = USB_ID_PIN,
+ };
+ 
+ /*
+@@ -79,7 +81,7 @@ static struct resource otg_resources[] = {
+ 	[2] = {
+ 		.start = IRQ_USB_WAKEUP,
+ 		.flags = IORESOURCE_IRQ,
+-	}
++	},
+ };
+ 
+ static u64 dr_udc_dmamask = ~(u32) 0;
+@@ -133,24 +135,13 @@ static int __init usb_dr_init(void)
+ 	return 0;
+ }
+ 
+-static unsigned int g_usb_power_enable_pin;
++/* utmi_init will be call by otg, host and perperial tree time*/
+ void fsl_phy_usb_utmi_init(struct fsl_xcvr_ops *this)
+ {
+-	int ret;
+-	g_usb_power_enable_pin = 0;
+-	ret = gpio_request(USB_POWER_ENABLE, "usb_power");
+-	if (ret) {
+-		pr_err("request usb power enable fail\n");
+-	} else {
+-		g_usb_power_enable_pin = USB_POWER_ENABLE;
+-		gpio_direction_output(g_usb_power_enable_pin, 0);
+-	}
+ }
+ 
+ void fsl_phy_usb_utmi_uninit(struct fsl_xcvr_ops *this)
+ {
+-	if (g_usb_power_enable_pin)
+-		gpio_free(g_usb_power_enable_pin);
+ }
+ 
+ /*!
+@@ -162,10 +153,15 @@ void fsl_phy_usb_utmi_uninit(struct fsl_xcvr_ops *this)
+ void fsl_phy_set_power(struct fsl_xcvr_ops *this,
+ 		      struct fsl_usb2_platform_data *pdata, int on)
+ {
+-	if (g_usb_power_enable_pin)
+-		gpio_set_value(g_usb_power_enable_pin, on);
+-	else
+-		pr_err("not usb power control pin set\n");
++	int ret;
++	ret = gpio_request(USB_POWER_ENABLE, "usb_power");
++	if (ret) {
++		pr_err("fail request usb power control pin\n");
++		return;
++	}
++	gpio_direction_output(USB_POWER_ENABLE, on);
++	gpio_set_value(USB_POWER_ENABLE, on);
++	gpio_free(USB_POWER_ENABLE);
+ }
+ 
+ module_init(usb_dr_init);
+diff --git a/arch/arm/mach-mx28/gpio.c b/arch/arm/mach-mx28/gpio.c
+index d936df8..4f7d424 100644
+--- a/arch/arm/mach-mx28/gpio.c
++++ b/arch/arm/mach-mx28/gpio.c
+@@ -125,8 +125,6 @@ static void mx28_gpio_ack_irq(struct mxs_gpio_port *port, int pin)
+ 	unsigned int mask;
+ 	void __iomem *base = PINCTRL_BASE_ADDR + 0x10 * port->id;
+ 	mask = 1 << pin;
+-	mask &= __raw_readl(base + HW_PINCTRL_IRQSTAT0);
+-	mask &= __raw_readl(base + HW_PINCTRL_IRQEN0);
+ 	if (mask)
+ 		__raw_writel(mask, base + HW_PINCTRL_IRQSTAT0_CLR);
+ }
+diff --git a/arch/arm/mach-mx28/mx28evk_pins.c b/arch/arm/mach-mx28/mx28evk_pins.c
+index 3fbb6c5..5ac4777 100644
+--- a/arch/arm/mach-mx28/mx28evk_pins.c
++++ b/arch/arm/mach-mx28/mx28evk_pins.c
+@@ -86,12 +86,14 @@ static struct pin_desc mx28evk_fixed_pins[] = {
+ 	 .id = PINID_AUART2_TX,
+ 	 .fun = PIN_GPIO,
+ 	 .data = 1,
++	 .output = 1,
+ 	 },
+ 	 {
+ 	 .name  = "usb1",
+ 	 .id    = PINID_AUART2_RX,
+ 	 .fun   = PIN_GPIO,
+ 	 .data  = 1,
++	 .output = 1,
+ 	 },
+ 
+ #if defined(CONFIG_USB_OTG)
+@@ -156,6 +158,7 @@ static struct pin_desc mx28evk_fixed_pins[] = {
+ 	 .drive 	= 1,
+ 	 .pull 		= 0,
+ 	 .data		= 0,
++	 .output	= 1,
+ 	 },
+ 
+ #endif
+@@ -1044,11 +1047,11 @@ void __init mx28evk_init_pin_group(struct pin_desc *pins, unsigned count)
+ 		if (pin->pull)
+ 			mxs_set_pullup(pin->id, pin->pullup, pin->name);
+ 		if (pin->fun == PIN_GPIO) {
+-			if (pin->input)
+-				gpio_direction_input(MXS_PIN_TO_GPIO(pin->id));
+-			else
++			if (pin->output)
+ 				gpio_direction_output(MXS_PIN_TO_GPIO(pin->id),
+-						      pin->data);
++							pin->data);
++			else
++				gpio_direction_input(MXS_PIN_TO_GPIO(pin->id));
+ 		}
+ 	}
+ }
+diff --git a/arch/arm/plat-mxs/include/mach/pinctrl.h b/arch/arm/plat-mxs/include/mach/pinctrl.h
+index 2933bb1..6e02149 100644
+--- a/arch/arm/plat-mxs/include/mach/pinctrl.h
++++ b/arch/arm/plat-mxs/include/mach/pinctrl.h
+@@ -111,7 +111,7 @@ struct pin_desc {
+ 	unsigned pullup:1;
+ 	unsigned drive:1;
+ 	unsigned pull:1;
+-	unsigned input:1;
++	unsigned output:1;
+ 	unsigned data:1;
+ };
+ 
+diff --git a/drivers/usb/otg/fsl_otg.c b/drivers/usb/otg/fsl_otg.c
+index edc9d29..b145488 100644
+--- a/drivers/usb/otg/fsl_otg.c
++++ b/drivers/usb/otg/fsl_otg.c
+@@ -43,6 +43,8 @@
+ #include <linux/time.h>
+ #include <linux/fsl_devices.h>
+ #include <linux/platform_device.h>
++#include <linux/irq.h>
++#include <linux/gpio.h>
+ 
+ #include <asm/io.h>
+ #include <asm/irq.h>
+@@ -50,7 +52,6 @@
+ #include <asm/byteorder.h>
+ #include <asm/uaccess.h>
+ #include <asm/unaligned.h>
+-
+ #include "fsl_otg.h"
+ 
+ #define CONFIG_USB_OTG_DEBUG_FILES
+@@ -59,6 +60,7 @@
+ #define DRIVER_DESC "Freescale USB OTG Driver"
+ #define DRIVER_INFO DRIVER_VERSION " " DRIVER_DESC
+ 
++
+ MODULE_DESCRIPTION("Freescale USB OTG Transceiver Driver");
+ 
+ static const char driver_name[] = "fsl-usb2-otg";
+@@ -72,7 +74,7 @@ const pm_message_t otg_suspend_state = {
+ volatile static struct usb_dr_mmap *usb_dr_regs;
+ static struct fsl_otg *fsl_otg_dev;
+ static int srp_wait_done;
+-
++static int gpio_id;
+ /* FSM timers */
+ struct fsl_otg_timer *a_wait_vrise_tmr, *a_wait_bcon_tmr, *a_aidl_bdis_tmr,
+ 	*b_ase0_brst_tmr, *b_se0_srp_tmr;
+@@ -535,6 +537,13 @@ static int fsl_otg_set_host(struct otg_transceiver *otg_p, struct usb_bus *host)
+ 			otg_p->state = OTG_STATE_UNDEFINED;
+ 			fsm->protocol = PROTO_UNDEF;
+ 		}
++		if (gpio_id) {
++			if (gpio_get_value(gpio_id)) {
++				struct otg_fsm *fsm = &otg_dev->fsm;
++				otg_p->state = OTG_STATE_UNDEFINED;
++				fsm->protocol = PROTO_UNDEF;
++			}
++		}
+ 	}
+ 
+ 	otg_dev->host_working = 0;
+@@ -663,7 +672,58 @@ static int fsl_otg_start_hnp(struct otg_transceiver *otg_p)
+ 
+ 	return 0;
+ }
++/* Interrupt handler for gpio id pin */
++irqreturn_t fsl_otg_isr_gpio(int irq, void *dev_id)
++{
++	struct otg_fsm *fsm;
++	struct fsl_usb2_platform_data *pdata =
++		(struct fsl_usb2_platform_data *)dev_id;
++	struct fsl_otg *p_otg;
++	struct otg_transceiver *otg_trans = otg_get_transceiver();
++	p_otg = container_of(otg_trans, struct fsl_otg, otg);
++	fsm = &p_otg->fsm;
++	int value;
++
++	if (pdata->id_gpio == 0)
++		return IRQ_NONE;
++
++	value = gpio_get_value(pdata->id_gpio) ? 1 : 0;
+ 
++	if (value)
++		set_irq_type(gpio_to_irq(pdata->id_gpio), IRQ_TYPE_LEVEL_LOW);
++	else
++		set_irq_type(gpio_to_irq(pdata->id_gpio), IRQ_TYPE_LEVEL_HIGH);
++
++
++	if (value == p_otg->fsm.id)
++		return IRQ_HANDLED;
++
++	p_otg->fsm.id = value;
++
++	otg_trans->default_a = (fsm->id == 0);
++	/* clear conn information */
++	if (fsm->id)
++		fsm->b_conn = 0;
++	else
++		fsm->a_conn = 0;
++
++	if (otg_trans->host)
++		otg_trans->host->is_b_host = fsm->id;
++	if (otg_trans->gadget)
++		otg_trans->gadget->is_a_peripheral = !fsm->id;
++
++	VDBG("ID int (ID is %d)\n", fsm->id);
++	if (fsm->id) {  /* switch to gadget */
++		schedule_delayed_work(&p_otg->otg_event, 100);
++
++	} else {        /* switch to host */
++		cancel_delayed_work(&p_otg->otg_event);
++		fsl_otg_start_gadget(fsm, 0);
++		otg_drv_vbus(fsm, 1);
++		fsl_otg_start_host(fsm, 1);
++	}
++	return IRQ_HANDLED;
++}
+ /* Interrupt handler.  OTG/host/peripheral share the same int line.
+  * OTG driver clears OTGSC interrupts and leaves USB interrupts
+  * intact.  It needs to have knowledge of some USB interrupts
+@@ -821,10 +881,17 @@ int usb_otg_start(struct platform_device *pdev)
+ 	p_otg->dr_mem_map = (struct usb_dr_mmap *)usb_dr_regs;
+ 	pdata->regs = (void *)usb_dr_regs;
+ 
++	gpio_id = pdata->id_gpio;
+ 	/* request irq */
+-	p_otg->irq = platform_get_irq(pdev, 0);
+-	status = request_irq(p_otg->irq, fsl_otg_isr,
++	if (pdata->id_gpio == 0) {
++		p_otg->irq = platform_get_irq(pdev, 0);
++		status = request_irq(p_otg->irq, fsl_otg_isr,
+ 				IRQF_SHARED, driver_name, p_otg);
++	} else {
++		status = request_irq(gpio_to_irq(pdata->id_gpio),
++					fsl_otg_isr_gpio,
++					IRQF_SHARED, driver_name, pdata);
++	}
+ 	if (status) {
+ 		dev_dbg(p_otg->otg.dev, "can't get IRQ %d, error %d\n",
+ 			p_otg->irq, status);
+@@ -892,19 +959,31 @@ int usb_otg_start(struct platform_device *pdev)
+ 	 * Also: record initial state of ID pin
+ 	 */
+ 	if (le32_to_cpu(p_otg->dr_mem_map->otgsc) & OTGSC_STS_USB_ID) {
+-		p_otg->otg.state = OTG_STATE_UNDEFINED;
+ 		p_otg->fsm.id = 1;
+ 	} else {
+-		p_otg->otg.state = OTG_STATE_A_IDLE;
+ 		p_otg->fsm.id = 0;
+ 	}
+ 
++	if (pdata->id_gpio != 0) {
++		p_otg->fsm.id = gpio_get_value(pdata->id_gpio) ? 1 : 0;
++		if (p_otg->fsm.id)
++			set_irq_type(gpio_to_irq(pdata->id_gpio),
++				IRQ_TYPE_LEVEL_LOW);
++		else
++			set_irq_type(gpio_to_irq(pdata->id_gpio),
++				IRQ_TYPE_LEVEL_HIGH);
++	}
++	p_otg->otg.state = p_otg->fsm.id ? OTG_STATE_UNDEFINED :
++					   OTG_STATE_A_IDLE;
++
+ 	DBG("initial ID pin=%d\n", p_otg->fsm.id);
+ 
+ 	/* enable OTG ID pin interrupt */
+ 	temp = readl(&p_otg->dr_mem_map->otgsc);
+-	temp |= OTGSC_INTR_USB_ID_EN;
++	if (!pdata->id_gpio)
++		temp |= OTGSC_INTR_USB_ID_EN;
+ 	temp &= ~(OTGSC_CTRL_VBUS_DISCHARGE | OTGSC_INTR_1MS_TIMER_EN);
++
+ 	writel(temp, &p_otg->dr_mem_map->otgsc);
+ 
+ 	return 0;
+diff --git a/include/linux/fsl_devices.h b/include/linux/fsl_devices.h
+index bb030a3..30a7ca4 100644
+--- a/include/linux/fsl_devices.h
++++ b/include/linux/fsl_devices.h
+@@ -103,6 +103,7 @@ struct fsl_usb2_platform_data {
+ 	unsigned			suspended : 1;
+ 	unsigned			already_suspended : 1;
+ 
++	u32				id_gpio;
+ 	/* register save area for suspend/resume */
+ 	u32				pm_command;
+ 	u32				pm_status;
+-- 
+1.5.4.4
+

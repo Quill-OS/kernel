@@ -1,0 +1,31 @@
+From ffa6d62809930ec39c0bce3d8248f02402b17a26 Mon Sep 17 00:00:00 2001
+From: Ranjani Vaidyanathan-RA5478 <Ranjani.Vaidyanathan@freescale.com>
+Date: Wed, 2 Dec 2009 20:59:14 -0600
+Subject: [PATCH] ENGR00118976:  Fix mx37 build due missing function definition.
+
+Fixed build break when MXC_DVFS_PER is not defined.
+
+Signed-off-by: Ranjani Vaidyanathan-RA5478 <Ranjani.Vaidyanathan@freescale.com>
+---
+ arch/arm/plat-mxc/include/mach/mxc_dvfs.h |    5 +++++
+ 1 files changed, 5 insertions(+), 0 deletions(-)
+
+diff --git a/arch/arm/plat-mxc/include/mach/mxc_dvfs.h b/arch/arm/plat-mxc/include/mach/mxc_dvfs.h
+index 0290ff7..86b55cf 100644
+--- a/arch/arm/plat-mxc/include/mach/mxc_dvfs.h
++++ b/arch/arm/plat-mxc/include/mach/mxc_dvfs.h
+@@ -245,6 +245,11 @@ static inline int dvfs_per_divider_active(void)
+ 	return 0;
+ }
+ 
++static inline int dvfs_per_pixel_clk_limit(int pix_clk)
++{
++	return 0;
++}
++
+ #endif
+ 
+ #endif				/* __KERNEL__ */
+-- 
+1.5.4.4
+

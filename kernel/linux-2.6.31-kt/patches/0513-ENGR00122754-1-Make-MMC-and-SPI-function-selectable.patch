@@ -1,0 +1,588 @@
+From 8446b2a2fedd177edb9d787464872f00481111a1 Mon Sep 17 00:00:00 2001
+From: Robby Cai <R63905@freescale.com>
+Date: Sun, 25 Apr 2010 20:38:47 +0800
+Subject: [PATCH] ENGR00122754-1 Make MMC and SPI function selectable via cmdline
+
+MMC and SPI shares the SSP port1.
+pass "ssp1=mmc" in cmdline for MMC or,
+pass "ssp1=spi1" for SPI.
+
+Signed-off-by: Robby Cai <R63905@freescale.com>
+---
+ arch/arm/mach-mx23/device.c       |   82 +++------
+ arch/arm/mach-mx23/mx23evk.h      |    5 +
+ arch/arm/mach-mx23/mx23evk_pins.c |  370 ++++++++++++++++++++++++-------------
+ 3 files changed, 270 insertions(+), 187 deletions(-)
+
+diff --git a/arch/arm/mach-mx23/device.c b/arch/arm/mach-mx23/device.c
+index b7276a7..9211d87 100644
+--- a/arch/arm/mach-mx23/device.c
++++ b/arch/arm/mach-mx23/device.c
+@@ -43,6 +43,7 @@
+ 
+ #include "device.h"
+ #include "mx23_pins.h"
++#include "mx23evk.h"
+ #include "mach/mx23.h"
+ 
+ #if defined(CONFIG_SERIAL_MXS_DUART) || \
+@@ -511,56 +512,6 @@ static void __init mx23_init_dcp(void)
+ #endif
+ 
+ #if defined(CONFIG_MMC_MXS) || defined(CONFIG_MMC_MXS_MODULE)
+-#define MMC0_POWER	MXS_PIN_TO_GPIO(PINID_PWM3)
+-#define MMC0_WP		MXS_PIN_TO_GPIO(PINID_PWM4)
+-
+-static int mxs_mmc_get_wp_mmc0(void)
+-{
+-	return gpio_get_value(MMC0_WP);
+-}
+-
+-static int mxs_mmc_hw_init_mmc0(void)
+-{
+-	int ret = 0;
+-
+-	/* Configure write protect GPIO pin */
+-	ret = gpio_request(MMC0_WP, "mmc0_wp");
+-	if (ret) {
+-		pr_err("wp\r\n");
+-		goto out_wp;
+-	}
+-	gpio_set_value(MMC0_WP, 0);
+-	gpio_direction_input(MMC0_WP);
+-
+-	/* Configure POWER pin as gpio to drive power to MMC slot */
+-	ret = gpio_request(MMC0_POWER, "mmc0_power");
+-	if (ret) {
+-		pr_err("power\r\n");
+-		goto out_power;
+-	}
+-	gpio_direction_output(MMC0_POWER, 0);
+-	mdelay(100);
+-
+-	return 0;
+-
+-out_power:
+-	gpio_free(MMC0_WP);
+-out_wp:
+-	return ret;
+-}
+-
+-static void mxs_mmc_hw_release_mmc0(void)
+-{
+-	gpio_free(MMC0_POWER);
+-	gpio_free(MMC0_WP);
+-
+-}
+-
+-static void mxs_mmc_cmd_pullup_mmc0(int enable)
+-{
+-	mxs_set_pullup(PINID_SSP1_CMD, enable, "mmc0_cmd");
+-}
+-
+ static unsigned long mxs_mmc_setclock_mmc0(unsigned long hz)
+ {
+ 	struct clk *ssp = clk_get(NULL, "ssp.0"), *parent;
+@@ -657,7 +608,7 @@ static struct resource ssp1_resources[] = {
+ 	},
+ };
+ 
+-static void __init mx23_init_spi(void)
++static void __init mx23_init_spi1(void)
+ {
+ 	struct platform_device *pdev;
+ 
+@@ -670,12 +621,34 @@ static void __init mx23_init_spi(void)
+ 	mxs_add_device(pdev, 3);
+ }
+ #else
+-static void mx23_init_spi(void)
++static void mx23_init_spi1(void)
+ {
+ 	;
+ }
+ #endif
+ 
++#define CMDLINE_DEVICE_CHOOSE(name, dev1, dev2)			\
++	static char *cmdline_device_##name;			\
++	static int cmdline_device_##name##_setup(char *dev)	\
++	{							\
++		cmdline_device_##name = dev + 1;		\
++		return 0;					\
++	}							\
++	__setup(#name, cmdline_device_##name##_setup);		\
++	void mx23_init_##name(void)				\
++	{							\
++		if (!cmdline_device_##name ||			\
++			!strcmp(cmdline_device_##name, #dev1))	\
++				mx23_init_##dev1();		\
++		else if (!strcmp(cmdline_device_##name, #dev2))	\
++				mx23_init_##dev2();		\
++		else						\
++			pr_err("Unknown %s assignment '%s'.\n",	\
++				#name, cmdline_device_##name);	\
++	}
++
++CMDLINE_DEVICE_CHOOSE(ssp1, mmc, spi1)
++
+ #if defined(CONFIG_BATTERY_MXS)
+ /* battery info data */
+ static ddi_bc_Cfg_t battery_data = {
+@@ -769,7 +742,7 @@ void __init mx23_init_spdif(void)
+ 	mxs_add_device(pdev, 3);
+ }
+ #else
+-static inline mx23_init_spdif(void)
++static inline void mx23_init_spdif(void)
+ {
+ }
+ #endif
+@@ -888,8 +861,7 @@ int __init mx23_device_init(void)
+ 	mx23_init_ts();
+ 	mx23_init_rtc();
+ 	mx23_init_dcp();
+-	mx23_init_mmc();
+-	mx23_init_spi();
++	mx23_init_ssp1();
+ 	mx23_init_spdif();
+ 	mx23_init_lcdif();
+ 	mx23_init_pxp();
+diff --git a/arch/arm/mach-mx23/mx23evk.h b/arch/arm/mach-mx23/mx23evk.h
+index 9ed134a..ea2ab4d 100644
+--- a/arch/arm/mach-mx23/mx23evk.h
++++ b/arch/arm/mach-mx23/mx23evk.h
+@@ -24,4 +24,9 @@ extern void  mx23evk_mma7450_pin_init(void);
+ extern int mx23evk_mma7450_pin_release(void);
+ extern int mxs_spi_enc_pin_init(void);
+ extern int mxs_spi_enc_pin_release(void);
++extern int mxs_mmc_get_wp_mmc0(void);
++extern int mxs_mmc_hw_init_mmc0(void);
++extern void mxs_mmc_hw_release_mmc0(void);
++extern void mxs_mmc_cmd_pullup_mmc0(int enable);
++
+ #endif /* __ASM_ARM_MACH_MX23EVK_H */
+diff --git a/arch/arm/mach-mx23/mx23evk_pins.c b/arch/arm/mach-mx23/mx23evk_pins.c
+index c2551e6..8d942ff 100644
+--- a/arch/arm/mach-mx23/mx23evk_pins.c
++++ b/arch/arm/mach-mx23/mx23evk_pins.c
+@@ -21,6 +21,7 @@
+ #include <linux/platform_device.h>
+ #include <linux/irq.h>
+ #include <linux/gpio.h>
++#include <linux/delay.h>
+ 
+ #include <mach/pinctrl.h>
+ 
+@@ -321,114 +322,6 @@ static struct pin_desc mx23evk_fixed_pins[] = {
+ 	 .drive	= 1,
+ 	 },
+ #endif
+-#if defined(CONFIG_MMC_MXS) || defined(CONFIG_MMC_MXS_MODULE)
+-	/* Configurations of SSP0 SD/MMC port pins */
+-	{
+-	 .name	= "SSP1_DATA0",
+-	 .id	= PINID_SSP1_DATA0,
+-	 .fun	= PIN_FUN1,
+-	 .strength	= PAD_8MA,
+-	 .voltage	= PAD_3_3V,
+-	 .pullup	= 1,
+-	 .drive 	= 1,
+-	 .pull 		= 1,
+-	 },
+-	{
+-	 .name	= "SSP1_DATA1",
+-	 .id	= PINID_SSP1_DATA1,
+-	 .fun	= PIN_FUN1,
+-	 .strength	= PAD_8MA,
+-	 .voltage	= PAD_3_3V,
+-	 .pullup	= 1,
+-	 .drive 	= 1,
+-	 .pull 		= 1,
+-	 },
+-	{
+-	 .name	= "SSP1_DATA2",
+-	 .id	= PINID_SSP1_DATA2,
+-	 .fun	= PIN_FUN1,
+-	 .strength	= PAD_8MA,
+-	 .voltage	= PAD_3_3V,
+-	 .pullup	= 1,
+-	 .drive 	= 1,
+-	 .pull 		= 1,
+-	 },
+-	{
+-	 .name	= "SSP1_DATA3",
+-	 .id	= PINID_SSP1_DATA3,
+-	 .fun	= PIN_FUN1,
+-	 .strength	= PAD_8MA,
+-	 .voltage	= PAD_3_3V,
+-	 .pullup	= 1,
+-	 .drive 	= 1,
+-	 .pull 		= 1,
+-	 },
+-	{
+-	 .name	= "SSP1_CMD",
+-	 .id	= PINID_SSP1_CMD,
+-	 .fun	= PIN_FUN1,
+-	 .strength	= PAD_8MA,
+-	 .voltage	= PAD_3_3V,
+-	 .pullup	= 1,
+-	 .drive 	= 1,
+-	 .pull 		= 1,
+-	 },
+-	{
+-	 .name	= "SSP1_DETECT",
+-	 .id	= PINID_SSP1_DETECT,
+-	 .fun	= PIN_FUN1,
+-	 .strength	= PAD_8MA,
+-	 .voltage	= PAD_3_3V,
+-	 .pullup	= 0,
+-	 .drive 	= 1,
+-	 .pull 		= 0,
+-	 },
+-	{
+-	 .name	= "SSP1_SCK",
+-	 .id	= PINID_SSP1_SCK,
+-	 .fun	= PIN_FUN1,
+-	 .strength	= PAD_8MA,
+-	 .voltage	= PAD_3_3V,
+-	 .pullup	= 0,
+-	 .drive 	= 1,
+-	 .pull 		= 0,
+-	 },
+-#endif
+-
+-#if defined(CONFIG_SPI_MXS) || defined(CONFIG_SPI_MXS_MODULE)
+-	{
+-	 .name	= "SSP1_DATA0",
+-	 .id	= PINID_SSP1_DATA0,
+-	 .fun	= PIN_FUN1,
+-	 .strength	= PAD_4MA,
+-	 .voltage	= PAD_3_3V,
+-	 .drive 	= 1,
+-	 },
+-	{
+-	 .name	= "SSP1_DATA3",
+-	 .id	= PINID_SSP1_DATA3,
+-	 .fun	= PIN_FUN1,
+-	 .strength	= PAD_4MA,
+-	 .voltage	= PAD_3_3V,
+-	 .drive 	= 1,
+-	 },
+-	{
+-	 .name	= "SSP1_CMD",
+-	 .id	= PINID_SSP1_CMD,
+-	 .fun	= PIN_FUN1,
+-	 .strength	= PAD_4MA,
+-	 .voltage	= PAD_3_3V,
+-	 .drive 	= 1,
+-	 },
+-	{
+-	 .name	= "SSP1_SCK",
+-	 .id	= PINID_SSP1_SCK,
+-	 .fun	= PIN_FUN1,
+-	 .strength	= PAD_8MA,
+-	 .voltage	= PAD_3_3V,
+-	 .drive 	= 1,
+-	 },
+-#endif
+ 
+ #if defined(CONFIG_FEC) || defined(CONFIG_FEC_MODULE)
+ 	{
+@@ -547,6 +440,163 @@ static struct pin_desc mx23evk_fixed_pins[] = {
+ #endif
+ };
+ 
++#if defined(CONFIG_MMC_MXS) || defined(CONFIG_MMC_MXS_MODULE)
++static struct pin_desc mx23evk_mmc_pins[] = {
++	/* Configurations of SSP0 SD/MMC port pins */
++	{
++	 .name = "SSP1_DATA0",
++	 .id = PINID_SSP1_DATA0,
++	 .fun = PIN_FUN1,
++	 .strength = PAD_8MA,
++	 .voltage = PAD_3_3V,
++	 .pullup = 1,
++	 .drive = 1,
++	 .pull = 1,
++	 },
++	{
++	 .name = "SSP1_DATA1",
++	 .id = PINID_SSP1_DATA1,
++	 .fun = PIN_FUN1,
++	 .strength = PAD_8MA,
++	 .voltage = PAD_3_3V,
++	 .pullup = 1,
++	 .drive = 1,
++	 .pull = 1,
++	 },
++	{
++	 .name = "SSP1_DATA2",
++	 .id = PINID_SSP1_DATA2,
++	 .fun = PIN_FUN1,
++	 .strength = PAD_8MA,
++	 .voltage = PAD_3_3V,
++	 .pullup = 1,
++	 .drive = 1,
++	 .pull = 1,
++	 },
++	{
++	 .name = "SSP1_DATA3",
++	 .id = PINID_SSP1_DATA3,
++	 .fun = PIN_FUN1,
++	 .strength = PAD_8MA,
++	 .voltage = PAD_3_3V,
++	 .pullup = 1,
++	 .drive = 1,
++	 .pull = 1,
++	 },
++	{
++	 .name = "SSP1_CMD",
++	 .id = PINID_SSP1_CMD,
++	 .fun = PIN_FUN1,
++	 .strength = PAD_8MA,
++	 .voltage = PAD_3_3V,
++	 .pullup = 1,
++	 .drive = 1,
++	 .pull = 1,
++	 },
++	{
++	 .name = "SSP1_DETECT",
++	 .id = PINID_SSP1_DETECT,
++	 .fun = PIN_FUN1,
++	 .strength = PAD_8MA,
++	 .voltage = PAD_3_3V,
++	 .pullup = 0,
++	 .drive = 1,
++	 .pull = 0,
++	 },
++	{
++	 .name = "SSP1_SCK",
++	 .id = PINID_SSP1_SCK,
++	 .fun = PIN_FUN1,
++	 .strength = PAD_8MA,
++	 .voltage = PAD_3_3V,
++	 .pullup = 0,
++	 .drive = 1,
++	 .pull = 0,
++	 },
++};
++#endif
++
++#if defined(CONFIG_SPI_MXS) || defined(CONFIG_SPI_MXS_MODULE)
++static struct pin_desc mx23evk_spi_pins[] = {
++	{
++	 .name	= "SSP1_DATA0",
++	 .id	= PINID_SSP1_DATA0,
++	 .fun	= PIN_FUN1,
++	 .strength	= PAD_4MA,
++	 .voltage	= PAD_3_3V,
++	 .drive 	= 1,
++	 },
++	{
++	 .name	= "SSP1_DATA3",
++	 .id	= PINID_SSP1_DATA3,
++	 .fun	= PIN_FUN1,
++	 .strength	= PAD_4MA,
++	 .voltage	= PAD_3_3V,
++	 .drive 	= 1,
++	 },
++	{
++	 .name	= "SSP1_CMD",
++	 .id	= PINID_SSP1_CMD,
++	 .fun	= PIN_FUN1,
++	 .strength	= PAD_4MA,
++	 .voltage	= PAD_3_3V,
++	 .drive 	= 1,
++	 },
++	{
++	 .name	= "SSP1_SCK",
++	 .id	= PINID_SSP1_SCK,
++	 .fun	= PIN_FUN1,
++	 .strength	= PAD_8MA,
++	 .voltage	= PAD_3_3V,
++	 .drive 	= 1,
++	 },
++};
++#endif
++
++
++static void mxs_request_pins(struct pin_desc *pins, int nr)
++{
++	int i;
++	struct pin_desc *pin;
++
++	/* configure the pins */
++	for (i = 0; i < nr; i++) {
++		pin = &pins[i];
++		if (pin->fun == PIN_GPIO)
++			gpio_request(MXS_PIN_TO_GPIO(pin->id), pin->name);
++		else
++			mxs_request_pin(pin->id, pin->fun, pin->name);
++		if (pin->drive) {
++			mxs_set_strength(pin->id, pin->strength, pin->name);
++			mxs_set_voltage(pin->id, pin->voltage, pin->name);
++		}
++		if (pin->pull)
++			mxs_set_pullup(pin->id, pin->pullup, pin->name);
++		if (pin->fun == PIN_GPIO) {
++			if (pin->output)
++				gpio_direction_output(MXS_PIN_TO_GPIO(pin->id),
++						      pin->data);
++			else
++				gpio_direction_input(MXS_PIN_TO_GPIO(pin->id));
++		}
++	}
++}
++
++static void mxs_release_pins(struct pin_desc *pins, int nr)
++{
++	int i;
++	struct pin_desc *pin;
++
++	/* release the pins */
++	for (i = 0; i < nr; i++) {
++		pin = &pins[i];
++		if (pin->fun == PIN_GPIO)
++			gpio_free(MXS_PIN_TO_GPIO(pin->id));
++		else
++			mxs_release_pin(pin->id, pin->name);
++	}
++}
++
+ #if defined(CONFIG_MXC_MMA7450) || defined(CONFIG_MXC_MMA7450_MODULE)
+ int mx23evk_mma7450_pin_init(void)
+ {
+@@ -572,13 +622,86 @@ int mx23evk_mma7450_pin_release(void)
+ }
+ #endif
+ 
+-extern int mxs_spi_enc_pin_init(void);
+-extern int mxs_spi_enc_pin_release(void);
++#if defined(CONFIG_MMC_MXS) || defined(CONFIG_MMC_MXS_MODULE)
++#define MMC0_POWER	MXS_PIN_TO_GPIO(PINID_PWM3)
++#define MMC0_WP		MXS_PIN_TO_GPIO(PINID_PWM4)
++
++int mxs_mmc_get_wp_mmc0(void)
++{
++	return gpio_get_value(MMC0_WP);
++}
++
++int mxs_mmc_hw_init_mmc0(void)
++{
++	int ret = 0;
++
++	mxs_request_pins(mx23evk_mmc_pins, ARRAY_SIZE(mx23evk_mmc_pins));
++
++	/* Configure write protect GPIO pin */
++	ret = gpio_request(MMC0_WP, "mmc0_wp");
++	if (ret) {
++		pr_err("wp\n");
++		goto out_wp;
++	}
++	gpio_set_value(MMC0_WP, 0);
++	gpio_direction_input(MMC0_WP);
++
++	/* Configure POWER pin as gpio to drive power to MMC slot */
++	ret = gpio_request(MMC0_POWER, "mmc0_power");
++	if (ret) {
++		pr_err("power\n");
++		goto out_power;
++	}
++	gpio_direction_output(MMC0_POWER, 0);
++	mdelay(100);
++
++	return 0;
++
++out_power:
++	gpio_free(MMC0_WP);
++out_wp:
++	mxs_release_pins(mx23evk_mmc_pins, ARRAY_SIZE(mx23evk_mmc_pins));
++	return ret;
++}
++
++void mxs_mmc_hw_release_mmc0(void)
++{
++	gpio_free(MMC0_POWER);
++	gpio_free(MMC0_WP);
++
++	mxs_release_pins(mx23evk_mmc_pins, ARRAY_SIZE(mx23evk_mmc_pins));
++}
++
++void mxs_mmc_cmd_pullup_mmc0(int enable)
++{
++	mxs_set_pullup(PINID_SSP1_CMD, enable, "mmc0_cmd");
++}
++#else
++int mxs_mmc_get_wp_mmc0(void)
++{
++	return 0;
++}
++int mxs_mmc_hw_init_mmc0(void)
++{
++	return 0;
++}
++
++void mxs_mmc_hw_release_mmc0(void)
++{
++}
++
++void mxs_mmc_cmd_pullup_mmc0(int enable)
++{
++}
++#endif
++
+ #if defined(CONFIG_ENC28J60) || defined(CONFIG_ENC28J60_MODULE)
+ int mxs_spi_enc_pin_init(void)
+ {
+ 	unsigned gpio = MXS_PIN_TO_GPIO(PINID_SSP1_DATA1);
+ 
++	mxs_request_pins(mx23evk_spi_pins, ARRAY_SIZE(mx23evk_spi_pins));
++
+ 	gpio_request(gpio, "ENC28J60_INTR");
+ 	gpio_direction_input(gpio);
+ 	set_irq_type(gpio_to_irq(gpio), IRQ_TYPE_EDGE_FALLING);
+@@ -589,9 +712,13 @@ int mxs_spi_enc_pin_release(void)
+ {
+ 	unsigned gpio = MXS_PIN_TO_GPIO(PINID_SSP1_DATA1);
+ 
++
+ 	gpio_free(gpio);
+ 	set_irq_type(gpio_to_irq(gpio), IRQ_TYPE_NONE);
+ 
++	/* release the pins */
++	mxs_release_pins(mx23evk_spi_pins, ARRAY_SIZE(mx23evk_spi_pins));
++
+ 	return 0;
+ }
+ #else
+@@ -628,26 +755,5 @@ int mx23evk_enet_gpio_init(void)
+ 
+ void __init mx23evk_pins_init(void)
+ {
+-	int i;
+-	struct pin_desc *pin;
+-	for (i = 0; i < ARRAY_SIZE(mx23evk_fixed_pins); i++) {
+-		pin = &mx23evk_fixed_pins[i];
+-		if (pin->fun == PIN_GPIO)
+-			gpio_request(MXS_PIN_TO_GPIO(pin->id), pin->name);
+-		else
+-			mxs_request_pin(pin->id, pin->fun, pin->name);
+-		if (pin->drive) {
+-			mxs_set_strength(pin->id, pin->strength, pin->name);
+-			mxs_set_voltage(pin->id, pin->voltage, pin->name);
+-		}
+-		if (pin->pull)
+-			mxs_set_pullup(pin->id, pin->pullup, pin->name);
+-		if (pin->fun == PIN_GPIO) {
+-			if (pin->output)
+-				gpio_direction_output(MXS_PIN_TO_GPIO(pin->id),
+-							pin->data);
+-			else
+-				gpio_direction_input(MXS_PIN_TO_GPIO(pin->id));
+-		}
+-	}
++	mxs_request_pins(mx23evk_fixed_pins, ARRAY_SIZE(mx23evk_fixed_pins));
+ }
+-- 
+1.5.4.4
+

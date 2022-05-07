@@ -1,0 +1,38 @@
+From 321789480f856142a5d9e6eec646207581e6ff26 Mon Sep 17 00:00:00 2001
+From: Jason Chen <b02280@freescale.com>
+Date: Thu, 28 Jan 2010 14:47:18 +0800
+Subject: [PATCH] ENGR00120505 fb: reverve fb memory for mxc_fb_device[1]
+
+If mxc_fb_device[1] is the primary fb dev, fb memory should reserve for
+it.
+
+Signed-off-by: Jason Chen <b02280@freescale.com>
+---
+ arch/arm/mach-mx51/mx51_babbage.c |    6 +++++-
+ 1 files changed, 5 insertions(+), 1 deletions(-)
+
+diff --git a/arch/arm/mach-mx51/mx51_babbage.c b/arch/arm/mach-mx51/mx51_babbage.c
+index 665c327..4a9de32 100644
+--- a/arch/arm/mach-mx51/mx51_babbage.c
++++ b/arch/arm/mach-mx51/mx51_babbage.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2009-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -421,6 +421,10 @@ static int __init mxc_init_fb(void)
+ 		 * 3. TVE       YUV	   video_modes[0]
+ 		 */
+ 		(void)platform_device_register(&mxc_fb_device[1]);
++		mxc_fb_device[0].num_resources = 0;
++		mxc_fb_device[0].resource = NULL;
++		mxc_fb_device[1].num_resources = ARRAY_SIZE(mxcfb_resources);
++		mxc_fb_device[1].resource = mxcfb_resources;
+ 		if (fb_data[0].mode_str || fb_data[0].mode)
+ 			/*
+ 			 * DI0 -> DC channel:
+-- 
+1.5.4.4
+

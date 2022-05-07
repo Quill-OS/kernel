@@ -1,0 +1,106 @@
+From 9c59503b114d530ff42392fdcfa26bab4559c05c Mon Sep 17 00:00:00 2001
+From: Xiexiaobo <X.Xie@freescale.com>
+Date: Tue, 9 Feb 2010 15:41:29 +0800
+Subject: [PATCH] ENGR00120850 MX25: Enable Active Well-biased on STOP mode.
+
+Enable Active Well-biased when i.MX25 enter stop mode.
+This helps to save some more micro amps that consumes
+the processor when in stop mode.
+
+Signed-off-by: Xie XiaoBo <r63061@freescale.com>
+---
+ arch/arm/mach-mx25/crm_regs.h |   36 +++++++++++++++++++++++++++++++++++-
+ arch/arm/mach-mx25/system.c   |   10 ++++++++--
+ 2 files changed, 43 insertions(+), 3 deletions(-)
+
+diff --git a/arch/arm/mach-mx25/crm_regs.h b/arch/arm/mach-mx25/crm_regs.h
+index a675232..d103d2b 100644
+--- a/arch/arm/mach-mx25/crm_regs.h
++++ b/arch/arm/mach-mx25/crm_regs.h
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -193,9 +193,43 @@
+ 
+ #define MXC_CCM_RCSR_NF16B               (1 << 14)
+ 
++#define MXC_CCM_PMCR1_CPEN_EMI		(1 << 29)
++#define MXC_CCM_PMCR1_CSPAEM_P_OFFSET	26
++#define MXC_CCM_PMCR1_CSPAEM_N_OFFSET	24
++#define MXC_CCM_PMCR1_CSPAEM_MASK	(0xf << 24)
++#define MXC_CCM_PMCR1_WBCN_OFFSET	16
++#define MXC_CCM_PMCR1_CPEN		(1 << 13)
++#define MXC_CCM_PMCR1_CSPA_P_OFFSET	11
++#define MXC_CCM_PMCR1_CSPA_N_OFFSET	9
++#define MXC_CCM_PMCR1_CSPA_MASK		(0xf << 9)
++
++#define MXC_CCM_PMCR1_WBCN_MASK		(0xff << 16)
++#define MXC_CCM_PMCR1_WBCN_DEFAULT	0xa0
++#define MXC_CCM_PMCR1_WBB_INCR		0
++#define MXC_CCM_PMCR1_WBB_MODE		1
++#define MXC_CCM_PMCR1_WBB_DECR		2
++#define MXC_CCM_PMCR1_WBB_MINI		3
++
+ #define MXC_CCM_PMCR2_VSTBY		(1 << 17)
+ #define MXC_CCM_PMCR2_OSC24M_DOWN	(1 << 16)
+ 
++#define MXC_CCM_PMCR1_AWB_EN		(MXC_CCM_PMCR1_CPEN_EMI | \
++					 MXC_CCM_PMCR1_CPEN | \
++					 (MXC_CCM_PMCR1_WBCN_DEFAULT << \
++					 MXC_CCM_PMCR1_WBCN_OFFSET))
++
++#define MXC_CCM_PMCR1_WBB_DEFAULT	((MXC_CCM_PMCR1_WBB_DECR << \
++					 MXC_CCM_PMCR1_CSPAEM_P_OFFSET) | \
++					 (MXC_CCM_PMCR1_WBB_DECR << \
++					 MXC_CCM_PMCR1_CSPAEM_N_OFFSET) | \
++					 (MXC_CCM_PMCR1_WBB_DECR << \
++					 MXC_CCM_PMCR1_CSPA_P_OFFSET) | \
++					 (MXC_CCM_PMCR1_WBB_DECR << \
++					 MXC_CCM_PMCR1_CSPA_N_OFFSET))
++
++#define MXC_CCM_PMCR1_AWB_DEFAULT	(MXC_CCM_PMCR1_AWB_EN | \
++					 MXC_CCM_PMCR1_WBB_DEFAULT)
++
+ #define MXC_CCM_MCR_USB_XTAL_MUX_OFFSET  31
+ #define MXC_CCM_MCR_CLKO_EN_OFFSET       30
+ #define MXC_CCM_MCR_CLKO_DIV_OFFSET      24
+diff --git a/arch/arm/mach-mx25/system.c b/arch/arm/mach-mx25/system.c
+index d2b6fb1..51e1712 100644
+--- a/arch/arm/mach-mx25/system.c
++++ b/arch/arm/mach-mx25/system.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -53,7 +53,7 @@ void mxc_cpu_lp_set(enum mxc_cpu_pwr_mode mode)
+ {
+ 	unsigned int lpm;
+ 	unsigned long reg;
+-	unsigned int pmcr2, lpimr;
++	unsigned int pmcr1, pmcr2, lpimr;
+ 	unsigned int cgcr0, cgcr1, cgcr2;
+ 	struct irq_desc *desc;
+ 	int i;
+@@ -104,6 +104,12 @@ void mxc_cpu_lp_set(enum mxc_cpu_pwr_mode mode)
+ 			pmcr2 |= (MXC_CCM_PMCR2_OSC24M_DOWN |
+ 				  MXC_CCM_PMCR2_VSTBY);
+ 			__raw_writel(pmcr2, MXC_CCM_PMCR2);
++			pmcr1 = __raw_readl(MXC_CCM_PMCR1);
++			pmcr1 &= ~(MXC_CCM_PMCR1_WBCN_MASK |
++				   MXC_CCM_PMCR1_CSPAEM_MASK |
++				   MXC_CCM_PMCR1_CSPA_MASK);
++			pmcr1 |= MXC_CCM_PMCR1_AWB_DEFAULT;
++			__raw_writel(pmcr1, MXC_CCM_PMCR1);
+ 		}
+ 		break;
+ 
+-- 
+1.5.4.4
+

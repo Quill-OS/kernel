@@ -1,0 +1,27 @@
+From 9912c40d5a21f2f87136e22946e4071c0ad5b8a2 Mon Sep 17 00:00:00 2001
+From: Robby Cai <R63905@freescale.com>
+Date: Fri, 6 Nov 2009 14:16:55 +0800
+Subject: [PATCH] ENGR00118046-3 Add the mxs_viim device
+
+IIM device node does not exist due to missing of mxs_viim registered.
+
+Signed-off-by: Robby Cai <R63905@freescale.com>
+---
+ arch/arm/mach-stmp378x/stmp378x_devb.c |    1 +
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+
+diff --git a/arch/arm/mach-stmp378x/stmp378x_devb.c b/arch/arm/mach-stmp378x/stmp378x_devb.c
+index 86a9c4b..7fade7e 100644
+--- a/arch/arm/mach-stmp378x/stmp378x_devb.c
++++ b/arch/arm/mach-stmp378x/stmp378x_devb.c
+@@ -58,6 +58,7 @@ static struct platform_device *devices[] = {
+ 	&stmp378x_i2c,
+ 	&stmp3xxx_spdif,
+ 	&stmp378x_audio,
++	&stmp3xxx_viim,
+ };
+ 
+ int usb_host_wakeup_irq(struct device *wkup_dev)
+-- 
+1.5.4.4
+

@@ -1,0 +1,121 @@
+From 33a4650e8bf5a50d71187d4315a84904715c82de Mon Sep 17 00:00:00 2001
+From: =?utf-8?q?Uwe=20Kleine-K=C3=B6nig?= <u.kleine-koenig@pengutronix.de>
+Date: Tue, 1 Sep 2009 23:14:15 +0000
+Subject: [PATCH] fec: fix recursive locking of mii_lock
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+mii_discover_phy is only called by fec_enet_mii (via mip->mii_func).  So
+&fep->mii_lock is already held and mii_discover_phy must not call
+mii_queue which locks &fep->mii_lock, too.
+
+This was noticed by lockdep:
+
+	=============================================
+	[ INFO: possible recursive locking detected ]
+	2.6.31-rc8-00038-g37d0892 #109
+	---------------------------------------------
+	swapper/1 is trying to acquire lock:
+	 (&fep->mii_lock){-.....}, at: [<c01569f8>] mii_queue+0x2c/0xcc
+
+	but task is already holding lock:
+	 (&fep->mii_lock){-.....}, at: [<c0156328>] fec_enet_interrupt+0x78/0x460
+
+	other info that might help us debug this:
+	2 locks held by swapper/1:
+	 #0:  (rtnl_mutex){+.+.+.}, at: [<c0183534>] rtnl_lock+0x18/0x20
+	 #1:  (&fep->mii_lock){-.....}, at: [<c0156328>] fec_enet_interrupt+0x78/0x460
+
+	stack backtrace:
+	Backtrace:
+	[<c00226fc>] (dump_backtrace+0x0/0x108) from [<c01eac14>] (dump_stack+0x18/0x1c)
+	 r6:c781d118 r5:c03e41d8 r4:00000001
+	[<c01eabfc>] (dump_stack+0x0/0x1c) from [<c005bae4>] (__lock_acquire+0x1a20/0x1a88)
+	[<c005a0c4>] (__lock_acquire+0x0/0x1a88) from [<c005bbac>] (lock_acquire+0x60/0x74)
+	[<c005bb4c>] (lock_acquire+0x0/0x74) from [<c01edda8>] (_spin_lock_irqsave+0x54/0x68)
+	 r7:60000093 r6:c01569f8 r5:c785e468 r4:00000000
+	[<c01edd54>] (_spin_lock_irqsave+0x0/0x68) from [<c01569f8>] (mii_queue+0x2c/0xcc)
+	 r7:c785e468 r6:c0156b24 r5:600a0000 r4:c785e000
+	[<c01569cc>] (mii_queue+0x0/0xcc) from [<c0156b78>] (mii_discover_phy+0x54/0xa8)
+	 r8:00000002 r7:00000032 r6:c785e000 r5:c785e360 r4:c785e000
+	[<c0156b24>] (mii_discover_phy+0x0/0xa8) from [<c0156354>] (fec_enet_interrupt+0xa4/0x460)
+	 r5:c785e360 r4:c077a170
+	[<c01562b0>] (fec_enet_interrupt+0x0/0x460) from [<c0066674>] (handle_IRQ_event+0x48/0x120)
+	[<c006662c>] (handle_IRQ_event+0x0/0x120) from [<c0068438>] (handle_level_irq+0x94/0x11c)
+	...
+
+Signed-off-by: Uwe Kleine-König <u.kleine-koenig@pengutronix.de>
+Cc: Greg Ungerer <gerg@uclinux.org>
+Cc: Ben Hutchings <ben@decadent.org.uk>
+Cc: Patrick McHardy <kaber@trash.net>
+Cc: Sascha Hauer <s.hauer@pengutronix.de>
+Cc: Matt Waddel <Matt.Waddel@freescale.com>
+Cc: netdev@vger.kernel.org
+Cc: Tim Sander <tim01@vlsi.informatik.tu-darmstadt.de>
+Acked-by: Greg Ungerer <gerg@uclinux.org>
+Signed-off-by: David S. Miller <davem@davemloft.net>
+---
+ drivers/net/fec.c |   22 +++++++++++++++++-----
+ 1 files changed, 17 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/net/fec.c b/drivers/net/fec.c
+index c9fd82d..ef82606 100644
+--- a/drivers/net/fec.c
++++ b/drivers/net/fec.c
+@@ -637,16 +637,15 @@ unlock:
+ }
+ 
+ static int
+-mii_queue(struct net_device *dev, int regval, void (*func)(uint, struct net_device *))
++mii_queue_unlocked(struct net_device *dev, int regval,
++		void (*func)(uint, struct net_device *))
+ {
+ 	struct fec_enet_private *fep;
+-	unsigned long	flags;
+ 	mii_list_t	*mip;
+ 	int		retval;
+ 
+ 	/* Add PHY address to register command */
+ 	fep = netdev_priv(dev);
+-	spin_lock_irqsave(&fep->mii_lock, flags);
+ 
+ 	regval |= fep->phy_addr << 23;
+ 	retval = 0;
+@@ -667,6 +666,19 @@ mii_queue(struct net_device *dev, int regval, void (*func)(uint, struct net_devi
+ 		retval = 1;
+ 	}
+ 
++	return retval;
++}
++
++static int
++mii_queue(struct net_device *dev, int regval,
++		void (*func)(uint, struct net_device *))
++{
++	struct fec_enet_private *fep;
++	unsigned long   flags;
++	int             retval;
++	fep = netdev_priv(dev);
++	spin_lock_irqsave(&fep->mii_lock, flags);
++	retval = mii_queue_unlocked(dev, regval, func);
+ 	spin_unlock_irqrestore(&fep->mii_lock, flags);
+ 	return retval;
+ }
+@@ -1373,11 +1385,11 @@ mii_discover_phy(uint mii_reg, struct net_device *dev)
+ 
+ 			/* Got first part of ID, now get remainder */
+ 			fep->phy_id = phytype << 16;
+-			mii_queue(dev, mk_mii_read(MII_REG_PHYIR2),
++			mii_queue_unlocked(dev, mk_mii_read(MII_REG_PHYIR2),
+ 							mii_discover_phy3);
+ 		} else {
+ 			fep->phy_addr++;
+-			mii_queue(dev, mk_mii_read(MII_REG_PHYIR1),
++			mii_queue_unlocked(dev, mk_mii_read(MII_REG_PHYIR1),
+ 							mii_discover_phy);
+ 		}
+ 	} else {
+-- 
+1.5.4.4
+

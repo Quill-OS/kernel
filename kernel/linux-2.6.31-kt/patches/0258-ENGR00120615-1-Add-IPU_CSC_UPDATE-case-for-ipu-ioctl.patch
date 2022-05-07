@@ -1,0 +1,73 @@
+From 896572aad52368dc9c7befe25199293067f40a77 Mon Sep 17 00:00:00 2001
+From: Sammy He <r62914@freescale.com>
+Date: Mon, 1 Feb 2010 17:42:45 +0800
+Subject: [PATCH] ENGR00120615-1 Add IPU_CSC_UPDATE case for ipu ioctl
+
+Add IPU_CSC_UPDATE case for ipu ioctl.
+
+Signed-off-by: Sammy He <r62914@freescale.com>
+---
+ drivers/mxc/ipu3/ipu_device.c |   15 ++++++++++++++-
+ include/linux/ipu.h           |    8 +++++++-
+ 2 files changed, 21 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/mxc/ipu3/ipu_device.c b/drivers/mxc/ipu3/ipu_device.c
+index 4ac6fc7..27455fe 100644
+--- a/drivers/mxc/ipu3/ipu_device.c
++++ b/drivers/mxc/ipu3/ipu_device.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2005-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2005-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -414,6 +414,19 @@ static int mxc_ipu_ioctl(struct inode *inode, struct file *file,
+ 							offset_parm.horizontal_offset);
+ 		}
+ 		break;
++	case IPU_CSC_UPDATE:
++		{
++			int param[5][3];
++			ipu_csc_update csc;
++			if (copy_from_user(&csc, (void *) arg,
++					   sizeof(ipu_csc_update)))
++				return -EFAULT;
++			if (copy_from_user(&param[0][0], (void *) csc.param,
++					   sizeof(param)))
++				return -EFAULT;
++			ipu_set_csc_coefficients(csc.channel, param);
++		}
++		break;
+ 	default:
+ 		break;
+ 	}
+diff --git a/include/linux/ipu.h b/include/linux/ipu.h
+index f2e6c35..fdb50eb 100644
+--- a/include/linux/ipu.h
++++ b/include/linux/ipu.h
+@@ -1209,6 +1209,11 @@ typedef struct _ipu_mem_info {
+ 	int size;
+ } ipu_mem_info;
+ 
++typedef struct _ipu_csc_update {
++	ipu_channel_t channel;
++	int **param;
++} ipu_csc_update;
++
+ /* IOCTL commands */
+ 
+ #define IPU_INIT_CHANNEL              _IOW('I',0x1,ipu_channel_parm)
+@@ -1250,7 +1255,8 @@ typedef struct _ipu_mem_info {
+ #define IPU_FREE_MEM		      _IOW('I', 0x25, ipu_mem_info)
+ #define IPU_IS_CHAN_BUSY	      _IOW('I', 0x26, ipu_channel_t)
+ #define IPU_CALC_STRIPES_SIZE	      _IOWR('I', 0x27, ipu_stripe_parm)
+-#define IPU_UPDATE_BUF_OFFSET     _IOW('I', 0x28, ipu_buf_offset_parm)
++#define IPU_UPDATE_BUF_OFFSET         _IOW('I', 0x28, ipu_buf_offset_parm)
++#define IPU_CSC_UPDATE                _IOW('I', 0x29, ipu_csc_update)
+ 
+ int ipu_calc_stripes_sizes(const unsigned int input_frame_width,
+ 				unsigned int output_frame_width,
+-- 
+1.5.4.4
+

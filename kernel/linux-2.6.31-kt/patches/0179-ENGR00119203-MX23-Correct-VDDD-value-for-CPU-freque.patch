@@ -1,0 +1,28 @@
+From 8e6b8a6b958c13061f31a932c0ba5f24e3cddab6 Mon Sep 17 00:00:00 2001
+From: Nancy Chen <Nancy.Chen@freescale.com>
+Date: Thu, 10 Dec 2009 15:04:30 -0600
+Subject: [PATCH] ENGR00119203 MX23: Correct VDDD value for CPU frequency 360 MHz
+
+MX23: Correct VDDD value for CPU frequency 360 MHz.
+
+Signed-off-by: Nancy Chen <Nancy.Chen@freescale.com>
+---
+ arch/arm/plat-stmp3xxx/cpufreq.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/arch/arm/plat-stmp3xxx/cpufreq.c b/arch/arm/plat-stmp3xxx/cpufreq.c
+index 69d2f3b..0d16b97 100644
+--- a/arch/arm/plat-stmp3xxx/cpufreq.c
++++ b/arch/arm/plat-stmp3xxx/cpufreq.c
+@@ -60,7 +60,7 @@ static struct profile {
+ 	1450000, 355000, 3300000, 1750000, 0 },
+ 	{ 392730, 130910, 130910, 0, 1475000,
+ 	1375000, 225000, 3300000, 1750000, 0 },
+-	{ 360000, 120000, 120000, 0, 13750000,
++	{ 360000, 120000, 120000, 0, 1375000,
+ 	1275000, 200000, 3300000, 1750000, 0 },
+ 	{ 261820, 130910, 130910, 0, 1275000,
+ 	1175000, 173000, 3300000, 1750000, 0 },
+-- 
+1.5.4.4
+

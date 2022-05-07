@@ -1,0 +1,13 @@
+#
+# Bluetooth configuration
+#
+
+menu "MXC AMD GPU support"
+
+config MXC_AMD_GPU_LAB126
+	tristate "MXC AMD GPU support"
+	depends on ARCH_MX35 || ARCH_MX51 || ARCH_MX53 || ARCH_MX50
+	---help---
+         Say Y to get the GPU driver support.
+
+endmenu

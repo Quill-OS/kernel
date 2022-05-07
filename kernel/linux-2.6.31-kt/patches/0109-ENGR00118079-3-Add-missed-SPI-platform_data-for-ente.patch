@@ -1,0 +1,42 @@
+From 229cea817de0f8d2b99f8f75f153020c9a396b28 Mon Sep 17 00:00:00 2001
+From: Robby Cai <R63905@freescale.com>
+Date: Tue, 10 Nov 2009 11:32:51 +0800
+Subject: [PATCH] ENGR00118079-3 Add missed SPI platform_data for enternet
+
+include GPIO pin for ethernet interrupt, etc.
+
+Signed-off-by: Robby Cai <R63905@freescale.com>
+---
+ arch/arm/mach-stmp378x/stmp378x_devb.c |    9 ++++++++-
+ 1 files changed, 8 insertions(+), 1 deletions(-)
+
+diff --git a/arch/arm/mach-stmp378x/stmp378x_devb.c b/arch/arm/mach-stmp378x/stmp378x_devb.c
+index 7fade7e..fba9fe5 100644
+--- a/arch/arm/mach-stmp378x/stmp378x_devb.c
++++ b/arch/arm/mach-stmp378x/stmp378x_devb.c
+@@ -303,6 +303,13 @@ static struct stmp3xxxmmc_platform_data mmc_data = {
+ 	.write_uA       = 70000,
+ };
+ 
++extern int stmp37xx_spi_enc_init(void *);
++extern int stmp37xx_spi_enc_release(void *);
++static struct stmp37xx_spi_platform_data enc_data = {
++	.irq_pin = PINID_SSP1_DATA1,
++	.hw_init = stmp37xx_spi_enc_init,
++	.hw_release = stmp37xx_spi_enc_release,
++};
+ static struct spi_board_info spi_board_info[] __initdata = {
+ #if defined(CONFIG_ENC28J60) || defined(CONFIG_ENC28J60_MODULE)
+ 	{
+@@ -310,7 +317,7 @@ static struct spi_board_info spi_board_info[] __initdata = {
+ 		.max_speed_hz   = 6 * 1000 * 1000,
+ 		.bus_num	= 1,
+ 		.chip_select    = 0,
+-		.platform_data  = NULL,
++		.platform_data  = &enc_data,
+ 	},
+ #endif
+ };
+-- 
+1.5.4.4
+

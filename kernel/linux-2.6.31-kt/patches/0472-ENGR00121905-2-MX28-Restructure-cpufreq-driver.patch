@@ -1,0 +1,397 @@
+From 0f0f0027471061be52f51236705cd8f60cfff5f3 Mon Sep 17 00:00:00 2001
+From: Nancy Chen <Nancy.Chen@freescale.com>
+Date: Tue, 6 Apr 2010 23:12:19 -0500
+Subject: [PATCH] ENGR00121905-2 MX28: Restructure cpufreq driver
+
+Restructure cpufreq driver.
+Fix clock count not right.
+Fix cpu frequency can not be changed from 64 MHz.
+Add cpufreq trig update feature.
+
+Signed-off-by: Nancy Chen <Nancy.Chen@freescale.com>
+---
+ arch/arm/mach-mx28/bus_freq.c             |   11 ++---
+ arch/arm/mach-mx28/clock.c                |    6 +++
+ arch/arm/plat-mxs/clock.c                 |   17 +++++++-
+ arch/arm/plat-mxs/cpufreq.c               |   62 ++++++++++++++++------------
+ arch/arm/plat-mxs/device.c                |   14 ++++++
+ arch/arm/plat-mxs/include/mach/bus_freq.h |    2 +-
+ arch/arm/plat-mxs/include/mach/clock.h    |    3 +-
+ 7 files changed, 79 insertions(+), 36 deletions(-)
+
+diff --git a/arch/arm/mach-mx28/bus_freq.c b/arch/arm/mach-mx28/bus_freq.c
+index 5a36ce2..a997eaa 100644
+--- a/arch/arm/mach-mx28/bus_freq.c
++++ b/arch/arm/mach-mx28/bus_freq.c
+@@ -52,15 +52,15 @@
+ #define BF(value, field) (((value) << BP_##field) & BM_##field)
+ 
+ struct profile profiles[] = {
+-	{ 454740, 151580, 196360, 0, 1550000,
++	{ 454736, 151580, 196360, 0, 1550000,
+ 	1450000, 355000, 3300000, 1750000, 0 },
+-	{ 392730, 130910, 160000, 0, 1475000,
++	{ 392727, 130910, 160000, 0, 1475000,
+ 	1375000, 225000, 3300000, 1750000, 0 },
+-	{ 360000, 120000, 120000, 0, 1375000,
++	{ 360000, 120000, 130910, 0, 1375000,
+ 	1275000, 200000, 3300000, 1750000, 0 },
+-	{ 261820, 130910, 130910, 0, 1275000,
++	{ 261818, 130910, 130910, 0, 1275000,
+ 	1175000, 173000, 3300000, 1750000, 0 },
+-	{  64000,  64000,  96000, 3, 1050000,
++	{  64000,  64000, 130910, 3, 1050000,
+ 	975000, 150000, 3300000, 1750000, 0 },
+ 	{  0,  0,  0, 0, 0,
+ 	0, 0, 0, 0, 0 },
+@@ -70,7 +70,6 @@ static struct device *busfreq_dev;
+ static struct clk *usb_clk0;
+ static struct clk *usb_clk1;
+ static struct clk *lcdif_clk;
+-const char *ahb_clk_id = "h";
+ u32 clkseq_setting;
+ 
+ int low_freq_used(void)
+diff --git a/arch/arm/mach-mx28/clock.c b/arch/arm/mach-mx28/clock.c
+index 2439fbf..8e7adea 100644
+--- a/arch/arm/mach-mx28/clock.c
++++ b/arch/arm/mach-mx28/clock.c
+@@ -734,6 +734,9 @@ static int h_set_rate(struct clk *clk, unsigned long rate)
+ 	if (root_rate % round_rate)
+ 			return -EINVAL;
+ 
++	if ((root_rate < rate) && (root_rate == 64000000))
++		div = 3;
++
+ 	reg = __raw_readl(CLKCTRL_BASE_ADDR + HW_CLKCTRL_HBUS);
+ 	reg &= ~(BM_CLKCTRL_HBUS_DIV_FRAC_EN | BM_CLKCTRL_HBUS_DIV);
+ 	reg |= BF_CLKCTRL_HBUS_DIV(div);
+@@ -1117,6 +1120,7 @@ static struct clk dis_lcdif_clk = {
+ 	.get_rate = lcdif_get_rate,
+ 	.set_rate = lcdif_set_rate,
+ 	.set_parent = lcdif_set_parent,
++	.flags = CPU_FREQ_TRIG_UPDATE,
+ };
+ 
+ static unsigned long hsadc_get_rate(struct clk *clk)
+@@ -1439,6 +1443,7 @@ static struct clk usb_clk0 = {
+ 	.disable = mx28_raw_disable,
+ 	.enable_reg = DIGCTRL_BASE_ADDR + HW_DIGCTL_CTRL,
+ 	.enable_bits = BM_DIGCTL_CTRL_USB0_CLKGATE,
++	.flags = CPU_FREQ_TRIG_UPDATE,
+ };
+ 
+ /* usb_clk for usb1 */
+@@ -1448,6 +1453,7 @@ static struct clk usb_clk1 = {
+ 	.disable = mx28_raw_disable,
+ 	.enable_reg = DIGCTRL_BASE_ADDR + HW_DIGCTL_CTRL,
+ 	.enable_bits = BM_DIGCTL_CTRL_USB1_CLKGATE,
++	.flags = CPU_FREQ_TRIG_UPDATE,
+ };
+ 
+ static struct clk enet_out_clk = {
+diff --git a/arch/arm/plat-mxs/clock.c b/arch/arm/plat-mxs/clock.c
+index a4bd61c..9fecdbd 100644
+--- a/arch/arm/plat-mxs/clock.c
++++ b/arch/arm/plat-mxs/clock.c
+@@ -24,9 +24,11 @@
+ #include <linux/clk.h>
+ #include <linux/io.h>
+ #include <linux/spinlock.h>
++#include <linux/cpufreq.h>
+ 
+ #include <mach/clock.h>
+ 
++extern int cpufreq_trig_needed;
+ static DEFINE_SPINLOCK(clockfw_lock);
+ 
+ /*
+@@ -101,13 +103,20 @@ int clk_enable(struct clk *clk)
+ {
+ 	unsigned long flags;
+ 	int ret = 0;
++	int pre_usage;
+ 
+ 	if (clk == NULL || IS_ERR(clk))
+ 		return -EINVAL;
+ 
+ 	spin_lock_irqsave(&clockfw_lock, flags);
++	pre_usage = clk->ref;
+ 	ret = __clk_enable(clk);
+ 	spin_unlock_irqrestore(&clockfw_lock, flags);
++	if ((clk->flags & CPU_FREQ_TRIG_UPDATE)
++	    && (pre_usage == 0)) {
++		cpufreq_trig_needed = 1;
++		cpufreq_update_policy(0);
++	}
+ 	return ret;
+ }
+ EXPORT_SYMBOL(clk_enable);
+@@ -123,13 +132,19 @@ void clk_disable(struct clk *clk)
+ 	spin_lock_irqsave(&clockfw_lock, flags);
+ 	__clk_disable(clk);
+ 	spin_unlock_irqrestore(&clockfw_lock, flags);
++	if ((clk->flags & CPU_FREQ_TRIG_UPDATE)
++			&& (clk->ref == 0)) {
++		cpufreq_trig_needed = 1;
++		cpufreq_update_policy(0);
++	}
+ }
+ EXPORT_SYMBOL(clk_disable);
+ 
+ int clk_get_usecount(struct clk *clk)
+ {
+ 	if (clk == NULL || IS_ERR(clk))
+-		return -EINVAL;
++		return 0;
++
+ 	return clk->ref & CLK_EN_MASK;
+ }
+ EXPORT_SYMBOL(clk_get_usecount);
+diff --git a/arch/arm/plat-mxs/cpufreq.c b/arch/arm/plat-mxs/cpufreq.c
+index 8cb0ff5..d36baa7 100644
+--- a/arch/arm/plat-mxs/cpufreq.c
++++ b/arch/arm/plat-mxs/cpufreq.c
+@@ -52,6 +52,7 @@ int cpufreq_trig_needed;
+ int cur_freq_table_size;
+ int lcd_on_freq_table_size;
+ int lcd_off_freq_table_size;
++int high_freq_needed;
+ 
+ extern char *ahb_clk_id;
+ extern struct profile profiles[OPERATION_WP_SUPPORTED];
+@@ -100,7 +101,7 @@ static int set_freq_table(struct cpufreq_policy *policy, int end_index)
+ 	return ret;
+ }
+ 
+-static int set_op(unsigned int target_freq)
++static int set_op(struct cpufreq_policy *policy, unsigned int target_freq)
+ {
+ 	struct cpufreq_freqs freqs;
+ 	int ret = 0, i;
+@@ -129,7 +130,7 @@ static int set_op(unsigned int target_freq)
+ 	if (i == 0)
+ 		freqs.new = profiles[i].cpu;
+ 
+-	if (freqs.old == freqs.new) {
++	if ((freqs.old / 1000) == (freqs.new / 1000)) {
+ 		if (regulator_get_voltage(vddd) == profiles[i].vddd)
+ 			return 0;
+ 	}
+@@ -144,8 +145,10 @@ static int set_op(unsigned int target_freq)
+ 	}
+ 
+ 	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
++
+ 	if (freqs.old > freqs.new) {
+ 		int ss = profiles[i].ss;
++
+ 		clk_set_rate(cpu_clk, (profiles[i].cpu) * 1000);
+ 		clk_set_rate(ahb_clk, (profiles[i].ahb) * 1000);
+ 		clk_set_rate(emi_clk, (profiles[i].emi) * 1000);
+@@ -206,21 +209,33 @@ static int set_op(unsigned int target_freq)
+ 							    profiles[i].vdda);
+ 		}
+ 		timing_ctrl_rams(ss);
++		if (freqs.old == 64000)
++			clk_set_rate(ahb_clk, (profiles[i].ahb) * 1000);
+ 		clk_set_rate(cpu_clk, (profiles[i].cpu) * 1000);
+-		clk_set_rate(ahb_clk, (profiles[i].ahb) * 1000);
++		if (freqs.old != 64000)
++			clk_set_rate(ahb_clk, (profiles[i].ahb) * 1000);
+ 		clk_set_rate(emi_clk, (profiles[i].emi) * 1000);
+ 	}
+ 	udelay(100);
+ 
+ 	cpu_clk_set_pll_off(cpu_clk, freqs.new);
+ 
+-	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
++	if (high_freq_needed == 0)
++		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+ 
+ 	if (cpu_regulator && (freqs.old > freqs.new))   /* will not fail */
+ 		regulator_set_current_limit(cpu_regulator,
+ 					    profiles[i].cur,
+ 					    profiles[i].cur);
+ 
++	if (high_freq_needed == 1) {
++		high_freq_needed = 0;
++		cur_freq_table_size = lcd_on_freq_table_size;
++		hbus_auto_slow_mode_disable();
++		set_freq_table(policy, cur_freq_table_size);
++		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
++	}
++
+ 	return ret;
+ }
+ 
+@@ -259,13 +274,23 @@ static int mxs_target(struct cpufreq_policy *policy,
+ 		/* Set the current working point. */
+ 		cpufreq_trig_needed = 0;
+ 		target_freq = clk_get_rate(cpu_clk) / 1000;
++		low_freq_bus_ready = low_freq_used();
++
++		if ((target_freq < LCD_ON_CPU_FREQ_KHZ) &&
++		    (low_freq_bus_ready == 0)) {
++			high_freq_needed = 1;
++			target_freq = LCD_ON_CPU_FREQ_KHZ;
++			goto change_freq;
++		}
++
++		target_freq = clk_get_rate(cpu_clk) / 1000;
+ 		freq_KHz = calc_frequency_khz(target_freq, relation);
+ 
+ 		freqs.old = target_freq;
+ 		freqs.new = freq_KHz;
+ 		freqs.cpu = 0;
+ 		freqs.flags = 0;
+-
++		cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+ 		low_freq_bus_ready = low_freq_used();
+ 		if (low_freq_bus_ready) {
+ 			cur_freq_table_size = lcd_off_freq_table_size;
+@@ -276,9 +301,7 @@ static int mxs_target(struct cpufreq_policy *policy,
+ 		}
+ 
+ 		set_freq_table(policy, cur_freq_table_size);
+-
+ 		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+-
+ 		return 0;
+ }
+ 
+@@ -287,37 +310,21 @@ static int mxs_target(struct cpufreq_policy *policy,
+ 	 * which leads to bad things (division by zero etc), ensure
+ 	 * that such things do not happen.
+ 	 */
+-	if (target_freq < policy->cpuinfo.min_freq)
++change_freq:	if (target_freq < policy->cpuinfo.min_freq)
+ 		target_freq = policy->cpuinfo.min_freq;
+ 
+ 	if (target_freq < policy->min)
+ 		target_freq = policy->min;
+ 
+ 	freq_KHz = calc_frequency_khz(target_freq, relation);
+-	return set_op(freq_KHz);
++	return set_op(policy, freq_KHz);
+ 	}
+ 
+ static unsigned int mxs_getspeed(unsigned int cpu)
+ {
+-	struct cpufreq_freqs freqs;
+-	int freq_KHz;
+-	unsigned int target_freq;
+-
+ 	if (cpu)
+ 		return 0;
+ 
+-	if (cpufreq_trig_needed  == 1) {
+-		target_freq = clk_get_rate(cpu_clk) / 1000;
+-		freq_KHz = calc_frequency_khz(target_freq, CPUFREQ_RELATION_L);
+-
+-		freqs.old = target_freq;
+-		freqs.new = freq_KHz;
+-		freqs.cpu = 0;
+-		freqs.flags = 0;
+-
+-		cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+-	}
+-
+ 	return clk_get_rate(cpu_clk) / 1000;
+ }
+ 
+@@ -341,7 +348,7 @@ static int __init mxs_cpu_init(struct cpufreq_policy *policy)
+ 		goto out_cpu;
+ 	}
+ 
+-	ahb_clk = clk_get(NULL, ahb_clk_id);
++	ahb_clk = clk_get(NULL, "h");
+ 	if (IS_ERR(ahb_clk)) {
+ 		ret = PTR_ERR(ahb_clk);
+ 		goto out_ahb;
+@@ -423,6 +430,7 @@ static int __init mxs_cpu_init(struct cpufreq_policy *policy)
+ 	/* Set the current working point. */
+ 	set_freq_table(policy, lcd_on_freq_table_size);
+ 	cpufreq_trig_needed = 0;
++	high_freq_needed = 0;
+ 	cur_freq_table_size = lcd_on_freq_table_size;
+ 
+ 	printk(KERN_INFO "%s: cpufreq init finished\n", __func__);
+@@ -451,7 +459,7 @@ static int mxs_cpu_exit(struct cpufreq_policy *policy)
+ 	cpufreq_frequency_table_put_attr(policy->cpu);
+ 
+ 	/* Reset CPU to 392MHz */
+-	set_op(profiles[1].cpu);
++	set_op(policy, profiles[1].cpu);
+ 
+ 	clk_put(cpu_clk);
+ 	regulator_put(cpu_regulator);
+diff --git a/arch/arm/plat-mxs/device.c b/arch/arm/plat-mxs/device.c
+index 67520cd..684ffd8 100644
+--- a/arch/arm/plat-mxs/device.c
++++ b/arch/arm/plat-mxs/device.c
+@@ -433,6 +433,18 @@ static struct platform_device mxs_adc = {
+ };
+ #endif
+ 
++static struct platform_device busfreq_device = {
++	.name = "busfreq",
++	.id = 0,
++	.dev = {
++		.release = mxs_nop_release,
++		},
++};
++
++static inline void mxs_init_busfreq(void)
++{
++	(void)platform_device_register(&busfreq_device);
++}
+ 
+ static struct mxs_dev_lookup dev_lookup[] = {
+ #if defined(CONFIG_SERIAL_MXS_DUART) || \
+@@ -706,6 +718,8 @@ int mxs_device_init(void)
+ 	defined(CONFIG_BACKLIGHT_MXS_MODULE)
+ 	platform_device_register(&mxs_bl);
+ #endif
++
++	mxs_init_busfreq();
+ 	return ret;
+ }
+ 
+diff --git a/arch/arm/plat-mxs/include/mach/bus_freq.h b/arch/arm/plat-mxs/include/mach/bus_freq.h
+index 0d34066..a0254e8 100644
+--- a/arch/arm/plat-mxs/include/mach/bus_freq.h
++++ b/arch/arm/plat-mxs/include/mach/bus_freq.h
+@@ -20,7 +20,7 @@
+ #define BUS_FREQ_H__
+ 
+ #define VERY_HI_RATE		2000000000
+-#define LCD_ON_CPU_FREQ_KHZ 261820
++#define LCD_ON_CPU_FREQ_KHZ 261818
+ #define OPERATION_WP_SUPPORTED	6
+ 
+ struct profile {
+diff --git a/arch/arm/plat-mxs/include/mach/clock.h b/arch/arm/plat-mxs/include/mach/clock.h
+index 82fd708..744a031 100644
+--- a/arch/arm/plat-mxs/include/mach/clock.h
++++ b/arch/arm/plat-mxs/include/mach/clock.h
+@@ -30,7 +30,7 @@ struct clk {
+ 	struct clk *secondary;
+ 	unsigned long flags;
+ 
+-	unsigned int ref;
++	__s8 ref;
+ 	unsigned int scale_bits;
+ 	unsigned int enable_bits;
+ 	unsigned int bypass_bits;
+@@ -103,6 +103,7 @@ static u32 mxs_ram_funcs_sz;
+ /* 0 ~ 16 attribute flags */
+ #define ALWAYS_ENABLED		(1 << 0)	/* Clock cannot be disabled */
+ #define RATE_FIXED		(1 << 1)	/* Fixed clock rate */
++#define CPU_FREQ_TRIG_UPDATE	(1 << 2)	/* CPUFREQ trig update */
+ 
+ /* 16 ~ 23 reservied */
+ /* 24 ~ 31 run time flags */
+-- 
+1.5.4.4
+

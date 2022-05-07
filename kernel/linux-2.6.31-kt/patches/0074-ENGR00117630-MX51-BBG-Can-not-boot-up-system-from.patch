@@ -1,0 +1,60 @@
+From 184037d77cbececdfc475d00400e53ce451e4c50 Mon Sep 17 00:00:00 2001
+From: Richard Zhu <r65037@freescale.com>
+Date: Thu, 29 Oct 2009 13:37:54 +0800
+Subject: [PATCH] ENGR00117630 [MX51 BBG] Can not boot up system from MMC plus card
+
+This issue is caused by the improper PAD configuration.
+Modify the PAD configurations and this issue disappeared.
+
+Signed-off-by: Richard Zhu <r65037@freescale.com>
+---
+ arch/arm/mach-mx51/mx51_babbage_gpio.c |   18 ++++++------------
+ 1 files changed, 6 insertions(+), 12 deletions(-)
+
+diff --git a/arch/arm/mach-mx51/mx51_babbage_gpio.c b/arch/arm/mach-mx51/mx51_babbage_gpio.c
+index d3836a7..58324ef 100644
+--- a/arch/arm/mach-mx51/mx51_babbage_gpio.c
++++ b/arch/arm/mach-mx51/mx51_babbage_gpio.c
+@@ -270,33 +270,27 @@ static struct mxc_iomux_pin_cfg __initdata mxc_iomux_pins[] = {
+ 	 },
+ 	{
+ 	 MX51_PIN_SD1_CMD, IOMUX_CONFIG_ALT0 | IOMUX_CONFIG_SION,
+-	 (PAD_CTL_PUE_KEEPER | PAD_CTL_PKE_ENABLE | PAD_CTL_DRV_HIGH |
+-	  PAD_CTL_47K_PU | PAD_CTL_SRE_FAST),
++	 (PAD_CTL_DRV_MAX | PAD_CTL_22K_PU | PAD_CTL_SRE_FAST),
+ 	 },
+ 	{
+ 	 MX51_PIN_SD1_CLK, IOMUX_CONFIG_ALT0 | IOMUX_CONFIG_SION,
+-	 (PAD_CTL_PUE_KEEPER | PAD_CTL_PKE_ENABLE | PAD_CTL_DRV_HIGH |
+-	  PAD_CTL_47K_PU | PAD_CTL_SRE_FAST),
++	 (PAD_CTL_DRV_MAX | PAD_CTL_22K_PU | PAD_CTL_SRE_FAST),
+ 	 },
+ 	{
+ 	 MX51_PIN_SD1_DATA0, IOMUX_CONFIG_ALT0,
+-	 (PAD_CTL_PUE_KEEPER | PAD_CTL_PKE_ENABLE | PAD_CTL_DRV_HIGH |
+-	  PAD_CTL_47K_PU | PAD_CTL_SRE_FAST),
++	 (PAD_CTL_DRV_MAX | PAD_CTL_22K_PU | PAD_CTL_SRE_FAST),
+ 	 },
+ 	{
+ 	 MX51_PIN_SD1_DATA1, IOMUX_CONFIG_ALT0,
+-	 (PAD_CTL_PUE_KEEPER | PAD_CTL_PKE_ENABLE | PAD_CTL_DRV_HIGH |
+-	  PAD_CTL_47K_PU | PAD_CTL_SRE_FAST),
++	 (PAD_CTL_DRV_MAX | PAD_CTL_22K_PU | PAD_CTL_SRE_FAST),
+ 	 },
+ 	{
+ 	 MX51_PIN_SD1_DATA2, IOMUX_CONFIG_ALT0,
+-	 (PAD_CTL_PUE_KEEPER | PAD_CTL_PKE_ENABLE | PAD_CTL_DRV_HIGH |
+-	  PAD_CTL_47K_PU | PAD_CTL_SRE_FAST),
++	 (PAD_CTL_DRV_MAX | PAD_CTL_22K_PU | PAD_CTL_SRE_FAST),
+ 	 },
+ 	{
+ 	 MX51_PIN_SD1_DATA3, IOMUX_CONFIG_ALT0,
+-	 (PAD_CTL_PUE_KEEPER | PAD_CTL_PKE_ENABLE | PAD_CTL_DRV_HIGH |
+-	  PAD_CTL_47K_PU | PAD_CTL_SRE_FAST),
++	 (PAD_CTL_DRV_MAX | PAD_CTL_22K_PU | PAD_CTL_SRE_FAST),
+ 	 },
+ 	{
+ 	 MX51_PIN_GPIO1_0, IOMUX_CONFIG_GPIO | IOMUX_CONFIG_SION,
+-- 
+1.5.4.4
+

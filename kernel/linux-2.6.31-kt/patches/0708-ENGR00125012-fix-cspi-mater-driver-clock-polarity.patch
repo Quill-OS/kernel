@@ -1,0 +1,28 @@
+From 50982586b1aa692f4308c82af94597b62b731c60 Mon Sep 17 00:00:00 2001
+From: Zhou Jingyu <b02241@freescale.com>
+Date: Fri, 9 Jul 2010 17:20:49 +0800
+Subject: [PATCH] ENGR00125012:  fix cspi mater driver clock polarity for cpsi v7
+
+fix cspi mater driver clock polarity for cpsi v7
+
+Signed-off-by: Zhou Jingyu <Jingyu.Zhou@freescale.com>
+---
+ drivers/spi/mxc_spi.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/drivers/spi/mxc_spi.c b/drivers/spi/mxc_spi.c
+index e6d6bec..d0e2356 100644
+--- a/drivers/spi/mxc_spi.c
++++ b/drivers/spi/mxc_spi.c
+@@ -654,7 +654,7 @@ void mxc_spi_chipselect(struct spi_device *spi, int is_active)
+ 		if (spi->mode & SPI_CPHA)
+ 			ctrl_reg |=
+ 			    spi_ver_def->mode_mask << spi_ver_def->pha_shift;
+-		if (!(spi->mode & SPI_CPOL))
++		if (spi->mode & SPI_CPOL)
+ 			ctrl_reg |=
+ 			    spi_ver_def->mode_mask << spi_ver_def->
+ 			    low_pol_shift;
+-- 
+1.5.4.4
+

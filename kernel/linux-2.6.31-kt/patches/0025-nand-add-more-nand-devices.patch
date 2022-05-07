@@ -1,0 +1,27 @@
+From 3e55ebd293eaae66375a4fe364e66b13652fc717 Mon Sep 17 00:00:00 2001
+From: Rob Herring <r.herring@freescale.com>
+Date: Wed, 16 Sep 2009 11:44:38 -0500
+Subject: [PATCH] nand: add more nand devices
+
+Signed-off-by: Rob Herring <r.herring@freescale.com>
+---
+ drivers/mtd/nand/nand_ids.c |    3 +++
+ 1 files changed, 3 insertions(+), 0 deletions(-)
+
+diff --git a/drivers/mtd/nand/nand_ids.c b/drivers/mtd/nand/nand_ids.c
+index 69ee2c9..74f49ed 100644
+--- a/drivers/mtd/nand/nand_ids.c
++++ b/drivers/mtd/nand/nand_ids.c
+@@ -109,6 +109,9 @@ struct nand_flash_dev nand_flash_ids[] = {
+ 	{"NAND 2GiB 1,8V 16-bit",	0xB5, 0, 2048, 0, LP_OPTIONS16},
+ 	{"NAND 2GiB 3,3V 16-bit",	0xC5, 0, 2048, 0, LP_OPTIONS16},
+ 
++	/* 32 Gigabit ,only use 2G due to the linux mtd limitation*/
++	{"NAND 4GiB 3,3V 8-bit",	0xD7, 0, 2048, 0, LP_OPTIONS},
++
+ 	/*
+ 	 * Renesas AND 1 Gigabit. Those chips do not support extended id and
+ 	 * have a strange page/block layout !  The chosen minimum erasesize is
+-- 
+1.5.4.4
+

@@ -1,0 +1,85 @@
+From 9fda539a123fcd0b8692614cda0c317230ef251a Mon Sep 17 00:00:00 2001
+From: Jason Chen <b02280@freescale.com>
+Date: Tue, 18 May 2010 14:58:01 +0800
+Subject: [PATCH] ENGR00123558 v4l2 output: add own workqueue for v4l output
+
+During v4l2 output playback, there is performance issue after below
+commit:
+
+UBUNTU: SAUCE: (upstream) netdev/fec: fix performance impact from
+mdio poll operation
+
+Use common workqueue cause this issue, so create an own workqueue for
+v4l2 output.
+
+Signed-off-by: Jason Chen <b02280@freescale.com>
+---
+ drivers/media/video/mxc/output/mxc_v4l2_output.c |   18 ++++++++++++++----
+ drivers/media/video/mxc/output/mxc_v4l2_output.h |    1 +
+ 2 files changed, 15 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/media/video/mxc/output/mxc_v4l2_output.c b/drivers/media/video/mxc/output/mxc_v4l2_output.c
+index b783baa..3cc2e93 100644
+--- a/drivers/media/video/mxc/output/mxc_v4l2_output.c
++++ b/drivers/media/video/mxc/output/mxc_v4l2_output.c
+@@ -522,9 +522,8 @@ static void mxc_v4l2out_timer_handler(unsigned long arg)
+ 	}
+ 
+ 	/* set next buffer ready */
+-	if (schedule_work(&vout->timer_work) == 0) {
+-		dev_err(&vout->video_dev->dev,
+-				"timer work already in queue\n");
++	if (queue_work(vout->v4l_wq, &vout->timer_work) == 0) {
++		dev_err(&vout->video_dev->dev, "work was in queue already!\n ");
+ 		vout->state = STATE_STREAM_PAUSED;
+ 	}
+ 
+@@ -1581,7 +1580,7 @@ static int mxc_v4l2out_streamon(vout_data * vout)
+ 				1, vout->v4l2_bufs[vout->ipu_buf[1]].m.offset);
+ 			ipu_select_buffer(vout->display_ch, IPU_INPUT_BUFFER, 0);
+ 			ipu_select_buffer(vout->display_ch, IPU_INPUT_BUFFER, 1);
+-			schedule_work(&vout->timer_work);
++			queue_work(vout->v4l_wq, &vout->timer_work);
+ 		}
+ 	} else {
+ 		ipu_select_buffer(vout->post_proc_ch, IPU_INPUT_BUFFER, 0);
+@@ -1982,6 +1981,14 @@ static int mxc_v4l2out_open(struct file *file)
+ 		vout->state = STATE_STREAM_OFF;
+ 		vout->rotate = IPU_ROTATE_NONE;
+ 
++		vout->v4l_wq = create_singlethread_workqueue("v4l2q");
++		if (!vout->v4l_wq) {
++			dev_dbg(&dev->dev,
++					"Could not create work queue\n");
++			err = -ENOMEM;
++			goto oops;
++		}
++
+ 		INIT_WORK(&vout->timer_work, timer_work_func);
+ 	}
+ 
+@@ -2022,6 +2029,9 @@ static int mxc_v4l2out_close(struct file *file)
+ 
+ 		/* capture off */
+ 		wake_up_interruptible(&vout->v4l_bufq);
++
++		flush_workqueue(vout->v4l_wq);
++		destroy_workqueue(vout->v4l_wq);
+ 	}
+ 
+ 	return 0;
+diff --git a/drivers/media/video/mxc/output/mxc_v4l2_output.h b/drivers/media/video/mxc/output/mxc_v4l2_output.h
+index 7a868f3..91cf3b4 100644
+--- a/drivers/media/video/mxc/output/mxc_v4l2_output.h
++++ b/drivers/media/video/mxc/output/mxc_v4l2_output.h
+@@ -79,6 +79,7 @@ typedef struct _vout_data {
+ 	struct semaphore param_lock;
+ 
+ 	struct timer_list output_timer;
++	struct workqueue_struct *v4l_wq;
+ 	struct work_struct timer_work;
+ 	unsigned long start_jiffies;
+ 	u32 frame_count;
+-- 
+1.5.4.4
+

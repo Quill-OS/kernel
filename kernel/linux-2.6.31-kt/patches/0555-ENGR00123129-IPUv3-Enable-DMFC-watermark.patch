@@ -1,0 +1,47 @@
+From 9238e7fa94c664b3a673f53518b0b58190acc5a9 Mon Sep 17 00:00:00 2001
+From: Liu Ying <b17645@freescale.com>
+Date: Wed, 5 May 2010 16:51:40 -0400
+Subject: [PATCH] ENGR00123129 IPUv3:Enable DMFC watermark
+
+Enable IDMAC WM enable bit when enable corresponding
+DMFC channel's watermark.
+
+Signed-off-by: Liu Ying <b17645@freescale.com>
+---
+ drivers/mxc/ipu3/ipu_common.c |   12 +++++++++++-
+ 1 files changed, 11 insertions(+), 1 deletions(-)
+
+diff --git a/drivers/mxc/ipu3/ipu_common.c b/drivers/mxc/ipu3/ipu_common.c
+index 8216b10..f7c803d 100644
+--- a/drivers/mxc/ipu3/ipu_common.c
++++ b/drivers/mxc/ipu3/ipu_common.c
+@@ -1710,8 +1710,12 @@ int32_t ipu_enable_channel(ipu_channel_t channel)
+ 	}
+ 
+ 	if ((channel == MEM_DC_SYNC) || (channel == MEM_BG_SYNC) ||
+-	    (channel == MEM_FG_SYNC))
++	    (channel == MEM_FG_SYNC)) {
++		reg = __raw_readl(IDMAC_WM_EN(in_dma));
++		__raw_writel(reg | idma_mask(in_dma), IDMAC_WM_EN(in_dma));
++
+ 		_ipu_dp_dc_enable(channel);
++	}
+ 
+ 	if (_ipu_is_ic_chan(in_dma) || _ipu_is_ic_chan(out_dma) ||
+ 		_ipu_is_irt_chan(in_dma) || _ipu_is_irt_chan(out_dma))
+@@ -1861,6 +1865,12 @@ int32_t ipu_disable_channel(ipu_channel_t channel, bool wait_for_stop)
+ 
+ 	spin_lock_irqsave(&ipu_lock, lock_flags);
+ 
++	if ((channel == MEM_BG_SYNC) || (channel == MEM_FG_SYNC) ||
++	    (channel == MEM_DC_SYNC)) {
++		reg = __raw_readl(IDMAC_WM_EN(in_dma));
++		__raw_writel(reg & ~idma_mask(in_dma), IDMAC_WM_EN(in_dma));
++	}
++
+ 	/* Disable IC task */
+ 	if (_ipu_is_ic_chan(in_dma) || _ipu_is_ic_chan(out_dma) ||
+ 		_ipu_is_irt_chan(in_dma) || _ipu_is_irt_chan(out_dma))
+-- 
+1.5.4.4
+

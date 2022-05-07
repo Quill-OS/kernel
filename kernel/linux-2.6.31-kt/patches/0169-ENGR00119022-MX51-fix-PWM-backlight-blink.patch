@@ -1,0 +1,28 @@
+From 4e987d95d9b48e7cda7f3b7648be3e6d428bb07c Mon Sep 17 00:00:00 2001
+From: Katherine Lu <katherine.lu@freescale.com>
+Date: Sat, 5 Dec 2009 20:45:10 +0800
+Subject: [PATCH] ENGR00119022 MX51: fix PWM backlight blink
+
+fix PWM backlight blink
+
+Signed-off-by: Katherine Lu <katherine.lu@freescale.com>
+---
+ arch/arm/plat-mxc/pwm.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/arch/arm/plat-mxc/pwm.c b/arch/arm/plat-mxc/pwm.c
+index 1c663ac..bc240e0 100644
+--- a/arch/arm/plat-mxc/pwm.c
++++ b/arch/arm/plat-mxc/pwm.c
+@@ -78,7 +78,7 @@ int pwm_config(struct pwm_device *pwm, int duty_ns, int period_ns)
+ 
+ 		writel(duty_cycles, pwm->mmio_base + MX3_PWMSAR);
+ 		writel(period_cycles, pwm->mmio_base + MX3_PWMPR);
+-		writel(MX3_PWMCR_PRESCALER(prescale - 1) |
++		writel(MX3_PWMCR_PRESCALER(prescale) |
+ 			MX3_PWMCR_CLKSRC_IPG_HIGH |
+ 			MX3_PWMCR_STOPEN | MX3_PWMCR_DOZEEN |
+ 			MX3_PWMCR_WAITEN | MX3_PWMCR_DBGEN,
+-- 
+1.5.4.4
+

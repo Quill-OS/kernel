@@ -1,0 +1,446 @@
+From 5489e910140e8bae27ecb02314449e2a05fe91ab Mon Sep 17 00:00:00 2001
+From: Rob Herring <r.herring@freescale.com>
+Date: Fri, 5 Mar 2010 15:08:23 -0600
+Subject: [PATCH] ENGR00121365 mxcuart: rework early uart console
+
+Rework early uart to pass in uart base and clock ptr from board.
+Now early console for ttymxc is always enabled and mxcuart console
+is not needed.
+
+Add fix work-around u-boot illegal uart setup. uboot sets fifo
+trigger levels to reserved values which breaks early uart console.
+Use TXFE instead of TRDY.
+
+Signed-off-by: Rob Herring <r.herring@freescale.com>
+---
+ arch/arm/mach-mx25/mx25_3stack.c        |    5 +-
+ arch/arm/mach-mx3/mx31ads.c             |    4 +-
+ arch/arm/mach-mx3/mx3_3stack.c          |    6 +-
+ arch/arm/mach-mx35/mx35_3stack.c        |    5 +-
+ arch/arm/mach-mx37/mx37_3stack.c        |    5 +-
+ arch/arm/mach-mx5/mx51_3stack.c         |    6 ++-
+ arch/arm/mach-mx5/mx51_babbage.c        |    6 ++-
+ arch/arm/plat-mxc/cpu_common.c          |    6 +-
+ arch/arm/plat-mxc/include/mach/common.h |    2 +-
+ drivers/serial/mxc_uart_early.c         |  119 +++++++------------------------
+ 10 files changed, 58 insertions(+), 106 deletions(-)
+
+diff --git a/arch/arm/mach-mx25/mx25_3stack.c b/arch/arm/mach-mx25/mx25_3stack.c
+index 314a6f6..5574479 100644
+--- a/arch/arm/mach-mx25/mx25_3stack.c
++++ b/arch/arm/mach-mx25/mx25_3stack.c
+@@ -631,7 +631,11 @@ static inline void mxc_init_mmc(void)
+ 
+ static void __init mx25_3stack_timer_init(void)
+ {
++	struct clk *uart_clk;
++
+ 	mx25_clocks_init(24000000);
++	uart_clk = clk_get(NULL, "uart_clk.0");
++	early_console_setup(UART1_BASE_ADDR, uart_clk);
+ }
+ 
+ static struct sys_timer mxc_timer = {
+@@ -730,7 +734,6 @@ static void __init mxc_board_init(void)
+ 	mxc_cpu_common_init();
+ 	mxc_register_gpios();
+ 	mx25_3stack_gpio_init();
+-	early_console_setup(saved_command_line);
+ 	mxc_init_keypad();
+ #ifdef CONFIG_I2C
+ 	i2c_register_board_info(0, mxc_i2c_board_info,
+diff --git a/arch/arm/mach-mx3/mx31ads.c b/arch/arm/mach-mx3/mx31ads.c
+index d35eec4..92c1604 100644
+--- a/arch/arm/mach-mx3/mx31ads.c
++++ b/arch/arm/mach-mx3/mx31ads.c
+@@ -1329,7 +1329,6 @@ static void __init mx31ads_init_irq(void)
+ static void __init mxc_board_init(void)
+ {
+ 	mxc_cpu_common_init();
+-	early_console_setup(saved_command_line);
+ 	mxc_init_devices();
+ 	mxc_init_pmic_audio();
+ 	mxc_register_gpios();
+@@ -1355,6 +1354,7 @@ static void __init mxc_board_init(void)
+ 
+ static void __init mx31ads_timer_init(void)
+ {
++	struct clk *uart_clk;
+ 	unsigned long ckih = 26000000;
+ 
+ 	if ((__raw_readw(PBC_BASE_ADDRESS + PBC_BSTAT) &
+@@ -1363,6 +1363,8 @@ static void __init mx31ads_timer_init(void)
+ 	}
+ 
+ 	mx31_clocks_init(ckih);
++	uart_clk = clk_get(NULL, "uart_clk.0");
++	early_console_setup(UART1_BASE_ADDR, uart_clk);
+ }
+ 
+ static struct sys_timer mx31ads_timer = {
+diff --git a/arch/arm/mach-mx3/mx3_3stack.c b/arch/arm/mach-mx3/mx3_3stack.c
+index ba11498..4a97f68 100644
+--- a/arch/arm/mach-mx3/mx3_3stack.c
++++ b/arch/arm/mach-mx3/mx3_3stack.c
+@@ -73,7 +73,6 @@ extern void mxc_map_io(void);
+ extern void mxc_init_irq(void);
+ extern void mxc_cpu_init(void) __init;
+ extern void mxc_cpu_common_init(void);
+-extern void __init early_console_setup(char *);
+ extern int mxc_init_devices(void);
+ 
+ static void mxc_nop_release(struct device *dev)
+@@ -952,7 +951,11 @@ static void __init mxc_init_gps(void)
+ 
+ static void __init mx3_3stack_timer_init(void)
+ {
++	struct clk *uart_clk;
++
+ 	mx31_clocks_init(26000000);
++	uart_clk = clk_get(NULL, "uart_clk.0");
++	early_console_setup(UART1_BASE_ADDR, uart_clk);
+ }
+ 
+ static struct sys_timer mxc_timer = {
+@@ -969,7 +972,6 @@ static void __init mxc_board_init(void)
+ 
+ 	mxc_cpu_common_init();
+ 	mxc_register_gpios();
+-	early_console_setup(saved_command_line);
+ 	mxc_init_devices();
+ 
+ 	/*Pull down MX31_PIN_USB_BYP to reset USB3317 */
+diff --git a/arch/arm/mach-mx35/mx35_3stack.c b/arch/arm/mach-mx35/mx35_3stack.c
+index 74cd396..c6752fe 100644
+--- a/arch/arm/mach-mx35/mx35_3stack.c
++++ b/arch/arm/mach-mx35/mx35_3stack.c
+@@ -1145,7 +1145,6 @@ static void __init mxc_board_init(void)
+ {
+ 	mxc_cpu_common_init();
+ 
+-	early_console_setup(saved_command_line);
+ 	mxc_register_gpios();
+ 	mxc_init_devices();
+ 	if (!board_is_rev(BOARD_REV_2))
+@@ -1287,7 +1286,11 @@ struct cpu_wp *get_cpu_wp(int *wp)
+ 
+ static void __init mx35_3stack_timer_init(void)
+ {
++	struct clk *uart_clk;
++
+ 	mx35_clocks_init();
++	uart_clk = clk_get(NULL, "uart_clk.0");
++	early_console_setup(UART1_BASE_ADDR, uart_clk);
+ }
+ 
+ static struct sys_timer mxc_timer = {
+diff --git a/arch/arm/mach-mx37/mx37_3stack.c b/arch/arm/mach-mx37/mx37_3stack.c
+index 4d6d871..6b12be8 100644
+--- a/arch/arm/mach-mx37/mx37_3stack.c
++++ b/arch/arm/mach-mx37/mx37_3stack.c
+@@ -918,7 +918,6 @@ static void __init mxc_board_init(void)
+ 	mxc_cpu_common_init();
+ 	mxc_init_srpgconfig();
+ 	mxc_register_gpios();
+-	early_console_setup(saved_command_line);
+ 	mxc_init_devices();
+ 	if (!board_is_rev(BOARD_REV_2))
+ 		mx37_3stack_fixup_for_board_v1();
+@@ -941,7 +940,11 @@ static void __init mxc_board_init(void)
+ 
+ static void __init mx37_3stack_timer_init(void)
+ {
++	struct clk *uart_clk;
++
+ 	mx37_clocks_init(32768, 24000000, 22579200, 0);
++	uart_clk = clk_get(NULL, "uart_clk.0");
++	early_console_setup(UART1_BASE_ADDR, uart_clk);
+ }
+ 
+ static struct sys_timer mxc_timer = {
+diff --git a/arch/arm/mach-mx5/mx51_3stack.c b/arch/arm/mach-mx5/mx51_3stack.c
+index 3de7761..d91a964 100644
+--- a/arch/arm/mach-mx5/mx51_3stack.c
++++ b/arch/arm/mach-mx5/mx51_3stack.c
+@@ -883,7 +883,6 @@ static void __init mxc_board_init(void)
+ 	mxc_cpu_common_init();
+ 	mxc_register_gpios();
+ 	mx51_3stack_io_init();
+-	early_console_setup(saved_command_line);
+ 
+ 	mxc_register_device(&mxc_wdt_device, NULL);
+ 	mxc_register_device(&mxcspi1_device, &mxcspi1_data);
+@@ -963,6 +962,8 @@ static void __init mxc_board_init(void)
+ 
+ static void __init mx51_3stack_timer_init(void)
+ {
++	struct clk *uart_clk;
++
+ 	/* Change the CPU voltages for TO2*/
+ 	if (cpu_is_mx51_rev(CHIP_REV_2_0) <= 1) {
+ 		cpu_wp_auto[0].cpu_voltage = 1175000;
+@@ -971,6 +972,9 @@ static void __init mx51_3stack_timer_init(void)
+ 	}
+ 
+ 	mx51_clocks_init(32768, 24000000, 22579200, 24576000);
++
++	uart_clk = clk_get(NULL, "uart_clk.0");
++	early_console_setup(UART1_BASE_ADDR, uart_clk);
+ }
+ 
+ static struct sys_timer mxc_timer = {
+diff --git a/arch/arm/mach-mx5/mx51_babbage.c b/arch/arm/mach-mx5/mx51_babbage.c
+index 6c0d46f..4ebe93e 100644
+--- a/arch/arm/mach-mx5/mx51_babbage.c
++++ b/arch/arm/mach-mx5/mx51_babbage.c
+@@ -889,7 +889,6 @@ static void __init mxc_board_init(void)
+ 	mxc_cpu_common_init();
+ 	mxc_register_gpios();
+ 	mx51_babbage_io_init();
+-	early_console_setup(saved_command_line);
+ 
+ 	mxc_register_device(&mxc_wdt_device, NULL);
+ 	mxc_register_device(&mxcspi1_device, &mxcspi1_data);
+@@ -959,6 +958,8 @@ static void __init mxc_board_init(void)
+ 
+ static void __init mx51_babbage_timer_init(void)
+ {
++	struct clk *uart_clk;
++
+ 	/* Change the CPU voltages for TO2*/
+ 	if (cpu_is_mx51_rev(CHIP_REV_2_0) <= 1) {
+ 		cpu_wp_auto[0].cpu_voltage = 1175000;
+@@ -967,6 +968,9 @@ static void __init mx51_babbage_timer_init(void)
+ 	}
+ 
+ 	mx51_clocks_init(32768, 24000000, 22579200, 24576000);
++
++	uart_clk = clk_get(NULL, "uart_clk.0");
++	early_console_setup(UART1_BASE_ADDR, uart_clk);
+ }
+ 
+ static struct sys_timer mxc_timer = {
+diff --git a/arch/arm/plat-mxc/cpu_common.c b/arch/arm/plat-mxc/cpu_common.c
+index e5587b3..3aeda90 100644
+--- a/arch/arm/plat-mxc/cpu_common.c
++++ b/arch/arm/plat-mxc/cpu_common.c
+@@ -18,7 +18,7 @@
+ #include <mach/common.h>
+ #include <mach/hardware.h>
+ 
+-extern int mxc_early_serial_console_init(char *);
++extern int mxc_early_serial_console_init(unsigned long base, struct clk *clk);
+ 
+ /*!
+  * @file plat-mxc/cpu_common.c
+@@ -90,9 +90,9 @@ void __init mxc_cpu_common_init(void)
+  * This function is developed based on
+  * early_console_setup function as defined in arch/ia64/kernel/setup.c
+  */
+-void __init early_console_setup(char *cmdline)
++void __init early_console_setup(unsigned long base, struct clk *clk)
+ {
+ #ifdef CONFIG_SERIAL_MXC_CONSOLE
+-	mxc_early_serial_console_init(cmdline);
++	mxc_early_serial_console_init(base, clk);
+ #endif
+ }
+diff --git a/arch/arm/plat-mxc/include/mach/common.h b/arch/arm/plat-mxc/include/mach/common.h
+index 4e84f40..7e661c4 100644
+--- a/arch/arm/plat-mxc/include/mach/common.h
++++ b/arch/arm/plat-mxc/include/mach/common.h
+@@ -38,7 +38,7 @@ extern int mx51_clocks_init(unsigned long ckil, unsigned long osc, unsigned long
+ extern int mxc_init_devices(void);
+ extern void mxc_cpu_init(void) __init;
+ extern void mxc_cpu_common_init(void);
+-extern void __init early_console_setup(char *);
++extern void __init early_console_setup(unsigned long base, struct clk *clk);
+ extern int mxc_register_gpios(void);
+ extern int mxc_register_device(struct platform_device *pdev, void *data);
+ extern void mxc_set_cpu_type(unsigned int type);
+diff --git a/drivers/serial/mxc_uart_early.c b/drivers/serial/mxc_uart_early.c
+index 0b5ceae..f4b6493 100644
+--- a/drivers/serial/mxc_uart_early.c
++++ b/drivers/serial/mxc_uart_early.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2004-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2004-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -51,12 +51,9 @@ struct mxc_early_uart_device {
+ 	struct uart_port port;
+ 	char options[16];	/* e.g., 115200n8 */
+ 	unsigned int baud;
++	struct clk *clk;
+ };
+-
+-int __init mxc_uart_start_console(struct uart_port *, char *);
+ static struct mxc_early_uart_device mxc_early_device __initdata;
+-static int mxc_early_uart_registered __initdata;
+-static struct clk *clk;
+ 
+ /*
+  * Write out a character once the UART is ready
+@@ -66,8 +63,8 @@ static void __init mxcuart_console_write_char(struct uart_port *port, int ch)
+ 	unsigned int status;
+ 
+ 	do {
+-		status = readl(port->membase + MXC_UARTUSR1);
+-	} while ((status & MXC_UARTUSR1_TRDY) == 0);
++		status = readl(port->membase + MXC_UARTUSR2);
++	} while ((status & MXC_UARTUSR2_TXFE) == 0);
+ 	writel(ch, port->membase + MXC_UARTUTXD);
+ }
+ 
+@@ -124,25 +121,25 @@ static unsigned int __init probe_baud(struct uart_port *port)
+ 	return 115200;
+ }
+ 
+-static int __init parse_options(struct mxc_early_uart_device *device,
+-				char *options)
++static int __init mxc_early_uart_setup(struct console *console, char *options)
+ {
++	struct mxc_early_uart_device *device = &mxc_early_device;
+ 	struct uart_port *port = &device->port;
+-	int mapsize = 64;
+ 	int length;
+ 
+-	if (!options)
++	if (device->port.membase || device->port.iobase)
+ 		return -ENODEV;
+ 
++	/* Enable Early MXC UART Clock */
++	clk_enable(device->clk);
++
+ 	port->uartclk = 5600000;
+ 	port->iotype = UPIO_MEM;
+-	port->mapbase = simple_strtoul(options, &options, 0);
+-	port->membase = ioremap(port->mapbase, mapsize);
++	port->membase = ioremap(port->mapbase, SZ_4K);
+ 
+-	if ((options = strchr(options, ','))) {
+-		options++;
++	if (options) {
+ 		device->baud = simple_strtoul(options, NULL, 0);
+-		length = min(strcspn(options, " "), sizeof(device->options));
++		length = min(strlen(options), sizeof(device->options));
+ 		strncpy(device->options, options, length);
+ 	} else {
+ 		device->baud = probe_baud(port);
+@@ -155,99 +152,33 @@ static int __init parse_options(struct mxc_early_uart_device *device,
+ 	return 0;
+ }
+ 
+-static int __init mxc_early_uart_setup(struct console *console, char *options)
+-{
+-	struct mxc_early_uart_device *device = &mxc_early_device;
+-	int err;
+-	if (device->port.membase || device->port.iobase)
+-		return 0;
+-	if ((err = parse_options(device, options)) < 0)
+-		return err;
+-	return 0;
+-}
+-
+ static struct console mxc_early_uart_console __initdata = {
+-	.name = "mxcuart",
++	.name = "ttymxc",
+ 	.write = early_mxcuart_console_write,
+ 	.setup = mxc_early_uart_setup,
+-	.flags = CON_PRINTBUFFER,
++	.flags = CON_PRINTBUFFER | CON_BOOT,
+ 	.index = -1,
+ };
+ 
+-static int __init mxc_early_uart_console_init(void)
++int __init mxc_early_serial_console_init(unsigned long base, struct clk *clk)
+ {
++	mxc_early_device.clk = clk;
++	mxc_early_device.port.mapbase = base;
+ 
+-	if (!mxc_early_uart_registered) {
+-		register_console(&mxc_early_uart_console);
+-		mxc_early_uart_registered = 1;
+-	}
+-
++	register_console(&mxc_early_uart_console);
+ 	return 0;
+ }
+ 
+-int __init mxc_early_serial_console_init(char *cmdline)
+-{
+-	char *options;
+-	int err;
+-	int uart_paddr;
+-
+-	options = strstr(cmdline, "console=mxcuart");
+-	if (!options)
+-		return -ENODEV;
+-
+-	/* Extracting MXC UART Uart Port Address from cmdline */
+-	options = strchr(cmdline, ',') + 1;
+-	uart_paddr = simple_strtoul(options, NULL, 16);
+-
+-#ifdef UART1_BASE_ADDR
+-	if (uart_paddr == UART1_BASE_ADDR)
+-		clk = clk_get(NULL, "uart_clk.0");
+-#endif
+-#ifdef UART2_BASE_ADDR
+-	if (uart_paddr == UART2_BASE_ADDR)
+-		clk = clk_get(NULL, "uart_clk.1");
+-#endif
+-#ifdef UART3_BASE_ADDR
+-	if (uart_paddr == UART3_BASE_ADDR)
+-		clk = clk_get(NULL, "uart_clk.2");
+-#endif
+-	if (clk == NULL)
+-		return -1;
+-
+-	/* Enable Early MXC UART Clock */
+-	clk_enable(clk);
+-
+-	options = strchr(cmdline, ',') + 1;
+-	if ((err = mxc_early_uart_setup(NULL, options)) < 0)
+-		return err;
+-	return mxc_early_uart_console_init();
+-}
+-
+-int __init mxc_early_uart_console_switch(void)
++int __init mxc_early_uart_console_disable(void)
+ {
+ 	struct mxc_early_uart_device *device = &mxc_early_device;
+ 	struct uart_port *port = &device->port;
+-	int mmio, line;
+-
+-	if (!(mxc_early_uart_console.flags & CON_ENABLED))
+-		return 0;
+-	/* Try to start the normal driver on a matching line.  */
+-	mmio = (port->iotype == UPIO_MEM);
+-	line = mxc_uart_start_console(port, device->options);
+ 
+-	if (line < 0)
+-		printk("No ttymxc device at %s 0x%lx for console\n",
+-		       mmio ? "MMIO" : "I/O port",
+-		       mmio ? port->mapbase : (unsigned long)port->iobase);
+-
+-	unregister_console(&mxc_early_uart_console);
+-	if (mmio)
++	if (mxc_early_uart_console.index >= 0) {
+ 		iounmap(port->membase);
+-
+-	clk_disable(clk);
+-	clk_put(clk);
+-
++		clk_disable(device->clk);
++		clk_put(device->clk);
++	}
+ 	return 0;
+ }
+-
+-late_initcall(mxc_early_uart_console_switch);
++late_initcall(mxc_early_uart_console_disable);
+-- 
+1.5.4.4
+

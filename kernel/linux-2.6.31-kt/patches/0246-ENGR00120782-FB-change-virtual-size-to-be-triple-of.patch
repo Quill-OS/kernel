@@ -1,0 +1,71 @@
+From 964a5efab3fc3b1e74e6ad3b40df5d75fb13e41c Mon Sep 17 00:00:00 2001
+From: Wu Guoxing <b02248@freescale.com>
+Date: Thu, 4 Feb 2010 16:19:39 +0800
+Subject: [PATCH] ENGR00120782 FB: change virtual size to be triple of the screen size
+
+change virtual size to be triple of the screen size as default
+to make pan display works at triple buffer mode.
+
+Signed-off-by: Wu Guoxing <b02248@freescale.com>
+---
+ drivers/video/mxc/mxc_ipuv3_fb.c    |    2 +-
+ drivers/video/mxc/mxcfb_claa_wvga.c |    4 ++--
+ drivers/video/mxc/mxcfb_epson_vga.c |    4 ++--
+ 3 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/video/mxc/mxc_ipuv3_fb.c b/drivers/video/mxc/mxc_ipuv3_fb.c
+index f255c18..32c775b 100644
+--- a/drivers/video/mxc/mxc_ipuv3_fb.c
++++ b/drivers/video/mxc/mxc_ipuv3_fb.c
+@@ -1582,7 +1582,7 @@ static int mxcfb_probe(struct platform_device *pdev)
+ 	mxcfb_check_var(&fbi->var, fbi);
+ 
+ 	/* Default Y virtual size is 2x panel size */
+-	fbi->var.yres_virtual = fbi->var.yres * 2;
++	fbi->var.yres_virtual = fbi->var.yres * 3;
+ 
+ 	mxcfb_set_fix(fbi);
+ 
+diff --git a/drivers/video/mxc/mxcfb_claa_wvga.c b/drivers/video/mxc/mxcfb_claa_wvga.c
+index fde0caf..bd5ff7b 100644
+--- a/drivers/video/mxc/mxcfb_claa_wvga.c
++++ b/drivers/video/mxc/mxcfb_claa_wvga.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -64,7 +64,7 @@ static void lcd_init_fb(struct fb_info *info)
+ 	fb_videomode_to_var(&var, &video_modes[0]);
+ 
+ 	var.activate = FB_ACTIVATE_ALL;
+-	var.yres_virtual = var.yres * 2;
++	var.yres_virtual = var.yres * 3;
+ 
+ 	acquire_console_sem();
+ 	info->flags |= FBINFO_MISC_USEREVENT;
+diff --git a/drivers/video/mxc/mxcfb_epson_vga.c b/drivers/video/mxc/mxcfb_epson_vga.c
+index 42d02f9..18a343e 100644
+--- a/drivers/video/mxc/mxcfb_epson_vga.c
++++ b/drivers/video/mxc/mxcfb_epson_vga.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2007-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2007-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -75,7 +75,7 @@ static void lcd_init_fb(struct fb_info *info)
+ 	}
+ 
+ 	var.activate = FB_ACTIVATE_ALL;
+-	var.yres_virtual = var.yres * 2;
++	var.yres_virtual = var.yres * 3;
+ 
+ 	acquire_console_sem();
+ 	info->flags |= FBINFO_MISC_USEREVENT;
+-- 
+1.5.4.4
+

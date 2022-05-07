@@ -1,0 +1,139 @@
+From b4049d10b9cd44d9f2732bfac3685a53c2428fa1 Mon Sep 17 00:00:00 2001
+From: Sammy He <r62914@freescale.com>
+Date: Tue, 29 Jun 2010 23:56:36 +0800
+Subject: [PATCH] ENGR00124683-3 Add ADV7180 TV decoder support on mx53
+
+Add ADV7180 TV decoder support on mx53. OV3640 module must be
+removed before ADV7180 TVIN test.
+
+Signed-off-by: Sammy He <r62914@freescale.com>
+---
+ arch/arm/configs/imx5_defconfig   |    5 +++--
+ arch/arm/mach-mx5/mx53_evk.c      |   32 ++++++++++++++++++++++++++++++++
+ arch/arm/mach-mx5/mx53_evk_gpio.c |   12 +++++++-----
+ 3 files changed, 42 insertions(+), 7 deletions(-)
+
+diff --git a/arch/arm/configs/imx5_defconfig b/arch/arm/configs/imx5_defconfig
+index 9fea031..520f019 100644
+--- a/arch/arm/configs/imx5_defconfig
++++ b/arch/arm/configs/imx5_defconfig
+@@ -1,7 +1,7 @@
+ #
+ # Automatically generated make config: don't edit
+ # Linux kernel version: 2.6.31
+-# Tue May 11 00:49:24 2010
++# Sat Jun 26 00:18:13 2010
+ #
+ CONFIG_ARM=y
+ CONFIG_HAVE_PWM=y
+@@ -655,6 +655,7 @@ CONFIG_SCSI_LOWLEVEL=y
+ CONFIG_ATA=m
+ # CONFIG_ATA_NONSTANDARD is not set
+ # CONFIG_SATA_PMP is not set
++# CONFIG_SATA_AHCI_PLATFORM is not set
+ CONFIG_ATA_SFF=y
+ # CONFIG_SATA_MV is not set
+ # CONFIG_PATA_PLATFORM is not set
+@@ -1220,7 +1221,7 @@ CONFIG_VIDEO_MXC_IPU_CAMERA=y
+ # CONFIG_MXC_CAMERA_MICRON111 is not set
+ # CONFIG_MXC_CAMERA_OV2640 is not set
+ CONFIG_MXC_CAMERA_OV3640=m
+-# CONFIG_MXC_TVIN_ADV7180 is not set
++CONFIG_MXC_TVIN_ADV7180=m
+ CONFIG_MXC_IPU_PRP_VF_SDC=m
+ CONFIG_MXC_IPU_PRP_ENC=m
+ CONFIG_MXC_IPU_CSI_ENC=m
+diff --git a/arch/arm/mach-mx5/mx53_evk.c b/arch/arm/mach-mx5/mx53_evk.c
+index 6c100b5..21ef4c4 100644
+--- a/arch/arm/mach-mx5/mx53_evk.c
++++ b/arch/arm/mach-mx5/mx53_evk.c
+@@ -308,6 +308,25 @@ static struct ldb_platform_data ldb_data = {
+ 	.ext_ref = 1,
+ };
+ 
++static void adv7180_pwdn(int pwdn)
++{
++	gpio_request(IOMUX_TO_GPIO(MX53_PIN_CSI0_D5), "gpio5_23");
++	gpio_direction_output(IOMUX_TO_GPIO(MX53_PIN_CSI0_D5), 0);
++	if (pwdn)
++		gpio_set_value(IOMUX_TO_GPIO(MX53_PIN_CSI0_D5), 0);
++	else
++		gpio_set_value(IOMUX_TO_GPIO(MX53_PIN_CSI0_D5), 1);
++}
++
++static struct mxc_tvin_platform_data adv7180_data = {
++	.dvddio_reg = NULL,
++	.dvdd_reg = NULL,
++	.avdd_reg = NULL,
++	.pvdd_reg = NULL,
++	.pwdn = adv7180_pwdn,
++	.reset = NULL,
++};
++
+ static struct resource mxcfb_resources[] = {
+ 	[0] = {
+ 	       .flags = IORESOURCE_MEM,
+@@ -365,10 +384,18 @@ static int __init mxc_init_fb(void)
+ }
+ device_initcall(mxc_init_fb);
+ 
++static void camera_pwdn(int pwdn)
++{
++	gpio_request(IOMUX_TO_GPIO(MX53_PIN_CSI0_D5), "gpio5_23");
++	gpio_direction_output(IOMUX_TO_GPIO(MX53_PIN_CSI0_D5), 0);
++	gpio_set_value(IOMUX_TO_GPIO(MX53_PIN_CSI0_D5), pwdn);
++}
++
+ static struct mxc_camera_platform_data camera_data = {
+ 	.analog_regulator = "VSD",
+ 	.mclk = 24000000,
+ 	.csi = 0,
++	.pwdn = camera_pwdn,
+ };
+ 
+ static struct i2c_board_info mxc_i2c0_board_info[] __initdata = {
+@@ -377,6 +404,11 @@ static struct i2c_board_info mxc_i2c0_board_info[] __initdata = {
+ 	.addr = 0x3C,
+ 	.platform_data = (void *)&camera_data,
+ 	 },
++	{
++	.type = "adv7180",
++	.addr = 0x21,
++	.platform_data = (void *)&adv7180_data,
++	 },
+ };
+ 
+ /* TO DO add platform data */
+diff --git a/arch/arm/mach-mx5/mx53_evk_gpio.c b/arch/arm/mach-mx5/mx53_evk_gpio.c
+index 168bf12..25120d9 100644
+--- a/arch/arm/mach-mx5/mx53_evk_gpio.c
++++ b/arch/arm/mach-mx5/mx53_evk_gpio.c
+@@ -163,7 +163,7 @@ static struct mxc_iomux_pin_cfg __initdata mxc_iomux_pins[] = {
+ 	 MX53_PIN_KEY_ROW1, IOMUX_CONFIG_ALT2,
+ 	 },
+ 	{
+-	 MX53_PIN_CSI0_D7, IOMUX_CONFIG_ALT5,
++	 MX53_PIN_CSI0_D7, IOMUX_CONFIG_ALT1,
+ 	 },
+ 	{ /* UART1 Tx */
+ 	 MX53_PIN_CSI0_D10, IOMUX_CONFIG_ALT2,
+@@ -952,10 +952,12 @@ void __init mx53_evk_io_init(void)
+ 	gpio_direction_output(IOMUX_TO_GPIO(MX53_PIN_GPIO_10), 0);
+ 	gpio_set_value(IOMUX_TO_GPIO(MX53_PIN_GPIO_10), 1);
+ 
+-	/* Camera low power */
+-	gpio_request(IOMUX_TO_GPIO(MX53_PIN_CSI0_D5), "gpio5_23");
+-	gpio_direction_output(IOMUX_TO_GPIO(MX53_PIN_CSI0_D5), 0);
+-	gpio_set_value(IOMUX_TO_GPIO(MX53_PIN_CSI0_D5), 0);
++	/* TVIN reset */
++	gpio_request(IOMUX_TO_GPIO(MX53_PIN_CSI0_D7), "gpio5_25");
++	gpio_direction_output(IOMUX_TO_GPIO(MX53_PIN_CSI0_D7), 0);
++	gpio_set_value(IOMUX_TO_GPIO(MX53_PIN_CSI0_D7), 0);
++	msleep(5);
++	gpio_set_value(IOMUX_TO_GPIO(MX53_PIN_CSI0_D7), 1);
+ 
+ 	/* CAN1 enable GPIO*/
+ 	gpio_direction_output(IOMUX_TO_GPIO(MX53_PIN_GPIO_18), 0);
+-- 
+1.5.4.4
+

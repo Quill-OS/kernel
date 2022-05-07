@@ -1,0 +1,1239 @@
+From 412779df0bfd39ccaa0129061563bff7fb64b3da Mon Sep 17 00:00:00 2001
+From: Rob Herring <r.herring@freescale.com>
+Date: Fri, 22 Jan 2010 15:01:53 -0200
+Subject: [PATCH] ENGR00120394-1 imx: remove unneeded spba related code
+
+The spba defaults to all masters enabled and this is fine as
+all chips only have ARM and SDMA as masters.
+
+Signed-off-by: Rob Herring <r.herring@freescale.com>
+---
+ arch/arm/mach-mx25/devices.c                       |   14 +--
+ arch/arm/mach-mx25/serial.c                        |   24 +----
+ arch/arm/mach-mx25/serial.h                        |   12 +--
+ arch/arm/mach-mx3/devices.c                        |    7 +-
+ arch/arm/mach-mx3/mx31ads.c                        |    5 +-
+ arch/arm/mach-mx3/mx3_3stack.c                     |    6 +-
+ arch/arm/mach-mx3/serial.c                         |   14 +--
+ arch/arm/mach-mx3/serial.h                         |   12 +--
+ arch/arm/mach-mx35/devices.c                       |    7 +-
+ arch/arm/mach-mx35/serial.c                        |   11 +--
+ arch/arm/mach-mx35/serial.h                        |   10 +--
+ arch/arm/mach-mx37/clock.c                         |    3 +-
+ arch/arm/mach-mx37/devices.c                       |    5 -
+ arch/arm/mach-mx37/mx37_3stack.c                   |    5 +-
+ arch/arm/mach-mx37/serial.c                        |   12 +--
+ arch/arm/mach-mx37/serial.h                        |   10 +--
+ arch/arm/mach-mx51/clock.c                         |    1 -
+ arch/arm/mach-mx51/devices.c                       |    3 -
+ arch/arm/mach-mx51/mx51_3stack.c                   |    3 +-
+ arch/arm/mach-mx51/mx51_babbage.c                  |    1 -
+ arch/arm/mach-mx51/serial.c                        |   13 +--
+ arch/arm/mach-mx51/serial.h                        |   10 +--
+ arch/arm/plat-mxc/Makefile                         |    2 +-
+ arch/arm/plat-mxc/include/mach/spba.h              |   66 ----------
+ arch/arm/plat-mxc/spba.c                           |  133 --------------------
+ .../mxc/security/sahara2/sah_driver_interface.c    |   15 +--
+ sound/soc/imx/imx-3stack-sgtl5000.c                |    3 +-
+ sound/soc/imx/imx-3stack-wm8350.c                  |    3 +-
+ sound/soc/imx/imx-pcm.c                            |    4 +-
+ 29 files changed, 24 insertions(+), 390 deletions(-)
+
+diff --git a/arch/arm/mach-mx25/devices.c b/arch/arm/mach-mx25/devices.c
+index c8d69aa..e1f9140 100644
+--- a/arch/arm/mach-mx25/devices.c
++++ b/arch/arm/mach-mx25/devices.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -20,7 +20,6 @@
+ 
+ #include <mach/hardware.h>
+ #include <mach/mmc.h>
+-#include <mach/spba.h>
+ #include <mach/sdma.h>
+ 
+ #include "iomux.h"
+@@ -256,9 +255,6 @@ static struct platform_device mxcspi3_device = {
+ 
+ static inline void mxc_init_spi(void)
+ {
+-	spba_take_ownership(SPBA_CSPI2, SPBA_MASTER_A);
+-	spba_take_ownership(SPBA_CSPI3, SPBA_MASTER_A);
+-
+ #ifdef CONFIG_SPI_MXC_SELECT1
+ 	if (platform_device_register(&mxcspi1_device) < 0)
+ 		printk(KERN_ERR "Error: Registering the SPI Controller_1\n");
+@@ -439,13 +435,6 @@ int __init mxc_register_gpios(void)
+ 	return mxc_gpio_init(mxc_gpio_ports, ARRAY_SIZE(mxc_gpio_ports));
+ }
+ 
+-static inline void mxc_init_ssi(void)
+-{
+-	/* SPBA configuration for SSI - SDMA and MCU are set */
+-	spba_take_ownership(SPBA_SSI1, SPBA_MASTER_A | SPBA_MASTER_C);
+-	spba_take_ownership(SPBA_SSI2, SPBA_MASTER_A | SPBA_MASTER_C);
+-}
+-
+ static struct platform_device mxc_dma_device = {
+ 	.name = "mxc_dma",
+ 	.id = 0,
+@@ -602,7 +591,6 @@ static int __init mxc_init_devices(void)
+ 	mxc_init_spi();
+ 	mxc_init_i2c();
+ 	mxc_init_dma();
+-	mxc_init_ssi();
+ 	mxc_init_surround_audio();
+ 	mxc_init_rtc();
+ 	imx_init_adc();
+diff --git a/arch/arm/mach-mx25/serial.c b/arch/arm/mach-mx25/serial.c
+index d71dd10..3029eb4 100644
+--- a/arch/arm/mach-mx25/serial.c
++++ b/arch/arm/mach-mx25/serial.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -22,7 +22,6 @@
+ #include <linux/serial.h>
+ #include <mach/hardware.h>
+ #include <mach/mxc_uart.h>
+-#include <mach/spba.h>
+ #include "serial.h"
+ #include "board-mx25_3stack.h"
+ 
+@@ -57,7 +56,6 @@ static uart_mxc_port mxc_ports[] = {
+ 	       .dma_rxbuf_size = UART1_DMA_RXBUFSIZE,
+ 	       .rx_threshold = UART1_UFCR_RXTL,
+ 	       .tx_threshold = UART1_UFCR_TXTL,
+-	       .shared = UART1_SHARED_PERI,
+ 	       .dma_tx_id = MXC_DMA_UART1_TX,
+ 	       .dma_rx_id = MXC_DMA_UART1_RX,
+ 	       .rxd_mux = MXC_UART_RXDMUX,
+@@ -83,7 +81,6 @@ static uart_mxc_port mxc_ports[] = {
+ 	       .dma_rxbuf_size = UART2_DMA_RXBUFSIZE,
+ 	       .rx_threshold = UART2_UFCR_RXTL,
+ 	       .tx_threshold = UART2_UFCR_TXTL,
+-	       .shared = UART2_SHARED_PERI,
+ 	       .dma_tx_id = MXC_DMA_UART2_TX,
+ 	       .dma_rx_id = MXC_DMA_UART2_RX,
+ 	       .rxd_mux = MXC_UART_IR_RXDMUX,
+@@ -110,7 +107,6 @@ static uart_mxc_port mxc_ports[] = {
+ 	       .dma_rxbuf_size = UART3_DMA_RXBUFSIZE,
+ 	       .rx_threshold = UART3_UFCR_RXTL,
+ 	       .tx_threshold = UART3_UFCR_TXTL,
+-	       .shared = UART3_SHARED_PERI,
+ 	       .dma_tx_id = MXC_DMA_UART3_TX,
+ 	       .dma_rx_id = MXC_DMA_UART3_RX,
+ 	       .rxd_mux = MXC_UART_RXDMUX,
+@@ -138,7 +134,6 @@ static uart_mxc_port mxc_ports[] = {
+ 	       .dma_rxbuf_size = UART4_DMA_RXBUFSIZE,
+ 	       .rx_threshold = UART4_UFCR_RXTL,
+ 	       .tx_threshold = UART4_UFCR_TXTL,
+-	       .shared = UART4_SHARED_PERI,
+ 	       .dma_tx_id = MXC_DMA_UART4_TX,
+ 	       .dma_rx_id = MXC_DMA_UART4_RX,
+ 	       .rxd_mux = MXC_UART_RXDMUX,
+@@ -166,7 +161,6 @@ static uart_mxc_port mxc_ports[] = {
+ 	       .dma_rxbuf_size = UART5_DMA_RXBUFSIZE,
+ 	       .rx_threshold = UART5_UFCR_RXTL,
+ 	       .tx_threshold = UART5_UFCR_TXTL,
+-	       .shared = UART5_SHARED_PERI,
+ 	       .dma_tx_id = MXC_DMA_UART5_TX,
+ 	       .dma_rx_id = MXC_DMA_UART5_RX,
+ 	       .rxd_mux = MXC_UART_RXDMUX,
+@@ -224,29 +218,13 @@ static int __init mxc_init_uart(void)
+ 	platform_device_register(&mxc_uart_device1);
+ 	platform_device_register(&mxc_uart_device2);
+ 
+-	/* Grab ownership of shared UARTs 3 and 4, only when enabled */
+ #if UART3_ENABLED == 1
+-#if UART3_DMA_ENABLE == 1
+-	spba_take_ownership(UART3_SHARED_PERI, (SPBA_MASTER_A | SPBA_MASTER_C));
+-#else
+-	spba_take_ownership(UART3_SHARED_PERI, SPBA_MASTER_A);
+-#endif				/* UART3_DMA_ENABLE */
+ 	platform_device_register(&mxc_uart_device3);
+ #endif				/* UART3_ENABLED */
+ #if UART4_ENABLED == 1
+-#if UART4_DMA_ENABLE == 1
+-	spba_take_ownership(UART4_SHARED_PERI, (SPBA_MASTER_A | SPBA_MASTER_C));
+-#else
+-	spba_take_ownership(UART4_SHARED_PERI, SPBA_MASTER_A);
+-#endif				/* UARTr_DMA_ENABLE */
+ 	platform_device_register(&mxc_uart_device4);
+ #endif				/* UART4_ENABLED */
+ #if UART5_ENABLED == 1
+-#if UART5_DMA_ENABLE == 1
+-	spba_take_ownership(UART5_SHARED_PERI, (SPBA_MASTER_A | SPBA_MASTER_C));
+-#else
+-	spba_take_ownership(UART5_SHARED_PERI, SPBA_MASTER_A);
+-#endif				/* UART5_DMA_ENABLE */
+ 	platform_device_register(&mxc_uart_device5);
+ #endif				/* UART5_ENABLED */
+ 
+diff --git a/arch/arm/mach-mx25/serial.h b/arch/arm/mach-mx25/serial.h
+index 4f53b09..d6cc3d6 100644
+--- a/arch/arm/mach-mx25/serial.h
++++ b/arch/arm/mach-mx25/serial.h
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -124,35 +124,25 @@
+  * like this for each UART port.
+  */
+ #define UART1_INT3              (-1)
+-/*!
+- * This specifies if the UART is a shared peripheral. It holds the shared
+- * peripheral number if it is shared or -1 if it is not shared. There exists
+- * a define like this for each UART port.
+- */
+-#define UART1_SHARED_PERI       (-1)
+ /* UART 2 configuration */
+ #define UART2_MUX_INTS          INTS_MUXED
+ #define UART2_INT1              MXC_INT_UART2
+ #define UART2_INT2              (-1)
+ #define UART2_INT3              (-1)
+-#define UART2_SHARED_PERI       (-1)
+ /* UART 3 configuration */
+ #define UART3_MUX_INTS          INTS_MUXED
+ #define UART3_INT1              MXC_INT_UART3
+ #define UART3_INT2              (-1)
+ #define UART3_INT3              (-1)
+-#define UART3_SHARED_PERI       SPBA_UART3
+ /* UART 4 configuration */
+ #define UART4_MUX_INTS          INTS_MUXED
+ #define UART4_INT1              MXC_INT_UART4
+ #define UART4_INT2              (-1)
+ #define UART4_INT3              (-1)
+-#define UART4_SHARED_PERI       SPBA_UART4
+ /* UART 5 configuration */
+ #define UART5_MUX_INTS          INTS_MUXED
+ #define UART5_INT1              MXC_INT_UART5
+ #define UART5_INT2              (-1)
+ #define UART5_INT3              (-1)
+-#define UART5_SHARED_PERI       SPBA_UART5
+ 
+ #endif				/* __ARCH_ARM_MACH_MX25_SERIAL_H__ */
+diff --git a/arch/arm/mach-mx3/devices.c b/arch/arm/mach-mx3/devices.c
+index f4a3cdd..8124741 100644
+--- a/arch/arm/mach-mx3/devices.c
++++ b/arch/arm/mach-mx3/devices.c
+@@ -9,7 +9,7 @@
+  * licensed "as is" without any warranty of any kind, whether express
+  * or implied.
+  *
+- * Copyright 2005-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2005-2010 Freescale Semiconductor, Inc.
+  */
+ #include <linux/module.h>
+ #include <linux/kernel.h>
+@@ -24,7 +24,6 @@
+ #include <asm/mach-types.h>
+ #include <mach/hardware.h>
+ #include <mach/pmic_power.h>
+-#include <mach/spba.h>
+ #include <mach/sdma.h>
+ #include <mach/mxc_dptc.h>
+ #include <mach/gpio.h>
+@@ -477,8 +476,6 @@ static struct platform_device mxcspi3_device = {
+ 
+ static inline void mxc_init_spi(void)
+ {
+-	/* SPBA configuration for CSPI2 - MCU is set */
+-	spba_take_ownership(SPBA_CSPI2, SPBA_MASTER_A);
+ #ifdef CONFIG_SPI_MXC_SELECT1
+ 	if (platform_device_register(&mxcspi1_device) < 0)
+ 		printk("Error: Registering the SPI Controller_1\n");
+@@ -895,7 +892,5 @@ int __init mxc_init_devices(void)
+ 	mxc_init_rnga();
+ 	mxc_init_iim();
+ 
+-	/* SPBA configuration for SSI2 - SDMA and MCU are set */
+-	spba_take_ownership(SPBA_SSI2, SPBA_MASTER_C | SPBA_MASTER_A);
+ 	return 0;
+ }
+diff --git a/arch/arm/mach-mx3/mx31ads.c b/arch/arm/mach-mx3/mx31ads.c
+index c9526bc..d35eec4 100644
+--- a/arch/arm/mach-mx3/mx31ads.c
++++ b/arch/arm/mach-mx3/mx31ads.c
+@@ -1,7 +1,7 @@
+ /*
+  *  Copyright (C) 2000 Deep Blue Solutions Ltd
+  *  Copyright (C) 2002 Shane Nay (shane@minirl.com)
+- *  Copyright 2005-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ *  Copyright (C) 2005-2010 Freescale Semiconductor, Inc.
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+@@ -56,7 +56,6 @@
+ 
+ #include <mach/memory.h>
+ #include <mach/mmc.h>
+-#include <mach/spba.h>
+ 
+ #include "board-mx31ads.h"
+ #include "crm_regs.h"
+@@ -1115,9 +1114,7 @@ static inline void mxc_init_mmc(void)
+ 		mxcsdhc2_device.resource[2].end = cd_irq;
+ 	}
+ 
+-	spba_take_ownership(SPBA_SDHC1, SPBA_MASTER_A | SPBA_MASTER_C);
+ 	(void)platform_device_register(&mxcsdhc1_device);
+-	spba_take_ownership(SPBA_SDHC2, SPBA_MASTER_A | SPBA_MASTER_C);
+ 	(void)platform_device_register(&mxcsdhc2_device);
+ }
+ #else
+diff --git a/arch/arm/mach-mx3/mx3_3stack.c b/arch/arm/mach-mx3/mx3_3stack.c
+index 5a29b05..ba11498 100644
+--- a/arch/arm/mach-mx3/mx3_3stack.c
++++ b/arch/arm/mach-mx3/mx3_3stack.c
+@@ -1,7 +1,7 @@
+ /*
+  *  Copyright (C) 2000 Deep Blue Solutions Ltd
+  *  Copyright (C) 2002 Shane Nay (shane@minirl.com)
+- *  Copyright 2005-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ *  Copyright (C) 2005-2010 Freescale Semiconductor, Inc.
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+@@ -56,7 +56,6 @@
+ #include <mach/memory.h>
+ #include <mach/gpio.h>
+ #include <mach/mmc.h>
+-#include <mach/spba.h>
+ #include <mach/pmic_power.h>
+ 
+ #include "board-mx3_3stack.h"
+@@ -741,10 +740,7 @@ static inline void mxc_init_mmc(void)
+ 		mxcsdhc2_device.resource[2].end = cd_irq;
+ 	}
+ 
+-	spba_take_ownership(SPBA_SDHC1, SPBA_MASTER_A | SPBA_MASTER_C);
+ 	(void)platform_device_register(&mxcsdhc1_device);
+-
+-	spba_take_ownership(SPBA_SDHC2, SPBA_MASTER_A | SPBA_MASTER_C);
+ 	(void)platform_device_register(&mxcsdhc2_device);
+ }
+ #else
+diff --git a/arch/arm/mach-mx3/serial.c b/arch/arm/mach-mx3/serial.c
+index fca1b5b..91132d8 100644
+--- a/arch/arm/mach-mx3/serial.c
++++ b/arch/arm/mach-mx3/serial.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2006-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2006-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -22,7 +22,6 @@
+ #include <linux/serial.h>
+ #include <mach/hardware.h>
+ #include <mach/mxc_uart.h>
+-#include <mach/spba.h>
+ #include "serial.h"
+ #include "board-mx31ads.h"
+ #include "board-mx3_3stack.h"
+@@ -58,7 +57,6 @@ static uart_mxc_port mxc_ports[MXC_UART_NR] = {
+ 	       .dma_rxbuf_size = UART1_DMA_RXBUFSIZE,
+ 	       .rx_threshold = UART1_UFCR_RXTL,
+ 	       .tx_threshold = UART1_UFCR_TXTL,
+-	       .shared = UART1_SHARED_PERI,
+ 	       .dma_tx_id = MXC_DMA_UART1_TX,
+ 	       .dma_rx_id = MXC_DMA_UART1_RX,
+ 	       .rxd_mux = MXC_UART_RXDMUX,
+@@ -86,7 +84,6 @@ static uart_mxc_port mxc_ports[MXC_UART_NR] = {
+ 	       .dma_rxbuf_size = UART2_DMA_RXBUFSIZE,
+ 	       .rx_threshold = UART2_UFCR_RXTL,
+ 	       .tx_threshold = UART2_UFCR_TXTL,
+-	       .shared = UART2_SHARED_PERI,
+ 	       .dma_tx_id = MXC_DMA_UART2_TX,
+ 	       .dma_rx_id = MXC_DMA_UART2_RX,
+ 	       .rxd_mux = MXC_UART_IR_RXDMUX,
+@@ -115,7 +112,6 @@ static uart_mxc_port mxc_ports[MXC_UART_NR] = {
+ 	       .dma_rxbuf_size = UART3_DMA_RXBUFSIZE,
+ 	       .rx_threshold = UART3_UFCR_RXTL,
+ 	       .tx_threshold = UART3_UFCR_TXTL,
+-	       .shared = UART3_SHARED_PERI,
+ 	       .dma_tx_id = MXC_DMA_UART3_TX,
+ 	       .dma_rx_id = MXC_DMA_UART3_RX,
+ 	       .rxd_mux = MXC_UART_RXDMUX,
+@@ -145,7 +141,6 @@ static uart_mxc_port mxc_ports[MXC_UART_NR] = {
+ 	       .dma_rxbuf_size = UART4_DMA_RXBUFSIZE,
+ 	       .rx_threshold = UART4_UFCR_RXTL,
+ 	       .tx_threshold = UART4_UFCR_TXTL,
+-	       .shared = UART4_SHARED_PERI,
+ 	       .dma_tx_id = MXC_DMA_UART4_TX,
+ 	       .dma_rx_id = MXC_DMA_UART4_RX,
+ 	       .rxd_mux = MXC_UART_RXDMUX,
+@@ -175,7 +170,6 @@ static uart_mxc_port mxc_ports[MXC_UART_NR] = {
+ 	       .dma_rxbuf_size = UART5_DMA_RXBUFSIZE,
+ 	       .rx_threshold = UART5_UFCR_RXTL,
+ 	       .tx_threshold = UART5_UFCR_TXTL,
+-	       .shared = UART5_SHARED_PERI,
+ 	       .dma_tx_id = MXC_DMA_UART5_TX,
+ 	       .dma_rx_id = MXC_DMA_UART5_RX,
+ 	       .rxd_mux = MXC_UART_RXDMUX,
+@@ -237,13 +231,7 @@ static int __init mxc_init_uart(void)
+ 	platform_device_register(&mxc_uart_device1);
+ 	platform_device_register(&mxc_uart_device2);
+ 
+-	/* Grab ownership of shared UARTs 3 and 4, only when enabled */
+ #if UART3_ENABLED == 1
+-#if UART3_DMA_ENABLE == 1
+-	spba_take_ownership(UART3_SHARED_PERI, (SPBA_MASTER_A | SPBA_MASTER_C));
+-#else
+-	spba_take_ownership(UART3_SHARED_PERI, SPBA_MASTER_A);
+-#endif				/* UART3_DMA_ENABLE */
+ 	platform_device_register(&mxc_uart_device3);
+ #endif				/* UART3_ENABLED */
+ 
+diff --git a/arch/arm/mach-mx3/serial.h b/arch/arm/mach-mx3/serial.h
+index b2b0a05..a11e228 100644
+--- a/arch/arm/mach-mx3/serial.h
++++ b/arch/arm/mach-mx3/serial.h
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2004-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2004-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -141,35 +141,25 @@
+  * like this for each UART port.
+  */
+ #define UART1_INT3              -1
+-/*!
+- * This specifies if the UART is a shared peripheral. It holds the shared
+- * peripheral number if it is shared or -1 if it is not shared. There exists
+- * a define like this for each UART port.
+- */
+-#define UART1_SHARED_PERI       -1
+ /* UART 2 configuration */
+ #define UART2_MUX_INTS          INTS_MUXED
+ #define UART2_INT1              MXC_INT_UART2
+ #define UART2_INT2              -1
+ #define UART2_INT3              -1
+-#define UART2_SHARED_PERI       -1
+ /* UART 3 configuration */
+ #define UART3_MUX_INTS          INTS_MUXED
+ #define UART3_INT1              MXC_INT_UART3
+ #define UART3_INT2              -1
+ #define UART3_INT3              -1
+-#define UART3_SHARED_PERI       SPBA_UART3
+ /* UART 4 configuration */
+ #define UART4_MUX_INTS          INTS_MUXED
+ #define UART4_INT1              MXC_INT_UART4
+ #define UART4_INT2              -1
+ #define UART4_INT3              -1
+-#define UART4_SHARED_PERI       -1
+ /* UART 5 configuration */
+ #define UART5_MUX_INTS          INTS_MUXED
+ #define UART5_INT1              MXC_INT_UART5
+ #define UART5_INT2              -1
+ #define UART5_INT3              -1
+-#define UART5_SHARED_PERI       -1
+ 
+ #endif				/* __ARCH_ARM_MACH_MX3_SERIAL_H__ */
+diff --git a/arch/arm/mach-mx35/devices.c b/arch/arm/mach-mx35/devices.c
+index 769b7ac..341e5ae 100644
+--- a/arch/arm/mach-mx35/devices.c
++++ b/arch/arm/mach-mx35/devices.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -20,7 +20,6 @@
+ 
+ #include <mach/hardware.h>
+ #include <mach/mmc.h>
+-#include <mach/spba.h>
+ #include <mach/sdma.h>
+ 
+ #include "iomux.h"
+@@ -350,8 +349,6 @@ static struct platform_device mxcspi2_device = {
+ 
+ static inline void mxc_init_spi(void)
+ {
+-	/* SPBA configuration for CSPI2 - MCU is set */
+-	spba_take_ownership(SPBA_CSPI2, SPBA_MASTER_A);
+ #ifdef CONFIG_SPI_MXC_SELECT1
+ 	if (platform_device_register(&mxcspi1_device) < 0)
+ 		printk(KERN_ERR "Error: Registering the SPI Controller_1\n");
+@@ -798,7 +795,5 @@ int __init mxc_init_devices(void)
+ 	mxc_init_iim();
+ 	mxc_init_gpu();
+ 
+-	/* SPBA configuration for SSI2 - SDMA and MCU are set */
+-	spba_take_ownership(SPBA_SSI2, SPBA_MASTER_C | SPBA_MASTER_A);
+ 	return 0;
+ }
+diff --git a/arch/arm/mach-mx35/serial.c b/arch/arm/mach-mx35/serial.c
+index 74068f1..bece7c6 100644
+--- a/arch/arm/mach-mx35/serial.c
++++ b/arch/arm/mach-mx35/serial.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -22,7 +22,6 @@
+ #include <linux/serial.h>
+ #include <mach/hardware.h>
+ #include <mach/mxc_uart.h>
+-#include <mach/spba.h>
+ #include "serial.h"
+ #include "board-mx35_3stack.h"
+ 
+@@ -57,7 +56,6 @@ static uart_mxc_port mxc_ports[] = {
+ 	       .dma_rxbuf_size = UART1_DMA_RXBUFSIZE,
+ 	       .rx_threshold = UART1_UFCR_RXTL,
+ 	       .tx_threshold = UART1_UFCR_TXTL,
+-	       .shared = UART1_SHARED_PERI,
+ 	       .dma_tx_id = MXC_DMA_UART1_TX,
+ 	       .dma_rx_id = MXC_DMA_UART1_RX,
+ 	       .rxd_mux = MXC_UART_RXDMUX,
+@@ -85,7 +83,6 @@ static uart_mxc_port mxc_ports[] = {
+ 	       .dma_rxbuf_size = UART2_DMA_RXBUFSIZE,
+ 	       .rx_threshold = UART2_UFCR_RXTL,
+ 	       .tx_threshold = UART2_UFCR_TXTL,
+-	       .shared = UART2_SHARED_PERI,
+ 	       .dma_tx_id = MXC_DMA_UART2_TX,
+ 	       .dma_rx_id = MXC_DMA_UART2_RX,
+ 	       .rxd_mux = MXC_UART_IR_RXDMUX,
+@@ -114,7 +111,6 @@ static uart_mxc_port mxc_ports[] = {
+ 	       .dma_rxbuf_size = UART3_DMA_RXBUFSIZE,
+ 	       .rx_threshold = UART3_UFCR_RXTL,
+ 	       .tx_threshold = UART3_UFCR_TXTL,
+-	       .shared = UART3_SHARED_PERI,
+ 	       .dma_tx_id = MXC_DMA_UART3_TX,
+ 	       .dma_rx_id = MXC_DMA_UART3_RX,
+ 	       .rxd_mux = MXC_UART_RXDMUX,
+@@ -158,11 +154,6 @@ static int __init mxc_init_uart(void)
+ 
+ 	/* Grab ownership of shared UARTs 3 and 4, only when enabled */
+ #if UART3_ENABLED == 1
+-#if UART3_DMA_ENABLE == 1
+-	spba_take_ownership(UART3_SHARED_PERI, (SPBA_MASTER_A | SPBA_MASTER_C));
+-#else
+-	spba_take_ownership(UART3_SHARED_PERI, SPBA_MASTER_A);
+-#endif				/* UART3_DMA_ENABLE */
+ 	platform_device_register(&mxc_uart_device3);
+ #endif				/* UART3_ENABLED */
+ 
+diff --git a/arch/arm/mach-mx35/serial.h b/arch/arm/mach-mx35/serial.h
+index 467a4a4..28c4aaa 100644
+--- a/arch/arm/mach-mx35/serial.h
++++ b/arch/arm/mach-mx35/serial.h
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -110,23 +110,15 @@
+  * like this for each UART port.
+  */
+ #define UART1_INT3              -1
+-/*!
+- * This specifies if the UART is a shared peripheral. It holds the shared
+- * peripheral number if it is shared or -1 if it is not shared. There exists
+- * a define like this for each UART port.
+- */
+-#define UART1_SHARED_PERI       -1
+ /* UART 2 configuration */
+ #define UART2_MUX_INTS          INTS_MUXED
+ #define UART2_INT1              MXC_INT_UART2
+ #define UART2_INT2              -1
+ #define UART2_INT3              -1
+-#define UART2_SHARED_PERI       -1
+ /* UART 3 configuration */
+ #define UART3_MUX_INTS          INTS_MUXED
+ #define UART3_INT1              MXC_INT_UART3
+ #define UART3_INT2              -1
+ #define UART3_INT3              -1
+-#define UART3_SHARED_PERI       SPBA_UART3
+ 
+ #endif				/* __ARCH_ARM_MACH_MX35_SERIAL_H__ */
+diff --git a/arch/arm/mach-mx37/clock.c b/arch/arm/mach-mx37/clock.c
+index 014f268..7f60178 100644
+--- a/arch/arm/mach-mx37/clock.c
++++ b/arch/arm/mach-mx37/clock.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2007-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2007-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -22,7 +22,6 @@
+ #include <mach/common.h>
+ #include <mach/clock.h>
+ #include <mach/mxc_dptc.h>
+-#include <mach/spba.h>
+ #include <mach/mxc_uart.h>
+ #include <mach/mxc_dvfs.h>
+ 
+diff --git a/arch/arm/mach-mx37/devices.c b/arch/arm/mach-mx37/devices.c
+index d4f5c48..ecc6ebf 100644
+--- a/arch/arm/mach-mx37/devices.c
++++ b/arch/arm/mach-mx37/devices.c
+@@ -26,7 +26,6 @@
+ #include <mach/mxc_dptc.h>
+ #include <mach/mxc_dvfs.h>
+ #include <mach/sdma.h>
+-#include <mach/spba.h>
+ 
+ #include "sdma_script_code.h"
+ #include "crm_regs.h"
+@@ -411,8 +410,6 @@ static struct platform_device mxcspi3_device = {
+ 
+ void __init mxc_init_spi(void)
+ {
+-	/* SPBA configuration for CSPI2 - MCU is set */
+-	spba_take_ownership(SPBA_CSPI2, SPBA_MASTER_A);
+ #ifdef CONFIG_SPI_MXC_SELECT1
+ 	if (platform_device_register(&mxcspi1_device) < 0)
+ 		printk("Error: Registering the SPI Controller_1\n");
+@@ -1080,7 +1077,5 @@ int __init mxc_init_devices(void)
+ 	mxc_init_rngc();
+ 	mxc_init_iim();
+ 
+-	/* SPBA configuration for SSI2 - SDMA and MCU are set */
+-	spba_take_ownership(SPBA_SSI2, SPBA_MASTER_C | SPBA_MASTER_A);
+ 	return 0;
+ }
+diff --git a/arch/arm/mach-mx37/mx37_3stack.c b/arch/arm/mach-mx37/mx37_3stack.c
+index c1be8ae..9987c89 100644
+--- a/arch/arm/mach-mx37/mx37_3stack.c
++++ b/arch/arm/mach-mx37/mx37_3stack.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2007-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2007-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -38,7 +38,6 @@
+ #endif
+ 
+ #include <mach/hardware.h>
+-#include <mach/spba.h>
+ #include <asm/irq.h>
+ #include <asm/setup.h>
+ #include <asm/mach-types.h>
+@@ -692,14 +691,12 @@ static inline void mxc_init_mmc(void)
+ 		mxcsdhc1_device.resource[2].end = cd_irq;
+ 	}
+ 
+-	spba_take_ownership(SPBA_SDHC1, SPBA_MASTER_A | SPBA_MASTER_C);
+ 	(void)platform_device_register(&mxcsdhc1_device);
+ 	cd_irq = sdhc_init_card_det(1);
+ 	if (cd_irq) {
+ 		mxcsdhc2_device.resource[2].start = cd_irq;
+ 		mxcsdhc2_device.resource[2].end = cd_irq;
+ 	}
+-	spba_take_ownership(SPBA_SDHC2, SPBA_MASTER_A | SPBA_MASTER_C);
+ 	(void)platform_device_register(&mxcsdhc2_device);
+ }
+ #else
+diff --git a/arch/arm/mach-mx37/serial.c b/arch/arm/mach-mx37/serial.c
+index aaa5171..6a3c4a7 100644
+--- a/arch/arm/mach-mx37/serial.c
++++ b/arch/arm/mach-mx37/serial.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2007-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2007-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -22,7 +22,6 @@
+ #include <linux/serial.h>
+ #include <mach/hardware.h>
+ #include <mach/mxc_uart.h>
+-#include <mach/spba.h>
+ #include "serial.h"
+ #include "board-mx37_3stack.h"
+ 
+@@ -57,7 +56,6 @@ static uart_mxc_port mxc_ports[] = {
+ 	       .dma_rxbuf_size = UART1_DMA_RXBUFSIZE,
+ 	       .rx_threshold = UART1_UFCR_RXTL,
+ 	       .tx_threshold = UART1_UFCR_TXTL,
+-	       .shared = UART1_SHARED_PERI,
+ 	       .dma_tx_id = MXC_DMA_UART1_TX,
+ 	       .dma_rx_id = MXC_DMA_UART1_RX,
+ 	       .rxd_mux = MXC_UART_RXDMUX,
+@@ -83,7 +81,6 @@ static uart_mxc_port mxc_ports[] = {
+ 	       .dma_rxbuf_size = UART2_DMA_RXBUFSIZE,
+ 	       .rx_threshold = UART2_UFCR_RXTL,
+ 	       .tx_threshold = UART2_UFCR_TXTL,
+-	       .shared = UART2_SHARED_PERI,
+ 	       .dma_tx_id = MXC_DMA_UART2_TX,
+ 	       .dma_rx_id = MXC_DMA_UART2_RX,
+ 	       .rxd_mux = MXC_UART_RXDMUX,
+@@ -109,7 +106,6 @@ static uart_mxc_port mxc_ports[] = {
+ 	       .dma_rxbuf_size = UART3_DMA_RXBUFSIZE,
+ 	       .rx_threshold = UART3_UFCR_RXTL,
+ 	       .tx_threshold = UART3_UFCR_TXTL,
+-	       .shared = UART3_SHARED_PERI,
+ 	       .dma_tx_id = MXC_DMA_UART3_TX,
+ 	       .dma_rx_id = MXC_DMA_UART3_RX,
+ 	       .rxd_mux = MXC_UART_RXDMUX,
+@@ -146,13 +142,7 @@ static int __init mxc_init_uart(void)
+ 	platform_device_register(&mxc_uart_device1);
+ 	platform_device_register(&mxc_uart_device2);
+ 
+-	/* Grab ownership of shared UARTs 3 and 4, only when enabled */
+ #if UART3_ENABLED == 1
+-#if UART3_DMA_ENABLE == 1
+-	spba_take_ownership(UART3_SHARED_PERI, (SPBA_MASTER_A | SPBA_MASTER_C));
+-#else
+-	spba_take_ownership(UART3_SHARED_PERI, SPBA_MASTER_A);
+-#endif				/* UART3_DMA_ENABLE */
+ 	platform_device_register(&mxc_uart_device3);
+ #endif				/* UART3_ENABLED */
+ 
+diff --git a/arch/arm/mach-mx37/serial.h b/arch/arm/mach-mx37/serial.h
+index b8b8403..0393e8d 100644
+--- a/arch/arm/mach-mx37/serial.h
++++ b/arch/arm/mach-mx37/serial.h
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2004-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2004-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -105,23 +105,15 @@
+  * like this for each UART port.
+  */
+ #define UART1_INT3              -1
+-/*!
+- * This specifies if the UART is a shared peripheral. It holds the shared
+- * peripheral number if it is shared or -1 if it is not shared. There exists
+- * a define like this for each UART port.
+- */
+-#define UART1_SHARED_PERI       -1
+ /* UART 2 configuration */
+ #define UART2_MUX_INTS          INTS_MUXED
+ #define UART2_INT1              MXC_INT_UART2
+ #define UART2_INT2              -1
+ #define UART2_INT3              -1
+-#define UART2_SHARED_PERI       -1
+ /* UART 3 configuration */
+ #define UART3_MUX_INTS          INTS_MUXED
+ #define UART3_INT1              MXC_INT_UART3
+ #define UART3_INT2              -1
+ #define UART3_INT3              -1
+-#define UART3_SHARED_PERI       SPBA_UART3
+ 
+ #endif				/* __ARCH_ARM_MACH_MX37_SERIAL_H__ */
+diff --git a/arch/arm/mach-mx51/clock.c b/arch/arm/mach-mx51/clock.c
+index 7a138ae..9b9fed8 100644
+--- a/arch/arm/mach-mx51/clock.c
++++ b/arch/arm/mach-mx51/clock.c
+@@ -25,7 +25,6 @@
+ #include <mach/hardware.h>
+ #include <mach/common.h>
+ #include <mach/clock.h>
+-#include <mach/spba.h>
+ #include <mach/mxc_dvfs.h>
+ #include <mach/sdram_autogating.h>
+ 
+diff --git a/arch/arm/mach-mx51/devices.c b/arch/arm/mach-mx51/devices.c
+index f2cb967..8a19d7e 100644
+--- a/arch/arm/mach-mx51/devices.c
++++ b/arch/arm/mach-mx51/devices.c
+@@ -27,7 +27,6 @@
+ #include <linux/iram_alloc.h>
+ #include <asm/mach-types.h>
+ #include <mach/hardware.h>
+-#include <mach/spba.h>
+ #include <mach/sdma.h>
+ #include <mach/mxc_dvfs.h>
+ #include "sdma_script_code.h"
+@@ -691,8 +690,6 @@ static struct platform_device mxcspi3_device = {
+ 
+ void __init mxc_init_spi(void)
+ {
+-	/* SPBA configuration for CSPI2 - MCU is set */
+-	spba_take_ownership(SPBA_CSPI1, SPBA_MASTER_A);
+ #ifdef CONFIG_SPI_MXC_SELECT1
+ 	if (machine_is_mx51_babbage()) {
+ 		mxcspi1_data.chipselect_active =
+diff --git a/arch/arm/mach-mx51/mx51_3stack.c b/arch/arm/mach-mx51/mx51_3stack.c
+index 8496569..6665786 100644
+--- a/arch/arm/mach-mx51/mx51_3stack.c
++++ b/arch/arm/mach-mx51/mx51_3stack.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -39,7 +39,6 @@
+ 
+ #include <linux/regulator/consumer.h>
+ #include <mach/hardware.h>
+-#include <mach/spba.h>
+ #include <asm/irq.h>
+ #include <asm/setup.h>
+ #include <asm/mach-types.h>
+diff --git a/arch/arm/mach-mx51/mx51_babbage.c b/arch/arm/mach-mx51/mx51_babbage.c
+index aca8339..677bd59 100644
+--- a/arch/arm/mach-mx51/mx51_babbage.c
++++ b/arch/arm/mach-mx51/mx51_babbage.c
+@@ -37,7 +37,6 @@
+ #include <linux/mxcfb.h>
+ #include <mach/common.h>
+ #include <mach/hardware.h>
+-#include <mach/spba.h>
+ #include <asm/irq.h>
+ #include <asm/setup.h>
+ #include <asm/mach-types.h>
+diff --git a/arch/arm/mach-mx51/serial.c b/arch/arm/mach-mx51/serial.c
+index 89cb943..d0ac961 100644
+--- a/arch/arm/mach-mx51/serial.c
++++ b/arch/arm/mach-mx51/serial.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -22,7 +22,6 @@
+ #include <linux/serial.h>
+ #include <mach/hardware.h>
+ #include <mach/mxc_uart.h>
+-#include <mach/spba.h>
+ #include "serial.h"
+ #include "board-mx51_3stack.h"
+ 
+@@ -57,7 +56,6 @@ static uart_mxc_port mxc_ports[] = {
+ 	       .dma_rxbuf_size = UART1_DMA_RXBUFSIZE,
+ 	       .rx_threshold = UART1_UFCR_RXTL,
+ 	       .tx_threshold = UART1_UFCR_TXTL,
+-	       .shared = UART1_SHARED_PERI,
+ 	       .dma_tx_id = MXC_DMA_UART1_TX,
+ 	       .dma_rx_id = MXC_DMA_UART1_RX,
+ 	       .rxd_mux = MXC_UART_RXDMUX,
+@@ -83,7 +81,6 @@ static uart_mxc_port mxc_ports[] = {
+ 	       .dma_rxbuf_size = UART2_DMA_RXBUFSIZE,
+ 	       .rx_threshold = UART2_UFCR_RXTL,
+ 	       .tx_threshold = UART2_UFCR_TXTL,
+-	       .shared = UART2_SHARED_PERI,
+ 	       .dma_tx_id = MXC_DMA_UART2_TX,
+ 	       .dma_rx_id = MXC_DMA_UART2_RX,
+ 	       .rxd_mux = MXC_UART_RXDMUX,
+@@ -109,7 +106,6 @@ static uart_mxc_port mxc_ports[] = {
+ 	       .dma_rxbuf_size = UART3_DMA_RXBUFSIZE,
+ 	       .rx_threshold = UART3_UFCR_RXTL,
+ 	       .tx_threshold = UART3_UFCR_TXTL,
+-	       .shared = UART3_SHARED_PERI,
+ 	       .dma_tx_id = MXC_DMA_UART3_TX,
+ 	       .dma_rx_id = MXC_DMA_UART3_RX,
+ 	       .rxd_mux = MXC_UART_RXDMUX,
+@@ -145,14 +141,7 @@ static int __init mxc_init_uart(void)
+ 	/* Register all the MXC UART platform device structures */
+ 	platform_device_register(&mxc_uart_device1);
+ 	platform_device_register(&mxc_uart_device2);
+-
+-	/* Grab ownership of shared UARTs 3 and 4, only when enabled */
+ #if UART3_ENABLED == 1
+-#if UART3_DMA_ENABLE == 1
+-	spba_take_ownership(UART3_SHARED_PERI, (SPBA_MASTER_A | SPBA_MASTER_C));
+-#else
+-	spba_take_ownership(UART3_SHARED_PERI, SPBA_MASTER_A);
+-#endif				/* UART3_DMA_ENABLE */
+ 	platform_device_register(&mxc_uart_device3);
+ #endif				/* UART3_ENABLED */
+ 
+diff --git a/arch/arm/mach-mx51/serial.h b/arch/arm/mach-mx51/serial.h
+index ff4928c..c2eb9fa 100644
+--- a/arch/arm/mach-mx51/serial.h
++++ b/arch/arm/mach-mx51/serial.h
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -105,23 +105,15 @@
+  * like this for each UART port.
+  */
+ #define UART1_INT3              -1
+-/*!
+- * This specifies if the UART is a shared peripheral. It holds the shared
+- * peripheral number if it is shared or -1 if it is not shared. There exists
+- * a define like this for each UART port.
+- */
+-#define UART1_SHARED_PERI       -1
+ /* UART 2 configuration */
+ #define UART2_MUX_INTS          INTS_MUXED
+ #define UART2_INT1              MXC_INT_UART2
+ #define UART2_INT2              -1
+ #define UART2_INT3              -1
+-#define UART2_SHARED_PERI       -1
+ /* UART 3 configuration */
+ #define UART3_MUX_INTS          INTS_MUXED
+ #define UART3_INT1              MXC_INT_UART3
+ #define UART3_INT2              -1
+ #define UART3_INT3              -1
+-#define UART3_SHARED_PERI       SPBA_UART3
+ 
+ #endif				/* __ARCH_ARM_MACH_MX51_SERIAL_H__ */
+diff --git a/arch/arm/plat-mxc/Makefile b/arch/arm/plat-mxc/Makefile
+index 203c299..49eaf04 100644
+--- a/arch/arm/plat-mxc/Makefile
++++ b/arch/arm/plat-mxc/Makefile
+@@ -13,7 +13,7 @@ obj-$(CONFIG_ARCH_MXC_IOMUX_V3) += iomux-v3.o
+ obj-$(CONFIG_MXC_PWM)  += pwm.o
+ 
+ ifneq ($(CONFIG_ARCH_MX27),y)
+-obj-y += spba.o sdma/
++obj-y += sdma/
+ endif
+ 
+ ifeq ($(CONFIG_MXC_TZIC),y)
+diff --git a/arch/arm/plat-mxc/include/mach/spba.h b/arch/arm/plat-mxc/include/mach/spba.h
+deleted file mode 100644
+index 8d018be..0000000
+--- a/arch/arm/plat-mxc/include/mach/spba.h
++++ /dev/null
+@@ -1,66 +0,0 @@
+-
+-/*
+- * Copyright 2004-2008 Freescale Semiconductor, Inc. All Rights Reserved.
+- */
+-
+-/*
+- * The code contained herein is licensed under the GNU General Public
+- * License. You may obtain a copy of the GNU General Public License
+- * Version 2 or later at the following locations:
+- *
+- * http://www.opensource.org/licenses/gpl-license.html
+- * http://www.gnu.org/copyleft/gpl.html
+- */
+-
+-/*!
+- * @defgroup SPBA Shared Peripheral Bus Arbiter (SPBA)
+- * @ingroup MSL_MX31 MSL_MX35 MSL_MX37 MSL_MX51 MSL_MXC91321
+- */
+-
+-/*!
+- * @file arch-mxc/spba.h
+- * @brief This file contains the Shared Peripheral Bus Arbiter (spba) API.
+- *
+- * @ingroup SPBA
+- */
+-
+-#ifndef __ASM_ARCH_MXC_SPBA_H__
+-#define __ASM_ARCH_MXC_SPBA_H__
+-
+-#ifdef __KERNEL__
+-
+-#define MXC_SPBA_RAR_MASK       0x7
+-
+-/*!
+- * Defines three SPBA masters: A - ARM, C - SDMA (no master B for MX31)
+- */
+-enum spba_masters {
+-	SPBA_MASTER_A = 1,
+-	SPBA_MASTER_B = 2,
+-	SPBA_MASTER_C = 4,
+-};
+-
+-/*!
+- * This function allows the three masters (A, B, C) to take ownership of a
+- * shared peripheral.
+- *
+- * @param  mod          specified module as defined in \b enum \b #spba_module
+- * @param  master       one of more (or-ed together) masters as defined in \b enum \b #spba_masters
+- *
+- * @return 0 if successful; -1 otherwise.
+- */
+-int spba_take_ownership(int mod, int master);
+-
+-/*!
+- * This function releases the ownership for a shared peripheral.
+- *
+- * @param  mod          specified module as defined in \b enum \b #spba_module
+- * @param  master       one of more (or-ed together) masters as defined in \b enum \b #spba_masters
+- *
+- * @return 0 if successful; -1 otherwise.
+- */
+-int spba_rel_ownership(int mod, int master);
+-
+-#endif				/* __KERNEL__ */
+-
+-#endif				/* __ASM_ARCH_MXC_SPBA_H__ */
+diff --git a/arch/arm/plat-mxc/spba.c b/arch/arm/plat-mxc/spba.c
+deleted file mode 100644
+index a7f21a9..0000000
+--- a/arch/arm/plat-mxc/spba.c
++++ /dev/null
+@@ -1,133 +0,0 @@
+-/*
+- * Copyright 2004-2009 Freescale Semiconductor, Inc. All Rights Reserved.
+- */
+-
+-/*
+- * The code contained herein is licensed under the GNU General Public
+- * License. You may obtain a copy of the GNU General Public License
+- * Version 2 or later at the following locations:
+- *
+- * http://www.opensource.org/licenses/gpl-license.html
+- * http://www.gnu.org/copyleft/gpl.html
+- */
+-
+-#include <linux/types.h>
+-#include <linux/clk.h>
+-#include <linux/module.h>
+-#include <linux/io.h>
+-#include <mach/hardware.h>
+-#include <mach/spba.h>
+-
+-/*!
+- * @file plat-mxc/spba.c
+- *
+- * @brief This file contains the SPBA API implementation details.
+- *
+- * @ingroup SPBA
+- */
+-
+-static DEFINE_SPINLOCK(spba_lock);
+-
+-#define SPBA_MASTER_MIN                 1
+-#define SPBA_MASTER_MAX                 7
+-
+-/*!
+- * the base addresses for the SPBA modules
+- */
+-static unsigned long spba_base = (unsigned long)IO_ADDRESS(SPBA_CTRL_BASE_ADDR);
+-
+-/*!
+- * SPBA clock
+- */
+-static struct clk *spba_clk;
+-/*!
+- * This function allows the three masters (A, B, C) to take ownership of a
+- * shared peripheral.
+- *
+- * @param  mod          specified module as defined in \b enum \b #spba_module
+- * @param  master       one of more (or-ed together) masters as defined in \b enum \b #spba_masters
+- *
+- * @return 0 if successful; -1 otherwise.
+- */
+-int spba_take_ownership(int mod, int master)
+-{
+-	unsigned long spba_flags;
+-	__u32 rtn_val = -1;
+-
+-	if (master < SPBA_MASTER_MIN || master > SPBA_MASTER_MAX) {
+-		printk("spba_take_ownership() invalide master= %d\n", master);
+-		BUG();		/* oops */
+-	}
+-
+-	if (spba_clk == NULL)
+-		spba_clk = clk_get(NULL, "spba_clk");
+-
+-	clk_enable(spba_clk);
+-
+-	spin_lock_irqsave(&spba_lock, spba_flags);
+-	__raw_writel(master, spba_base + mod);
+-
+-	if ((__raw_readl(spba_base + mod) & MXC_SPBA_RAR_MASK) == master) {
+-		rtn_val = 0;
+-	}
+-
+-	spin_unlock_irqrestore(&spba_lock, spba_flags);
+-
+-	clk_disable(spba_clk);
+-	return rtn_val;
+-}
+-
+-/*!
+- * This function releases the ownership for a shared peripheral.
+- *
+- * @param  mod          specified module as defined in \b enum \b #spba_module
+- * @param  master       one of more (or-ed together) masters as defined in \b enum \b #spba_masters
+- *
+- * @return 0 if successful; -1 otherwise.
+- */
+-int spba_rel_ownership(int mod, int master)
+-{
+-	unsigned long spba_flags;
+-	volatile unsigned long rar;
+-
+-	if (master < SPBA_MASTER_MIN || master > SPBA_MASTER_MAX) {
+-		printk("spba_take_ownership() invalide master= %d\n", master);
+-		BUG();		/* oops */
+-	}
+-
+-	if (spba_clk == NULL)
+-		spba_clk = clk_get(NULL, "spba_clk");
+-
+-	clk_enable(spba_clk);
+-
+-	if ((__raw_readl(spba_base + mod) & master) == 0) {
+-		clk_disable(spba_clk);
+-		return 0;	/* does not own it */
+-	}
+-
+-	spin_lock_irqsave(&spba_lock, spba_flags);
+-
+-	/* Since only the last 3 bits are writeable, doesn't need to mask off
+-	   bits 31-3 */
+-	rar = __raw_readl(spba_base + mod) & (~master);
+-	__raw_writel(rar, spba_base + mod);
+-
+-	if ((__raw_readl(spba_base + mod) & master) != 0) {
+-		spin_unlock_irqrestore(&spba_lock, spba_flags);
+-		clk_disable(spba_clk);
+-		return -1;
+-	}
+-
+-	spin_unlock_irqrestore(&spba_lock, spba_flags);
+-
+-	clk_disable(spba_clk);
+-
+-	return 0;
+-}
+-
+-EXPORT_SYMBOL(spba_take_ownership);
+-EXPORT_SYMBOL(spba_rel_ownership);
+-
+-MODULE_AUTHOR("Freescale Semiconductor, Inc.");
+-MODULE_DESCRIPTION("SPBA");
+-MODULE_LICENSE("GPL");
+diff --git a/drivers/mxc/security/sahara2/sah_driver_interface.c b/drivers/mxc/security/sahara2/sah_driver_interface.c
+index 7029bc5..1b9ac7a 100644
+--- a/drivers/mxc/security/sahara2/sah_driver_interface.c
++++ b/drivers/mxc/security/sahara2/sah_driver_interface.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2004-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2004-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -44,8 +44,6 @@
+ #include <linux/proc_fs.h>
+ #endif
+ 
+-#include <mach/spba.h>
+-
+ #ifdef PERF_TEST
+ #define interruptible_sleep_on(x) sah_Handle_Interrupt()
+ #endif
+@@ -193,17 +191,6 @@ OS_DEV_INIT(sah_init)
+ 	}
+ #endif
+ 
+-	/* Check for SPBA need */
+-#if defined(CONFIG_ARCH_MXC91231) || defined(CONFIG_ARCH_MXC91321)
+-	/* This needs to be a PLATFORM abstraction */
+-	if (spba_take_ownership(SPBA_SAHARA, SPBA_MASTER_A)) {
+-#ifdef DIAG_DRV_IF
+-		LOG_KDIAG("Sahara driver could not take ownership of Sahara\n");
+-#endif
+-		os_error_code = OS_ERROR_FAIL_S;
+-	}
+-#endif				/* SPBA */
+-
+ 	if (os_error_code == OS_ERROR_OK_S) {
+ 		sah_hw_version = sah_HW_Read_Version();
+ 		os_printk("Sahara HW Version is 0x%08x\n", sah_hw_version);
+diff --git a/sound/soc/imx/imx-3stack-sgtl5000.c b/sound/soc/imx/imx-3stack-sgtl5000.c
+index 95978fd..da9f603 100644
+--- a/sound/soc/imx/imx-3stack-sgtl5000.c
++++ b/sound/soc/imx/imx-3stack-sgtl5000.c
+@@ -1,7 +1,7 @@
+ /*
+  * imx-3stack-sgtl5000.c  --  i.MX 3Stack Driver for Freescale SGTL5000 Codec
+  *
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  *
+  *  This program is free software; you can redistribute  it and/or modify it
+  *  under  the terms of  the GNU General  Public License as published by the
+@@ -32,7 +32,6 @@
+ #include <sound/initval.h>
+ 
+ #include <mach/dma.h>
+-#include <mach/spba.h>
+ #include <mach/clock.h>
+ 
+ #include "../codecs/sgtl5000.h"
+diff --git a/sound/soc/imx/imx-3stack-wm8350.c b/sound/soc/imx/imx-3stack-wm8350.c
+index fb1c019..14138a6 100644
+--- a/sound/soc/imx/imx-3stack-wm8350.c
++++ b/sound/soc/imx/imx-3stack-wm8350.c
+@@ -2,7 +2,7 @@
+  * imx-3stack-wm8350.c  --  i.MX 3Stack Driver for Wolfson WM8350 Codec
+  *
+  * Copyright 2007 Wolfson Microelectronics PLC.
+- * Copyright 2007-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2007-2010 Freescale Semiconductor, Inc.
+  *
+  * Author: Liam Girdwood
+  *         liam.girdwood@wolfsonmicro.com or linux@wolfsonmicro.com
+@@ -39,7 +39,6 @@
+ #include <sound/initval.h>
+ 
+ #include <mach/dma.h>
+-#include <mach/spba.h>
+ #include <mach/clock.h>
+ 
+ #include "../codecs/wm8350.h"
+diff --git a/sound/soc/imx/imx-pcm.c b/sound/soc/imx/imx-pcm.c
+index 3caec6a..2487d92 100644
+--- a/sound/soc/imx/imx-pcm.c
++++ b/sound/soc/imx/imx-pcm.c
+@@ -2,11 +2,12 @@
+  * imx-pcm.c -- ALSA SoC interface for the Freescale i.MX3 CPU's
+  *
+  * Copyright 2006 Wolfson Microelectronics PLC.
++ * Copyright (C) 2006-2010 Freescale Semiconductor, Inc.
+  * Author: Liam Girdwood
+  *         liam.girdwood@wolfsonmicro.com or linux@wolfsonmicro.com
+  *
+  * Based on imx31-pcm.c by Nicolas Pitre, (C) 2004 MontaVista Software, Inc.
+- * and on mxc-alsa-mc13783 (C) 2006-2009 Freescale.
++ * and on mxc-alsa-mc13783 (C) 2006 Freescale.
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License version 2 as
+@@ -26,7 +27,6 @@
+ #include <sound/pcm_params.h>
+ #include <sound/soc.h>
+ #include <mach/dma.h>
+-#include <mach/spba.h>
+ #include <mach/clock.h>
+ #include <asm/mach-types.h>
+ #include <mach/hardware.h>
+-- 
+1.5.4.4
+

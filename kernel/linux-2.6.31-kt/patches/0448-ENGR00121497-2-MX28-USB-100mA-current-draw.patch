@@ -1,0 +1,387 @@
+From 68930b149682758dcf5dd0e5b296cefd3b7e22a6 Mon Sep 17 00:00:00 2001
+From: Frank Li <Frank.li@freescale.com>
+Date: Wed, 10 Mar 2010 15:20:22 +0800
+Subject: [PATCH] ENGR00121497-2 MX28 USB 100mA current draw
+
+Add USB 100mA limitation feature for mx28 to mach usb 2.0 current requirment
+
+Signed-off-by: Frank Li <Frank.li@freescale.com>
+---
+ arch/arm/mach-mx28/clock.c            |    3 +-
+ arch/arm/mach-mx28/power.c            |    2 +-
+ arch/arm/mach-mx28/usb_dr.c           |    6 +++-
+ arch/arm/plat-mxs/utmixc.c            |   23 +++++++++++-
+ drivers/power/Kconfig                 |    7 ++++
+ drivers/power/mxs/ddi_power_battery.c |    6 +++
+ drivers/power/mxs/linux.c             |   64 +++++++++++++++++++++++++++++----
+ drivers/usb/gadget/arcotg_udc.c       |   20 ++++++++---
+ drivers/usb/gadget/fsl_udc_core.c     |    9 +++--
+ include/linux/usb/fsl_xcvr.h          |    2 +
+ 10 files changed, 123 insertions(+), 19 deletions(-)
+
+diff --git a/arch/arm/mach-mx28/clock.c b/arch/arm/mach-mx28/clock.c
+index c62867b..9e342fd 100644
+--- a/arch/arm/mach-mx28/clock.c
++++ b/arch/arm/mach-mx28/clock.c
+@@ -531,6 +531,7 @@ static int cpu_set_rate(struct clk *clk, unsigned long rate)
+ static int cpu_set_parent(struct clk *clk, struct clk *parent)
+ {
+ 	int ret = -EINVAL;
++
+ 	if (clk->bypass_reg) {
+ 		if (parent == clk->parent)
+ 			return 0;
+@@ -540,7 +541,7 @@ static int cpu_set_parent(struct clk *clk, struct clk *parent)
+ 			ret = 0;
+ 		}
+ 		if (ret && (parent == &ref_cpu_clk)) {
+-			__raw_writel(0 << clk->bypass_bits,
++			__raw_writel(1 << clk->bypass_bits,
+ 				clk->bypass_reg + CLR_REGISTER);
+ 			ret = 0;
+ 		}
+diff --git a/arch/arm/mach-mx28/power.c b/arch/arm/mach-mx28/power.c
+index a7467fc..a1d2f91 100644
+--- a/arch/arm/mach-mx28/power.c
++++ b/arch/arm/mach-mx28/power.c
+@@ -500,7 +500,7 @@ static int __init regulators_init(void)
+ 	int retval = 0;
+ 	u32 vddio = __raw_readl(REGS_POWER_BASE + HW_POWER_VDDIOCTRL) & ~0x1f;
+ 	pr_debug("regulators_init \n");
+-	__raw_writel(vddio | 0x14, REGS_POWER_BASE + HW_POWER_VDDIOCTRL);
++	__raw_writel(vddio | 0xA, REGS_POWER_BASE + HW_POWER_VDDIOCTRL);
+ 	vdddbo_reg.parent = &vddd_reg;
+ 	mxs_register_regulator(&vddd_reg, MXS_VDDD, &vddd_init);
+ 	mxs_register_regulator(&vdddbo_reg, MXS_VDDDBO, &vdddbo_init);
+diff --git a/arch/arm/mach-mx28/usb_dr.c b/arch/arm/mach-mx28/usb_dr.c
+index c9dbe3d..0d43a65 100644
+--- a/arch/arm/mach-mx28/usb_dr.c
++++ b/arch/arm/mach-mx28/usb_dr.c
+@@ -143,4 +143,8 @@ void fsl_phy_set_power(struct fsl_xcvr_ops *this,
+ {
+ }
+ 
+-module_init(usb_dr_init);
++#ifdef CONFIG_MXS_VBUS_CURRENT_DRAW
++	fs_initcall(usb_dr_init);
++#else
++	module_init(usb_dr_init);
++#endif
+diff --git a/arch/arm/plat-mxs/utmixc.c b/arch/arm/plat-mxs/utmixc.c
+index a3b0175..1e9015d 100644
+--- a/arch/arm/plat-mxs/utmixc.c
++++ b/arch/arm/plat-mxs/utmixc.c
+@@ -36,13 +36,30 @@ extern void fsl_phy_usb_utmi_init(struct fsl_xcvr_ops *this);
+ extern void fsl_phy_usb_utmi_uninit(struct fsl_xcvr_ops *this);
+ extern void fsl_phy_set_power(struct fsl_xcvr_ops *this,
+ 			struct fsl_usb2_platform_data *pdata, int on);
++#include <mach/regs-power.h>
++#include <asm/io.h>
+ 
++
++static void set_vbus_draw(struct fsl_xcvr_ops *this,
++		struct fsl_usb2_platform_data *pdata, unsigned mA)
++{
++#ifdef CONFIG_MXS_VBUS_CURRENT_DRAW
++	if ((__raw_readl(REGS_POWER_BASE + HW_POWER_5VCTRL)
++		& BM_POWER_5VCTRL_CHARGE_4P2_ILIMIT) == 0x8000) {
++		printk(KERN_INFO "USB enumeration done,current limitation release\r\n");
++		__raw_writel(__raw_readl(REGS_POWER_BASE + HW_POWER_5VCTRL) |
++		BM_POWER_5VCTRL_CHARGE_4P2_ILIMIT, REGS_POWER_BASE +
++		HW_POWER_5VCTRL);
++	}
++#endif
++}
+ static struct fsl_xcvr_ops utmi_ops = {
+ 	.name = "utmi",
+ 	.xcvr_type = PORTSC_PTS_UTMI,
+ 	.init = fsl_phy_usb_utmi_init,
+ 	.uninit = fsl_phy_usb_utmi_uninit,
+ 	.set_vbus_power = fsl_phy_set_power,
++	.set_vbus_draw = set_vbus_draw,
+ };
+ 
+ extern void fsl_usb_xcvr_register(struct fsl_xcvr_ops *xcvr_ops);
+@@ -60,7 +77,11 @@ static void __exit utmixc_exit(void)
+ 	fsl_usb_xcvr_unregister(&utmi_ops);
+ }
+ 
+-module_init(utmixc_init);
++#ifdef CONFIG_MXS_VBUS_CURRENT_DRAW
++	fs_initcall(utmixc_init);
++#else
++	module_init(utmixc_init);
++#endif
+ module_exit(utmixc_exit);
+ 
+ MODULE_AUTHOR("Freescale Semiconductor, Inc.");
+diff --git a/drivers/power/Kconfig b/drivers/power/Kconfig
+index 8793ce6..f90ffbf 100644
+--- a/drivers/power/Kconfig
++++ b/drivers/power/Kconfig
+@@ -117,4 +117,11 @@ config BATTERY_MXS
+ 	  Say Y to enable support for the battery charger state machine
+ 	  for the Sigmatel MXS based SoC's.
+ 
++config MXS_VBUS_CURRENT_DRAW
++	tristate "MXS SoC USB2.0 VBUS Current Limitation"
++	depends on ARCH_MXS
++	help
++	  Say Y to enable 100mA limitation when USB vbus power on system
++	  before enumeration to match USB2.0 requirement.
++
+ endif # POWER_SUPPLY
+diff --git a/drivers/power/mxs/ddi_power_battery.c b/drivers/power/mxs/ddi_power_battery.c
+index c17b2da..101e38e 100644
+--- a/drivers/power/mxs/ddi_power_battery.c
++++ b/drivers/power/mxs/ddi_power_battery.c
+@@ -888,6 +888,12 @@ int ddi_power_init_battery(void)
+ 			power driver behavior may not be reliable \n");
+ 		ret = 1;
+ 	}
++	if ((__raw_readl(REGS_POWER_BASE + HW_POWER_BATTMONITOR) &
++		BM_POWER_BATTMONITOR_BATT_VAL) == 0) {
++		ret = 1;
++		printk(KERN_INFO "WARNING : No battery connected !\r\n");
++		return ret;
++	}
+ 
+ 	/* the following code to enable automatic battery measurement
+ 	 * should have already been enabled in the boot prep files.  Not
+diff --git a/drivers/power/mxs/linux.c b/drivers/power/mxs/linux.c
+index ce8b0e3..3cd173d 100644
+--- a/drivers/power/mxs/linux.c
++++ b/drivers/power/mxs/linux.c
+@@ -18,6 +18,7 @@
+ #include <linux/jiffies.h>
+ #include <linux/io.h>
+ #include <linux/sched.h>
++#include <linux/clk.h>
+ #include <mach/ddi_bc.h>
+ #include "ddi_bc_internal.h"
+ #include <linux/regulator/consumer.h>
+@@ -26,6 +27,7 @@
+ #include <mach/regs-power.h>
+ #include <mach/hardware.h>
+ #include <mach/irqs.h>
++#include <mach/clock.h>
+ #include <linux/delay.h>
+ #include <linux/proc_fs.h>
+ #include <linux/interrupt.h>
+@@ -229,9 +231,25 @@ static void check_and_handle_5v_connection(struct mxs_info *info)
+ 					_5v_connected_verified;
+ 				dev_info(info->dev,
+ 					"5v connection verified\n");
++#ifdef CONFIG_MXS_VBUS_CURRENT_DRAW
++	#ifdef CONFIG_USB_GADGET
++		/* if there is USB 2.0 current limitation requirement,
++		* waiting for USB enum done.
++		*/
++		if ((__raw_readl(REGS_POWER_BASE + HW_POWER_5VCTRL)
++			& BM_POWER_5VCTRL_CHARGE_4P2_ILIMIT) ==
++			(0x8 << BP_POWER_5VCTRL_CHARGE_4P2_ILIMIT)) {
++			dev_info(info->dev, "waiting USB enum done...\r\n");
++		}
++		while ((__raw_readl(REGS_POWER_BASE + HW_POWER_5VCTRL)
++			& BM_POWER_5VCTRL_CHARGE_4P2_ILIMIT)
++			== (0x8 << BP_POWER_5VCTRL_CHARGE_4P2_ILIMIT)) {
++			msleep(50);
++		}
++	#endif
++#endif
+ 				ddi_power_Enable4p2(450);
+ 
+-
+ 				/* part of handling for errata.  It is
+ 				 *  now "somewhat" safe to
+ 				 * turn on vddio interrupts again
+@@ -278,6 +296,12 @@ static void check_and_handle_5v_connection(struct mxs_info *info)
+ 				dev_info(info->dev,
+ 					"5v disconnection handled\n");
+ 
++				__raw_writel(__raw_readl(REGS_POWER_BASE +
++				HW_POWER_5VCTRL) &
++				(~BM_POWER_5VCTRL_CHARGE_4P2_ILIMIT)
++				| (0x8 << BP_POWER_5VCTRL_CHARGE_4P2_ILIMIT),
++				REGS_POWER_BASE + HW_POWER_5VCTRL);
++
+ 			}
+ 		}
+ 
+@@ -494,8 +518,7 @@ static void state_machine_work(struct work_struct *work)
+ 	}
+ 
+ 	/* if we made it here, we have a verified 5v connection */
+-
+-	if (is_ac_online()) {
++#ifndef CONFIG_MXS_VBUS_CURRENT_DRAW
+ 		if (info->is_ac_online)
+ 			goto done;
+ 
+@@ -518,7 +541,7 @@ static void state_machine_work(struct work_struct *work)
+ 		}
+ 		ddi_bc_SetEnable();
+ 		goto done;
+-	}
++#else
+ 
+ 	if (!is_usb_online())
+ 		goto out;
+@@ -557,7 +580,7 @@ static void state_machine_work(struct work_struct *work)
+ 	info->is_usb_online |= USB_REG_SET;
+ 
+ 	dev_info(info->dev, "changed power connection to usb/5v present\n");
+-
++#endif
+ 
+ done:
+ 	ddi_bc_StateMachine();
+@@ -1073,6 +1096,8 @@ static struct proc_dir_entry *power_fiq_proc;
+ 
+ static int __init mxs_bat_init(void)
+ {
++	struct clk *cpu, *pll0;
++
+ #ifdef POWER_FIQ
+ 	int ret;
+ 	ret = claim_fiq(&power_fiq);
+@@ -1118,6 +1143,28 @@ static int __init mxs_bat_init(void)
+ 	}
+ #endif
+ 
++#ifdef CONFIG_MXS_VBUS_CURRENT_DRAW
++	if (((__raw_readl(REGS_POWER_BASE + HW_POWER_5VCTRL) &
++		BM_POWER_5VCTRL_CHARGE_4P2_ILIMIT) == 0x8000)
++		&& ((__raw_readl(REGS_POWER_BASE + HW_POWER_5VCTRL) &
++		BM_POWER_5VCTRL_PWD_CHARGE_4P2) == 0)) {
++#ifdef CONFIG_USB_GADGET
++		printk(KERN_INFO "USB GADGET exist,wait USB enum done...\r\n");
++		while (((__raw_readl(REGS_POWER_BASE + HW_POWER_5VCTRL)
++			& BM_POWER_5VCTRL_CHARGE_4P2_ILIMIT) == 0x8000) &&
++			((__raw_readl(REGS_POWER_BASE + HW_POWER_5VCTRL) &
++			BM_POWER_5VCTRL_PWD_CHARGE_4P2) == 0))
++			;
++#else
++		printk(KERN_INFO "USB GADGET not exist,\
++		release current limit and let CPU clock up...\r\n");
++#endif
++	}
++	cpu = clk_get(NULL, "cpu");
++	pll0 = clk_get(NULL, "ref_cpu");
++	if (cpu->set_parent)
++		cpu->set_parent(cpu, pll0);
++#endif
+ 	return platform_driver_register(&mxs_batdrv);
+ }
+ 
+@@ -1125,8 +1172,11 @@ static void __exit mxs_bat_exit(void)
+ {
+ 	platform_driver_unregister(&mxs_batdrv);
+ }
+-
+-module_init(mxs_bat_init);
++#ifdef CONFIG_MXS_VBUS_CURRENT_DRAW
++	fs_initcall(mxs_bat_init);
++#else
++	module_init(mxs_bat_init);
++#endif
+ module_exit(mxs_bat_exit);
+ 
+ MODULE_LICENSE("GPL");
+diff --git a/drivers/usb/gadget/arcotg_udc.c b/drivers/usb/gadget/arcotg_udc.c
+index 2f7612d..58bb833 100644
+--- a/drivers/usb/gadget/arcotg_udc.c
++++ b/drivers/usb/gadget/arcotg_udc.c
+@@ -1356,10 +1356,16 @@ static int fsl_vbus_session(struct usb_gadget *gadget, int is_active)
+ static int fsl_vbus_draw(struct usb_gadget *gadget, unsigned mA)
+ {
+ 	struct fsl_udc *udc;
++	struct fsl_usb2_platform_data *pdata;
+ 
+ 	udc = container_of(gadget, struct fsl_udc, gadget);
+ 	if (udc->transceiver)
+ 		return otg_set_power(udc->transceiver, mA);
++	pdata = udc->pdata;
++	if (pdata->xcvr_ops && pdata->xcvr_ops->set_vbus_draw) {
++		pdata->xcvr_ops->set_vbus_draw(pdata->xcvr_ops, pdata, mA);
++		return 0;
++	}
+ 	return -ENOTSUPP;
+ }
+ 
+@@ -1515,7 +1521,8 @@ static void setup_received_irq(struct fsl_udc *udc,
+ 	u16 wValue = le16_to_cpu(setup->wValue);
+ 	u16 wIndex = le16_to_cpu(setup->wIndex);
+ 	u16 wLength = le16_to_cpu(setup->wLength);
+-
++	struct usb_gadget *gadget = &(udc->gadget);
++	unsigned mA = 500;
+ 	udc_reset_ep_queue(udc, 0);
+ 
+ 	if (wLength) {
+@@ -1544,7 +1551,8 @@ static void setup_received_irq(struct fsl_udc *udc,
+ 			break;
+ 		ch9setaddress(udc, wValue, wIndex, wLength);
+ 		return;
+-
++	case USB_REQ_SET_CONFIGURATION:
++		fsl_vbus_draw(gadget, mA);
+ 	case USB_REQ_CLEAR_FEATURE:
+ 	case USB_REQ_SET_FEATURE:
+ 		/* Status phase from udc */
+@@ -3069,9 +3077,11 @@ static int __init udc_init(void)
+ 	printk(KERN_INFO "%s (%s)\n", driver_desc, DRIVER_VERSION);
+ 	return platform_driver_register(&udc_driver);
+ }
+-
+-module_init(udc_init);
+-
++#ifdef CONFIG_MXS_VBUS_CURRENT_DRAW
++	fs_initcall(udc_init);
++#else
++	module_init(udc_init);
++#endif
+ static void __exit udc_exit(void)
+ {
+ 	platform_driver_unregister(&udc_driver);
+diff --git a/drivers/usb/gadget/fsl_udc_core.c b/drivers/usb/gadget/fsl_udc_core.c
+index 42a74b8..2b8c435 100644
+--- a/drivers/usb/gadget/fsl_udc_core.c
++++ b/drivers/usb/gadget/fsl_udc_core.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright (C) 2004-2007 Freescale Semicondutor, Inc. All rights reserved.
++ * Copyright (C) 2004-2010 Freescale Semicondutor, Inc. All rights reserved.
+  *
+  * Author: Li Yang <leoli@freescale.com>
+  *         Jiang Bo <tanya.jiang@freescale.com>
+@@ -2475,8 +2475,11 @@ static int __init udc_init(void)
+ 	return platform_driver_probe(&udc_driver, fsl_udc_probe);
+ }
+ 
+-module_init(udc_init);
+-
++#ifdef CONFIG_MXS_VBUS_CURRENT_DRAW
++	fs_initcall(udc_init);
++#else
++	module_init(udc_init);
++#endif
+ static void __exit udc_exit(void)
+ {
+ 	platform_driver_unregister(&udc_driver);
+diff --git a/include/linux/usb/fsl_xcvr.h b/include/linux/usb/fsl_xcvr.h
+index 9a48bb6..3708715 100644
+--- a/include/linux/usb/fsl_xcvr.h
++++ b/include/linux/usb/fsl_xcvr.h
+@@ -31,6 +31,8 @@ struct fsl_xcvr_ops {
+ 	void (*set_device)(void);
+ 	void (*set_vbus_power)(struct fsl_xcvr_ops *ops,
+ 			       struct fsl_usb2_platform_data *pdata, int on);
++	void (*set_vbus_draw)(struct fsl_xcvr_ops *ops,
++			struct fsl_usb2_platform_data *pdata, unsigned mA);
+ 	void (*set_remote_wakeup)(u32 *view);
+ 	void (*pullup)(int on);
+ 	void(*set_test_mode)(u32 *view, enum usb_test_mode mode);
+-- 
+1.5.4.4
+

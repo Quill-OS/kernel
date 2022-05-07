@@ -1,0 +1,3624 @@
+From 5480d93e400fcf0d844050af0761825c4e694a6f Mon Sep 17 00:00:00 2001
+From: Patrick Turley <patrick.turley@freescale.com>
+Date: Tue, 10 Nov 2009 15:21:15 -0600
+Subject: [PATCH] ENGR00116517 [MX233_BSP] Port ThreadX SDK NAND Flash device identification
+
+Added the device identification and timing database. Adjusted the GPMI
+NAND Flash driver to use this information.
+
+Signed-off-by: Patrick Turley <patrick.turley@freescale.com>
+---
+ arch/arm/mach-stmp378x/include/mach/regs-gpmi.h |   11 +
+ arch/arm/mach-stmp378x/stmp378x_devb.c          |    2 +
+ arch/arm/plat-stmp3xxx/include/mach/gpmi.h      |    7 +
+ drivers/mtd/nand/gpmi/Makefile                  |    1 +
+ drivers/mtd/nand/gpmi/gpmi-base.c               |  798 +++++++-
+ drivers/mtd/nand/gpmi/gpmi-bbt.c                |   19 +-
+ drivers/mtd/nand/gpmi/gpmi.h                    |   47 +-
+ drivers/mtd/nand/gpmi/nand_device_info.c        | 2297 +++++++++++++++++++++++
+ drivers/mtd/nand/gpmi/nand_device_info.h        |  140 ++
+ drivers/mtd/nand/nand_ids.c                     |    2 +
+ include/linux/mtd/nand.h                        |    2 +
+ 11 files changed, 3220 insertions(+), 106 deletions(-)
+
+diff --git a/arch/arm/mach-stmp378x/include/mach/regs-gpmi.h b/arch/arm/mach-stmp378x/include/mach/regs-gpmi.h
+index 16b8e06..b53547f 100644
+--- a/arch/arm/mach-stmp378x/include/mach/regs-gpmi.h
++++ b/arch/arm/mach-stmp378x/include/mach/regs-gpmi.h
+@@ -3,6 +3,7 @@
+  *
+  * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
+  * Copyright 2008 Embedded Alley Solutions, Inc All Rights Reserved.
++ * Copyright 2009 Freescale Semiconductor, Inc. All Rights Reserved.
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+@@ -211,8 +212,18 @@
+ #define BM_GPMI_CTRL1_CE1_SEL	0x00200000
+ #define BM_GPMI_CTRL1_CE0_SEL	0x00100000
+ #define BM_GPMI_CTRL1_GANGED_RDYBUSY	0x00080000
++#define BM_GPMI_CTRL1_GPMI_MODE	0x00000001
++#define BP_GPMI_CTRL1_GPMI_MODE	0
++#define BM_GPMI_CTRL1_ATA_IRQRDY_POLARITY	0x00000004
++#define BM_GPMI_CTRL1_DEV_RESET	0x00000008
++#define BM_GPMI_CTRL1_TIMEOUT_IRQ	0x00000200
++#define BM_GPMI_CTRL1_DEV_IRQ	0x00000400
++#define BM_GPMI_CTRL1_RDN_DELAY	0x0000F000
++#define BP_GPMI_CTRL1_RDN_DELAY	12
+ #define BM_GPMI_CTRL1_BCH_MODE	0x00040000
++#define BP_GPMI_CTRL1_DLL_ENABLE	17
+ #define BM_GPMI_CTRL1_DLL_ENABLE	0x00020000
++#define BP_GPMI_CTRL1_HALF_PERIOD	16
+ #define BM_GPMI_CTRL1_HALF_PERIOD	0x00010000
+ #define BP_GPMI_CTRL1_RDN_DELAY	12
+ #define BM_GPMI_CTRL1_RDN_DELAY	0x0000F000
+diff --git a/arch/arm/mach-stmp378x/stmp378x_devb.c b/arch/arm/mach-stmp378x/stmp378x_devb.c
+index abfd516..56a9743 100644
+--- a/arch/arm/mach-stmp378x/stmp378x_devb.c
++++ b/arch/arm/mach-stmp378x/stmp378x_devb.c
+@@ -217,6 +217,8 @@ static const char *gpmi_partition_source_types[] = { "cmdlinepart", NULL };
+ 
+ static struct gpmi_platform_data gpmi_data = {
+ 	.io_uA                   = 70000,
++	.min_prop_delay_in_ns    = 5,
++	.max_prop_delay_in_ns    = 9,
+ 	.pinmux_handler          = gpmi_pinmux_handler,
+ 	.boot_area_size_in_bytes = 20 * SZ_1M,
+ 	.partitions              = 0,
+diff --git a/arch/arm/plat-stmp3xxx/include/mach/gpmi.h b/arch/arm/plat-stmp3xxx/include/mach/gpmi.h
+index c0cb85c..21a7647 100644
+--- a/arch/arm/plat-stmp3xxx/include/mach/gpmi.h
++++ b/arch/arm/plat-stmp3xxx/include/mach/gpmi.h
+@@ -16,6 +16,10 @@ extern void gpmi_pinmux_free(char *);
+  * that can't be expressed as resources.
+  *
+  * @io_uA:                   The current limit, in uA.
++ * @min_prop_delay_in_ns:    Minimum propagation delay of GPMI signals to and
++ *                           from the NAND Flash device, in nanoseconds.
++ * @max_prop_delay_in_ns:    Maximum propagation delay of GPMI signals to and
++ *                           from the NAND Flash device, in nanoseconds.
+  * @pinmux_handler:          A pointer to a function the driver will call to
+  *                           request or release the pins it needs. Pass true
+  *                           to request pins, and false to release them.
+@@ -49,6 +53,9 @@ struct gpmi_platform_data {
+ 
+ 	int                   io_uA;
+ 
++	unsigned              min_prop_delay_in_ns;
++	unsigned              max_prop_delay_in_ns;
++
+ 	int                   (*pinmux_handler)(bool request);
+ 
+ 	uint32_t              boot_area_size_in_bytes;
+diff --git a/drivers/mtd/nand/gpmi/Makefile b/drivers/mtd/nand/gpmi/Makefile
+index 4a4b50d..175327c 100644
+--- a/drivers/mtd/nand/gpmi/Makefile
++++ b/drivers/mtd/nand/gpmi/Makefile
+@@ -4,3 +4,4 @@ gpmi-objs += gpmi-hamming-22-16.o
+ gpmi-objs += gpmi-hamming-13-8.o
+ gpmi-objs += gpmi-bch.o
+ gpmi-objs += gpmi-ecc8.o
++gpmi-objs += nand_device_info.o
+diff --git a/drivers/mtd/nand/gpmi/gpmi-base.c b/drivers/mtd/nand/gpmi/gpmi-base.c
+index 93221da..ae958d3 100644
+--- a/drivers/mtd/nand/gpmi/gpmi-base.c
++++ b/drivers/mtd/nand/gpmi/gpmi-base.c
+@@ -15,6 +15,8 @@
+  * http://www.opensource.org/licenses/gpl-license.html
+  * http://www.gnu.org/copyleft/gpl.html
+  */
++
++#include <linux/kernel.h>
+ #include <linux/io.h>
+ #include <linux/module.h>
+ #include <linux/platform_device.h>
+@@ -39,6 +41,55 @@
+ #include <mach/regs-gpmi.h>
+ #include <mach/dma.h>
+ #include "gpmi.h"
++#include "nand_device_info.h"
++
++/* Macro definitions for the i.MX23. Some will be different for other SoC's. */
++
++#define MAX_DATA_SETUP_CYCLES \
++		(BM_GPMI_TIMING0_DATA_SETUP >> BP_GPMI_TIMING0_DATA_SETUP)
++
++#define MAX_DATA_SAMPLE_DELAY_CYCLES \
++		((uint32_t)(BM_GPMI_CTRL1_RDN_DELAY >> BP_GPMI_CTRL1_RDN_DELAY))
++
++/* Right shift value to get the frational GPMI time for data delay. */
++#define GPMI_DELAY_SHIFT                   (3)
++
++/* Max GPMI clock period the GPMI DLL can tolerate. */
++#define GPMI_MAX_DLL_PERIOD_NS             (32)
++
++/*
++ * The threshold for the GPMI clock period above which the DLL requires a divide
++ * by two.
++ */
++#define GPMI_DLL_HALF_THRESHOLD_PERIOD_NS  (16)
++
++/* The number of GPMI clock cycles to wait for use of GPMI after DLL enable. */
++#define GPMI_WAIT_CYCLES_AFTER_DLL_ENABLE  (64)
++
++/* The time in nanoseconds required for GPMI data read internal setup. */
++#define GPMI_DATA_SETUP_NS                 (0)
++
++/* The time in nanoseconds required for GPMI data read internal setup */
++#define GPMI_MAX_HARDWARE_DELAY_NS         ((uint32_t)(16))
++
++/*
++ * Max data delay possible for the GPMI.
++ *
++ * Use the min of the time (16 nS) or what will fit in the register. If the GPMI
++ * clock period is greater than GPMI_MAX_DLL_PERIOD_NS then can't use the delay.
++ *
++ * Where:
++ *
++ *     c  is the GPMI clock period in nanoseconds.
++ *     f  is the GPMI data sample delay fraction.
++ *
++ */
++#define GPMI_GET_MAX_DELAY_NS(c, f)  \
++	(\
++	(c >= GPMI_MAX_DLL_PERIOD_NS) ? 0 :\
++	min(GPMI_MAX_HARDWARE_DELAY_NS, \
++				((MAX_DATA_SAMPLE_DELAY_CYCLES * c) / f)) \
++	)
+ 
+ /*
+  * Set this variable to a value greater than zero to see varying levels of
+@@ -125,10 +176,13 @@ static void gpmi_read_buf(struct mtd_info *mtd, uint8_t * buf, int len);
+  */
+ 
+ struct gpmi_nand_timing gpmi_safe_timing = {
+-	.address_setup = 25,
+-	.data_setup = 80,
+-	.data_hold = 60,
+-	.dsample_time = 6,
++	.data_setup_in_ns        = 80,
++	.data_hold_in_ns         = 60,
++	.address_setup_in_ns     = 25,
++	.gpmi_sample_delay_in_ns = 6,
++	.tREA_in_ns              = -1,
++	.tRLOH_in_ns             = -1,
++	.tRHOH_in_ns             = -1,
+ };
+ 
+ /*
+@@ -162,8 +216,9 @@ static struct nand_ecclayout gpmi_oob_64 = {
+  *
+  * @ntime:   The time in nanoseconds.
+  * @period:  The GPMI clock period.
++ * @min:     The minimum allowable number of cycles.
+  */
+-static inline u32 gpmi_cycles_ceil(u32 ntime, u32 period)
++static inline u32 gpmi_cycles_ceil(u32 ntime, u32 period, u32 min)
+ {
+ 	int k;
+ 
+@@ -174,14 +229,8 @@ static inline u32 gpmi_cycles_ceil(u32 ntime, u32 period)
+ 
+ 	k = (ntime + period - 1) / period;
+ 
+-	/*
+-	 * A cycle count of less than 1 can fatally confuse the hardware.
+-	 */
+-
+-	if (k == 0)
+-		k++;
++	return max(k, (int)min);
+ 
+-	return k;
+ }
+ 
+ /**
+@@ -231,58 +280,513 @@ static void gpmi_self_wakeup(struct gpmi_nand_data *g)
+ /**
+  * gpmi_set_timings - Set GPMI timings.
+  *
+- * @pdev: A pointer to the owning platform device.
+- * @tm:   A pointer to the new timings.
++ * This function adjusts the GPMI hardware timing registers. If the override
++ * parameter is NULL, this function will use the timings specified in the per-
++ * device data. Otherwise, it will apply the given timings.
++ *
++ * @g:         Per-device data.
++ * @override:  If not NULL, override the timings in the per-device data.
+  */
+-void gpmi_set_timings(struct platform_device *pdev, struct gpmi_nand_timing *tm)
++void gpmi_set_timings(struct gpmi_nand_data *g,
++					struct gpmi_nand_timing *override)
+ {
+-	struct gpmi_nand_data *g = platform_get_drvdata(pdev);
+-	u32 period_ns = 1000000 / clk_get_rate(g->clk) + 1;
+-	u32 address_cycles, data_setup_cycles;
+-	u32 data_hold_cycles, data_sample_cycles;
+-	u32 busy_timeout;
+-	u32 t0;
++	struct gpmi_platform_data  *gpd = g->gpd;
++	struct gpmi_nand_timing    target;
++
++	bool      dynamic_timing_is_available;
++	uint32_t  gpmi_delay_fraction;
++	uint32_t  gpmi_max_delay_in_ns;
++	uint32_t  address_setup_in_cycles;
++	uint32_t  data_setup_in_ns;
++	uint32_t  data_setup_in_cycles;
++	uint32_t  data_hold_in_cycles;
++	int32_t   data_sample_delay_in_ns;
++	uint32_t  data_sample_delay_in_cycles;
++	int32_t   tEYE;
++	uint32_t  gpmi_clock_period_in_ns = 1000000 / clk_get_rate(g->clk) + 1;
++	uint32_t  min_prop_delay_in_ns = gpd->min_prop_delay_in_ns;
++	uint32_t  max_prop_delay_in_ns = gpd->max_prop_delay_in_ns;
++	uint32_t  busy_timeout_in_cycles;
++	uint32_t  register_image;
++	uint32_t  dll_wait_time_in_us;
++
++	/* Wake up. */
+ 
+ 	if (g->self_suspended)
+ 		gpmi_self_wakeup(g);
++
+ 	g->use_count++;
+ 
+-	g->timing = *tm;
++	/* Figure out where we're getting our new timing. */
++
++	if (override)
++		target = *override;
++	else {
++		target.data_setup_in_ns      = g->device_info.data_setup_in_ns;
++		target.data_hold_in_ns       = g->device_info.data_hold_in_ns;
++		target.address_setup_in_ns   =
++					g->device_info.address_setup_in_ns;
++		target.gpmi_sample_delay_in_ns =
++					g->device_info.gpmi_sample_delay_in_ns;
++		target.tREA_in_ns            = g->device_info.tREA_in_ns;
++		target.tRLOH_in_ns           = g->device_info.tRLOH_in_ns;
++		target.tRHOH_in_ns           = g->device_info.tRHOH_in_ns;
++	}
++
++	/* Check if dynamic timing information is available. */
++
++	dynamic_timing_is_available = 0;
++
++	if ((target.tREA_in_ns  >= 0) &&
++	    (target.tRLOH_in_ns >= 0) &&
++	    (target.tRHOH_in_ns >= 0))
++		dynamic_timing_is_available = !0;
++
++	/* Reset the DLL and sample delay to known values. */
++
++	stmp3xxx_clearl(
++		BM_GPMI_CTRL1_RDN_DELAY | BM_GPMI_CTRL1_DLL_ENABLE,
++					REGS_GPMI_BASE + HW_GPMI_CTRL1);
++
++	/*
++	 * Check how fast the GPMI clock is running. If it's running very
++	 * slowly, we'll need to use half-periods.
++	 */
++
++	if (gpmi_clock_period_in_ns > GPMI_DLL_HALF_THRESHOLD_PERIOD_NS) {
++
++		/*
++		 * The GPMI clock period is high enough that the DLL
++		 * requires a divide by two.
++		 */
++
++		register_image = __raw_readl(REGS_GPMI_BASE + HW_GPMI_CTRL1);
++		register_image |= BM_GPMI_CTRL1_HALF_PERIOD;
++		__raw_writel(register_image, REGS_GPMI_BASE + HW_GPMI_CTRL1);
++
++		gpmi_delay_fraction = GPMI_DELAY_SHIFT + 1;
++
++	} else {
++
++		gpmi_delay_fraction = GPMI_DELAY_SHIFT;
++
++	}
++
++	gpmi_max_delay_in_ns =
++			GPMI_GET_MAX_DELAY_NS(gpmi_clock_period_in_ns,
++							gpmi_delay_fraction);
++
++	busy_timeout_in_cycles = gpmi_cycles_ceil(10000000 / 4096,
++						gpmi_clock_period_in_ns, 0);
++
++	/*
++	 * The hardware quantizes the setup and hold parameters to intervals of
++	 * the GPMI clock period.
++	 *
++	 * Quantize the setup and hold parameters to the next-highest GPMI clock
++	 * period to make sure we use at least the requested times.
++	 *
++	 * For data setup and data hold, the chip interprets a value of zero as
++	 * the largest amount of delay supported. This is not what's intended by
++	 * a zero in the input parameter, so we modify the zero input parameter
++	 * to the smallest supported value.
++	 */
++
++	address_setup_in_cycles = gpmi_cycles_ceil(target.address_setup_in_ns,
++						gpmi_clock_period_in_ns, 0);
++	data_setup_in_cycles    = gpmi_cycles_ceil(target.data_setup_in_ns,
++						gpmi_clock_period_in_ns, 1);
++	data_hold_in_cycles     = gpmi_cycles_ceil(target.data_hold_in_ns,
++						gpmi_clock_period_in_ns, 1);
++
++	/*
++	 * Check if dynamic timing is available. If not, we have to use a
++	 * simpler algorithm for computing the values we put in the hardware
++	 * registers.
++	 */
++
++	if (!dynamic_timing_is_available) {
++
++		/*
++		 * Get the delay time and include the required chip read setup
++		 * time.
++		 */
++
++		data_sample_delay_in_ns =
++			target.gpmi_sample_delay_in_ns + GPMI_DATA_SETUP_NS;
++
++		/*
++		 * Extend the data setup time as needed to reduce delay time
++		 * below the max supported by hardware. Also keep it in the
++		 * allowable range
++		 */
++
++		while ((data_sample_delay_in_ns > gpmi_max_delay_in_ns) &&
++			(data_setup_in_cycles < MAX_DATA_SETUP_CYCLES)) {
++
++			data_setup_in_cycles++;
++			data_sample_delay_in_ns -= gpmi_clock_period_in_ns;
+ 
+-	address_cycles = gpmi_cycles_ceil(tm->address_setup, period_ns);
+-	data_setup_cycles = gpmi_cycles_ceil(tm->data_setup, period_ns);
+-	data_hold_cycles = gpmi_cycles_ceil(tm->data_hold, period_ns);
+-	data_sample_cycles = gpmi_cycles_ceil(tm->dsample_time + period_ns / 4,
+-					      period_ns / 2);
+-	busy_timeout = gpmi_cycles_ceil(10000000 / 4096, period_ns);
++			if (data_sample_delay_in_ns < 0)
++				data_sample_delay_in_ns = 0;
+ 
+-	dev_dbg(&pdev->dev,
+-		"%s: ADDR %u, DSETUP %u, DH %u, DSAMPLE %u, BTO %u\n",
++		}
++
++		/*
++		 * Compute the number of cycles that corresponds to the data
++		 * sample delay.
++		 */
++
++		data_sample_delay_in_cycles =
++			gpmi_cycles_ceil(
++				gpmi_delay_fraction * data_sample_delay_in_ns,
++						gpmi_clock_period_in_ns, 0);
++
++		if (data_sample_delay_in_cycles > MAX_DATA_SAMPLE_DELAY_CYCLES)
++			data_sample_delay_in_cycles =
++						MAX_DATA_SAMPLE_DELAY_CYCLES;
++
++		/* Go set up the hadware. */
++
++		goto set_up_the_hardware;
++
++	}
++
++	/*
++	 * If control arrives here, we can use a more dynamic algorithm for
++	 * computing the hardware register values.
++	 */
++
++	/* Compute the data setup time for the given number of GPMI cycles. */
++
++	data_setup_in_ns = gpmi_clock_period_in_ns * data_setup_in_cycles;
++
++	/*
++	 * This accounts for chip specific GPMI read setup time on the
++	 * data sample circuit. See i.MX23 reference manual section
++	 * "14.3.4. High-Speed NAND Timing"
++	 */
++
++	max_prop_delay_in_ns += GPMI_DATA_SETUP_NS;
++
++	/*
++	 * Compute tEYE, the width of the data eye when reading from the
++	 * NAND Flash.
++	 *
++	 * Note that we use the quantized versions of setup and hold because the
++	 * hardware uses these quantized values, and these timings create the
++	 * eye.
++	 *
++	 * end of the eye = min_prop_delay_in_ns + target.tRHOH_in_ns +
++	 *                                                     data_setup_in_ns
++	 * start of the eye = max_prop_delay_in_ns + target.tREA_in_ns
++	 */
++
++	tEYE = ((int)min_prop_delay_in_ns +
++		    (int)target.tRHOH_in_ns + (int)data_setup_in_ns) -
++			((int)max_prop_delay_in_ns + (int)target.tREA_in_ns);
++
++	/*
++	 * The eye has to be open. Constrain tEYE to be greater than zero
++	 * and the number of data setup cycles to fit in the timing register.
++	 */
++
++	while ((tEYE <= 0) && (data_setup_in_cycles < MAX_DATA_SETUP_CYCLES)) {
++
++		/*
++		 * The eye is not open. An increase in data setup time causes a
++		 * coresponding increase to size of the eye.
++		 */
++
++		/* Give an additional DataSetup cycle. */
++		data_setup_in_cycles++;
++		/* Keep the data setup time in step with the cycles. */
++		data_setup_in_ns += gpmi_clock_period_in_ns;
++		/* And adjust tEYE accordingly. */
++		tEYE += gpmi_clock_period_in_ns;
++
++	}
++
++	/*
++	 * Compute the ideal point at which to sample the data at the center of
++	 * the eye.
++	 */
++
++	/*
++	 * Find the delay to get to the center of the eye, in time units.
++	 *
++	 * Delay for center of the eye:
++	 *
++	 *         ((end of the eye + start of the eye) / 2) - data_setup
++	 *
++	 * This simplifies to the following:
++	 */
++
++	data_sample_delay_in_ns =
++		((int)max_prop_delay_in_ns +
++			(int)target.tREA_in_ns +
++				(int)min_prop_delay_in_ns +
++					(int)target.tRHOH_in_ns -
++						(int)data_setup_in_ns) >> 1;
++
++	/* The chip can't handle a negative parameter for the sample point. */
++
++	if (data_sample_delay_in_ns < 0)
++		data_sample_delay_in_ns = 0;
++
++	/*
++	 * Make sure the required delay time does not exceed the max allowed
++	 * value. Also make sure the quantized delay time (at
++	 * data_sample_delay_in_cycles) is within the eye.
++	 *
++	 * Increasing data setup decreases the delay time required to get to
++	 * into the eye. Increasing data setup also moves the rear of the eye
++	 * back, enlarging the eye (helpful in the case where quantized delay
++	 * time does not fall inside the initial eye).
++	 *
++	 *          ____                 _______________________________________
++	 *  RDN         \_______________/
++	 *
++	 *                                           <----- tEYE ---->
++	 *                                         /-------------------\
++	 *  Read Data ----------------------------<                     >------
++	 *                                         \-------------------/
++	 *              ^               ^                    ^  tEYE/2      ^
++	 *              |               |                    |              |
++	 *              |<--DataSetup-->|<----DelayTime----->|              |
++	 *              |               |                    |              |
++	 *              |               |                                   |
++	 *              |               |<----Quantized DelayTime---------->|
++	 *              |               |                                   |
++	 */
++
++	/*
++	 * Extend the data setup time as needed to reduce delay time below the
++	 * max allowable value. Also keep data setup in the allowable range.
++	 */
++
++	while ((data_sample_delay_in_ns > gpmi_max_delay_in_ns) &&
++			(data_setup_in_cycles < MAX_DATA_SETUP_CYCLES)) {
++
++		/* Give an additional data setup cycle. */
++		data_setup_in_cycles++;
++		/* Keep the data setup time in step with the cycles. */
++		data_setup_in_ns += gpmi_clock_period_in_ns;
++		/* And adjust tEYE accordingly. */
++		tEYE += gpmi_clock_period_in_ns;
++
++		/*
++		 * Decrease the delay time by one half data setup cycle worth,
++		 * to keep in the middle of the eye.
++		 */
++		data_sample_delay_in_ns -= (gpmi_clock_period_in_ns >> 1);
++
++		/* Do not allow a delay time less than zero. */
++		if (data_sample_delay_in_ns < 0)
++			data_sample_delay_in_ns = 0;
++
++	}
++
++	/*
++	 * The sample delay time is expressed in the chip in units of fractions
++	 * of GPMI clocks. Convert the delay time to an integer quantity of
++	 * fractional GPMI cycles.
++	 */
++
++	data_sample_delay_in_cycles =
++		gpmi_cycles_ceil(
++			gpmi_delay_fraction * data_sample_delay_in_ns,
++						gpmi_clock_period_in_ns, 0);
++
++	if (data_sample_delay_in_cycles > MAX_DATA_SAMPLE_DELAY_CYCLES)
++		data_sample_delay_in_cycles = MAX_DATA_SAMPLE_DELAY_CYCLES;
++
++	#define DSAMPLE_IS_NOT_WITHIN_THE_DATA_EYE                         \
++		(tEYE>>1 < abs((int32_t)((data_sample_delay_in_cycles *  \
++		gpmi_clock_period_in_ns) / gpmi_delay_fraction) -          \
++		data_sample_delay_in_ns))
++
++	/*
++	 * While the quantized delay time is out of the eye, reduce the delay
++	 * time or extend the data setup time to get in the eye. Do not allow
++	 * the number of data setup cycles to exceed the max supported by
++	 * the hardware.
++	 */
++
++	while (DSAMPLE_IS_NOT_WITHIN_THE_DATA_EYE
++			&& (data_setup_in_cycles  < MAX_DATA_SETUP_CYCLES)) {
++
++		if (((data_sample_delay_in_cycles * gpmi_clock_period_in_ns) /
++				gpmi_delay_fraction) > data_sample_delay_in_ns){
++
++			/*
++			 * If the quantized delay time is greater than the max
++			 * reach of the eye, decrease the quantized delay time
++			 * to get it into the eye or before the eye.
++			 */
++
++			if (data_sample_delay_in_cycles != 0)
++				data_sample_delay_in_cycles--;
++
++		} else {
++
++			/*
++			 * If the quantized delay time is less than the min
++			 * reach of the eye, shift up the sample point by
++			 * increasing data setup. This will also open the eye
++			 * (helping get the quantized delay time in the eye).
++			 */
++
++			/* Give an additional data setup cycle. */
++			data_setup_in_cycles++;
++			/* Keep the data setup time in step with the cycles. */
++			data_setup_in_ns += gpmi_clock_period_in_ns;
++			/* And adjust tEYE accordingly. */
++			tEYE += gpmi_clock_period_in_ns;
++
++			/*
++			 * Decrease the delay time by one half data setup cycle
++			 * worth, to keep in the middle of the eye.
++			 */
++			data_sample_delay_in_ns -= (gpmi_clock_period_in_ns>>1);
++
++			/* ...and one less period for the delay time. */
++			data_sample_delay_in_ns -= gpmi_clock_period_in_ns;
++
++			/* Keep the delay time from going negative. */
++			if (data_sample_delay_in_ns < 0)
++				data_sample_delay_in_ns = 0;
++
++			/*
++			 * Convert time to GPMI cycles and make sure the number
++			 * of cycles fits in the coresponding hardware register.
++			 */
++
++			data_sample_delay_in_cycles =
++				gpmi_cycles_ceil(gpmi_delay_fraction *
++					data_sample_delay_in_ns,
++						gpmi_clock_period_in_ns, 0);
++
++			if (data_sample_delay_in_cycles >
++						MAX_DATA_SAMPLE_DELAY_CYCLES)
++				data_sample_delay_in_cycles =
++						MAX_DATA_SAMPLE_DELAY_CYCLES;
++
++
++		}
++
++	}
++
++	/*
++	 * Control arrives here when we've computed all the hardware register
++	 * values (using eithe the static or dynamic algorithm) and we're ready
++	 * to apply them.
++	 */
++
++set_up_the_hardware:
++
++	/* Set the values in the registers. */
++
++	dev_dbg(&g->dev->dev,
++		"%s: tAS %u, tDS %u, tDH %u, tDSAMPLE %u, tBTO %u\n",
+ 		__func__,
+-		address_cycles, data_setup_cycles, data_hold_cycles,
+-		data_sample_cycles, busy_timeout);
++		address_setup_in_cycles,
++		data_setup_in_cycles,
++		data_hold_in_cycles,
++		data_sample_delay_in_cycles,
++		busy_timeout_in_cycles
++		);
+ 
+-	t0 = BF(address_cycles, GPMI_TIMING0_ADDRESS_SETUP) |
+-	    BF(data_setup_cycles, GPMI_TIMING0_DATA_SETUP) |
+-	    BF(data_hold_cycles, GPMI_TIMING0_DATA_HOLD);
+-	__raw_writel(t0, REGS_GPMI_BASE + HW_GPMI_TIMING0);
++	/* Set up all the simple timing parameters. */
+ 
+-	__raw_writel(BF(busy_timeout, GPMI_TIMING1_DEVICE_BUSY_TIMEOUT),
+-		     REGS_GPMI_BASE + HW_GPMI_TIMING1);
++	register_image =
++		BF(address_setup_in_cycles, GPMI_TIMING0_ADDRESS_SETUP) |
++		BF(data_setup_in_cycles,    GPMI_TIMING0_DATA_SETUP)    |
++		BF(data_hold_in_cycles,     GPMI_TIMING0_DATA_HOLD)     ;
+ 
+-#ifdef CONFIG_ARCH_STMP378X
+-	stmp3xxx_clearl(BM_GPMI_CTRL1_RDN_DELAY,
+-			REGS_GPMI_BASE + HW_GPMI_CTRL1);
+-	stmp3xxx_setl(BF(data_sample_cycles, GPMI_CTRL1_RDN_DELAY),
+-		      REGS_GPMI_BASE + HW_GPMI_CTRL1);
+-#else
+-	stmp3xxx_clearl(BM_GPMI_CTRL1_DSAMPLE_TIME,
+-			REGS_GPMI_BASE + HW_GPMI_CTRL1);
+-	stmp3xxx_setl(BF(data_sample_cycles, GPMI_CTRL1_DSAMPLE_TIME),
+-		      REGS_GPMI_BASE + HW_GPMI_CTRL1);
+-#endif
++	__raw_writel(register_image, REGS_GPMI_BASE + HW_GPMI_TIMING0);
++
++	__raw_writel(BF(busy_timeout_in_cycles,
++			GPMI_TIMING1_DEVICE_BUSY_TIMEOUT),
++					REGS_GPMI_BASE + HW_GPMI_TIMING1);
++
++	/*
++	 * Hey - pay attention!
++	 *
++	 * DLL_ENABLE must be set to zero when setting RDN_DELAY or
++	 * HALF_PERIOD.
++	 */
++
++	/* BW_GPMI_CTRL1_DLL_ENABLE(0); */
++	stmp3xxx_clearl(BM_GPMI_CTRL1_DLL_ENABLE, REGS_GPMI_BASE+HW_GPMI_CTRL1);
++
++	if ((data_sample_delay_in_cycles == 0) ||
++			(gpmi_clock_period_in_ns > GPMI_MAX_DLL_PERIOD_NS)) {
++
++		/*
++		 * If no delay is desired, or if the GPMI clock period is out of
++		 * supported range, then don't enable the delay.
++		 */
++
++		/* BW_GPMI_CTRL1_RDN_DELAY(0); */
++		stmp3xxx_clearl(BM_GPMI_CTRL1_RDN_DELAY,
++						REGS_GPMI_BASE + HW_GPMI_CTRL1);
++		/* BW_GPMI_CTRL1_HALF_PERIOD(0); */
++		stmp3xxx_clearl(BM_GPMI_CTRL1_HALF_PERIOD,
++						REGS_GPMI_BASE + HW_GPMI_CTRL1);
++
++	} else {
++
++		/*
++		 * Set the delay and enable the DLL. GPMI_CTRL1_HALF_PERIOD is
++		 * assumed to have already been set properly.
++		 */
++
++		/* BW_GPMI_CTRL1_RDN_DELAY(data_sample_delay_in_cycles); */
++		register_image = __raw_readl(REGS_GPMI_BASE + HW_GPMI_CTRL1);
++		register_image &= ~BM_GPMI_CTRL1_RDN_DELAY;
++		register_image |=
++			(data_sample_delay_in_cycles << BP_GPMI_CTRL1_RDN_DELAY)
++						& BM_GPMI_CTRL1_RDN_DELAY;
++		__raw_writel(register_image, REGS_GPMI_BASE + HW_GPMI_CTRL1);
++
++		/* BW_GPMI_CTRL1_DLL_ENABLE(1); */
++		stmp3xxx_setl(BM_GPMI_CTRL1_DLL_ENABLE,
++						REGS_GPMI_BASE + HW_GPMI_CTRL1);
++
++		/*
++		 * After we enable the GPMI DLL, we have to wait
++		 * GPMI_WAIT_CYCLES_AFTER_DLL_ENABLE GPMI clock cycles before
++		 * we can use the GPMI interface.
++		 *
++		 * Calculate the amount of time we need to wait, in
++		 * microseconds.
++		 */
++
++		/*
++		 * Calculate the wait time and convert from nanoseconds to
++		 * microseconds.
++		 */
++
++		dll_wait_time_in_us =
++			(gpmi_clock_period_in_ns *
++				GPMI_WAIT_CYCLES_AFTER_DLL_ENABLE) / 1000;
++
++		if (!dll_wait_time_in_us)
++			dll_wait_time_in_us = 1;
++
++		/*
++		 * Wait for the DLL to settle.
++		 */
++
++		udelay(dll_wait_time_in_us);
++
++	}
++
++	/* Allow the driver to go back to sleep, if it wants to. */
+ 
+ 	g->use_count--;
++
+ }
+ 
+ /**
+@@ -1521,6 +2025,56 @@ static void gpmi_deinit_chip(struct platform_device *pdev,
+ }
+ 
+ /**
++ * gpmi_get_device_info() - Get information about the NAND Flash devices.
++ *
++ * @g:  Per-device data.
++ */
++static int gpmi_get_device_info(struct gpmi_nand_data *g)
++{
++	unsigned                 i;
++	uint8_t                  id_bytes[NAND_DEVICE_ID_BYTE_COUNT];
++	struct mtd_info          *mtd  = &g->mtd;
++	struct nand_chip         *nand = &g->nand;
++	struct nand_device_info  *info;
++
++	/* Read ID bytes from the first NAND Flash chip. */
++
++	nand->select_chip(mtd, 0);
++
++	gpmi_command(mtd, NAND_CMD_READID, 0x00, -1);
++
++	for (i = 0; i < NAND_DEVICE_ID_BYTE_COUNT; i++)
++		id_bytes[i] = nand->read_byte(mtd);
++
++	/* Get information about this device, based on the ID bytes. */
++
++	info = nand_device_get_info(id_bytes);
++
++	/* Check if we understand this device. */
++
++	if (!info) {
++		printk(KERN_ERR "Unrecognized NAND Flash device.\n");
++		return !0;
++	}
++
++	/*
++	 * Copy the device info into the per-device data. We can't just keep
++	 * the pointer because that storage is reclaimed after initialization.
++	 */
++
++	g->device_info = *info;
++
++	/* Display the information we got. */
++
++	nand_device_print_info(&g->device_info);
++
++	/* Return success. */
++
++	return 0;
++
++}
++
++/**
+  * gpmi_scan_middle - Intermediate initialization.
+  *
+  * @g:  Per-device data structure.
+@@ -1532,6 +2086,25 @@ static int gpmi_scan_middle(struct gpmi_nand_data *g)
+ {
+ 	int oobsize = 0;
+ 
++	/*
++	 * Hook the command function provided by the reference implementation.
++	 * This has to be done here, rather than at initialization time, because
++	 * the NAND Flash MTD installed the reference implementation only just
++	 * now.
++	 */
++
++	g->saved_command = g->nand.cmdfunc;
++	g->nand.cmdfunc = gpmi_command;
++
++	/* Identify the NAND Flash devices. */
++
++	if (gpmi_get_device_info(g))
++		return -ENXIO;
++
++	/* Update timings. */
++
++	gpmi_set_timings(g, 0);
++
+ 	/* Limit to 2G size due to Kernel larger 4G space support */
+ 	if (g->mtd.size == 0) {
+ 		g->mtd.size = 1 << 31;
+@@ -1581,16 +2154,6 @@ static int gpmi_scan_middle(struct gpmi_nand_data *g)
+ 		return -ERANGE;
+ 	}
+ 
+-	/*
+-	 * Hook the command function provided by the reference implementation.
+-	 * This has to be done here, rather than at initialization time, because
+-	 * the NAND Flash MTD installed the reference implementation only just
+-	 * now.
+-	 */
+-
+-	g->saved_command = g->nand.cmdfunc;
+-	g->nand.cmdfunc = gpmi_command;
+-
+ 	/* Install the ECC. */
+ 
+ 	if (oobsize > 0) {
+@@ -2168,8 +2731,6 @@ static int __init gpmi_nand_probe(struct platform_device *pdev)
+ 	} else
+ 		g->regulator = NULL;
+ 
+-	gpmi_set_timings(pdev, &gpmi_safe_timing);
+-
+ 	g->irq = r->start;
+ 	err = request_irq(g->irq, gpmi_irq, 0, dev_name(&pdev->dev), g);
+ 	if (err) {
+@@ -2211,6 +2772,10 @@ static int __init gpmi_nand_probe(struct platform_device *pdev)
+ 	g->selected_chip = -1;
+ 	g->ignorebad = ignorebad;	/* copy global setting */
+ 
++	/* Set up timings. */
++
++	gpmi_set_timings(g, &gpmi_safe_timing);
++
+ 	/* Register with MTD. */
+ 
+ 	if (gpmi_register_with_mtd(g))
+@@ -2341,7 +2906,7 @@ static int gpmi_nand_resume(struct platform_device *pdev)
+ 	 */
+ 
+ 	r = gpmi_nand_init_hw(pdev, 1);
+-	gpmi_set_timings(pdev, &g->timing);
++	gpmi_set_timings(g, 0);
+ 
+ 	/* Tell MTD it can use this device again. */
+ 
+@@ -2373,14 +2938,99 @@ static int gpmi_nand_resume(struct platform_device *pdev)
+ static ssize_t show_timings(struct device *d, struct device_attribute *attr,
+ 			    char *buf)
+ {
+-	struct gpmi_nand_timing *ptm;
+-	struct gpmi_nand_data *g = dev_get_drvdata(d);
++	struct gpmi_nand_data  *g = dev_get_drvdata(d);
++	uint32_t               register_image;
++	uint32_t               data_setup_in_cycles;
++	uint32_t               effective_data_setup_in_ns;
++	uint32_t               data_hold_in_cycles;
++	uint32_t               effective_data_hold_in_ns;
++	uint32_t               address_setup_in_cycles;
++	uint32_t               effective_address_setup_in_ns;
++	uint32_t               sample_delay_in_cycles;
++	uint32_t               effective_sample_delay_in_ns;
++	bool                   sample_delay_uses_half_period;
++	uint32_t               gpmi_clock_frequency_in_khz =
++					clk_get_rate(g->clk);
++	uint32_t               gpmi_clock_period_in_ns =
++					1000000 / gpmi_clock_frequency_in_khz;
++
++	/* Retrieve basic timing facts. */
++
++	register_image = __raw_readl(REGS_GPMI_BASE + HW_GPMI_TIMING0);
++
++	data_setup_in_cycles = (register_image & BM_GPMI_TIMING0_DATA_SETUP)
++						>> BP_GPMI_TIMING0_DATA_SETUP;
++	data_hold_in_cycles = (register_image & BM_GPMI_TIMING0_DATA_HOLD)
++						>> BP_GPMI_TIMING0_DATA_HOLD;
++	address_setup_in_cycles =
++				(register_image & BM_GPMI_TIMING0_ADDRESS_SETUP)
++					>> BP_GPMI_TIMING0_ADDRESS_SETUP;
++
++	effective_data_setup_in_ns =
++			data_setup_in_cycles * gpmi_clock_period_in_ns;
++	effective_data_hold_in_ns =
++			data_hold_in_cycles * gpmi_clock_period_in_ns;
++	effective_address_setup_in_ns =
++			address_setup_in_cycles * gpmi_clock_period_in_ns;
++
++	/* Retrieve facts about the sample delay. */
++
++	register_image = __raw_readl(REGS_GPMI_BASE + HW_GPMI_CTRL1);
++
++	sample_delay_in_cycles = (register_image & BM_GPMI_CTRL1_RDN_DELAY)
++						>> BP_GPMI_CTRL1_RDN_DELAY;
++
++	sample_delay_uses_half_period =
++		!!((register_image & BM_GPMI_CTRL1_HALF_PERIOD)
++						>> BP_GPMI_CTRL1_HALF_PERIOD);
++
++	effective_sample_delay_in_ns =
++			sample_delay_in_cycles * gpmi_clock_period_in_ns;
++
++	if (sample_delay_uses_half_period)
++		effective_sample_delay_in_ns >>= 1;
++
++	/* Show the results. */
++
++	return sprintf(buf,
++			"GPMI Clock Frequency   : %u KHz\n"
++			"GPMI Clock Period      : %u ns\n"
++			"Recorded  Data Setup   : %d ns\n"
++			"Hardware  Data Setup   : %u cycles\n"
++			"Effective Data Setup   : %u ns\n"
++			"Recorded  Data Hold    : %d ns\n"
++			"Hardware  Data Hold    : %u cycles\n"
++			"Effective Data Hold    : %u ns\n"
++			"Recorded  Address Setup: %d ns\n"
++			"Hardware  Address Setup: %u cycles\n"
++			"Effective Address Setup: %u ns\n"
++			"Recorded  Sample Delay : %d ns\n"
++			"Hardware  Sample Delay : %u cycles\n"
++			"Using Half Period      : %s\n"
++			"Effective Sample Delay : %u ns\n"
++			"Recorded tREA          : %d ns\n"
++			"Recorded tRLOH         : %d ns\n"
++			"Recorded tRHOH         : %d ns\n"
++			,
++			gpmi_clock_frequency_in_khz,
++			gpmi_clock_period_in_ns,
++			g->device_info.data_setup_in_ns,
++			data_setup_in_cycles,
++			effective_data_setup_in_ns,
++			g->device_info.data_hold_in_ns,
++			data_hold_in_cycles,
++			effective_data_hold_in_ns,
++			g->device_info.address_setup_in_ns,
++			address_setup_in_cycles,
++			effective_address_setup_in_ns,
++			g->device_info.gpmi_sample_delay_in_ns,
++			sample_delay_in_cycles,
++			(sample_delay_uses_half_period ? "Yes" : "No"),
++			effective_sample_delay_in_ns,
++			g->device_info.tREA_in_ns,
++			g->device_info.tRLOH_in_ns,
++			g->device_info.tRHOH_in_ns);
+ 
+-	ptm = &g->timing;
+-	return sprintf(buf, "DATA_SETUP %d, DATA_HOLD %d, "
+-		       "ADDR_SETUP %d, DSAMPLE_TIME %d\n",
+-		       ptm->data_setup, ptm->data_hold,
+-		       ptm->address_setup, ptm->dsample_time);
+ }
+ 
+ /**
+@@ -2399,10 +3049,10 @@ static ssize_t store_timings(struct device *d, struct device_attribute *attr,
+ 	struct gpmi_nand_data *g = dev_get_drvdata(d);
+ 	char tmps[20];
+ 	u8 *timings[] = {
+-		&t.data_setup,
+-		&t.data_hold,
+-		&t.address_setup,
+-		&t.dsample_time,
++		&t.data_setup_in_ns,
++		&t.data_hold_in_ns,
++		&t.address_setup_in_ns,
++		&t.gpmi_sample_delay_in_ns,
+ 		NULL,
+ 	};
+ 	u8 **timing = timings;
+@@ -2434,7 +3084,7 @@ static ssize_t store_timings(struct device *d, struct device_attribute *attr,
+ 		p = end + 1;
+ 	}
+ 
+-	gpmi_set_timings(g->dev, &t);
++	gpmi_set_timings(g, &t);
+ 
+ 	return size;
+ }
+diff --git a/drivers/mtd/nand/gpmi/gpmi-bbt.c b/drivers/mtd/nand/gpmi/gpmi-bbt.c
+index 7b58f6a..7c65801 100644
+--- a/drivers/mtd/nand/gpmi/gpmi-bbt.c
++++ b/drivers/mtd/nand/gpmi/gpmi-bbt.c
+@@ -529,24 +529,7 @@ int gpmi_scan_bbt(struct mtd_info *mtd)
+ 
+ 	/* Check if we found the NCB. */
+ 
+-	if (r) {
+-
+-		/*
+-		 * If control arrives here, the medium has an NCB and is
+-		 * therefore formatted for SigmaTel hardware. We want to use
+-		 * the timings from the NCB.
+-		 */
+-
+-		printk(KERN_NOTICE"Setting discovered timings: %d:%d:%d:%d\n",
+-			stmp_bbt.timing.data_setup,
+-			stmp_bbt.timing.data_hold,
+-			stmp_bbt.timing.address_setup,
+-			stmp_bbt.timing.dsample_time);
+-
+-		gpmi_set_timings(g->dev, &stmp_bbt.timing);
+-		g->timing = stmp_bbt.timing;
+-
+-	} else {
++	if (!r) {
+ 
+ 		/*
+ 		 * If control arrives here, the medium has no NCB, so we
+diff --git a/drivers/mtd/nand/gpmi/gpmi.h b/drivers/mtd/nand/gpmi/gpmi.h
+index 3e27365..5c0b669 100644
+--- a/drivers/mtd/nand/gpmi/gpmi.h
++++ b/drivers/mtd/nand/gpmi/gpmi.h
+@@ -30,6 +30,7 @@
+ #include <mach/regs-ecc8.h>
+ 
+ #include "gpmi-hamming-22-16.h"
++#include "nand_device_info.h"
+ 
+ #define GPMI_ECC4_WR \
+ 	(BM_GPMI_ECCCTRL_ENABLE_ECC | \
+@@ -55,22 +56,39 @@
+ /**
+  * struct gpmi_nand_timing - NAND Flash timing parameters.
+  *
+- * This structure contains the four fundamental timing attributes for the
+- * NAND Flash bus. These values are expressed in GPMI clock cycles or half
+- * cycles, depending on how the GPMI clock is configured. See the hardware
+- * reference manual for details.
++ * This structure contains the fundamental timing attributes for the NAND Flash
++ * bus.
+  *
+- * @data_setup:     The data setup time in nanoseconds.
+- * @data_hold:      The data hold time in nanoseconds.
+- * @address_setup:  The address setup time in nanoseconds.
+- * @dsample_time:   The data sample delay in nanoseconds.
++ * @data_setup_in_ns:          The data setup time, in nanoseconds. Usually the
++ *                             maximum of tDS and tWP. A negative value
++ *                             indicates this characteristic isn't known.
++ * @data_hold_in_ns:           The data hold time, in nanoseconds. Usually the
++ *                             maximum of tDH, tWH and tREH. A negative value
++ *                             indicates this characteristic isn't known.
++ * @address_setup_in_ns:       The address setup time, in nanoseconds. Usually
++ *                             the maximum of tCLS, tCS and tALS. A negative
++ *                             value indicates this characteristic isn't known.
++ * @gpmi_sample_time_in_ns:    A GPMI-specific timing parameter. A negative
++ *                             value indicates this characteristic isn't known.
++ * @tREA_in_ns:                tREA, in nanoseconds, from the data sheet. A
++ *                             negative value indicates this characteristic
++ *                             isn't known.
++ * @tRLOH_in_ns:               tRLOH, in nanoseconds, from the data sheet. A
++ *                             negative value indicates this characteristic
++ *                             isn't known.
++ * @tRHOH_in_ns:               tRHOH, in nanoseconds, from the data sheet. A
++ *                             negative value indicates this characteristic
++ *                             isn't known.
+  */
+ 
+ struct gpmi_nand_timing {
+-	u8 data_setup;
+-	u8 data_hold;
+-	u8 address_setup;
+-	u8 dsample_time;
++	int8_t    data_setup_in_ns;
++	int8_t    data_hold_in_ns;
++	int8_t    address_setup_in_ns;
++	int8_t    gpmi_sample_delay_in_ns;
++	int8_t    tREA_in_ns;
++	int8_t    tRLOH_in_ns;
++	int8_t    tRHOH_in_ns;
+ };
+ 
+ /**
+@@ -101,8 +119,6 @@ int gpmi_sysfs(struct platform_device *p, int create);
+ #endif
+ int gpmi_ecc_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
+ 			int page, int sndcmd);
+-void gpmi_set_timings(struct platform_device *pdev,
+-			struct gpmi_nand_timing *tm);
+ int gpmi_write_ncb(struct mtd_info *mtd, struct gpmi_bcb_info *b);
+ 
+ unsigned gpmi_hamming_ecc_size_22_16(int block_size);
+@@ -205,6 +221,7 @@ void ecc8_exit(void);
+  *                        medium to MTD.
+  * @nand:                 The data structure that represents this NAND Flash
+  *                        medium to the MTD NAND Flash system.
++ * @device_info           Detailed information about the NAND Flash device.
+  * @partitions:           A pointer to an array of partition descriptions
+  *                        collected from the platform. If this member is NULL,
+  *                        then no such partitions were given.
+@@ -273,6 +290,8 @@ struct gpmi_nand_data {
+ 	struct mtd_info   mtd;
+ 	struct nand_chip  nand;
+ 
++	struct nand_device_info  device_info;
++
+ #if defined(CONFIG_MTD_PARTITIONS) && defined(CONFIG_MTD_CONCAT)
+ 	struct mtd_info       *chip0_boot_mtd;
+ 	struct mtd_info       *chip1_boot_mtd;
+diff --git a/drivers/mtd/nand/gpmi/nand_device_info.c b/drivers/mtd/nand/gpmi/nand_device_info.c
+new file mode 100644
+index 0000000..ba3ed9e
+--- /dev/null
++++ b/drivers/mtd/nand/gpmi/nand_device_info.c
+@@ -0,0 +1,2297 @@
++/*
++ * Copyright 2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ */
++
++/*
++ * The code contained herein is licensed under the GNU General Public
++ * License. You may obtain a copy of the GNU General Public License
++ * Version 2 or later at the following locations:
++ *
++ * http://www.opensource.org/licenses/gpl-license.html
++ * http://www.gnu.org/copyleft/gpl.html
++ */
++
++#include <asm/sizes.h>
++#include <linux/mtd/nand.h>
++
++#include "nand_device_info.h"
++
++/*
++ * Type 2
++ */
++static struct nand_device_info nand_device_info_table_type_2[] __initdata =
++{
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x20,
++	.device_code              = 0xf1,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_SLC,
++	.chip_size_in_bytes       = 128LL*SZ_1M,
++	.block_size_in_pages      = 64,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 30,
++	.data_hold_in_ns          = 20,
++	.address_setup_in_ns      = 25,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"NAND01GW3",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0xad,
++	.device_code              = 0xf1,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_SLC,
++	.chip_size_in_bytes       = 128LL*SZ_1M,
++	.block_size_in_pages      = 64,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 45,
++	.data_hold_in_ns          = 30,
++	.address_setup_in_ns      = 25,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	NULL,
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x2c,
++	.device_code              = 0xf1,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_SLC,
++	.chip_size_in_bytes       = 128LL*SZ_1M,
++	.block_size_in_pages      = 64,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 30,
++	.data_hold_in_ns          = 20,
++	.address_setup_in_ns      = 10,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	NULL,
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0xec,
++	.device_code              = 0xf1,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_SLC,
++	.chip_size_in_bytes       = 128LL*SZ_1M,
++	.block_size_in_pages      = 64,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 35,
++	.data_hold_in_ns          = 25,
++	.address_setup_in_ns      = 0,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"K9F1F08",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x98,
++	.device_code              = 0xf1,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_SLC,
++	.chip_size_in_bytes       = 128LL*SZ_1M,
++	.block_size_in_pages      = 64,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 30,
++	.data_hold_in_ns          = 20,
++	.address_setup_in_ns      = 0,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"TC58NVG0S3",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x45,
++	.device_code              = 0xf1,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_SLC,
++	.chip_size_in_bytes       = 128LL*SZ_1M,
++	.block_size_in_pages      = 64,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 45,
++	.data_hold_in_ns          = 32,
++	.address_setup_in_ns      = 0,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	NULL,
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x20,
++	.device_code              = 0xda,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_SLC,
++	.chip_size_in_bytes       = 256LL*SZ_1M,
++	.block_size_in_pages      = 64,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 20,
++	.data_hold_in_ns          = 30,
++	.address_setup_in_ns      = 0,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"NAND02GW3",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0xad,
++	.device_code              = 0xda,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_SLC,
++	.chip_size_in_bytes       = 256LL*SZ_1M,
++	.block_size_in_pages      = 64,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 30,
++	.data_hold_in_ns          = 25,
++	.address_setup_in_ns      = 10,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"HY27UF082G2M, HY27UG082G2M, HY27UG082G1M",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x2c,
++	.device_code              = 0xda,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_SLC,
++	.chip_size_in_bytes       = 256LL*SZ_1M,
++	.block_size_in_pages      = 64,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 20,
++	.data_hold_in_ns          = 10,
++	.address_setup_in_ns      = 10,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"MT29F2G08",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0xec,
++	.device_code              = 0xda,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_SLC,
++	.chip_size_in_bytes       = 256LL*SZ_1M,
++	.block_size_in_pages      = 64,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 20,
++	.data_hold_in_ns          = 10,
++	.address_setup_in_ns      = 20,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"K9F2G08U0M",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x98,
++	.device_code              = 0xda,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_SLC,
++	.chip_size_in_bytes       = 256LL*SZ_1M,
++	.block_size_in_pages      = 64,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 20,
++	.data_hold_in_ns          = 30,
++	.address_setup_in_ns      = 0,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"TC58NVG1S3",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x45,
++	.device_code              = 0xda,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_SLC,
++	.chip_size_in_bytes       = 256LL*SZ_1M,
++	.block_size_in_pages      = 64,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 45,
++	.data_hold_in_ns          = 32,
++	.address_setup_in_ns      = 0,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	NULL,
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x20,
++	.device_code              = 0xdc,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_SLC,
++	.chip_size_in_bytes       = 512LL*SZ_1M,
++	.block_size_in_pages      = 64,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 45,
++	.data_hold_in_ns          = 30,
++	.address_setup_in_ns      = 10,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	NULL,
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0xad,
++	.device_code              = 0xdc,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_SLC,
++	.chip_size_in_bytes       = 512LL*SZ_1M,
++	.block_size_in_pages      = 64,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 45,
++	.data_hold_in_ns          = 30,
++	.address_setup_in_ns      = 10,
++	.gpmi_sample_delay_in_ns  = 10,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"HY27UH084G2M, HY27UG084G2M, HY27UH084G1M",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x2c,
++	.device_code              = 0xdc,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_SLC,
++	.chip_size_in_bytes       = 512LL*SZ_1M,
++	.block_size_in_pages      = 64,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 20,
++	.data_hold_in_ns          = 10,
++	.address_setup_in_ns      = 10,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"MT29F4G08",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0xec,
++	.device_code              = 0xdc,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_SLC,
++	.chip_size_in_bytes       = 512LL*SZ_1M,
++	.block_size_in_pages      = 64,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 25,
++	.data_hold_in_ns          = 25,
++	.address_setup_in_ns      = 20,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	NULL,
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x98,
++	.device_code              = 0xdc,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_SLC,
++	.chip_size_in_bytes       = 512LL*SZ_1M,
++	.block_size_in_pages      = 64,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 25,
++	.data_hold_in_ns          = 25,
++	.address_setup_in_ns      = 0,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"TH58NVG2S3",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x45,
++	.device_code              = 0xdc,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_SLC,
++	.chip_size_in_bytes       = 512LL*SZ_1M,
++	.block_size_in_pages      = 64,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 45,
++	.data_hold_in_ns          = 32,
++	.address_setup_in_ns      = 0,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	NULL,
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0xad,
++	.device_code              = 0xd3,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_SLC,
++	.chip_size_in_bytes       = 1LL*SZ_1G,
++	.block_size_in_pages      = 64,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 30,
++	.data_hold_in_ns          = 25,
++	.address_setup_in_ns      = 20,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"HY27UH088G2M",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x20,
++	.device_code              = 0xd3,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_SLC,
++	.chip_size_in_bytes       = 1LL*SZ_1G,
++	.block_size_in_pages      = 64,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 45,
++	.data_hold_in_ns          = 30,
++	.address_setup_in_ns      = 10,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"NAND08GW3BxANx",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x2c,
++	.device_code              = 0xd3,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_SLC,
++	.chip_size_in_bytes       = 1LL*SZ_1G,
++	.block_size_in_pages      = 64,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 25,
++	.data_hold_in_ns          = 15,
++	.address_setup_in_ns      = 10,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"MT29F8G08FABWG",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x98,
++	.device_code              = 0xd3,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_SLC,
++	.chip_size_in_bytes       = 1LL*SZ_1G,
++	.block_size_in_pages      = 64,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 45,
++	.data_hold_in_ns          = 32,
++	.address_setup_in_ns      = 0,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	NULL,
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x20,
++	.device_code              = 0xd5,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_SLC,
++	.chip_size_in_bytes       = 2LL*SZ_1G,
++	.block_size_in_pages      = 64,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 45,
++	.data_hold_in_ns          = 30,
++	.address_setup_in_ns      = 10,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	NULL,
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0xad,
++	.device_code              = 0xd5,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_SLC,
++	.chip_size_in_bytes       = 2LL*SZ_1G,
++	.block_size_in_pages      = 64,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 25,
++	.data_hold_in_ns          = 30,
++	.address_setup_in_ns      = 10,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	NULL,
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x2c,
++	.device_code              = 0xd5,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_SLC,
++	.chip_size_in_bytes       = 2LL*SZ_1G,
++	.block_size_in_pages      = 64,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 45,
++	.data_hold_in_ns          = 32,
++	.address_setup_in_ns      = 0,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	NULL,
++	},
++	{true}
++};
++
++/*
++ * Large MLC
++ */
++static struct nand_device_info nand_device_info_table_large_mlc[] __initdata =
++{
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x98,
++	.device_code              = 0xda,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 256LL*SZ_1M,
++	.block_size_in_pages      = 128,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 20,
++	.data_hold_in_ns          = 30,
++	.address_setup_in_ns      = 0,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"TC58NVG1D4BFT00",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x45,
++	.device_code              = 0xda,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 256LL*SZ_1M,
++	.block_size_in_pages      = 128,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 20,
++	.data_hold_in_ns          = 30,
++	.address_setup_in_ns      = 0,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	NULL,
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x45,
++	.device_code              = 0xdc,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 512LL*SZ_1M,
++	.block_size_in_pages      = 128,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 20,
++	.data_hold_in_ns          = 30,
++	.address_setup_in_ns      = 0,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	NULL,
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x98,
++	.device_code              = 0xd3,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 1LL*SZ_1G,
++	.block_size_in_pages      = 128,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 35,
++	.data_hold_in_ns          = 30,
++	.address_setup_in_ns      = 0,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"TH58NVG3D4xFT00",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x45,
++	.device_code              = 0xd3,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 1LL*SZ_1G,
++	.block_size_in_pages      = 128,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 35,
++	.data_hold_in_ns          = 20,
++	.address_setup_in_ns      = 0,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	NULL,
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x98,
++	.device_code              = 0xd5,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 2LL*SZ_1G,
++	.block_size_in_pages      = 128,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 35,
++	.data_hold_in_ns          = 15,
++	.address_setup_in_ns      = 0,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"TH58NVG4D4xFT00",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x45,
++	.device_code              = 0xd5,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 2LL*SZ_1G,
++	.block_size_in_pages      = 128,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 35,
++	.data_hold_in_ns          = 15,
++	.address_setup_in_ns      = 0,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	NULL,
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x98,
++	.device_code              = 0xdc,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 512LL*SZ_1M,
++	.block_size_in_pages      = 128,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 20,
++	.data_hold_in_ns          = 30,
++	.address_setup_in_ns      = 0,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"TC58NVG2D4BFT00",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0xec,
++	.device_code              = 0xdc,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 512LL*SZ_1M,
++	.block_size_in_pages      = 128,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 25,
++	.data_hold_in_ns          = 15,
++	.address_setup_in_ns      = 25,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"K9G4G08U0M",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0xad,
++	.device_code              = 0xdc,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 512LL*SZ_1M,
++	.block_size_in_pages      = 128,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 45,
++	.data_hold_in_ns          = 25,
++	.address_setup_in_ns      = 50,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"HY27UT084G2M, HY27UU088G5M",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x20,
++	.device_code              = 0xdc,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 512LL*SZ_1M,
++	.block_size_in_pages      = 128,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 40,
++	.data_hold_in_ns          = 20,
++	.address_setup_in_ns      = 30,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"NAND04GW3C2AN1E",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0xec,
++	.device_code              = 0xd3,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 1LL*SZ_1G,
++	.block_size_in_pages      = 128,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 20,
++	.data_hold_in_ns          = 15,
++	.address_setup_in_ns      = 20,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"K9G8G08U0M, K9HAG08U1M",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0xad,
++	.device_code              = 0xd3,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 1LL*SZ_1G,
++	.block_size_in_pages      = 128,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 60,
++	.data_hold_in_ns          = 30,
++	.address_setup_in_ns      = 50,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"HY27UV08AG5M",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x2c,
++	.device_code              = 0xd3,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 1LL*SZ_1G,
++	.block_size_in_pages      = 128,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 15,
++	.data_hold_in_ns          = 15,
++	.address_setup_in_ns      = 15,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"Intel JS29F08G08AAMiB1 and Micron MT29F8G08MAA; "
++	"Intel JS29F08G08CAMiB1 and Micron MT29F16G08QAA",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0xec,
++	.device_code              = 0xd5,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 2LL*SZ_1G,
++	.block_size_in_pages      = 128,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 20,
++	.data_hold_in_ns          = 15,
++	.address_setup_in_ns      = 20,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"K9LAG08U0M K9HBG08U1M K9GAG08U0M",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x2c,
++	.device_code              = 0xd5,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 2LL*SZ_1G,
++	.block_size_in_pages      = 128,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 15,
++	.data_hold_in_ns          = 10,
++	.address_setup_in_ns      = 15,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"Intel JS29F32G08FAMiB1 and Micron MT29F32G08TAA",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x2c,
++	.device_code              = 0xdc,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 512LL*SZ_1M,
++	.block_size_in_pages      = 128,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 20,
++	.data_hold_in_ns          = 20,
++	.address_setup_in_ns      = 20,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"MT29F4G08",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x89,
++	.device_code              = 0xd3,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 1LL*SZ_1G,
++	.block_size_in_pages      = 128,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 15,
++	.data_hold_in_ns          = 10,
++	.address_setup_in_ns      = 15,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"JS29F08G08AAMiB2, JS29F08G08CAMiB2",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x89,
++	.device_code              = 0xd5,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 2LL*SZ_1G,
++	.block_size_in_pages      = 128,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 15,
++	.data_hold_in_ns          = 10,
++	.address_setup_in_ns      = 15,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"JS29F32G08FAMiB2",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0xad,
++	.device_code              = 0xd5,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 2LL*SZ_1G,
++	.block_size_in_pages      = 128,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 15,
++	.data_hold_in_ns          = 10,
++	.address_setup_in_ns      = 20,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"HY27UW08CGFM",
++	},
++	{true}
++};
++
++/*
++ * Type 7
++ */
++static struct nand_device_info nand_device_info_table_type_7[] __initdata =
++{
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x2c,
++	.device_code              = 0xd3,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_SLC,
++	.chip_size_in_bytes       = 1LL*SZ_1G,
++	.block_size_in_pages      = 64,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 25,
++	.data_hold_in_ns          = 15,
++	.address_setup_in_ns      = 10,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"MT29F8G08FABWG",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x2c,
++	.device_code              = 0xdc,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_SLC,
++	.chip_size_in_bytes       = 512LL*SZ_1M,
++	.block_size_in_pages      = 64,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 20,
++	.data_hold_in_ns          = 10,
++	.address_setup_in_ns      = 10,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"MT29F4G08AAA",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0xec,
++	.device_code              = 0xdc,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_SLC,
++	.chip_size_in_bytes       = 512LL*SZ_1M,
++	.block_size_in_pages      = 64,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 15,
++	.data_hold_in_ns          = 12,
++	.address_setup_in_ns      = 25,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"K9F4G08",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0xec,
++	.device_code              = 0xd3,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_SLC,
++	.chip_size_in_bytes       = 1LL*SZ_1G,
++	.block_size_in_pages      = 64,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 25,
++	.data_hold_in_ns          = 15,
++	.address_setup_in_ns      = 35,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"K9K8G08UXM, K9NBG08U5A, K9WAG08U1A",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0xec,
++	.device_code              = 0xd5,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_SLC,
++	.chip_size_in_bytes       = 2LL*SZ_1G,
++	.block_size_in_pages      = 64,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 15,
++	.data_hold_in_ns          = 12,
++	.address_setup_in_ns      = 25,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"K9WAG08UXM",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0xec,
++	.device_code              = 0xda,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_SLC,
++	.chip_size_in_bytes       = 256LL*SZ_1M,
++	.block_size_in_pages      = 64,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 20,
++	.data_hold_in_ns          = 10,
++	.address_setup_in_ns      = 20,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"K9F2G08U0A",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0xec,
++	.device_code              = 0xf1,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_SLC,
++	.chip_size_in_bytes       = 128LL*SZ_1M,
++	.block_size_in_pages      = 64,
++	.page_total_size_in_bytes = 2*SZ_1K + 64,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 15,
++	.data_hold_in_ns          = 12,
++	.address_setup_in_ns      = 20,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"K9F1F08",
++	},
++	{true}
++};
++
++/*
++ * Type 8
++ */
++static struct nand_device_info nand_device_info_table_type_8[] __initdata =
++{
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0xec,
++	.device_code              = 0xd5,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 2LL*SZ_1G,
++	.block_size_in_pages      = 128,
++	.page_total_size_in_bytes = 4*SZ_1K + 128,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 15,
++	.data_hold_in_ns          = 10,
++	.address_setup_in_ns      = 20,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"K9GAG08U0M",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0xec,
++	.device_code              = 0xd7,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 4LL*SZ_1G,
++	.block_size_in_pages      = 128,
++	.page_total_size_in_bytes = 4*SZ_1K + 128,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 15,
++	.data_hold_in_ns          = 15,
++	.address_setup_in_ns      = 25,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"K9LBG08U0M (32Gb), K9HCG08U1M (64Gb), K9MDG08U5M (128Gb)",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0xad,
++	.device_code              = 0xd5,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 2LL*SZ_1G,
++	.block_size_in_pages      = 128,
++	.page_total_size_in_bytes = 4*SZ_1K + 128,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 20,
++	.data_hold_in_ns          = 20,
++	.address_setup_in_ns      = 20,
++	.gpmi_sample_delay_in_ns  = 0,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"H27UAG, H27UBG",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0xad,
++	.device_code              = 0xd7,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 4LL*SZ_1G,
++	.block_size_in_pages      = 128,
++	.page_total_size_in_bytes = 4*SZ_1K + 128,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 23,
++	.data_hold_in_ns          = 20,
++	.address_setup_in_ns      = 25,
++	.gpmi_sample_delay_in_ns  = 0,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"H27UCG",
++	},
++	{true}
++};
++
++/*
++ * Type 9
++ */
++static struct nand_device_info nand_device_info_table_type_9[] __initdata =
++{
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x98,
++	.device_code              = 0xd3,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 1LL*SZ_1G,
++	.block_size_in_pages      = 128,
++	.page_total_size_in_bytes = 4*SZ_1K + 218,
++	.ecc_strength_in_bits     = 8,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 15,
++	.data_hold_in_ns          = 15,
++	.address_setup_in_ns      = 10,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"TC58NVG3D1DTG00",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x98,
++	.device_code              = 0xd5,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 2LL*SZ_1G,
++	.block_size_in_pages      = 128,
++	.page_total_size_in_bytes = 4*SZ_1K + 218,
++	.ecc_strength_in_bits     = 8,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 15,
++	.data_hold_in_ns          = 15,
++	.address_setup_in_ns      = 10,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"TC58NVG4D1DTG00",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x98,
++	.device_code              = 0xd7,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 4LL*SZ_1G,
++	.block_size_in_pages      = 128,
++	.page_total_size_in_bytes = 4*SZ_1K + 218,
++	.ecc_strength_in_bits     = 8,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 15,
++	.data_hold_in_ns          = 15,
++	.address_setup_in_ns      = 10,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"TH58NVG6D1DTG20",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x89,
++	.device_code              = 0xd5,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 2LL*SZ_1G,
++	.block_size_in_pages      = 128,
++	.page_total_size_in_bytes = 4*SZ_1K + 218,
++	.ecc_strength_in_bits     = 8,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 10,
++	.data_hold_in_ns          = 10,
++	.address_setup_in_ns      = 15,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"JS29F16G08AAMC1, JS29F32G08CAMC1",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x2c,
++	.device_code              = 0xd5,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 2LL*SZ_1G,
++	.block_size_in_pages      = 128,
++	.page_total_size_in_bytes = 4*SZ_1K + 218,
++	.ecc_strength_in_bits     = 8,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 15,
++	.data_hold_in_ns          = 10,
++	.address_setup_in_ns      = 15,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"MT29F16G08MAA, MT29F32G08QAA",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x2c,
++	.device_code              = 0xd7,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 4LL*SZ_1G,
++	.block_size_in_pages      = 128,
++	.page_total_size_in_bytes = 4*SZ_1K + 218,
++	.ecc_strength_in_bits     = 8,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 15,
++	.data_hold_in_ns          = 10,
++	.address_setup_in_ns      = 15,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"MT29F64G08TAA (32Gb), MT29F32G08CBAAA (32Gb) MT29F64G08CFAAA (64Gb)",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x2c,
++	.device_code              = 0xd9,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 8LL*SZ_1G,
++	.block_size_in_pages      = 128,
++	.page_total_size_in_bytes = 4*SZ_1K + 218,
++	.ecc_strength_in_bits     = 8,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 10,
++	.data_hold_in_ns          = 10,
++	.address_setup_in_ns      = 15,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"MT29F128G08CJAAA",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x89,
++	.device_code              = 0xd7,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 4LL*SZ_1G,
++	.block_size_in_pages      = 128,
++	.page_total_size_in_bytes = 4*SZ_1K + 218,
++	.ecc_strength_in_bits     = 8,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 10,
++	.data_hold_in_ns          = 10,
++	.address_setup_in_ns      = 15,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"JSF64G08FAMC1",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0xec,
++	.device_code              = 0xd7,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 4LL*SZ_1G,
++	.block_size_in_pages      = 128,
++	.page_total_size_in_bytes = 4*SZ_1K + 218,
++	.ecc_strength_in_bits     = 8,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 20,
++	.data_hold_in_ns          = 10,
++	.address_setup_in_ns      = 25,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"K9LBG08U0D",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0xec,
++	.device_code              = 0xd5,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 2LL*SZ_1G,
++	.block_size_in_pages      = 128,
++	.page_total_size_in_bytes = 4*SZ_1K + 218,
++	.ecc_strength_in_bits     = 8,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 20,
++	.data_hold_in_ns          = 10,
++	.address_setup_in_ns      = 20,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"K9GAG08U0D, K9LBG08U1D, K9HCG08U5D",
++	},
++	{true}
++};
++
++/*
++ * Type 10
++ */
++static struct nand_device_info nand_device_info_table_type_10[] __initdata =
++{
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0xec,
++	.device_code              = 0xd3,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_SLC,
++	.chip_size_in_bytes       = 1LL*SZ_1G,
++	.block_size_in_pages      = 64,
++	.page_total_size_in_bytes = 4*SZ_1K + 128,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 15,
++	.data_hold_in_ns          = 10,
++	.address_setup_in_ns      = 20,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	NULL,
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0xec,
++	.device_code              = 0xd5,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_SLC,
++	.chip_size_in_bytes       = 2LL*SZ_1G,
++	.block_size_in_pages      = 64,
++	.page_total_size_in_bytes = 4*SZ_1K + 128,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 25,
++	.data_hold_in_ns          = 15,
++	.address_setup_in_ns      = 30,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	"K9NCG08U5M",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0xec,
++	.device_code              = 0xd7,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_SLC,
++	.chip_size_in_bytes       = 4LL*SZ_1G,
++	.block_size_in_pages      = 64,
++	.page_total_size_in_bytes = 4*SZ_1K + 128,
++	.ecc_strength_in_bits     = 4,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 15,
++	.data_hold_in_ns          = 15,
++	.address_setup_in_ns      = 25,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = -1,
++	.tRLOH_in_ns              = -1,
++	.tRHOH_in_ns              = -1,
++	NULL,
++	},
++	{true}
++};
++
++/*
++ * Type 11
++ */
++static struct nand_device_info nand_device_info_table_type_11[] __initdata =
++{
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x98,
++	.device_code              = 0xd7,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 4LL*SZ_1G,
++	.block_size_in_pages      = 128,
++	.page_total_size_in_bytes = 8*SZ_1K + 376,
++	.ecc_strength_in_bits     = 14,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 15,
++	.data_hold_in_ns          = 10,
++	.address_setup_in_ns      = 8,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = 20,
++	.tRLOH_in_ns              = 5,
++	.tRHOH_in_ns              = 25,
++	"TC58NVG5D2ELAM8 (4GB), TH58NVG6D2ELAM8 (8GB)",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x98,
++	.device_code              = 0xde,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 8LL*SZ_1G,
++	.block_size_in_pages      = 128,
++	.page_total_size_in_bytes = 8*SZ_1K + 376,
++	.ecc_strength_in_bits     = 14,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 15,
++	.data_hold_in_ns          = 10,
++	.address_setup_in_ns      = 8,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = 20,
++	.tRLOH_in_ns              = 5,
++	.tRHOH_in_ns              = 25,
++	"TH58NVG7D2ELAM8",
++	},
++	{true}
++};
++
++/*
++ * Type 15
++ */
++static struct nand_device_info nand_device_info_table_type_15[] __initdata =
++{
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0xec,
++	.device_code              = 0xd7,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 4LL*SZ_1G,
++	.block_size_in_pages      = 128,
++	.page_total_size_in_bytes = 8*SZ_1K + 436,
++	.ecc_strength_in_bits     = 16,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 20,
++	.data_hold_in_ns          = 10,
++	.address_setup_in_ns      = 25,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = 25,
++	.tRLOH_in_ns              = 5,
++	.tRHOH_in_ns              = 15,
++	"K9GBG08U0M (4GB, 1CE); K9LCG08U1M (8GB, 2CE); K9HDG08U5M (16GB, 4CE)",
++	},
++	{true}
++};
++
++/*
++ * BCH ECC12
++ */
++static struct nand_device_info nand_device_info_table_bch_ecc12[] __initdata =
++{
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0xad,
++	.device_code              = 0xd7,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 4LL*SZ_1G,
++	.block_size_in_pages      = 128,
++	.page_total_size_in_bytes = 4*SZ_1K + 224,
++	.ecc_strength_in_bits     = 12,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 15,
++	.data_hold_in_ns          = 10,
++	.address_setup_in_ns      = 20,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = 20,
++	.tRLOH_in_ns              = 5,
++	.tRHOH_in_ns              = 15,
++	"H27UBG8T2M (4GB, 1CE), H27UCG8UDM (8GB, 2CE), H27UDG8VEM (16GB, 4CE)",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0xad,
++	.device_code              = 0xde,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 8LL*SZ_1G,
++	.block_size_in_pages      = 128,
++	.page_total_size_in_bytes = 4*SZ_1K + 224,
++	.ecc_strength_in_bits     = 12,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 15,
++	.data_hold_in_ns          = 10,
++	.address_setup_in_ns      = 20,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = 20,
++	.tRLOH_in_ns              = 5,
++	.tRHOH_in_ns              = 15,
++	"H27UEG8YEM (32GB, 4CE)",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x2c,
++	.device_code              = 0xd7,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 4LL*SZ_1G,
++	.block_size_in_pages      = 128,
++	.page_total_size_in_bytes = 4*SZ_1K + 218,
++	.ecc_strength_in_bits     = 12,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 10,
++	.data_hold_in_ns          = 10,
++	.address_setup_in_ns      = 15,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = 16,
++	.tRLOH_in_ns              = 5,
++	.tRHOH_in_ns              = 15,
++	"MT29F32G08CBAAA (4GB, 1CE), MT29F64G08CFAAA (8GB, 2CE)",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x2c,
++	.device_code              = 0xd9,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 8LL*SZ_1G,
++	.block_size_in_pages      = 128,
++	.page_total_size_in_bytes = 4*SZ_1K + 218,
++	.ecc_strength_in_bits     = 12,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 10,
++	.data_hold_in_ns          = 10,
++	.address_setup_in_ns      = 15,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = 16,
++	.tRLOH_in_ns              = 5,
++	.tRHOH_in_ns              = 15,
++	"MT29F128G08CJAAA (16GB, 2CE)",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x2c,
++	.device_code              = 0x48,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 2LL*SZ_1G,
++	.block_size_in_pages      = 256,
++	.page_total_size_in_bytes = 4*SZ_1K + 224,
++	.ecc_strength_in_bits     = 12,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 15,
++	.data_hold_in_ns          = 10,
++	.address_setup_in_ns      = 20,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = 20,
++	.tRLOH_in_ns              = 5,
++	.tRHOH_in_ns              = 15,
++	"MT29F16G08CBABA (2GB, 1CE)",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x2c,
++	.device_code              = 0x68,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 4LL*SZ_1G,
++	.block_size_in_pages      = 256,
++	.page_total_size_in_bytes = 4*SZ_1K + 224,
++	.ecc_strength_in_bits     = 12,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 15,
++	.data_hold_in_ns          = 10,
++	.address_setup_in_ns      = 20,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = 20,
++	.tRLOH_in_ns              = 5,
++	.tRHOH_in_ns              = 15,
++	"MT29F32G08CBABA (4GB, 1CE); "
++	"MT29F64G08CEABA (8GB, 2CE); "
++	"MT29F64G08CFABA (8GB, 2CE)",
++	},
++	{
++	.end_of_table             = false,
++	.manufacturer_code        = 0x2c,
++	.device_code              = 0x88,
++	.cell_technology          = NAND_DEVICE_CELL_TECH_MLC,
++	.chip_size_in_bytes       = 8LL*SZ_1G,
++	.block_size_in_pages      = 256,
++	.page_total_size_in_bytes = 4*SZ_1K + 224,
++	.ecc_strength_in_bits     = 12,
++	.ecc_size_in_bytes        = 512,
++	.data_setup_in_ns         = 15,
++	.data_hold_in_ns          = 10,
++	.address_setup_in_ns      = 20,
++	.gpmi_sample_delay_in_ns  = 6,
++	.tREA_in_ns               = 20,
++	.tRLOH_in_ns              = 5,
++	.tRHOH_in_ns              = 15,
++	"MT29F128G08CJABA (16GB, 2CE); "
++	"MT29F128G08CKABA (16GB, 2CE); "
++	"MT29F256G08CUABA (32GB, 4CE)",
++	},
++	{true}
++};
++
++/*
++ * The following macros make it convenient to extract information from an ID
++ * byte array. All these macros begin with the prefix "ID_".
++ *
++ * Macros of the form:
++ *
++ *         ID_GET_[<manufacturer>_[<modifier>_]]<field>
++ *
++ * extract the given field from an ID byte array. Macros of the form:
++ *
++ *         ID_[<manufacturer>_[<modifier>_]]<field>_<meaning>
++ *
++ * contain the value for the given field that has the given meaning.
++ *
++ * If the <manufacturer> appears, it means this macro represents a view of this
++ * field that is specific to the given manufacturer.
++ *
++ * If the <modifier> appears, it means this macro represents a view of this
++ * field that the given manufacturer applies only under specific conditions.
++ *
++ * Here is a simple example:
++ *
++ *         ID_PAGE_SIZE_CODE_2K
++ *
++ * This macro has the value of the "Page Size" field that indicates the page
++ * size is 2K.
++ *
++ * A more complicated example:
++ *
++ *         ID_SAMSUNG_6_BYTE_PAGE_SIZE_CODE_8K  (0x2)
++ *
++ * This macro has the value of the "Page Size" field for Samsung parts that
++ * indicates the page size is 8K. However, this interpretation is only correct
++ * for devices that return 6 ID bytes.
++ */
++
++/* Byte 1 ------------------------------------------------------------------- */
++
++#define ID_GET_BYTE_1(id)    ((id)[0])
++
++#define ID_GET_MFR_CODE(id)  ID_GET_BYTE_1(id)
++
++/* Byte 2 ------------------------------------------------------------------- */
++
++#define ID_GET_BYTE_2(id)                           ((id)[1])
++
++#define ID_GET_DEVICE_CODE(id)                      ID_GET_BYTE_2(id)
++    #define ID_SAMSUNG_DEVICE_CODE_1_GBIT           (0xf1)
++    #define ID_SAMSUNG_DEVICE_CODE_2_GBIT           (0xda)
++    #define ID_HYNIX_DEVICE_CODE_ECC12              (0xd7)
++    #define ID_HYNIX_DEVICE_CODE_ECC12_LARGE        (0xde)
++    #define ID_MICRON_DEVICE_CODE_ECC12             (0xd7) /* ECC12        */
++    #define ID_MICRON_DEVICE_CODE_ECC12_LARGE       (0xd9) /* ECC12 8GB/CE */
++    #define ID_MICRON_DEVICE_CODE_ECC12_2GB_PER_CE  (0x48) /* L63B  2GB/CE */
++    #define ID_MICRON_DEVICE_CODE_ECC12_4GB_PER_CE  (0x68) /* L63B  4GB/CE */
++    #define ID_MICRON_DEVICE_CODE_ECC12_8GB_PER_CE  (0x88) /* L63B  8GB/CE */
++
++/* Byte 3 ------------------------------------------------------------------- */
++
++#define ID_GET_BYTE_3(id)               ((id)[2])
++
++#define ID_GET_DIE_COUNT_CODE(id)       ((ID_GET_BYTE_3(id) >> 0) & 0x3)
++
++#define ID_GET_CELL_TYPE_CODE(id)       ((ID_GET_BYTE_3(id) >> 2) & 0x3)
++    #define ID_CELL_TYPE_CODE_SLC       (0x0) /* All others => MLC. */
++
++#define ID_GET_SAMSUNG_SIMUL_PROG(id)   ((ID_GET_BYTE_3(id) >> 4) & 0x3)
++
++#define ID_GET_MICRON_SIMUL_PROG(id)    ((ID_GET_BYTE_3(id) >> 4) & 0x3)
++
++#define ID_GET_CACHE_PROGRAM(id)        ((ID_GET_BYTE_3(id) >> 7) & 0x1)
++
++/* Byte 4 ------------------------------------------------------------------- */
++
++#define ID_GET_BYTE_4(id)                       ((id)[3])
++    #define ID_HYNIX_BYTE_4_ECC12_DEVICE        (0x25)
++
++#define ID_GET_PAGE_SIZE_CODE(id)               ((ID_GET_BYTE_4(id) >> 0) & 0x3)
++    #define ID_PAGE_SIZE_CODE_1K                (0x0)
++    #define ID_PAGE_SIZE_CODE_2K                (0x1)
++    #define ID_PAGE_SIZE_CODE_4K                (0x2)
++    #define ID_PAGE_SIZE_CODE_8K                (0x3)
++    #define ID_SAMSUNG_6_BYTE_PAGE_SIZE_CODE_8K (0x2)
++
++#define ID_GET_OOB_SIZE_CODE(id)                ((ID_GET_BYTE_4(id) >> 2) & 0x1)
++
++#define ID_GET_BLOCK_SIZE_CODE(id)              ((ID_GET_BYTE_4(id) >> 4) & 0x3)
++
++/* Byte 5 ------------------------------------------------------------------- */
++
++#define ID_GET_BYTE_5(id)                  ((id)[4])
++    #define ID_MICRON_BYTE_5_ECC12         (0x84)
++
++#define ID_GET_SAMSUNG_ECC_LEVEL_CODE(id)  ((ID_GET_BYTE_5(id) >> 4) & 0x7)
++    #define ID_SAMSUNG_ECC_LEVEL_CODE_8    (0x03)
++    #define ID_SAMSUNG_ECC_LEVEL_CODE_24   (0x05)
++
++#define ID_GET_PLANE_COUNT_CODE(id)        ((ID_GET_BYTE_5(id) >> 2) & 0x3)
++
++/* Byte 6 ------------------------------------------------------------------- */
++
++#define ID_GET_BYTE_6(id)                        ((id)[5])
++    #define ID_TOSHIBA_BYTE_6_PAGE_SIZE_CODE_8K  (0x54)
++    #define ID_TOSHIBA_BYTE_6_PAGE_SIZE_CODE_4K  (0x13)
++
++#define ID_GET_SAMSUNG_DEVICE_VERSION_CODE(id)   ((ID_GET_BYTE_6(id)>>0) & 0x7)
++    #define ID_SAMSUNG_DEVICE_VERSION_CODE_40NM  (0x01)
++
++/* -------------------------------------------------------------------------- */
++
++void nand_device_print_info(struct nand_device_info *info)
++{
++	unsigned    i;
++	const char  *mfr_name;
++	const char  *cell_technology_name;
++	uint64_t    chip_size;
++	const char  *chip_size_units;
++	unsigned    page_data_size_in_bytes;
++	unsigned    page_oob_size_in_bytes;
++
++	/* Check for nonsense. */
++
++	if (!info)
++		return;
++
++	/* Prepare the manufacturer name. */
++
++	mfr_name = "Unknown";
++
++	for (i = 0; nand_manuf_ids[i].id; i++) {
++		if (nand_manuf_ids[i].id == info->manufacturer_code) {
++			mfr_name = nand_manuf_ids[i].name;
++			break;
++		}
++	}
++
++	/* Prepare the name of the cell technology. */
++
++	switch (info->cell_technology) {
++	case NAND_DEVICE_CELL_TECH_SLC:
++		cell_technology_name = "SLC";
++		break;
++	case NAND_DEVICE_CELL_TECH_MLC:
++		cell_technology_name = "MLC";
++		break;
++	default:
++		cell_technology_name = "Unknown";
++		break;
++	}
++
++	/* Prepare the chip size. */
++
++	if ((info->chip_size_in_bytes >= SZ_1G) &&
++					!(info->chip_size_in_bytes % SZ_1G)) {
++		chip_size       = info->chip_size_in_bytes / ((uint64_t) SZ_1G);
++		chip_size_units = "GiB";
++	} else if ((info->chip_size_in_bytes >= SZ_1M) &&
++					!(info->chip_size_in_bytes % SZ_1M)) {
++		chip_size       = info->chip_size_in_bytes / ((uint64_t) SZ_1M);
++		chip_size_units = "MiB";
++	} else {
++		chip_size       = info->chip_size_in_bytes;
++		chip_size_units = "B";
++	}
++
++	/* Prepare the page geometry. */
++
++	page_data_size_in_bytes = (1<<(fls(info->page_total_size_in_bytes)-1));
++	page_oob_size_in_bytes  = info->page_total_size_in_bytes -
++							page_data_size_in_bytes;
++
++	/* Print the information. */
++
++	printk(KERN_INFO "Manufacturer      : %s (0x%02x)\n",  mfr_name,
++						info->manufacturer_code);
++	printk(KERN_INFO "Device Code       : 0x%02x\n", info->device_code);
++	printk(KERN_INFO "Cell Technology   : %s\n", cell_technology_name);
++	printk(KERN_INFO "Chip Size         : %llu %s\n", chip_size,
++							chip_size_units);
++	printk(KERN_INFO "Pages per Block   : %u\n",
++						info->block_size_in_pages);
++	printk(KERN_INFO "Page Geometry     : %u+%u\n", page_data_size_in_bytes,
++						page_oob_size_in_bytes);
++	printk(KERN_INFO "ECC Strength      : %u bits\n",
++						info->ecc_strength_in_bits);
++	printk(KERN_INFO "ECC Size          : %u B\n", info->ecc_size_in_bytes);
++	printk(KERN_INFO "Data Setup Time   : %u ns\n", info->data_setup_in_ns);
++	printk(KERN_INFO "Data Hold Time    : %u ns\n", info->data_hold_in_ns);
++	printk(KERN_INFO "Address Setup Time: %u ns\n",
++						info->address_setup_in_ns);
++	printk(KERN_INFO "GPMI Sample Delay : %u ns\n",
++						info->gpmi_sample_delay_in_ns);
++	if (info->tREA_in_ns >= 0)
++		printk(KERN_INFO "tREA              : %u ns\n",
++							info->tREA_in_ns);
++	else
++		printk(KERN_INFO "tREA              : Unknown\n");
++	if (info->tREA_in_ns >= 0)
++		printk(KERN_INFO "tRLOH             : %u ns\n",
++							info->tRLOH_in_ns);
++	else
++		printk(KERN_INFO "tRLOH             : Unknown\n");
++	if (info->tREA_in_ns >= 0)
++		printk(KERN_INFO "tRHOH             : %u ns\n",
++							info->tRHOH_in_ns);
++	else
++		printk(KERN_INFO "tRHOH             : Unknown\n");
++	if (info->description)
++		printk(KERN_INFO "Description       : %s\n", info->description);
++	else
++		printk(KERN_INFO "Description       : <None>\n");
++
++}
++
++static struct nand_device_info *nand_device_info_search(
++	struct nand_device_info *table, uint8_t mfr_code, uint8_t device_code)
++{
++
++	for (; !table->end_of_table; table++) {
++		if (table->manufacturer_code != mfr_code)
++			continue;
++		if (table->device_code != device_code)
++			continue;
++		return table;
++	}
++
++	return 0;
++
++}
++
++static struct nand_device_info *nand_device_info_fn_toshiba(const uint8_t id[])
++{
++	struct nand_device_info  *table;
++
++	/* Check for an SLC device. */
++
++	if (ID_GET_CELL_TYPE_CODE(id) == ID_CELL_TYPE_CODE_SLC) {
++		/* Type 2 */
++		return nand_device_info_search(nand_device_info_table_type_2,
++				ID_GET_MFR_CODE(id), ID_GET_DEVICE_CODE(id));
++	}
++
++	/*
++	 * Look for 8K page Toshiba MLC devices.
++	 *
++	 * The page size field in byte 4 can't be used because the field was
++	 * redefined in the 8K parts so the value meaning "8K page" is the same
++	 * as the value meaning "4K page" on the 4K page devices.
++	 *
++	 * The only identifiable difference between the 4K and 8K page Toshiba
++	 * devices with a device code of 0xd7 is the undocumented 6th ID byte.
++	 * The 4K device returns a value of 0x13 and the 8K a value of 0x54.
++	 * Toshiba has verified that this is an acceptable method to distinguish
++	 * the two device families.
++	 */
++
++	if (ID_GET_BYTE_6(id) == ID_TOSHIBA_BYTE_6_PAGE_SIZE_CODE_8K) {
++		/* Type 11 */
++		table = nand_device_info_table_type_11;
++	} else if (ID_GET_PAGE_SIZE_CODE(id) == ID_PAGE_SIZE_CODE_4K) {
++		/* Type 9 */
++		table = nand_device_info_table_type_9;
++	} else {
++		/* Large MLC */
++		table = nand_device_info_table_large_mlc;
++	}
++
++	return nand_device_info_search(table, ID_GET_MFR_CODE(id),
++							ID_GET_DEVICE_CODE(id));
++
++}
++
++static struct nand_device_info *nand_device_info_fn_samsung(const uint8_t id[])
++{
++	struct nand_device_info  *table;
++
++	/* Check for an MLC device. */
++
++	if (ID_GET_CELL_TYPE_CODE(id) != ID_CELL_TYPE_CODE_SLC) {
++
++		/* Is this a Samsung 8K Page MLC device with 16 bit ECC? */
++		if ((ID_GET_SAMSUNG_ECC_LEVEL_CODE(id) ==
++					ID_SAMSUNG_ECC_LEVEL_CODE_24) &&
++		    (ID_GET_PAGE_SIZE_CODE(id) ==
++					ID_SAMSUNG_6_BYTE_PAGE_SIZE_CODE_8K)) {
++			/* Type 15 */
++			table = nand_device_info_table_type_15;
++		}
++		/* Is this a Samsung 42nm ECC8 device with a 6 byte ID? */
++		else if ((ID_GET_SAMSUNG_ECC_LEVEL_CODE(id) ==
++					ID_SAMSUNG_ECC_LEVEL_CODE_8) &&
++			(ID_GET_SAMSUNG_DEVICE_VERSION_CODE(id) ==
++					ID_SAMSUNG_DEVICE_VERSION_CODE_40NM)) {
++			/* Type 9 */
++			table = nand_device_info_table_type_9;
++		} else if (ID_GET_PAGE_SIZE_CODE(id) == ID_PAGE_SIZE_CODE_4K) {
++			/* Type 8 */
++			table = nand_device_info_table_type_8;
++		} else {
++			/* Large MLC */
++			table = nand_device_info_table_large_mlc;
++		}
++
++	} else {
++
++		/* Check the page size first. */
++		if (ID_GET_PAGE_SIZE_CODE(id) == ID_PAGE_SIZE_CODE_4K) {
++			/* Type 10 */
++			table = nand_device_info_table_type_10;
++		}
++		/* Check the chip size. */
++		else if (ID_GET_DEVICE_CODE(id) ==
++						ID_SAMSUNG_DEVICE_CODE_1_GBIT) {
++			if (!ID_GET_CACHE_PROGRAM(id)) {
++				/*
++				 * 128 MiB Samsung chips without cache program
++				 * are Type 7.
++				 *
++				 * The K9F1G08U0B does not support multi-plane
++				 * program, so the if statement below cannot be
++				 * used to identify it.
++				 */
++				table = nand_device_info_table_type_7;
++
++			} else {
++				/* Smaller sizes are Type 2 by default. */
++				table = nand_device_info_table_type_2;
++			}
++		} else {
++			/* Check number of simultaneously programmed pages. */
++			if (ID_GET_SAMSUNG_SIMUL_PROG(id) &&
++						ID_GET_PLANE_COUNT_CODE(id)) {
++				/* Type 7 */
++				table = nand_device_info_table_type_7;
++			} else {
++				/* Type 2 */
++				table = nand_device_info_table_type_2;
++			}
++
++		}
++
++	}
++
++	return nand_device_info_search(table, ID_GET_MFR_CODE(id),
++							ID_GET_DEVICE_CODE(id));
++
++}
++
++static struct nand_device_info *nand_device_info_fn_stmicro(const uint8_t id[])
++{
++	struct nand_device_info  *table;
++
++	/* Check for an SLC device. */
++
++	if (ID_GET_CELL_TYPE_CODE(id) == ID_CELL_TYPE_CODE_SLC)
++		/* Type 2 */
++		table = nand_device_info_table_type_2;
++	else
++		/* Large MLC */
++		table = nand_device_info_table_large_mlc;
++
++	return nand_device_info_search(table, ID_GET_MFR_CODE(id),
++							ID_GET_DEVICE_CODE(id));
++
++}
++
++static struct nand_device_info *nand_device_info_fn_hynix(const uint8_t id[])
++{
++	struct nand_device_info  *table;
++
++	/* Check for an SLC device. */
++
++	if (ID_GET_CELL_TYPE_CODE(id) == ID_CELL_TYPE_CODE_SLC) {
++		/* Type 2 */
++		return nand_device_info_search(nand_device_info_table_type_2,
++				ID_GET_MFR_CODE(id), ID_GET_DEVICE_CODE(id));
++	}
++
++	/*
++	 * Check for ECC12 devices.
++	 *
++	 * We look at the 4th ID byte to distinguish some Hynix ECC12 devices
++	 * from the similar ECC8 part. For example H27UBG8T2M (ECC12) 4th byte
++	 * is 0x25, whereas H27UDG8WFM (ECC8) 4th byte is 0xB6.
++	 */
++
++	if ((ID_GET_DEVICE_CODE(id) == ID_HYNIX_DEVICE_CODE_ECC12 &&
++			ID_GET_BYTE_4(id) == ID_HYNIX_BYTE_4_ECC12_DEVICE) ||
++	    (ID_GET_DEVICE_CODE(id) == ID_HYNIX_DEVICE_CODE_ECC12_LARGE)) {
++		/* BCH ECC 12 */
++		table = nand_device_info_table_bch_ecc12;
++	} else if (ID_GET_PAGE_SIZE_CODE(id) == ID_PAGE_SIZE_CODE_4K) {
++		/*
++		 * So far, all other Samsung and Hynix 4K page devices are
++		 * Type 8.
++		 */
++		table = nand_device_info_table_type_8;
++	} else
++		/* Large MLC */
++		table = nand_device_info_table_large_mlc;
++
++	return nand_device_info_search(table, ID_GET_MFR_CODE(id),
++							ID_GET_DEVICE_CODE(id));
++
++}
++
++static struct nand_device_info *nand_device_info_fn_micron(const uint8_t id[])
++{
++	struct nand_device_info  *table;
++
++	/* Check for an SLC device. */
++
++	if (ID_GET_CELL_TYPE_CODE(id) == ID_CELL_TYPE_CODE_SLC) {
++
++		/* Check number of simultaneously programmed pages. */
++
++		if (ID_GET_MICRON_SIMUL_PROG(id)) {
++			/* Type 7 */
++			table = nand_device_info_table_type_7;
++		} else {
++			/* Zero simultaneously programmed pages means Type 2. */
++			table = nand_device_info_table_type_2;
++		}
++
++		return nand_device_info_search(table, ID_GET_MFR_CODE(id),
++							ID_GET_DEVICE_CODE(id));
++
++	}
++
++	/*
++	 * We look at the 5th ID byte to distinguish some Micron ECC12 NANDs
++	 * from the similar ECC8 part.
++	 *
++	 * For example MT29F64G08CFAAA (ECC12) 5th byte is 0x84, whereas
++	 * MT29F64G08TAA (ECC8) 5th byte is 0x78.
++	 *
++	 * We also have a special case for the Micron L63B family
++	 * (256 page/block), which has unique device codes but no ID fields that
++	 * can easily be used to distinguish the family.
++	 */
++
++	if ((ID_GET_DEVICE_CODE(id) == ID_MICRON_DEVICE_CODE_ECC12 &&
++				ID_GET_BYTE_5(id) == ID_MICRON_BYTE_5_ECC12)  ||
++	   (ID_GET_DEVICE_CODE(id) == ID_MICRON_DEVICE_CODE_ECC12_LARGE)      ||
++	   (ID_GET_DEVICE_CODE(id) == ID_MICRON_DEVICE_CODE_ECC12_2GB_PER_CE) ||
++	   (ID_GET_DEVICE_CODE(id) == ID_MICRON_DEVICE_CODE_ECC12_4GB_PER_CE) ||
++	   (ID_GET_DEVICE_CODE(id) == ID_MICRON_DEVICE_CODE_ECC12_8GB_PER_CE)) {
++		/* BCH ECC 12 */
++		table = nand_device_info_table_bch_ecc12;
++	} else if (ID_GET_PAGE_SIZE_CODE(id) == ID_PAGE_SIZE_CODE_4K) {
++		/* Toshiba devices with 4K pages are Type 9. */
++		table = nand_device_info_table_type_9;
++	} else {
++		/* Large MLC */
++		table = nand_device_info_table_large_mlc;
++	}
++
++	return nand_device_info_search(table, ID_GET_MFR_CODE(id),
++							ID_GET_DEVICE_CODE(id));
++
++}
++
++static struct nand_device_info *nand_device_info_fn_sandisk(const uint8_t id[])
++{
++	struct nand_device_info  *table;
++
++	if (ID_GET_CELL_TYPE_CODE(id) != ID_CELL_TYPE_CODE_SLC) {
++		/* Large MLC */
++		table = nand_device_info_table_large_mlc;
++	} else {
++		/* Type 2 */
++		table = nand_device_info_table_type_2;
++	}
++
++	return nand_device_info_search(table, ID_GET_MFR_CODE(id),
++							ID_GET_DEVICE_CODE(id));
++
++}
++
++static struct nand_device_info *nand_device_info_fn_intel(const uint8_t id[])
++{
++	struct nand_device_info  *table;
++
++	/* Check for an SLC device. */
++
++	if (ID_GET_CELL_TYPE_CODE(id) == ID_CELL_TYPE_CODE_SLC) {
++		/* Type 2 */
++		return nand_device_info_search(nand_device_info_table_type_2,
++				ID_GET_MFR_CODE(id), ID_GET_DEVICE_CODE(id));
++	}
++
++	if (ID_GET_PAGE_SIZE_CODE(id) == ID_PAGE_SIZE_CODE_4K) {
++		/* Type 9 */
++		table = nand_device_info_table_type_9;
++	} else {
++		/* Large MLC */
++		table = nand_device_info_table_large_mlc;
++	}
++
++	return nand_device_info_search(table, ID_GET_MFR_CODE(id),
++							ID_GET_DEVICE_CODE(id));
++
++}
++
++/**
++ * struct nand_device_type_info - Information about a NAND Flash type.
++ *
++ * @name:   A human-readable name for this type.
++ * @table:  The device info table for this type.
++ */
++
++struct nand_device_type_info {
++	struct nand_device_info  *table;
++	const char               *name;
++};
++
++/*
++ * A table that maps manufacturer IDs to device information tables.
++ */
++
++static struct nand_device_type_info  nand_device_type_directory[] __initdata =
++{
++	{nand_device_info_table_type_2,    "Type 2"   },
++	{nand_device_info_table_large_mlc, "Large MLC"},
++	{nand_device_info_table_type_7,    "Type 7"   },
++	{nand_device_info_table_type_8,    "Type 8"   },
++	{nand_device_info_table_type_9,    "Type 9"   },
++	{nand_device_info_table_type_10,   "Type 10"  },
++	{nand_device_info_table_type_11,   "Type 11"  },
++	{nand_device_info_table_type_15,   "Type 15"  },
++	{nand_device_info_table_bch_ecc12, "BCH ECC12"},
++	{0, 0},
++};
++
++/**
++ * struct nand_device_mfr_info - Information about a NAND Flash manufacturer.
++ *
++ * @id:     The value of the first NAND Flash ID byte, which identifies the
++ *          manufacturer.
++ * @fn:     A pointer to a function to use for identifying devices from the
++ *          given manufacturer.
++ */
++
++struct nand_device_mfr_info {
++	uint8_t                  id;
++	struct nand_device_info  *(*fn)(const uint8_t id[]);
++};
++
++/*
++ * A table that maps manufacturer IDs to device information tables.
++ */
++
++static struct nand_device_mfr_info  nand_device_mfr_directory[] __initdata =
++{
++	{
++	.id = NAND_MFR_TOSHIBA,
++	.fn = nand_device_info_fn_toshiba,
++	},
++	{
++	.id = NAND_MFR_SAMSUNG,
++	.fn = nand_device_info_fn_samsung,
++	},
++	{
++	.id = NAND_MFR_FUJITSU,
++	.fn = 0,
++	},
++	{
++	.id = NAND_MFR_NATIONAL,
++	.fn = 0,
++	},
++	{
++	.id = NAND_MFR_RENESAS,
++	.fn = 0,
++	},
++	{
++	.id = NAND_MFR_STMICRO,
++	.fn = nand_device_info_fn_stmicro,
++	},
++	{
++	.id = NAND_MFR_HYNIX,
++	.fn = nand_device_info_fn_hynix,
++	},
++	{
++	.id = NAND_MFR_MICRON,
++	.fn = nand_device_info_fn_micron,
++	},
++	{
++	.id = NAND_MFR_AMD,
++	.fn = 0,
++	},
++	{
++	.id = NAND_MFR_SANDISK,
++	.fn = nand_device_info_fn_sandisk,
++	},
++	{
++	.id = NAND_MFR_INTEL,
++	.fn = nand_device_info_fn_intel,
++	},
++	{0, 0}
++};
++
++/**
++ * nand_device_info_test_table - Validate a device info table.
++ *
++ * This function runs tests on the given device info table to check that it
++ * meets the current assumptions.
++ */
++
++static void __init nand_device_info_test_table(
++			struct nand_device_info *table, const char * name)
++{
++	unsigned  i;
++	unsigned  j;
++	uint8_t   mfr_code;
++	uint8_t   device_code;
++
++	/* Loop over entries in this table. */
++
++	for (i = 0; !table[i].end_of_table; i++) {
++
++		/* Get discriminating attributes of the current device. */
++
++		mfr_code    = table[i].manufacturer_code;
++		device_code = table[i].device_code;
++
++		/* Compare with the remaining devices in this table. */
++
++		for (j = i + 1; !table[j].end_of_table; j++) {
++			if ((mfr_code    == table[j].manufacturer_code) &&
++			    (device_code == table[j].device_code))
++				goto error;
++		}
++
++	}
++
++	return;
++
++error:
++
++	printk(KERN_EMERG
++		"\n== NAND Flash device info table failed validity check ==\n");
++
++	printk(KERN_EMERG "\nDevice Info Table: %s\n", name);
++	printk(KERN_EMERG "\nTable Index %u\n", i);
++	nand_device_print_info(table + i);
++	printk(KERN_EMERG "\nTable Index %u\n", j);
++	nand_device_print_info(table + j);
++	printk(KERN_EMERG "\n");
++
++	BUG();
++
++}
++
++/**
++ * nand_device_info_test_data - Test the NAND Flash device data.
++ */
++
++static void __init nand_device_info_test_data(void)
++{
++
++	unsigned  i;
++
++	for (i = 0; nand_device_type_directory[i].name; i++) {
++		nand_device_info_test_table(
++					nand_device_type_directory[i].table,
++					nand_device_type_directory[i].name);
++	}
++
++}
++
++struct nand_device_info * __init nand_device_get_info(const uint8_t id[])
++{
++	unsigned                 i;
++	uint8_t                  mfr_id = ID_GET_MFR_CODE(id);
++	struct nand_device_info  *(*fn)(const uint8_t id[]) = 0;
++
++	/* Test the data. */
++
++	nand_device_info_test_data();
++
++	/* Look for information about this manufacturer. */
++
++	for (i = 0; nand_device_mfr_directory[i].id; i++) {
++		if (nand_device_mfr_directory[i].id == mfr_id) {
++			fn = nand_device_mfr_directory[i].fn;
++			break;
++		}
++	}
++
++	if (!fn)
++		return 0;
++
++	/*
++	 * If control arrives here, we found both a table of device information,
++	 * and a function we can use to identify the current device. Attempt to
++	 * identify the device and return the result.
++	 */
++
++	return fn(id);
++
++}
+diff --git a/drivers/mtd/nand/gpmi/nand_device_info.h b/drivers/mtd/nand/gpmi/nand_device_info.h
+new file mode 100644
+index 0000000..a5f56e9
+--- /dev/null
++++ b/drivers/mtd/nand/gpmi/nand_device_info.h
+@@ -0,0 +1,140 @@
++/*
++ * Copyright 2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ */
++
++/*
++ * The code contained herein is licensed under the GNU General Public
++ * License. You may obtain a copy of the GNU General Public License
++ * Version 2 or later at the following locations:
++ *
++ * http://www.opensource.org/licenses/gpl-license.html
++ * http://www.gnu.org/copyleft/gpl.html
++ */
++#ifndef __DRIVERS_NAND_DEVICE_INFO_H
++#define __DRIVERS_NAND_DEVICE_INFO_H
++
++ /*
++  * The number of ID bytes to read from the NAND Flash device and hand over to
++  * the identification system.
++  */
++
++#define NAND_DEVICE_ID_BYTE_COUNT  (6)
++
++ /*
++  * The number of ID bytes to read from the NAND Flash device and hand over to
++  * the identification system.
++  */
++
++enum nand_device_cell_technology {
++	NAND_DEVICE_CELL_TECH_SLC = 0,
++	NAND_DEVICE_CELL_TECH_MLC = 1,
++};
++
++/**
++ * struct nand_device_info - Information about a single NAND Flash device.
++ *
++ * This structure contains all the *essential* information about a NAND Flash
++ * device, derived from the device's data sheet. For each manufacturer, we have
++ * an array of these structures.
++ *
++ * @end_of_table:              If true, marks the end of a table of device
++ *                             information.
++ * @manufacturer_code:         The manufacturer code (1st ID byte) reported by
++ *                             the device.
++ * @device_code:               The device code (2nd ID byte) reported by the
++ *                             device.
++ * @cell_technology:           The storage cell technology.
++ * @chip_size_in_bytes:        The total size of the storage behind a single
++ *                             chip select, in bytes. Notice that this is *not*
++ *                             necessarily the total size of the storage in a
++ *                             *package*, which may contain several chips.
++ * @block_size_in_pages:       The number of pages in a block.
++ * @page_total_size_in_bytes:  The total size of a page, in bytes, including
++ *                             both the data and the OOB.
++ * @ecc_strength_in_bits:      The strength of the ECC called for by the
++ *                             manufacturer, in number of correctable bits.
++ * @ecc_size_in_bytes:         The size of the data block over which the
++ *                             manufacturer calls for the given ECC algorithm
++ *                             and strength.
++ * @data_setup_in_ns:          The data setup time, in nanoseconds. Usually the
++ *                             maximum of tDS and tWP. A negative value
++ *                             indicates this characteristic isn't known.
++ * @data_hold_in_ns:           The data hold time, in nanoseconds. Usually the
++ *                             maximum of tDH, tWH and tREH. A negative value
++ *                             indicates this characteristic isn't known.
++ * @address_setup_in_ns:       The address setup time, in nanoseconds. Usually
++ *                             the maximum of tCLS, tCS and tALS. A negative
++ *                             value indicates this characteristic isn't known.
++ * @gpmi_sample_delay_in_ns:   A GPMI-specific timing parameter. A negative
++ *                             value indicates this characteristic isn't known.
++ * @tREA_in_ns:                tREA, in nanoseconds, from the data sheet. A
++ *                             negative value indicates this characteristic
++ *                             isn't known.
++ * @tRLOH_in_ns:               tRLOH, in nanoseconds, from the data sheet. A
++ *                             negative value indicates this characteristic
++ *                             isn't known.
++ * @tRHOH_in_ns:               tRHOH, in nanoseconds, from the data sheet. A
++ *                             negative value indicates this characteristic
++ *                             isn't known.
++ */
++
++struct nand_device_info {
++
++	/* End of table marker */
++
++	bool      end_of_table;
++
++	/* Manufacturer and Device codes */
++
++	uint8_t   manufacturer_code;
++	uint8_t   device_code;
++
++	/* Technology */
++
++	enum nand_device_cell_technology  cell_technology;
++
++	/* Geometry */
++
++	uint64_t  chip_size_in_bytes;
++	uint32_t  block_size_in_pages;
++	uint16_t  page_total_size_in_bytes;
++
++	/* ECC */
++
++	uint8_t   ecc_strength_in_bits;
++	uint16_t  ecc_size_in_bytes;
++
++	/* Timing */
++
++	int8_t    data_setup_in_ns;
++	int8_t    data_hold_in_ns;
++	int8_t    address_setup_in_ns;
++	int8_t    gpmi_sample_delay_in_ns;
++	int8_t    tREA_in_ns;
++	int8_t    tRLOH_in_ns;
++	int8_t    tRHOH_in_ns;
++
++	/* Description */
++
++	const char  *description;
++
++};
++
++/**
++ * nand_device_get_info - Get info about a device based on ID bytes.
++ *
++ * @id_bytes:  An array of NAND_DEVICE_ID_BYTE_COUNT ID bytes retrieved from the
++ *             NAND Flash device.
++ */
++
++struct nand_device_info *nand_device_get_info(const uint8_t id_bytes[]);
++
++/**
++ * nand_device_print_info - Prints information about a NAND Flash device.
++ *
++ * @info  A pointer to a NAND Flash device information structure.
++ */
++
++void nand_device_print_info(struct nand_device_info *info);
++
++#endif
+diff --git a/drivers/mtd/nand/nand_ids.c b/drivers/mtd/nand/nand_ids.c
+index 74f49ed..ade3223 100644
+--- a/drivers/mtd/nand/nand_ids.c
++++ b/drivers/mtd/nand/nand_ids.c
+@@ -143,6 +143,8 @@ struct nand_manufacturers nand_manuf_ids[] = {
+ 	{NAND_MFR_HYNIX, "Hynix"},
+ 	{NAND_MFR_MICRON, "Micron"},
+ 	{NAND_MFR_AMD, "AMD"},
++	{NAND_MFR_SANDISK, "SanDisk"},
++	{NAND_MFR_INTEL, "Intel"},
+ 	{0x0, "Unknown"}
+ };
+ 
+diff --git a/include/linux/mtd/nand.h b/include/linux/mtd/nand.h
+index 993e862..1b89696 100644
+--- a/include/linux/mtd/nand.h
++++ b/include/linux/mtd/nand.h
+@@ -434,6 +434,8 @@ struct nand_chip {
+ #define NAND_MFR_HYNIX		0xad
+ #define NAND_MFR_MICRON		0x2c
+ #define NAND_MFR_AMD		0x01
++#define NAND_MFR_SANDISK	0x45
++#define NAND_MFR_INTEL		0x89
+ 
+ /**
+  * struct nand_flash_dev - NAND Flash Device ID Structure
+-- 
+1.5.4.4
+

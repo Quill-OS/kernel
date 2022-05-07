@@ -1,0 +1,108 @@
+From b54cdec00015decb2618164613473c4d2dda90df Mon Sep 17 00:00:00 2001
+From: William Lai <b04597@freescale.com>
+Date: Tue, 2 Feb 2010 14:37:28 +0800
+Subject: [PATCH] ENGR00120661-2 MX28 CAN: MX28 platform support
+
+Add common CAN data structure and define the CAN devices
+
+Signed-off-by: William Lai <b04597@freescale.com>
+---
+ arch/arm/plat-mxs/device.c              |   29 ++++++++++++++++++++++++++
+ arch/arm/plat-mxs/include/mach/device.h |   34 +++++++++++++++++++++++++++++++
+ 2 files changed, 63 insertions(+), 0 deletions(-)
+
+diff --git a/arch/arm/plat-mxs/device.c b/arch/arm/plat-mxs/device.c
+index ae42a71..9a31b0a 100644
+--- a/arch/arm/plat-mxs/device.c
++++ b/arch/arm/plat-mxs/device.c
+@@ -318,6 +318,26 @@ static struct platform_device mxs_led = {
+ };
+ #endif
+ 
++#if defined(CONFIG_CAN_FLEXCAN) || \
++	defined(CONFIG_CAN_FLEXCAN_MODULE)
++static struct platform_device mxs_flexcan[] = {
++	{
++	.name = "FlexCAN",
++	.id = 0,
++	.dev = {
++		.release = mxs_nop_release,
++		},
++	},
++	{
++	.name = "FlexCAN",
++	.id = 1,
++	.dev = {
++		.release = mxs_nop_release,
++		},
++	},
++};
++#endif
++
+ static struct mxs_dev_lookup dev_lookup[] = {
+ #if defined(CONFIG_SERIAL_MXS_DUART) || \
+ 	defined(CONFIG_SERIAL_MXS_DUART_MODULE)
+@@ -431,6 +451,15 @@ static struct mxs_dev_lookup dev_lookup[] = {
+ 	 .pdev = &mxs_led,
+ 	 },
+ #endif
++
++#if defined(CONFIG_CAN_FLEXCAN) || \
++	defined(CONFIG_CAN_FLEXCAN_MODULE)
++	{
++	.name = "FlexCAN",
++	.size = ARRAY_SIZE(mxs_flexcan),
++	.pdev = mxs_flexcan,
++	},
++#endif
+ };
+ 
+ struct platform_device *mxs_get_device(char *name, int id)
+diff --git a/arch/arm/plat-mxs/include/mach/device.h b/arch/arm/plat-mxs/include/mach/device.h
+index aaf61bf..3aaed6d 100644
+--- a/arch/arm/plat-mxs/include/mach/device.h
++++ b/arch/arm/plat-mxs/include/mach/device.h
+@@ -106,6 +106,40 @@ struct mxs_pwm_leds_plat_data {
+ 	struct mxs_pwm_led *leds;
+ };
+ 
++struct flexcan_platform_data {
++	char *core_reg;
++	char *io_reg;
++	void (*xcvr_enable) (int id, int en);
++	void (*active) (int id);
++	void (*inactive) (int id);
++	/* word 1 */
++	unsigned int br_presdiv:8;
++	unsigned int br_rjw:2;
++	unsigned int br_propseg:3;
++	unsigned int br_pseg1:3;
++	unsigned int br_pseg2:3;
++	unsigned int maxmb:6;
++	unsigned int xmit_maxmb:6;
++	unsigned int wd1_resv:1;
++
++	/* word 2 */
++	unsigned int fifo:1;
++	unsigned int wakeup:1;
++	unsigned int srx_dis:1;
++	unsigned int wak_src:1;
++	unsigned int bcc:1;
++	unsigned int lprio:1;
++	unsigned int abort:1;
++	unsigned int br_clksrc:1;
++	unsigned int loopback:1;
++	unsigned int smp:1;
++	unsigned int boff_rec:1;
++	unsigned int tsyn:1;
++	unsigned int listen:1;
++	unsigned int ext_msg:1;
++	unsigned int std_msg:1;
++};
++
+ extern void mxs_timer_init(struct mxs_sys_timer *timer);
+ 
+ extern void mxs_nop_release(struct device *dev);
+-- 
+1.5.4.4
+

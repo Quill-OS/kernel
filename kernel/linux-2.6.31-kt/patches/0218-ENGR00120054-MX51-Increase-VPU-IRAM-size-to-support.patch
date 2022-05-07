@@ -1,0 +1,28 @@
+From 969fe3d1051c86daf915708b0d73d73b22ec3b1e Mon Sep 17 00:00:00 2001
+From: Sammy He <r62914@freescale.com>
+Date: Fri, 15 Jan 2010 14:42:55 +0800
+Subject: [PATCH] ENGR00120054 MX51: Increase VPU IRAM size to support decoder
+
+Increase VPU IRAM size to support decoder
+
+Signed-off-by: Sammy He <r62914@freescale.com>
+---
+ arch/arm/plat-mxc/include/mach/mx51.h |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/arch/arm/plat-mxc/include/mach/mx51.h b/arch/arm/plat-mxc/include/mach/mx51.h
+index b8330ec..e2dd51e 100644
+--- a/arch/arm/plat-mxc/include/mach/mx51.h
++++ b/arch/arm/plat-mxc/include/mach/mx51.h
+@@ -89,7 +89,7 @@
+ #endif
+ 
+ #ifdef CONFIG_MXC_VPU_IRAM
+-#define VPU_IRAM_SIZE  0x7000
++#define VPU_IRAM_SIZE  0x11000
+ #else
+ #define VPU_IRAM_SIZE 0
+ #endif
+-- 
+1.5.4.4
+

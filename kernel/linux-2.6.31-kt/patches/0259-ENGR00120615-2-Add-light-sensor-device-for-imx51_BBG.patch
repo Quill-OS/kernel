@@ -1,0 +1,41 @@
+From 6a3c98e7b88e2a3f4c76bd6a60923fb869d756a0 Mon Sep 17 00:00:00 2001
+From: Sammy He <r62914@freescale.com>
+Date: Mon, 1 Feb 2010 17:48:46 +0800
+Subject: [PATCH] ENGR00120615-2 Add light sensor device for imx51_BBG
+
+Add light sensor device for imx51_BBG
+
+Signed-off-by: Sammy He <r62914@freescale.com>
+---
+ arch/arm/mach-mx51/mx51_babbage.c |   10 ++++++++++
+ 1 files changed, 10 insertions(+), 0 deletions(-)
+
+diff --git a/arch/arm/mach-mx51/mx51_babbage.c b/arch/arm/mach-mx51/mx51_babbage.c
+index d019bec..68f1926 100644
+--- a/arch/arm/mach-mx51/mx51_babbage.c
++++ b/arch/arm/mach-mx51/mx51_babbage.c
+@@ -596,11 +596,21 @@ static struct i2c_board_info mxc_i2c0_board_info[] __initdata = {
+ };
+ #endif
+ #ifdef CONFIG_I2C_MXC_SELECT2
++static struct mxc_lightsensor_platform_data ls_data = {
++	.vdd_reg = "VIOHI",
++	.rext = 100,
++};
++
+ static struct i2c_board_info mxc_i2c1_board_info[] __initdata = {
+ 	{
+ 	 .type = "sgtl5000-i2c",
+ 	 .addr = 0x0a,
+ 	 },
++	{
++	 .type = "isl29003",
++	 .addr = 0x44,
++	 .platform_data = &ls_data,
++	 },
+ };
+ #endif
+ 
+-- 
+1.5.4.4
+

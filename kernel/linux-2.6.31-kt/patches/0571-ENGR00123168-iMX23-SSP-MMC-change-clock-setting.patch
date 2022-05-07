@@ -1,0 +1,37 @@
+From 1cd5e0d3e2cc2c0b638787897e1e221e6c226fd8 Mon Sep 17 00:00:00 2001
+From: Jeremy.Yao <r65161@freescale.com>
+Date: Thu, 6 May 2010 16:13:33 +0800
+Subject: [PATCH] ENGR00123168 : iMX23 SSP/MMC change clock setting
+
+Change mmc clock setting to fit new clock driver
+
+Signed-off-by: Jeremy Yao <r65161@freescale.com>
+---
+ arch/arm/mach-mx23/device.c |    9 +--------
+ 1 files changed, 1 insertions(+), 8 deletions(-)
+
+diff --git a/arch/arm/mach-mx23/device.c b/arch/arm/mach-mx23/device.c
+index d43c60c..9eb2585 100644
+--- a/arch/arm/mach-mx23/device.c
++++ b/arch/arm/mach-mx23/device.c
+@@ -600,16 +600,9 @@ static void mx23_init_gpmi_nfc(void)
+ #if defined(CONFIG_MMC_MXS) || defined(CONFIG_MMC_MXS_MODULE)
+ static unsigned long mxs_mmc_setclock_mmc0(unsigned long hz)
+ {
+-	struct clk *ssp = clk_get(NULL, "ssp.0"), *parent;
++	struct clk *ssp = clk_get(NULL, "ssp.0");
+ 
+-	if (hz > 1000000)
+-		parent = clk_get(NULL, "ref_io.0");
+-	else
+-		parent = clk_get(NULL, "xtal.0");
+-
+-	clk_set_parent(ssp, parent);
+ 	clk_set_rate(ssp, 2 * hz);
+-	clk_put(parent);
+ 	clk_put(ssp);
+ 
+ 	return hz;
+-- 
+1.5.4.4
+

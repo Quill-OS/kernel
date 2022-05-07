@@ -1,0 +1,56 @@
+From 71fc810ffcac9aad2ade45eef6c5ec2ad4410cf8 Mon Sep 17 00:00:00 2001
+From: Jun Li <r65092@freescale.com>
+Date: Wed, 14 Apr 2010 15:03:45 +0800
+Subject: [PATCH] ENGR00121945 Fix USB OTG pin-detect.
+
+In OTG mode, entering low power mode after udc probe causes
+otg controller can not exit from it when switch to host mode.
+this patch let gadget class driver handle it.
+
+Signed-off-by: Jun Li <r65092@freescale.com>
+---
+ drivers/usb/gadget/arcotg_udc.c |    8 ++++----
+ 1 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/usb/gadget/arcotg_udc.c b/drivers/usb/gadget/arcotg_udc.c
+index b8beeb5..b4ccc3b 100644
+--- a/drivers/usb/gadget/arcotg_udc.c
++++ b/drivers/usb/gadget/arcotg_udc.c
+@@ -2198,14 +2198,14 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
+ 	udc_controller->driver = driver;
+ 	udc_controller->gadget.dev.driver = &driver->driver;
+ 	spin_unlock_irqrestore(&udc_controller->lock, flags);
+-
++#ifndef CONFIG_USB_OTG
+ 	if (udc_controller->pdata->usb_clock_for_pm)
+ 		udc_controller->pdata->usb_clock_for_pm(true);
+ 
+ 	portsc = fsl_readl(&dr_regs->portsc1);
+ 	portsc &= ~PORTSCX_PHY_LOW_POWER_SPD;
+ 	fsl_writel(portsc, &dr_regs->portsc1);
+-
++#endif
+ 	/* bind udc driver to gadget driver */
+ 	retval = driver->bind(&udc_controller->gadget);
+ 	if (retval) {
+@@ -2869,7 +2869,7 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
+ #ifdef POSTPONE_FREE_LAST_DTD
+ 	last_free_td = NULL;
+ #endif
+-
++#ifndef CONFIG_USB_OTG
+ 	/* disable all INTR */
+ 	fsl_writel(0, &dr_regs->usbintr);
+ 
+@@ -2882,7 +2882,7 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
+ 
+ 	if (udc_controller->pdata->usb_clock_for_pm)
+ 		udc_controller->pdata->usb_clock_for_pm(false);
+-
++#endif
+ 	create_proc_file();
+ 	return 0;
+ 
+-- 
+1.5.4.4
+

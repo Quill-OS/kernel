@@ -1,0 +1,29 @@
+From 034575edb9d41bcdd6f90ea5e76c96e5ea99cea5 Mon Sep 17 00:00:00 2001
+From: Lily Zhang <r58066@freescale.com>
+Date: Tue, 24 Nov 2009 13:42:47 +0800
+Subject: [PATCH] ENGR00118698 Fix FEC resume issue
+
+FEC driver is stopped in suspend state. So FEC driver should restart
+instead of initialization in resume state
+
+Signed-off-by: Lily Zhang <r58066@freescale.com>
+---
+ drivers/net/fec.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/drivers/net/fec.c b/drivers/net/fec.c
+index 6133f28..91d8e21 100644
+--- a/drivers/net/fec.c
++++ b/drivers/net/fec.c
+@@ -2035,7 +2035,7 @@ fec_resume(struct platform_device *dev)
+ 
+ 	if (ndev) {
+ 		if (netif_running(ndev)) {
+-			fec_enet_init(ndev, 0);
++			fec_restart(ndev, 1);
+ 			netif_device_attach(ndev);
+ 		}
+ 	}
+-- 
+1.5.4.4
+

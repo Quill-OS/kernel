@@ -1,0 +1,28 @@
+From 2bd2d5d1754d726795aae99ebd2a8e6f600f60af Mon Sep 17 00:00:00 2001
+From: Robby Cai <R63905@freescale.com>
+Date: Fri, 6 Nov 2009 13:32:35 +0800
+Subject: [PATCH] ENGR00118049 UART: app-uart device node does not exist
+
+No /dev/ttySP0, due to mismatch of app uart driver and device
+
+Signed-off-by: Robby Cai <R63905@freescale.com>
+---
+ drivers/serial/stmp-app.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/drivers/serial/stmp-app.c b/drivers/serial/stmp-app.c
+index b02d857..558a382 100644
+--- a/drivers/serial/stmp-app.c
++++ b/drivers/serial/stmp-app.c
+@@ -56,7 +56,7 @@ static struct platform_driver stmp_appuart_driver = {
+ 	.suspend = stmp_appuart_suspend,
+ 	.resume = stmp_appuart_resume,
+ 	.driver = {
+-		.name = "stmp37xx-appuart",
++		.name = "stmp3xxx-appuart",
+ 		.owner = THIS_MODULE,
+ 	},
+ };
+-- 
+1.5.4.4
+

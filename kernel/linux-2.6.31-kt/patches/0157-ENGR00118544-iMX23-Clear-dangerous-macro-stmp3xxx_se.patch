@@ -1,0 +1,1942 @@
+From fc790d316a6544dae72413a466f5c7f627ff4bd7 Mon Sep 17 00:00:00 2001
+From: Frank.Li <Frank.Li@freescale.com>
+Date: Wed, 18 Nov 2009 11:43:37 -0600
+Subject: [PATCH] ENGR00118544 iMX23 Clear dangerous macro stmp3xxx_setl(clearl)
+
+No all regiser use _SCT. stmp3xxx_setl may write to wrong address.
+please use __raw_write (value, REG_XXX_SET) to write date to SCT
+register.  Only REG_XXX_SCT is defined when it exist at hardware.
+
+Signed-off-by: Frank.Li <Frank.Li@freescale.com>
+---
+ arch/arm/mach-stmp378x/pm.c             |   89 +++++++----
+ drivers/crypto/stmp3xxx_dcp.c           |   15 +-
+ drivers/i2c/busses/i2c-stmp378x.c       |   17 ++-
+ drivers/input/keyboard/stmp3xxx-kbd.c   |   15 ++-
+ drivers/input/misc/stmp3xxx_rotdec.c    |   10 +-
+ drivers/input/touchscreen/stmp3xxx_ts.c |  119 +++++++++-----
+ drivers/mmc/host/stmp3xxx_mmc.c         |    4 +-
+ drivers/mtd/nand/gpmi/gpmi-base.c       |   44 +++---
+ drivers/mtd/nand/gpmi/gpmi-bch.c        |    5 +-
+ drivers/mtd/nand/gpmi/gpmi-ecc8.c       |    9 +-
+ drivers/mtd/nand/lba/gpmi-transport.c   |    6 +-
+ drivers/power/stmp37xx/linux.c          |   12 +-
+ drivers/rtc/rtc-stmp3xxx.c              |   46 ++++--
+ drivers/serial/stmp-app.c               |   40 +++---
+ drivers/spi/spi_stmp.c                  |   35 +++--
+ drivers/video/stmp37xxfb.c              |   21 ++-
+ drivers/watchdog/stmp3xxx_wdt.c         |   18 +-
+ sound/soc/codecs/stmp378x_codec.c       |  260 +++++++++++++++---------------
+ sound/soc/codecs/stmp3xxx_spdif.c       |   22 ++-
+ sound/soc/stmp3xxx/stmp3xxx_dai.c       |   54 ++++---
+ sound/soc/stmp3xxx/stmp3xxx_pcm.c       |    4 +-
+ sound/soc/stmp3xxx/stmp3xxx_spdif_dai.c |   32 ++--
+ 22 files changed, 504 insertions(+), 373 deletions(-)
+
+diff --git a/arch/arm/mach-stmp378x/pm.c b/arch/arm/mach-stmp378x/pm.c
+index cbc5207..a3662c3 100644
+--- a/arch/arm/mach-stmp378x/pm.c
++++ b/arch/arm/mach-stmp378x/pm.c
+@@ -66,7 +66,9 @@ static void stmp378x_standby(void)
+ 	u32 reg_vddd, reg_vdda, reg_vddio;
+ 
+ 	/* DDR EnterSelfrefreshMode */
+-	stmp3xxx_setl(BM_DRAM_CTL08_SREFRESH, REGS_DRAM_BASE + HW_DRAM_CTL08);
++	__raw_writel(
++	BM_DRAM_CTL08_SREFRESH | __raw_readl(REGS_DRAM_BASE + HW_DRAM_CTL08),
++	REGS_DRAM_BASE + HW_DRAM_CTL08);
+ 
+ 	/* Gating EMI CLock */
+ 	__raw_writel(BM_CLKCTRL_EMI_CLKGATE |
+@@ -74,7 +76,8 @@ static void stmp378x_standby(void)
+ 			REGS_CLKCTRL_BASE + HW_CLKCTRL_EMI);
+ 
+ 	/* Disable PLL */
+-	stmp3xxx_clearl(BM_CLKCTRL_PLLCTRL0_POWER, REGS_CLKCTRL_BASE + HW_CLKCTRL_PLLCTRL0);
++	__raw_writel(BM_CLKCTRL_PLLCTRL0_POWER,
++		REGS_CLKCTRL_BASE + HW_CLKCTRL_PLLCTRL0_CLR);
+ 
+ 	/* Reduce the VDDIO (3.050 volt) */
+ 	reg_vddio = __raw_readl(REGS_POWER_BASE + HW_POWER_VDDIOCTRL);
+@@ -118,27 +121,40 @@ static void stmp378x_standby(void)
+ 		REGS_POWER_BASE + HW_POWER_LOOPCTRL);
+ 
+ 	/* half the fets */
+-	stmp3xxx_setl(BM_POWER_MINPWR_HALF_FETS, REGS_POWER_BASE + HW_POWER_MINPWR);
+-
+-	stmp3xxx_clearl(BM_POWER_LOOPCTRL_CM_HYST_THRESH, REGS_POWER_BASE + HW_POWER_LOOPCTRL);
+-	stmp3xxx_clearl(BM_POWER_LOOPCTRL_EN_CM_HYST, REGS_POWER_BASE + HW_POWER_LOOPCTRL);
+-	stmp3xxx_clearl(BM_POWER_LOOPCTRL_EN_DF_HYST, REGS_POWER_BASE + HW_POWER_LOOPCTRL);
++	__raw_writel(BM_POWER_MINPWR_HALF_FETS,
++		REGS_POWER_BASE + HW_POWER_MINPWR_SET);
++
++	__raw_writel(BM_POWER_LOOPCTRL_CM_HYST_THRESH,
++			REGS_POWER_BASE + HW_POWER_LOOPCTRL_CLR);
++	__raw_writel(BM_POWER_LOOPCTRL_EN_CM_HYST,
++			REGS_POWER_BASE + HW_POWER_LOOPCTRL_CLR);
++	__raw_writel(BM_POWER_LOOPCTRL_EN_DF_HYST,
++			REGS_POWER_BASE + HW_POWER_LOOPCTRL_CLR);
+ 	/* enable PFM */
+-	stmp3xxx_setl(BM_POWER_LOOPCTRL_HYST_SIGN, REGS_POWER_BASE + HW_POWER_LOOPCTRL);
+-	stmp3xxx_setl(BM_POWER_MINPWR_EN_DC_PFM, REGS_POWER_BASE + HW_POWER_MINPWR);
++	__raw_writel(BM_POWER_LOOPCTRL_HYST_SIGN,
++		REGS_POWER_BASE + HW_POWER_LOOPCTRL_SET);
++	__raw_writel(BM_POWER_MINPWR_EN_DC_PFM,
++		REGS_POWER_BASE + HW_POWER_MINPWR_SET);
+ 
+-	stmp3xxx_setl(BM_CLKCTRL_CPU_INTERRUPT_WAIT, REGS_CLKCTRL_BASE + HW_CLKCTRL_CPU);
++	__raw_writel(BM_CLKCTRL_CPU_INTERRUPT_WAIT,
++		REGS_CLKCTRL_BASE + HW_CLKCTRL_CPU_SET);
+ 	/* Power off ... */
+ 	asm("mcr     p15, 0, r2, c7, c0, 4");
+-	stmp3xxx_clearl(BM_CLKCTRL_CPU_INTERRUPT_WAIT, REGS_CLKCTRL_BASE + HW_CLKCTRL_CPU);
++	__raw_writel(BM_CLKCTRL_CPU_INTERRUPT_WAIT,
++			REGS_CLKCTRL_BASE + HW_CLKCTRL_CPU_CLR);
+ 
+ 	/* restore the DCDC parameter */
+ 
+-	stmp3xxx_clearl(BM_POWER_MINPWR_EN_DC_PFM, REGS_POWER_BASE + HW_POWER_MINPWR);
+-	stmp3xxx_clearl(BM_POWER_LOOPCTRL_HYST_SIGN, REGS_POWER_BASE + HW_POWER_LOOPCTRL);
+-	stmp3xxx_setl(BM_POWER_LOOPCTRL_EN_DF_HYST, REGS_POWER_BASE + HW_POWER_LOOPCTRL);
+-	stmp3xxx_setl(BM_POWER_LOOPCTRL_EN_CM_HYST, REGS_POWER_BASE + HW_POWER_LOOPCTRL);
+-	stmp3xxx_setl(BM_POWER_LOOPCTRL_CM_HYST_THRESH, REGS_POWER_BASE + HW_POWER_LOOPCTRL);
++	__raw_writel(BM_POWER_MINPWR_EN_DC_PFM,
++			REGS_POWER_BASE + HW_POWER_MINPWR_CLR);
++	__raw_writel(BM_POWER_LOOPCTRL_HYST_SIGN,
++			REGS_POWER_BASE + HW_POWER_LOOPCTRL_CLR);
++	__raw_writel(BM_POWER_LOOPCTRL_EN_DF_HYST,
++			REGS_POWER_BASE + HW_POWER_LOOPCTRL_SET);
++	__raw_writel(BM_POWER_LOOPCTRL_EN_CM_HYST,
++			REGS_POWER_BASE + HW_POWER_LOOPCTRL_SET);
++	__raw_writel(BM_POWER_LOOPCTRL_CM_HYST_THRESH,
++			REGS_POWER_BASE + HW_POWER_LOOPCTRL_SET);
+ 
+ 	__raw_writel((__raw_readl(REGS_POWER_BASE + HW_POWER_LOOPCTRL) & ~BM_POWER_LOOPCTRL_DC_R) |
+ 		(2<<BP_POWER_LOOPCTRL_DC_R),
+@@ -166,14 +182,18 @@ static void stmp378x_standby(void)
+ 
+ 
+ 	/* Enable PLL */
+-	stmp3xxx_setl(BM_CLKCTRL_PLLCTRL0_POWER, REGS_CLKCTRL_BASE + HW_CLKCTRL_PLLCTRL0);
++	__raw_writel(BM_CLKCTRL_PLLCTRL0_POWER,
++		REGS_CLKCTRL_BASE + HW_CLKCTRL_PLLCTRL0_SET);
+ 	/* Ungating EMI CLock */
+ 	__raw_writel(~BM_CLKCTRL_EMI_CLKGATE &
+ 			__raw_readl(REGS_CLKCTRL_BASE + HW_CLKCTRL_EMI),
+ 			REGS_CLKCTRL_BASE + HW_CLKCTRL_EMI);
+ 
+ 	/* LeaveSelfrefreshMode */
+-	stmp3xxx_clearl(BM_DRAM_CTL08_SREFRESH, REGS_DRAM_BASE + HW_DRAM_CTL08);
++	__raw_writel(
++		(~BM_DRAM_CTL08_SREFRESH) &
++			__raw_readl(REGS_DRAM_BASE + HW_DRAM_CTL08),
++		REGS_DRAM_BASE + HW_DRAM_CTL08);
+ 	WAIT_CYCLE(WAIT_DC_OK_CYCLES)
+ }
+ 
+@@ -227,8 +247,10 @@ static inline void do_standby(void)
+ 	stmp3xxx_dma_suspend();
+ 	stmp3xxx_suspend_timer();
+ 
+-	stmp3xxx_setl(BM_POWER_CTRL_ENIRQ_PSWITCH, REGS_POWER_BASE + HW_POWER_CTRL);
+-	stmp3xxx_setl(BM_ICOLL_INTERRUPTn_ENABLE, REGS_ICOLL_BASE + HW_ICOLL_INTERRUPTn(IRQ_VDD5V));
++	__raw_writel(BM_POWER_CTRL_ENIRQ_PSWITCH,
++		REGS_POWER_BASE + HW_POWER_CTRL_SET);
++	__raw_writel(BM_ICOLL_INTERRUPTn_ENABLE,
++		REGS_ICOLL_BASE + HW_ICOLL_INTERRUPTn_SET(IRQ_VDD5V));
+ 
+ 	/* clear pending interrupt, if any */
+ 	for (i = 0; i < PENDING_IRQ_RETRY; i++) {
+@@ -247,13 +269,13 @@ static inline void do_standby(void)
+ 
+ 	reg_clkctrl_clkseq = __raw_readl(REGS_CLKCTRL_BASE + HW_CLKCTRL_CLKSEQ);
+ 
+-	stmp3xxx_setl(BM_CLKCTRL_CLKSEQ_BYPASS_ETM |
++	__raw_writel(BM_CLKCTRL_CLKSEQ_BYPASS_ETM |
+ 		BM_CLKCTRL_CLKSEQ_BYPASS_SSP |
+ 		BM_CLKCTRL_CLKSEQ_BYPASS_GPMI |
+ 		BM_CLKCTRL_CLKSEQ_BYPASS_IR |
+ 		BM_CLKCTRL_CLKSEQ_BYPASS_PIX|
+ 		BM_CLKCTRL_CLKSEQ_BYPASS_SAIF, 
+-		REGS_CLKCTRL_BASE + HW_CLKCTRL_CLKSEQ);
++		REGS_CLKCTRL_BASE + HW_CLKCTRL_CLKSEQ_SET);
+ 
+ 	reg_clkctrl_xtal = __raw_readl(REGS_CLKCTRL_BASE + HW_CLKCTRL_XTAL);
+ 
+@@ -270,7 +292,8 @@ static inline void do_standby(void)
+ 
+ 	pr_info("wakeup irq source = %d\n", __raw_readl(REGS_ICOLL_BASE + HW_ICOLL_STAT));
+ 	saved_sleep_state = 0;  /* waking from standby */
+-	stmp3xxx_clearl(BM_POWER_CTRL_PSWITCH_IRQ, REGS_POWER_BASE + HW_POWER_CTRL);
++	__raw_writel(BM_POWER_CTRL_PSWITCH_IRQ,
++		REGS_POWER_BASE + HW_POWER_CTRL_CLR);
+ 	stmp3xxx_resume_timer();
+ 	stmp3xxx_dma_resume();
+ 
+@@ -362,8 +385,8 @@ static noinline void do_mem(void)
+ 	memcpy(saved_sram, (void *)STMP3XXX_OCRAM_BASE, stmp_s2ram_alloc_sz);
+ 
+ 	/* set the PERSISTENT_SLEEP_BIT for bootloader */
+-	stmp3xxx_setl(1 << 10,
+-		REGS_RTC_BASE + HW_RTC_PERSISTENT1); /* XXX: temp */
++	__raw_writel(1 << 10,
++		REGS_RTC_BASE + HW_RTC_PERSISTENT1_SET); /* XXX: temp */
+ 
+ 	/*
+ 	 * make sure SRAM copy gets physically written into SDRAM.
+@@ -492,7 +515,7 @@ void stmp37xx_pm_idle(void)
+ 		return;
+ 	}
+ 
+-	stmp3xxx_setl(1<<12, REGS_CLKCTRL_BASE + HW_CLKCTRL_CPU);
++	__raw_writel(1<<12, REGS_CLKCTRL_BASE + HW_CLKCTRL_CPU_SET);
+ 	__asm__ __volatile__ ("mcr	p15, 0, r0, c7, c0, 4");
+ 
+ 	local_fiq_enable();
+@@ -552,7 +575,8 @@ static irqreturn_t pswitch_interrupt(int irq, void *dev)
+ 		pr_info("pswitch power down\n");
+ 		stmp37xx_pm_power_off();
+ 	}
+-	stmp3xxx_clearl(BM_POWER_CTRL_PSWITCH_IRQ, REGS_POWER_BASE + HW_POWER_CTRL);
++	__raw_writel(BM_POWER_CTRL_PSWITCH_IRQ,
++		REGS_POWER_BASE + HW_POWER_CTRL_CLR);
+ 	return IRQ_HANDLED;
+ }
+ 
+@@ -566,10 +590,13 @@ static struct irqaction pswitch_irq = {
+ static void init_pswitch(void)
+ {
+ 	kthread_run(suspend_thread_fn, NULL, "pswitch");
+-	stmp3xxx_clearl(BM_POWER_CTRL_PSWITCH_IRQ, REGS_POWER_BASE + HW_POWER_CTRL);
+-	stmp3xxx_setl(BM_POWER_CTRL_POLARITY_PSWITCH |
+-		BM_POWER_CTRL_ENIRQ_PSWITCH, REGS_POWER_BASE + HW_POWER_CTRL);
+-	stmp3xxx_clearl(BM_POWER_CTRL_PSWITCH_IRQ, REGS_POWER_BASE + HW_POWER_CTRL);
++	__raw_writel(BM_POWER_CTRL_PSWITCH_IRQ,
++		REGS_POWER_BASE + HW_POWER_CTRL_CLR);
++	__raw_writel(BM_POWER_CTRL_POLARITY_PSWITCH |
++		BM_POWER_CTRL_ENIRQ_PSWITCH,
++		REGS_POWER_BASE + HW_POWER_CTRL_SET);
++	__raw_writel(BM_POWER_CTRL_PSWITCH_IRQ,
++		REGS_POWER_BASE + HW_POWER_CTRL_CLR);
+ 	setup_irq(IRQ_VDD5V, &pswitch_irq);
+ }
+ 
+diff --git a/drivers/crypto/stmp3xxx_dcp.c b/drivers/crypto/stmp3xxx_dcp.c
+index d5762fe..0bd9df1 100644
+--- a/drivers/crypto/stmp3xxx_dcp.c
++++ b/drivers/crypto/stmp3xxx_dcp.c
+@@ -243,7 +243,7 @@ static void dcp_perform_op(struct stmp3xxx_dcp_op *op)
+ 	/* submit the work */
+ 	mutex_lock(mutex);
+ 
+-	stmp3xxx_clearl(-1, REGS_DCP_BASE + HW_DCP_CHnSTAT(chan));
++	__raw_writel(-1, REGS_DCP_BASE + HW_DCP_CHnSTAT_CLR(chan));
+ 
+ 	/* Load the work packet pointer and bump the channel semaphore */
+ 	__raw_writel((u32)pkt_phys, REGS_DCP_BASE + HW_DCP_CHnCMDPTR(chan));
+@@ -1011,7 +1011,7 @@ static void dcp_perform_hash_op(struct stmp3xxx_dcp_hash_op *op)
+ 	/* submit the work */
+ 	mutex_lock(mutex);
+ 
+-	stmp3xxx_clearl(-1, REGS_DCP_BASE + HW_DCP_CHnSTAT(chan));
++	__raw_writel(-1, REGS_DCP_BASE + HW_DCP_CHnSTAT_CLR(chan));
+ 
+ 	mb();
+ 	/* Load the work packet pointer and bump the channel semaphore */
+@@ -1175,7 +1175,7 @@ static irqreturn_t dcp_common_irq(int irq, void *context)
+ 		return IRQ_NONE;
+ 
+ 	/* clear this channel */
+-	stmp3xxx_clearl(msk, REGS_DCP_BASE + HW_DCP_STAT);
++	__raw_writel(msk, REGS_DCP_BASE + HW_DCP_STAT_CLR);
+ 	if (msk & BF(0x01, DCP_STAT_IRQ))
+ 		sdcp->wait[0]++;
+ 	if (msk & BF(0x02, DCP_STAT_IRQ))
+@@ -1228,7 +1228,7 @@ static int stmp3xxx_dcp_probe(struct platform_device *pdev)
+ 	platform_set_drvdata(pdev, sdcp);
+ 
+ 	/* Soft reset and remove the clock gate */
+-	stmp3xxx_setl(BM_DCP_CTRL_SFTRST, REGS_DCP_BASE + HW_DCP_CTRL);
++	__raw_writel(BM_DCP_CTRL_SFTRST, REGS_DCP_BASE + HW_DCP_CTRL_SET);
+ 
+ 	/* At 24Mhz, it takes no more than 4 clocks (160 ns) Maximum for
+ 	 * the part to reset, reading the register twice should
+@@ -1237,7 +1237,8 @@ static int stmp3xxx_dcp_probe(struct platform_device *pdev)
+ 	__raw_readl(REGS_DCP_BASE + HW_DCP_CTRL);
+ 	__raw_readl(REGS_DCP_BASE + HW_DCP_CTRL);
+ 
+-	stmp3xxx_clearl(BM_DCP_CTRL_SFTRST | BM_DCP_CTRL_CLKGATE, REGS_DCP_BASE + HW_DCP_CTRL);
++	__raw_writel(BM_DCP_CTRL_SFTRST | BM_DCP_CTRL_CLKGATE,
++		REGS_DCP_BASE + HW_DCP_CTRL_CLR);
+ 
+ 	/* Initialize control registers */
+ 	__raw_writel(STMP3XXX_DCP_CTRL_INIT, REGS_DCP_BASE + HW_DCP_CTRL);
+@@ -1252,8 +1253,8 @@ static int stmp3xxx_dcp_probe(struct platform_device *pdev)
+ 	__raw_writel(0xFFFF0000, REGS_DCP_BASE + HW_DCP_CONTEXT);
+ 
+ 	for (i = 0; i < STMP3XXX_DCP_NUM_CHANNELS; i++)
+-		stmp3xxx_clearl(-1, REGS_DCP_BASE + HW_DCP_CHnSTAT(i));
+-	stmp3xxx_clearl(-1, REGS_DCP_BASE + HW_DCP_STAT);
++		__raw_writel(-1, REGS_DCP_BASE + HW_DCP_CHnSTAT_CLR(i));
++	__raw_writel(-1, REGS_DCP_BASE + HW_DCP_STAT_CLR);
+ 
+ 	r = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+ 	if (!r) {
+diff --git a/drivers/i2c/busses/i2c-stmp378x.c b/drivers/i2c/busses/i2c-stmp378x.c
+index 2013a1b..08c20f8 100644
+--- a/drivers/i2c/busses/i2c-stmp378x.c
++++ b/drivers/i2c/busses/i2c-stmp378x.c
+@@ -39,7 +39,7 @@ static void reset_i2c_module(void)
+ 	u32 ctrl;
+ 	int count;
+ 	count = 1000;
+-	stmp3xxx_setl(BM_I2C_CTRL0_SFTRST, REGS_I2C_BASE + HW_I2C_CTRL0);
++	__raw_writel(BM_I2C_CTRL0_SFTRST, REGS_I2C_BASE + HW_I2C_CTRL0_SET);
+ 	udelay(10); /* Reseting the module can take multiple clocks.*/
+ 	while (--count && (!(__raw_readl(REGS_I2C_BASE + HW_I2C_CTRL0) & BM_I2C_CTRL0_CLKGATE)))
+ 		udelay(1);
+@@ -50,9 +50,11 @@ static void reset_i2c_module(void)
+ 	}
+ 
+ 	/* take controller out of reset */
+-	stmp3xxx_clearl(BM_I2C_CTRL0_SFTRST | BM_I2C_CTRL0_CLKGATE, REGS_I2C_BASE + HW_I2C_CTRL0);
++	__raw_writel(BM_I2C_CTRL0_SFTRST | BM_I2C_CTRL0_CLKGATE,
++		REGS_I2C_BASE + HW_I2C_CTRL0_CLR);
+ 	udelay(10);
+-	stmp3xxx_setl(0x0000FF00, REGS_I2C_BASE + HW_I2C_CTRL1); /* Wil catch all error (IRQ mask) */
++	/* Wil catch all error (IRQ mask) */
++	__raw_writel(0x0000FF00, REGS_I2C_BASE + HW_I2C_CTRL1_SET);
+ }
+ 
+ /*
+@@ -170,7 +172,8 @@ stmp378x_i2c_isr(int this_irq, void *dev_id)
+ 		 * Stop DMA
+ 		 * Clear NAK
+ 		 */
+-		stmp3xxx_setl(BM_I2C_CTRL1_CLR_GOT_A_NAK, REGS_I2C_BASE + HW_I2C_CTRL1);
++		__raw_writel(BM_I2C_CTRL1_CLR_GOT_A_NAK,
++			REGS_I2C_BASE + HW_I2C_CTRL1_SET);
+ 		hw_i2c_reset_dma();
+ 		reset_i2c_module();
+ 
+@@ -195,7 +198,7 @@ stmp378x_i2c_isr(int this_irq, void *dev_id)
+ 
+ 
+ done:
+-	stmp3xxx_clearl(stat, REGS_I2C_BASE + HW_I2C_CTRL1);
++	__raw_writel(stat, REGS_I2C_BASE + HW_I2C_CTRL1_CLR);
+ 	return IRQ_HANDLED;
+ }
+ 
+@@ -259,7 +262,9 @@ stmp378x_i2c_probe(struct platform_device *pdev)
+ 		goto init_failed;
+ 	}
+ 
+-	stmp3xxx_setl(0x0000FF00, REGS_I2C_BASE + HW_I2C_CTRL1); /* Will catch all error (IRQ mask) */
++	/* Will catch all error (IRQ mask) */
++	__raw_writel(0x0000FF00,
++		REGS_I2C_BASE + HW_I2C_CTRL1_SET);
+ 
+ 	adap = &dev->adapter;
+ 	i2c_set_adapdata(adap, dev);
+diff --git a/drivers/input/keyboard/stmp3xxx-kbd.c b/drivers/input/keyboard/stmp3xxx-kbd.c
+index 7dcf698..a230aa9 100644
+--- a/drivers/input/keyboard/stmp3xxx-kbd.c
++++ b/drivers/input/keyboard/stmp3xxx-kbd.c
+@@ -163,7 +163,8 @@ static irqreturn_t stmpkbd_irq_handler(int irq, void *dev_id)
+ 
+ 	}
+ 
+-	stmp3xxx_clearl(BM_LRADC_CTRL1_LRADC0_IRQ, REGS_LRADC_BASE + HW_LRADC_CTRL1);
++	__raw_writel(BM_LRADC_CTRL1_LRADC0_IRQ,
++		REGS_LRADC_BASE + HW_LRADC_CTRL1_CLR);
+ 	return IRQ_HANDLED;
+ }
+ 
+@@ -181,8 +182,10 @@ static void stmpkbd_close(struct input_dev *dev)
+ static void stmpkbd_hwinit(struct platform_device *pdev)
+ {
+ 	hw_lradc_init_ladder(LRADC_CH0, LRADC_DELAY_TRIGGER_BUTTON, 200);
+-	stmp3xxx_clearl(BM_LRADC_CTRL1_LRADC0_IRQ, REGS_LRADC_BASE + HW_LRADC_CTRL1);
+-	stmp3xxx_setl(BM_LRADC_CTRL1_LRADC0_IRQ_EN, REGS_LRADC_BASE + HW_LRADC_CTRL1);
++	__raw_writel(BM_LRADC_CTRL1_LRADC0_IRQ,
++		REGS_LRADC_BASE + HW_LRADC_CTRL1_CLR);
++	__raw_writel(BM_LRADC_CTRL1_LRADC0_IRQ_EN,
++		REGS_LRADC_BASE + HW_LRADC_CTRL1_SET);
+ 	hw_lradc_set_delay_trigger_kick(LRADC_DELAY_TRIGGER_BUTTON, !0);
+ }
+ 
+@@ -194,7 +197,8 @@ static int stmpkbd_suspend(struct platform_device *pdev, pm_message_t state)
+ 	hw_lradc_stop_ladder(LRADC_CH0, LRADC_DELAY_TRIGGER_BUTTON);
+ 	hw_lradc_set_delay_trigger_kick(LRADC_DELAY_TRIGGER_BUTTON, 0);
+ 	hw_lradc_unuse_channel(LRADC_CH0);
+-	stmp3xxx_clearl(BM_LRADC_CTRL1_LRADC0_IRQ_EN, REGS_LRADC_BASE + HW_LRADC_CTRL1);
++	__raw_writel(BM_LRADC_CTRL1_LRADC0_IRQ_EN,
++		REGS_LRADC_BASE + HW_LRADC_CTRL1_CLR);
+ 	stmpkbd_close(idev);
+ #endif
+ 	return 0;
+@@ -205,7 +209,8 @@ static int stmpkbd_resume(struct platform_device *pdev)
+ #ifdef CONFIG_PM
+ 	struct input_dev *idev = platform_get_drvdata(pdev);
+ 
+-	stmp3xxx_setl(BM_LRADC_CTRL1_LRADC0_IRQ_EN, REGS_LRADC_BASE + HW_LRADC_CTRL1);
++	__raw_writel(BM_LRADC_CTRL1_LRADC0_IRQ_EN,
++		REGS_LRADC_BASE + HW_LRADC_CTRL1_SET);
+ 	stmpkbd_open(idev);
+ 	hw_lradc_use_channel(LRADC_CH0);
+ 	stmpkbd_hwinit(pdev);
+diff --git a/drivers/input/misc/stmp3xxx_rotdec.c b/drivers/input/misc/stmp3xxx_rotdec.c
+index 310313e..621db95 100644
+--- a/drivers/input/misc/stmp3xxx_rotdec.c
++++ b/drivers/input/misc/stmp3xxx_rotdec.c
+@@ -69,15 +69,17 @@ static int stmp3xxx_rotdec_probe(struct platform_device *pdev)
+ 		 BF(BV_TIMROT_ROTCTRL_SELECT_A__ROTARYA,
+ 			TIMROT_ROTCTRL_SELECT_A)
+ 		, REGS_TIMROT_BASE + HW_TIMROT_ROTCTRL);
+-		stmp3xxx_clearl(
++		__raw_writel(
+ 		 BM_TIMROT_ROTCTRL_POLARITY_B |
+ 		 BM_TIMROT_ROTCTRL_POLARITY_A
+-		, REGS_TIMROT_BASE + HW_TIMROT_ROTCTRL);
++		, REGS_TIMROT_BASE + HW_TIMROT_ROTCTRL_CLR);
+ 
+ 		if (relative)
+-			stmp3xxx_setl(BM_TIMROT_ROTCTRL_RELATIVE, REGS_TIMROT_BASE + HW_TIMROT_ROTCTRL);
++			__raw_writel(BM_TIMROT_ROTCTRL_RELATIVE,
++				REGS_TIMROT_BASE + HW_TIMROT_ROTCTRL_SET);
+ 		else
+-			stmp3xxx_clearl(BM_TIMROT_ROTCTRL_RELATIVE, REGS_TIMROT_BASE + HW_TIMROT_ROTCTRL);
++			__raw_writel(BM_TIMROT_ROTCTRL_RELATIVE,
++				REGS_TIMROT_BASE + HW_TIMROT_ROTCTRL_CLR);
+ 
+ 		rc = rotdec_pinmux_request();
+ 		if (rc) {
+diff --git a/drivers/input/touchscreen/stmp3xxx_ts.c b/drivers/input/touchscreen/stmp3xxx_ts.c
+index dcd9e7c..4e6ab20 100644
+--- a/drivers/input/touchscreen/stmp3xxx_ts.c
++++ b/drivers/input/touchscreen/stmp3xxx_ts.c
+@@ -49,22 +49,29 @@ struct stmp3xxx_ts_info {
+ 
+ static inline void enter_state_touch_detect(struct stmp3xxx_ts_info *info)
+ {
+-	stmp3xxx_clearl(0xFFFFFFFF, REGS_LRADC_BASE + HW_LRADC_CHn(2));
+-	stmp3xxx_clearl(0xFFFFFFFF, REGS_LRADC_BASE + HW_LRADC_CHn(3));
+-	stmp3xxx_clearl(0xFFFFFFFF, REGS_LRADC_BASE + HW_LRADC_CHn(4));
+-	stmp3xxx_clearl(0xFFFFFFFF, REGS_LRADC_BASE + HW_LRADC_CHn(5));
+-	stmp3xxx_clearl(BM_LRADC_CTRL1_LRADC5_IRQ, REGS_LRADC_BASE + HW_LRADC_CTRL1);
+-	stmp3xxx_clearl(BM_LRADC_CTRL1_TOUCH_DETECT_IRQ, REGS_LRADC_BASE + HW_LRADC_CTRL1);
++	__raw_writel(0xFFFFFFFF, REGS_LRADC_BASE + HW_LRADC_CHn_CLR(2));
++	__raw_writel(0xFFFFFFFF, REGS_LRADC_BASE + HW_LRADC_CHn_CLR(3));
++	__raw_writel(0xFFFFFFFF, REGS_LRADC_BASE + HW_LRADC_CHn_CLR(4));
++	__raw_writel(0xFFFFFFFF, REGS_LRADC_BASE + HW_LRADC_CHn_CLR(5));
++	__raw_writel(BM_LRADC_CTRL1_LRADC5_IRQ,
++		REGS_LRADC_BASE + HW_LRADC_CTRL1_CLR);
++	__raw_writel(BM_LRADC_CTRL1_TOUCH_DETECT_IRQ,
++		REGS_LRADC_BASE + HW_LRADC_CTRL1_CLR);
+ 	/*
+ 	 * turn off the yplus and yminus pullup and pulldown, and turn off touch
+ 	 * detect (enables yminus, and xplus through a resistor.On a press,
+ 	 * xplus is pulled down)
+ 	 */
+-	stmp3xxx_clearl(BM_LRADC_CTRL0_YMINUS_ENABLE, REGS_LRADC_BASE + HW_LRADC_CTRL0);
+-	stmp3xxx_clearl(BM_LRADC_CTRL0_YPLUS_ENABLE, REGS_LRADC_BASE + HW_LRADC_CTRL0);
+-	stmp3xxx_clearl(BM_LRADC_CTRL0_XMINUS_ENABLE, REGS_LRADC_BASE + HW_LRADC_CTRL0);
+-	stmp3xxx_clearl(BM_LRADC_CTRL0_XPLUS_ENABLE, REGS_LRADC_BASE + HW_LRADC_CTRL0);
+-	stmp3xxx_setl(BM_LRADC_CTRL0_TOUCH_DETECT_ENABLE, REGS_LRADC_BASE + HW_LRADC_CTRL0);
++	__raw_writel(BM_LRADC_CTRL0_YMINUS_ENABLE,
++		REGS_LRADC_BASE + HW_LRADC_CTRL0_CLR);
++	__raw_writel(BM_LRADC_CTRL0_YPLUS_ENABLE,
++		REGS_LRADC_BASE + HW_LRADC_CTRL0_CLR);
++	__raw_writel(BM_LRADC_CTRL0_XMINUS_ENABLE,
++		REGS_LRADC_BASE + HW_LRADC_CTRL0_CLR);
++	__raw_writel(BM_LRADC_CTRL0_XPLUS_ENABLE,
++		REGS_LRADC_BASE + HW_LRADC_CTRL0_CLR);
++	__raw_writel(BM_LRADC_CTRL0_TOUCH_DETECT_ENABLE,
++		REGS_LRADC_BASE + HW_LRADC_CTRL0_SET);
+ 
+ 	hw_lradc_set_delay_trigger_kick(LRADC_DELAY_TRIGGER_TOUCHSCREEN, 0);
+ 	info->state = TS_STATE_TOUCH_DETECT;
+@@ -73,11 +80,16 @@ static inline void enter_state_touch_detect(struct stmp3xxx_ts_info *info)
+ 
+ static inline void enter_state_disabled(struct stmp3xxx_ts_info *info)
+ {
+-	stmp3xxx_clearl(BM_LRADC_CTRL0_YMINUS_ENABLE, REGS_LRADC_BASE + HW_LRADC_CTRL0);
+-	stmp3xxx_clearl(BM_LRADC_CTRL0_YPLUS_ENABLE, REGS_LRADC_BASE + HW_LRADC_CTRL0);
+-	stmp3xxx_clearl(BM_LRADC_CTRL0_XMINUS_ENABLE, REGS_LRADC_BASE + HW_LRADC_CTRL0);
+-	stmp3xxx_clearl(BM_LRADC_CTRL0_XPLUS_ENABLE, REGS_LRADC_BASE + HW_LRADC_CTRL0);
+-	stmp3xxx_clearl(BM_LRADC_CTRL0_TOUCH_DETECT_ENABLE, REGS_LRADC_BASE + HW_LRADC_CTRL0);
++	__raw_writel(BM_LRADC_CTRL0_YMINUS_ENABLE,
++		REGS_LRADC_BASE + HW_LRADC_CTRL0_CLR);
++	__raw_writel(BM_LRADC_CTRL0_YPLUS_ENABLE,
++		REGS_LRADC_BASE + HW_LRADC_CTRL0_CLR);
++	__raw_writel(BM_LRADC_CTRL0_XMINUS_ENABLE,
++		REGS_LRADC_BASE + HW_LRADC_CTRL0_CLR);
++	__raw_writel(BM_LRADC_CTRL0_XPLUS_ENABLE,
++		REGS_LRADC_BASE + HW_LRADC_CTRL0_CLR);
++	__raw_writel(BM_LRADC_CTRL0_TOUCH_DETECT_ENABLE,
++		REGS_LRADC_BASE + HW_LRADC_CTRL0_CLR);
+ 
+ 	hw_lradc_set_delay_trigger_kick(LRADC_DELAY_TRIGGER_TOUCHSCREEN, 0);
+ 	info->state = TS_STATE_DISABLED;
+@@ -87,11 +99,16 @@ static inline void enter_state_disabled(struct stmp3xxx_ts_info *info)
+ 
+ static inline void enter_state_x_plane(struct stmp3xxx_ts_info *info)
+ {
+-	stmp3xxx_setl(BM_LRADC_CTRL0_YMINUS_ENABLE, REGS_LRADC_BASE + HW_LRADC_CTRL0);
+-	stmp3xxx_setl(BM_LRADC_CTRL0_YPLUS_ENABLE, REGS_LRADC_BASE + HW_LRADC_CTRL0);
+-	stmp3xxx_clearl(BM_LRADC_CTRL0_XMINUS_ENABLE, REGS_LRADC_BASE + HW_LRADC_CTRL0);
+-	stmp3xxx_clearl(BM_LRADC_CTRL0_XPLUS_ENABLE, REGS_LRADC_BASE + HW_LRADC_CTRL0);
+-	stmp3xxx_clearl(BM_LRADC_CTRL0_TOUCH_DETECT_ENABLE, REGS_LRADC_BASE + HW_LRADC_CTRL0);
++	__raw_writel(BM_LRADC_CTRL0_YMINUS_ENABLE,
++		REGS_LRADC_BASE + HW_LRADC_CTRL0_SET);
++	__raw_writel(BM_LRADC_CTRL0_YPLUS_ENABLE,
++		REGS_LRADC_BASE + HW_LRADC_CTRL0_SET);
++	__raw_writel(BM_LRADC_CTRL0_XMINUS_ENABLE,
++		REGS_LRADC_BASE + HW_LRADC_CTRL0_CLR);
++	__raw_writel(BM_LRADC_CTRL0_XPLUS_ENABLE,
++		REGS_LRADC_BASE + HW_LRADC_CTRL0_CLR);
++	__raw_writel(BM_LRADC_CTRL0_TOUCH_DETECT_ENABLE,
++		REGS_LRADC_BASE + HW_LRADC_CTRL0_CLR);
+ 
+ 	hw_lradc_set_delay_trigger_kick(LRADC_DELAY_TRIGGER_TOUCHSCREEN, 1);
+ 
+@@ -101,11 +118,16 @@ static inline void enter_state_x_plane(struct stmp3xxx_ts_info *info)
+ 
+ static inline void enter_state_y_plane(struct stmp3xxx_ts_info *info)
+ {
+-	stmp3xxx_clearl(BM_LRADC_CTRL0_YMINUS_ENABLE, REGS_LRADC_BASE + HW_LRADC_CTRL0);
+-	stmp3xxx_clearl(BM_LRADC_CTRL0_YPLUS_ENABLE, REGS_LRADC_BASE + HW_LRADC_CTRL0);
+-	stmp3xxx_setl(BM_LRADC_CTRL0_XMINUS_ENABLE, REGS_LRADC_BASE + HW_LRADC_CTRL0);
+-	stmp3xxx_setl(BM_LRADC_CTRL0_XPLUS_ENABLE, REGS_LRADC_BASE + HW_LRADC_CTRL0);
+-	stmp3xxx_clearl(BM_LRADC_CTRL0_TOUCH_DETECT_ENABLE, REGS_LRADC_BASE + HW_LRADC_CTRL0);
++	__raw_writel(BM_LRADC_CTRL0_YMINUS_ENABLE,
++		REGS_LRADC_BASE + HW_LRADC_CTRL0_CLR);
++	__raw_writel(BM_LRADC_CTRL0_YPLUS_ENABLE,
++		REGS_LRADC_BASE + HW_LRADC_CTRL0_CLR);
++	__raw_writel(BM_LRADC_CTRL0_XMINUS_ENABLE,
++		REGS_LRADC_BASE + HW_LRADC_CTRL0_SET);
++	__raw_writel(BM_LRADC_CTRL0_XPLUS_ENABLE,
++		REGS_LRADC_BASE + HW_LRADC_CTRL0_SET);
++	__raw_writel(BM_LRADC_CTRL0_TOUCH_DETECT_ENABLE,
++		REGS_LRADC_BASE + HW_LRADC_CTRL0_CLR);
+ 
+ 	hw_lradc_set_delay_trigger_kick(LRADC_DELAY_TRIGGER_TOUCHSCREEN, 1);
+ 	info->state = TS_STATE_Y_PLANE;
+@@ -114,11 +136,16 @@ static inline void enter_state_y_plane(struct stmp3xxx_ts_info *info)
+ 
+ static inline void enter_state_touch_verify(struct stmp3xxx_ts_info *info)
+ {
+-	stmp3xxx_clearl(BM_LRADC_CTRL0_YMINUS_ENABLE, REGS_LRADC_BASE + HW_LRADC_CTRL0);
+-	stmp3xxx_clearl(BM_LRADC_CTRL0_YPLUS_ENABLE, REGS_LRADC_BASE + HW_LRADC_CTRL0);
+-	stmp3xxx_clearl(BM_LRADC_CTRL0_XMINUS_ENABLE, REGS_LRADC_BASE + HW_LRADC_CTRL0);
+-	stmp3xxx_clearl(BM_LRADC_CTRL0_XPLUS_ENABLE, REGS_LRADC_BASE + HW_LRADC_CTRL0);
+-	stmp3xxx_setl(BM_LRADC_CTRL0_TOUCH_DETECT_ENABLE, REGS_LRADC_BASE + HW_LRADC_CTRL0);
++	__raw_writel(BM_LRADC_CTRL0_YMINUS_ENABLE,
++		REGS_LRADC_BASE + HW_LRADC_CTRL0_CLR);
++	__raw_writel(BM_LRADC_CTRL0_YPLUS_ENABLE,
++		REGS_LRADC_BASE + HW_LRADC_CTRL0_CLR);
++	__raw_writel(BM_LRADC_CTRL0_XMINUS_ENABLE,
++		REGS_LRADC_BASE + HW_LRADC_CTRL0_CLR);
++	__raw_writel(BM_LRADC_CTRL0_XPLUS_ENABLE,
++		REGS_LRADC_BASE + HW_LRADC_CTRL0_CLR);
++	__raw_writel(BM_LRADC_CTRL0_TOUCH_DETECT_ENABLE,
++		REGS_LRADC_BASE + HW_LRADC_CTRL0_SET);
+ 
+ 	info->state = TS_STATE_TOUCH_VERIFY;
+ 	hw_lradc_set_delay_trigger_kick(LRADC_DELAY_TRIGGER_TOUCHSCREEN, 1);
+@@ -207,9 +234,11 @@ static irqreturn_t ts_handler(int irq, void *dev_id)
+ 	int pressure = 0;
+ 
+ 	if (irq == info->touch_irq)
+-		stmp3xxx_clearl(BM_LRADC_CTRL1_TOUCH_DETECT_IRQ, REGS_LRADC_BASE + HW_LRADC_CTRL1);
++		__raw_writel(BM_LRADC_CTRL1_TOUCH_DETECT_IRQ,
++			REGS_LRADC_BASE + HW_LRADC_CTRL1_CLR);
+ 	else if (irq == info->device_irq)
+-		stmp3xxx_clearl(BM_LRADC_CTRL1_LRADC5_IRQ, REGS_LRADC_BASE + HW_LRADC_CTRL1);
++		__raw_writel(BM_LRADC_CTRL1_LRADC5_IRQ,
++			REGS_LRADC_BASE + HW_LRADC_CTRL1_CLR);
+ 
+ 	/* get x, y values */
+ 	x_plus = __raw_readl(REGS_LRADC_BASE + HW_LRADC_CHn(LRADC_TOUCH_X_PLUS)) & BM_LRADC_CHn_VALUE;
+@@ -290,18 +319,22 @@ static int stmp3xxx_ts_probe(struct platform_device *pdev)
+ 	hw_lradc_configure_channel(LRADC_CH5, 0, 0, 0);
+ 
+ 	/* Clear the accumulator & NUM_SAMPLES for the channels */
+-	stmp3xxx_clearl(0xFFFFFFFF, REGS_LRADC_BASE + HW_LRADC_CHn(LRADC_CH2));
+-	stmp3xxx_clearl(0xFFFFFFFF, REGS_LRADC_BASE + HW_LRADC_CHn(LRADC_CH3));
+-	stmp3xxx_clearl(0xFFFFFFFF, REGS_LRADC_BASE + HW_LRADC_CHn(LRADC_CH5));
++	__raw_writel(0xFFFFFFFF, REGS_LRADC_BASE + HW_LRADC_CHn_CLR(LRADC_CH2));
++	__raw_writel(0xFFFFFFFF, REGS_LRADC_BASE + HW_LRADC_CHn_CLR(LRADC_CH3));
++	__raw_writel(0xFFFFFFFF, REGS_LRADC_BASE + HW_LRADC_CHn_CLR(LRADC_CH5));
+ 
+ 	hw_lradc_set_delay_trigger(LRADC_DELAY_TRIGGER_TOUCHSCREEN,
+ 			0x3c, 0, 0, 8);
+ 
+-	stmp3xxx_clearl(BM_LRADC_CTRL1_LRADC5_IRQ, REGS_LRADC_BASE + HW_LRADC_CTRL1);
+-	stmp3xxx_clearl(BM_LRADC_CTRL1_TOUCH_DETECT_IRQ, REGS_LRADC_BASE + HW_LRADC_CTRL1);
++	__raw_writel(BM_LRADC_CTRL1_LRADC5_IRQ,
++		REGS_LRADC_BASE + HW_LRADC_CTRL1_CLR);
++	__raw_writel(BM_LRADC_CTRL1_TOUCH_DETECT_IRQ,
++		REGS_LRADC_BASE + HW_LRADC_CTRL1_CLR);
+ 
+-	stmp3xxx_setl(BM_LRADC_CTRL1_LRADC5_IRQ_EN, REGS_LRADC_BASE + HW_LRADC_CTRL1);
+-	stmp3xxx_setl(BM_LRADC_CTRL1_TOUCH_DETECT_IRQ_EN, REGS_LRADC_BASE + HW_LRADC_CTRL1);
++	__raw_writel(BM_LRADC_CTRL1_LRADC5_IRQ_EN,
++		REGS_LRADC_BASE + HW_LRADC_CTRL1_SET);
++	__raw_writel(BM_LRADC_CTRL1_TOUCH_DETECT_IRQ_EN,
++		REGS_LRADC_BASE + HW_LRADC_CTRL1_SET);
+ 
+ 	platform_set_drvdata(pdev, info);
+ 	device_init_wakeup(&pdev->dev, 1);
+@@ -325,8 +358,10 @@ static int stmp3xxx_ts_remove(struct platform_device *pdev)
+ 	hw_lradc_unuse_channel(LRADC_CH2);
+ 	hw_lradc_unuse_channel(LRADC_CH3);
+ 	hw_lradc_unuse_channel(LRADC_CH5);
+-	stmp3xxx_clearl(BM_LRADC_CTRL1_LRADC5_IRQ_EN, REGS_LRADC_BASE + HW_LRADC_CTRL1);
+-	stmp3xxx_clearl(BM_LRADC_CTRL1_TOUCH_DETECT_IRQ_EN, REGS_LRADC_BASE + HW_LRADC_CTRL1);
++	__raw_writel(BM_LRADC_CTRL1_LRADC5_IRQ_EN,
++		REGS_LRADC_BASE + HW_LRADC_CTRL1_CLR);
++	__raw_writel(BM_LRADC_CTRL1_TOUCH_DETECT_IRQ_EN,
++		REGS_LRADC_BASE + HW_LRADC_CTRL1_CLR);
+ 
+ 	free_irq(info->device_irq, info);
+ 	free_irq(info->touch_irq, info);
+diff --git a/drivers/mmc/host/stmp3xxx_mmc.c b/drivers/mmc/host/stmp3xxx_mmc.c
+index 2061cc1..0caa43d 100644
+--- a/drivers/mmc/host/stmp3xxx_mmc.c
++++ b/drivers/mmc/host/stmp3xxx_mmc.c
+@@ -145,8 +145,8 @@ static irqreturn_t mmc_irq_handler(int irq, void *dev_id)
+ 	u32 c1;
+ 
+ 	c1 = __raw_readl(host->ssp_base + HW_SSP_CTRL1);
+-	stmp3xxx_clearl(c1 & STMP3XXX_MMC_IRQ_BITS,
+-			host->ssp_base + HW_SSP_CTRL1);
++	__raw_writel(c1 & STMP3XXX_MMC_IRQ_BITS,
++			host->ssp_base + HW_SSP_CTRL1_CLR);
+ 	if (irq == host->dmairq)
+ 		stmp3xxx_dma_clear_interrupt(host->dmach);
+ 	host->status =
+diff --git a/drivers/mtd/nand/gpmi/gpmi-base.c b/drivers/mtd/nand/gpmi/gpmi-base.c
+index e10a175..d2c10cc 100644
+--- a/drivers/mtd/nand/gpmi/gpmi-base.c
++++ b/drivers/mtd/nand/gpmi/gpmi-base.c
+@@ -249,8 +249,8 @@ static void gpmi_timer_expiry(unsigned long d)
+ 		g->timer.expires = jiffies + 4 * HZ;
+ 		add_timer(&g->timer);
+ 	} else {
+-		stmp3xxx_setl(BM_GPMI_CTRL0_CLKGATE,
+-			      REGS_GPMI_BASE + HW_GPMI_CTRL0);
++		__raw_writel(BM_GPMI_CTRL0_CLKGATE,
++			      REGS_GPMI_BASE + HW_GPMI_CTRL0_SET);
+ 		clk_disable(g->clk);
+ 		g->self_suspended = 1;
+ 	}
+@@ -265,7 +265,7 @@ static void gpmi_self_wakeup(struct gpmi_nand_data *g)
+ #ifdef CONFIG_PM
+ 	int i = 1000;
+ 	clk_enable(g->clk);
+-	stmp3xxx_clearl(BM_GPMI_CTRL0_CLKGATE, REGS_GPMI_BASE + HW_GPMI_CTRL0);
++	__raw_writel(BM_GPMI_CTRL0_CLKGATE, REGS_GPMI_BASE + HW_GPMI_CTRL0_CLR);
+ 	while (i--
+ 	       && __raw_readl(REGS_GPMI_BASE +
+ 			      HW_GPMI_CTRL0) & BM_GPMI_CTRL0_CLKGATE) ;
+@@ -344,9 +344,9 @@ void gpmi_set_timings(struct gpmi_nand_data *g,
+ 
+ 	/* Reset the DLL and sample delay to known values. */
+ 
+-	stmp3xxx_clearl(
++	__raw_writel(
+ 		BM_GPMI_CTRL1_RDN_DELAY | BM_GPMI_CTRL1_DLL_ENABLE,
+-					REGS_GPMI_BASE + HW_GPMI_CTRL1);
++					REGS_GPMI_BASE + HW_GPMI_CTRL1_CLR);
+ 
+ 	/*
+ 	 * Check how fast the GPMI clock is running. If it's running very
+@@ -718,7 +718,8 @@ set_up_the_hardware:
+ 	 */
+ 
+ 	/* BW_GPMI_CTRL1_DLL_ENABLE(0); */
+-	stmp3xxx_clearl(BM_GPMI_CTRL1_DLL_ENABLE, REGS_GPMI_BASE+HW_GPMI_CTRL1);
++	__raw_writel(BM_GPMI_CTRL1_DLL_ENABLE,
++		REGS_GPMI_BASE+HW_GPMI_CTRL1_CLR);
+ 
+ 	if ((data_sample_delay_in_cycles == 0) ||
+ 			(gpmi_clock_period_in_ns > GPMI_MAX_DLL_PERIOD_NS)) {
+@@ -729,11 +730,11 @@ set_up_the_hardware:
+ 		 */
+ 
+ 		/* BW_GPMI_CTRL1_RDN_DELAY(0); */
+-		stmp3xxx_clearl(BM_GPMI_CTRL1_RDN_DELAY,
+-						REGS_GPMI_BASE + HW_GPMI_CTRL1);
++		__raw_writel(BM_GPMI_CTRL1_RDN_DELAY,
++				REGS_GPMI_BASE + HW_GPMI_CTRL1_CLR);
+ 		/* BW_GPMI_CTRL1_HALF_PERIOD(0); */
+-		stmp3xxx_clearl(BM_GPMI_CTRL1_HALF_PERIOD,
+-						REGS_GPMI_BASE + HW_GPMI_CTRL1);
++		__raw_writel(BM_GPMI_CTRL1_HALF_PERIOD,
++				REGS_GPMI_BASE + HW_GPMI_CTRL1_CLR);
+ 
+ 	} else {
+ 
+@@ -751,8 +752,8 @@ set_up_the_hardware:
+ 		__raw_writel(register_image, REGS_GPMI_BASE + HW_GPMI_CTRL1);
+ 
+ 		/* BW_GPMI_CTRL1_DLL_ENABLE(1); */
+-		stmp3xxx_setl(BM_GPMI_CTRL1_DLL_ENABLE,
+-						REGS_GPMI_BASE + HW_GPMI_CTRL1);
++		__raw_writel(BM_GPMI_CTRL1_DLL_ENABLE,
++			REGS_GPMI_BASE + HW_GPMI_CTRL1_SET);
+ 
+ 		/*
+ 		 * After we enable the GPMI DLL, we have to wait
+@@ -859,21 +860,22 @@ static int gpmi_nand_init_hw(struct platform_device *pdev, int request_pins)
+ 	stmp3xxx_reset_block(HW_GPMI_CTRL0 + REGS_GPMI_BASE, 1);
+ 
+ 	/* this CLEARS reset, despite of its name */
+-	stmp3xxx_setl(BM_GPMI_CTRL1_DEV_RESET, REGS_GPMI_BASE + HW_GPMI_CTRL1);
++	__raw_writel(BM_GPMI_CTRL1_DEV_RESET,
++		REGS_GPMI_BASE + HW_GPMI_CTRL1_SET);
+ 
+ 	/* IRQ polarity */
+-	stmp3xxx_setl(BM_GPMI_CTRL1_ATA_IRQRDY_POLARITY,
+-		      REGS_GPMI_BASE + HW_GPMI_CTRL1);
++	__raw_writel(BM_GPMI_CTRL1_ATA_IRQRDY_POLARITY,
++		      REGS_GPMI_BASE + HW_GPMI_CTRL1_SET);
+ 
+ 	/*
+ 	 * Select the ECC to use. The bch_mode() function returns a value that
+ 	 * selects whichever hardware is appropriate (q.v.).
+ 	 */
+-	stmp3xxx_setl(bch_mode(), REGS_GPMI_BASE + HW_GPMI_CTRL1);
++	__raw_writel(bch_mode(), REGS_GPMI_BASE + HW_GPMI_CTRL1_SET);
+ 
+ 	/* Choose NAND mode (1 means ATA, 0 - NAND */
+-	stmp3xxx_clearl(BM_GPMI_CTRL1_GPMI_MODE,
+-			REGS_GPMI_BASE + HW_GPMI_CTRL1);
++	__raw_writel(BM_GPMI_CTRL1_GPMI_MODE,
++			REGS_GPMI_BASE + HW_GPMI_CTRL1_CLR);
+ 
+ out:
+ 	return err;
+@@ -892,7 +894,7 @@ static void gpmi_nand_release_hw(struct platform_device *pdev)
+ 	struct gpmi_platform_data *gpd =
+ 	    (struct gpmi_platform_data *)pdev->dev.platform_data;
+ 
+-	stmp3xxx_setl(BM_GPMI_CTRL0_SFTRST, REGS_GPMI_BASE + HW_GPMI_CTRL0);
++	__raw_writel(BM_GPMI_CTRL0_SFTRST, REGS_GPMI_BASE + HW_GPMI_CTRL0_SET);
+ 
+ 	clk_disable(g->clk);
+ 	clk_put(g->clk);
+@@ -1735,8 +1737,8 @@ static irqreturn_t gpmi_irq(int irq, void *context)
+ 		stmp3xxx_dma_clear_interrupt(g->cchip->dma_ch);
+ 		complete(&g->done);
+ 	}
+-	stmp3xxx_clearl(BM_GPMI_CTRL1_DEV_IRQ | BM_GPMI_CTRL1_TIMEOUT_IRQ,
+-			REGS_GPMI_BASE + HW_GPMI_CTRL1);
++	__raw_writel(BM_GPMI_CTRL1_DEV_IRQ | BM_GPMI_CTRL1_TIMEOUT_IRQ,
++			REGS_GPMI_BASE + HW_GPMI_CTRL1_CLR);
+ 	return IRQ_HANDLED;
+ }
+ 
+diff --git a/drivers/mtd/nand/gpmi/gpmi-bch.c b/drivers/mtd/nand/gpmi/gpmi-bch.c
+index 47c409f..b455581 100644
+--- a/drivers/mtd/nand/gpmi/gpmi-bch.c
++++ b/drivers/mtd/nand/gpmi/gpmi-bch.c
+@@ -93,7 +93,8 @@ static struct bch_state_t state = {
+ static int bch_reset(void *context, int index)
+ {
+ 	stmp3xxx_reset_block(REGS_BCH_BASE, true);
+-	stmp3xxx_setl(BM_BCH_CTRL_COMPLETE_IRQ_EN, REGS_BCH_BASE + HW_BCH_CTRL);
++	__raw_writel(BM_BCH_CTRL_COMPLETE_IRQ_EN,
++		REGS_BCH_BASE + HW_BCH_CTRL_SET);
+ 	return 0;
+ }
+ 
+@@ -148,7 +149,7 @@ static irqreturn_t bch_irq(int irq, void *context)
+ 	if (s0 & BM_BCH_STATUS0_UNCORRECTABLE)
+ 		stat.failed++;
+ 
+-	stmp3xxx_clearl(BM_BCH_CTRL_COMPLETE_IRQ, REGS_BCH_BASE + HW_BCH_CTRL);
++	__raw_writel(BM_BCH_CTRL_COMPLETE_IRQ, REGS_BCH_BASE + HW_BCH_CTRL_CLR);
+ 
+ 	pr_debug("%s: chip %d, failed %d, corrected %d\n",
+ 			__func__, r,
+diff --git a/drivers/mtd/nand/gpmi/gpmi-ecc8.c b/drivers/mtd/nand/gpmi/gpmi-ecc8.c
+index d1b30c0..5c7f278 100644
+--- a/drivers/mtd/nand/gpmi/gpmi-ecc8.c
++++ b/drivers/mtd/nand/gpmi/gpmi-ecc8.c
+@@ -118,8 +118,10 @@ static int  ecc8_reset(void *context, int index)
+ {
+ 	stmp3xxx_reset_block(REGS_ECC8_BASE, false);
+ 	while (__raw_readl(REGS_ECC8_BASE + HW_ECC8_CTRL) & BM_ECC8_CTRL_AHBM_SFTRST)
+-		stmp3xxx_clearl(BM_ECC8_CTRL_AHBM_SFTRST, REGS_ECC8_BASE + HW_ECC8_CTRL);
+-	stmp3xxx_setl(BM_ECC8_CTRL_COMPLETE_IRQ_EN, REGS_ECC8_BASE + HW_ECC8_CTRL);
++		__raw_writel(BM_ECC8_CTRL_AHBM_SFTRST,
++			REGS_ECC8_BASE + HW_ECC8_CTRL_CLR);
++	__raw_writel(BM_ECC8_CTRL_COMPLETE_IRQ_EN,
++			REGS_ECC8_BASE + HW_ECC8_CTRL_SET);
+ 	return 0;
+ }
+ 
+@@ -205,7 +207,8 @@ static irqreturn_t ecc8_irq(int irq, void *context)
+ 
+ 	complete(&state->done);
+ 
+-	stmp3xxx_clearl(BM_ECC8_CTRL_COMPLETE_IRQ, REGS_ECC8_BASE + HW_ECC8_CTRL);
++	__raw_writel(BM_ECC8_CTRL_COMPLETE_IRQ,
++		REGS_ECC8_BASE + HW_ECC8_CTRL_CLR);
+ 	return IRQ_HANDLED;
+ }
+ 
+diff --git a/drivers/mtd/nand/lba/gpmi-transport.c b/drivers/mtd/nand/lba/gpmi-transport.c
+index 0073842..f3eecc0 100644
+--- a/drivers/mtd/nand/lba/gpmi-transport.c
++++ b/drivers/mtd/nand/lba/gpmi-transport.c
+@@ -73,8 +73,8 @@ static irqreturn_t gpmi_irq(int irq, void *context)
+ 		}
+ 
+ 	}
+-	stmp3xxx_clearl(BM_GPMI_CTRL1_DEV_IRQ | BM_GPMI_CTRL1_TIMEOUT_IRQ,
+-			REGS_GPMI_BASE + HW_GPMI_CTRL1);
++	__raw_writel(BM_GPMI_CTRL1_DEV_IRQ | BM_GPMI_CTRL1_TIMEOUT_IRQ,
++			REGS_GPMI_BASE + HW_GPMI_CTRL1_CLR);
+ 	return IRQ_HANDLED;
+ }
+ 
+@@ -165,7 +165,7 @@ void queue_plug(struct lba_data *data)
+ 
+ void queue_release(struct lba_data *data)
+ {
+-	stmp3xxx_setl(BM_GPMI_CTRL0_SFTRST, REGS_GPMI_BASE + HW_GPMI_CTRL0);
++	__raw_writel(BM_GPMI_CTRL0_SFTRST, REGS_GPMI_BASE + HW_GPMI_CTRL0_SET);
+ 
+ 	clk_disable(data->clk);
+ }
+diff --git a/drivers/power/stmp37xx/linux.c b/drivers/power/stmp37xx/linux.c
+index 00403c5..69bafaf 100644
+--- a/drivers/power/stmp37xx/linux.c
++++ b/drivers/power/stmp37xx/linux.c
+@@ -457,7 +457,8 @@ static int stmp3xxx_bat_probe(struct platform_device *pdev)
+ 
+ 	/* init LRADC channels to measure battery voltage and die temp */
+ 	ddi_power_init_battery();
+-	stmp3xxx_clearl(BM_POWER_5VCTRL_ENABLE_LINREG_ILIMIT, REGS_POWER_BASE + HW_POWER_5VCTRL);
++	__raw_writel(BM_POWER_5VCTRL_ENABLE_LINREG_ILIMIT,
++		REGS_POWER_BASE + HW_POWER_5VCTRL_CLR);
+ 
+ 	ret = bc_sm_restart(info);
+ 	if (ret)
+@@ -490,7 +491,8 @@ static int stmp3xxx_bat_probe(struct platform_device *pdev)
+ 	}
+ 
+ 	/* enable usb device presence detection */
+-	stmp3xxx_setl(BM_USBPHY_CTRL_ENDEVPLUGINDETECT, REGS_USBPHY_BASE + HW_USBPHY_CTRL);
++	__raw_writel(BM_USBPHY_CTRL_ENDEVPLUGINDETECT,
++			REGS_USBPHY_BASE + HW_USBPHY_CTRL_SET);
+ 
+ 	return 0;
+ 
+@@ -536,7 +538,8 @@ static int stmp3xxx_bat_suspend(struct platform_device *pdev, pm_message_t msg)
+ 	mutex_lock(&info->sm_lock);
+ 
+ 	/* disable 5v irq */
+-	stmp3xxx_clearl(BM_POWER_CTRL_ENIRQ_VDD5V_GT_VDDIO, REGS_POWER_BASE + HW_POWER_CTRL);
++	__raw_writel(BM_POWER_CTRL_ENIRQ_VDD5V_GT_VDDIO,
++		REGS_POWER_BASE + HW_POWER_CTRL_CLR);
+ 
+ 	ddi_bc_SetDisable();
+ 	/* cancel state machine timer */
+@@ -578,7 +581,8 @@ static int stmp3xxx_bat_resume(struct platform_device *pdev)
+ 	}
+ 
+ 	/* enable 5v irq */
+-	stmp3xxx_setl(BM_POWER_CTRL_ENIRQ_VDD5V_GT_VDDIO, REGS_POWER_BASE + HW_POWER_CTRL);
++	__raw_writel(BM_POWER_CTRL_ENIRQ_VDD5V_GT_VDDIO,
++		REGS_POWER_BASE + HW_POWER_CTRL_SET);
+ 
+ 	/* reschedule calls to state machine */
+ 	mod_timer(&info->sm_timer,
+diff --git a/drivers/rtc/rtc-stmp3xxx.c b/drivers/rtc/rtc-stmp3xxx.c
+index ab39a0b..3f9869d 100644
+--- a/drivers/rtc/rtc-stmp3xxx.c
++++ b/drivers/rtc/rtc-stmp3xxx.c
+@@ -78,11 +78,13 @@ static irqreturn_t stmp3xxx_rtc_interrupt(int irq, void *dev_id)
+ 	status = __raw_readl(REGS_RTC_BASE + HW_RTC_CTRL) &
+ 			(BM_RTC_CTRL_ALARM_IRQ | BM_RTC_CTRL_ONEMSEC_IRQ);
+ 	if (status & BM_RTC_CTRL_ALARM_IRQ) {
+-		stmp3xxx_clearl(BM_RTC_CTRL_ALARM_IRQ, REGS_RTC_BASE + HW_RTC_CTRL);
++		__raw_writel(BM_RTC_CTRL_ALARM_IRQ,
++			REGS_RTC_BASE + HW_RTC_CTRL_CLR);
+ 		events |= RTC_AF | RTC_IRQF;
+ 	}
+ 	if (status & BM_RTC_CTRL_ONEMSEC_IRQ) {
+-		stmp3xxx_clearl(BM_RTC_CTRL_ONEMSEC_IRQ, REGS_RTC_BASE + HW_RTC_CTRL);
++		__raw_writel(BM_RTC_CTRL_ONEMSEC_IRQ,
++			REGS_RTC_BASE + HW_RTC_CTRL_CLR);
+ 		if (++data->irq_count % 1000 == 0) {
+ 			events |= RTC_UF | RTC_IRQF;
+ 			data->irq_count = 0;
+@@ -121,7 +123,8 @@ fail_1:
+ 
+ static void stmp3xxx_rtc_release(struct device *dev)
+ {
+-	stmp3xxx_clearl(BM_RTC_CTRL_ALARM_IRQ_EN | BM_RTC_CTRL_ONEMSEC_IRQ_EN, REGS_RTC_BASE + HW_RTC_CTRL);
++	__raw_writel(BM_RTC_CTRL_ALARM_IRQ_EN | BM_RTC_CTRL_ONEMSEC_IRQ_EN,
++		REGS_RTC_BASE + HW_RTC_CTRL_CLR);
+ 	free_irq(IRQ_RTC_ALARM, dev);
+ 	free_irq(IRQ_RTC_1MSEC, dev);
+ }
+@@ -133,21 +136,28 @@ static int stmp3xxx_rtc_ioctl(struct device *dev, unsigned int cmd,
+ 
+ 	switch (cmd) {
+ 	case RTC_AIE_OFF:
+-		stmp3xxx_clearl(BM_RTC_PERSISTENT0_ALARM_EN |
+-					BM_RTC_PERSISTENT0_ALARM_WAKE_EN, REGS_RTC_BASE + HW_RTC_PERSISTENT0);
+-		stmp3xxx_clearl(BM_RTC_CTRL_ALARM_IRQ_EN, REGS_RTC_BASE + HW_RTC_CTRL);
++		__raw_writel(BM_RTC_PERSISTENT0_ALARM_EN |
++				BM_RTC_PERSISTENT0_ALARM_WAKE_EN,
++				REGS_RTC_BASE + HW_RTC_PERSISTENT0_CLR);
++		__raw_writel(BM_RTC_CTRL_ALARM_IRQ_EN,
++				REGS_RTC_BASE + HW_RTC_CTRL_CLR);
+ 		break;
+ 	case RTC_AIE_ON:
+-		stmp3xxx_setl(BM_RTC_PERSISTENT0_ALARM_EN |
+-					BM_RTC_PERSISTENT0_ALARM_WAKE_EN, REGS_RTC_BASE + HW_RTC_PERSISTENT0);
+-		stmp3xxx_setl(BM_RTC_CTRL_ALARM_IRQ_EN, REGS_RTC_BASE + HW_RTC_CTRL);
++		__raw_writel(BM_RTC_PERSISTENT0_ALARM_EN |
++				BM_RTC_PERSISTENT0_ALARM_WAKE_EN,
++				REGS_RTC_BASE + HW_RTC_PERSISTENT0_SET);
++
++		__raw_writel(BM_RTC_CTRL_ALARM_IRQ_EN,
++				REGS_RTC_BASE + HW_RTC_CTRL_SET);
+ 		break;
+ 	case RTC_UIE_ON:
+ 		data->irq_count = 0;
+-		stmp3xxx_setl(BM_RTC_CTRL_ONEMSEC_IRQ_EN, REGS_RTC_BASE + HW_RTC_CTRL);
++		__raw_writel(BM_RTC_CTRL_ONEMSEC_IRQ_EN,
++			REGS_RTC_BASE + HW_RTC_CTRL_SET);
+ 		break;
+ 	case RTC_UIE_OFF:
+-		stmp3xxx_clearl(BM_RTC_CTRL_ONEMSEC_IRQ_EN, REGS_RTC_BASE + HW_RTC_CTRL);
++		__raw_writel(BM_RTC_CTRL_ONEMSEC_IRQ_EN,
++			REGS_RTC_BASE + HW_RTC_CTRL_CLR);
+ 		break;
+ 	default:
+ 		return -ENOIOCTLCMD;
+@@ -209,9 +219,10 @@ static int stmp3xxx_rtc_probe(struct platform_device *pdev)
+ 
+ 	stmp3xxx_reset_block(REGS_RTC_BASE, 1);
+ 
+-	stmp3xxx_clearl(BM_RTC_PERSISTENT0_ALARM_EN |
+-				BM_RTC_PERSISTENT0_ALARM_WAKE_EN |
+-				BM_RTC_PERSISTENT0_ALARM_WAKE, REGS_RTC_BASE + HW_RTC_PERSISTENT0);
++	__raw_writel(BM_RTC_PERSISTENT0_ALARM_EN |
++			BM_RTC_PERSISTENT0_ALARM_WAKE_EN |
++			BM_RTC_PERSISTENT0_ALARM_WAKE,
++		     REGS_RTC_BASE + HW_RTC_PERSISTENT0_CLR);
+ 
+ 	printk(KERN_INFO "STMP3xxx RTC driver v1.0 hardware v%u.%u.%u\n",
+ 	       (hwversion >> 24),
+@@ -239,9 +250,10 @@ static int stmp3xxx_rtc_suspend(struct platform_device *dev, pm_message_t state)
+ static int stmp3xxx_rtc_resume(struct platform_device *dev)
+ {
+ 	stmp3xxx_reset_block(REGS_RTC_BASE, 1);
+-	stmp3xxx_clearl(BM_RTC_PERSISTENT0_ALARM_EN |
+-				BM_RTC_PERSISTENT0_ALARM_WAKE_EN |
+-				BM_RTC_PERSISTENT0_ALARM_WAKE, REGS_RTC_BASE + HW_RTC_PERSISTENT0);
++	__raw_writel(BM_RTC_PERSISTENT0_ALARM_EN |
++			BM_RTC_PERSISTENT0_ALARM_WAKE_EN |
++			BM_RTC_PERSISTENT0_ALARM_WAKE,
++		     REGS_RTC_BASE + HW_RTC_PERSISTENT0_CLR);
+ 	return 0;
+ }
+ #else
+diff --git a/drivers/serial/stmp-app.c b/drivers/serial/stmp-app.c
+index 558a382..b0ca083 100644
+--- a/drivers/serial/stmp-app.c
++++ b/drivers/serial/stmp-app.c
+@@ -452,7 +452,7 @@ static void stmp_appuart_stop_rx(struct uart_port *u)
+ 	struct stmp_appuart_port *s = to_appuart(u);
+ 
+ 	dev_dbg(s->dev, "%s\n", __func__);
+-	stmp3xxx_clearl(BM_UARTAPP_CTRL2_RXE, s->mem);
++	__raw_writel(BM_UARTAPP_CTRL2_RXE, s->mem + HW_STMP3XXX_CLR);
+ }
+ 
+ static void stmp_appuart_break_ctl(struct uart_port *u, int ctl)
+@@ -461,11 +461,11 @@ static void stmp_appuart_break_ctl(struct uart_port *u, int ctl)
+ 
+ 	dev_dbg(s->dev, "%s: break = %s\n", __func__, ctl ? "on" : "off");
+ 	if (ctl)
+-		stmp3xxx_setl(BM_UARTAPP_LINECTRL_BRK,
+-			      s->mem + HW_UARTAPP_LINECTRL);
++		__raw_writel(BM_UARTAPP_LINECTRL_BRK,
++			      s->mem + HW_UARTAPP_LINECTRL_SET);
+ 	else
+-		stmp3xxx_clearl(BM_UARTAPP_LINECTRL_BRK,
+-				s->mem + HW_UARTAPP_LINECTRL);
++		__raw_writel(BM_UARTAPP_LINECTRL_BRK,
++				s->mem + HW_UARTAPP_LINECTRL_CLR);
+ }
+ 
+ static void stmp_appuart_enable_ms(struct uart_port *port)
+@@ -775,8 +775,8 @@ static irqreturn_t stmp_appuart_irq_int(int irq, void *context)
+ 	if (istatus & BM_UARTAPP_INTR_CTSMIS) {
+ 		uart_handle_cts_change(&s->port, stat & BM_UARTAPP_STAT_CTS);
+ 		dev_dbg(s->dev, "CTS change: %x\n", stat & BM_UARTAPP_STAT_CTS);
+-		stmp3xxx_clearl(BM_UARTAPP_INTR_CTSMIS,
+-				s->mem + HW_UARTAPP_INTR);
++		__raw_writel(BM_UARTAPP_INTR_CTSMIS,
++				s->mem + HW_UARTAPP_INTR_CLR);
+ 	}
+ 
+ 	else if (istatus & BM_UARTAPP_INTR_RTIS) {
+@@ -787,8 +787,8 @@ static irqreturn_t stmp_appuart_irq_int(int irq, void *context)
+ 	else
+ 		dev_info(s->dev, "Unhandled status %x\n", istatus);
+ 
+-	stmp3xxx_clearl(istatus & 0xFFFF,
+-			s->mem + HW_UARTAPP_INTR);
++	__raw_writel(istatus & 0xFFFF,
++			s->mem + HW_UARTAPP_INTR_CLR);
+ 
+ 	return IRQ_HANDLED;
+ }
+@@ -918,13 +918,13 @@ static int stmp_appuart_startup(struct uart_port *u)
+ 		/* Release the block from reset and start the clocks. */
+ 		stmp3xxx_reset_block(s->mem, 0);
+ 
+-	stmp3xxx_setl(BM_UARTAPP_CTRL2_UARTEN,
+-			s->mem + HW_UARTAPP_CTRL2);
++	__raw_writel(BM_UARTAPP_CTRL2_UARTEN,
++			s->mem + HW_UARTAPP_CTRL2_SET);
+ 	/* Enable the Application UART DMA bits. */
+ 	if (!pio_mode) {
+-		stmp3xxx_setl(BM_UARTAPP_CTRL2_TXDMAE | BM_UARTAPP_CTRL2_RXDMAE
++		__raw_writel(BM_UARTAPP_CTRL2_TXDMAE | BM_UARTAPP_CTRL2_RXDMAE
+ 			      | BM_UARTAPP_CTRL2_DMAONERR,
+-			      s->mem + HW_UARTAPP_CTRL2);
++			      s->mem + HW_UARTAPP_CTRL2_SET);
+ 		/* clear any pending interrupts */
+ 		__raw_writel(0, s->mem + HW_UARTAPP_INTR);
+ 
+@@ -936,14 +936,14 @@ static int stmp_appuart_startup(struct uart_port *u)
+ 			     BM_UARTAPP_INTR_RTIEN,
+ 			     s->mem + HW_UARTAPP_INTR);
+ 	}
+-	stmp3xxx_setl(BM_UARTAPP_INTR_CTSMIEN,
+-			s->mem + HW_UARTAPP_INTR);
++	__raw_writel(BM_UARTAPP_INTR_CTSMIEN,
++			s->mem + HW_UARTAPP_INTR_SET);
+ 
+ 	/*
+ 	 * Enable fifo so all four bytes of a DMA word are written to
+ 	 * output (otherwise, only the LSB is written, ie. 1 in 4 bytes)
+ 	 */
+-	stmp3xxx_setl(BM_UARTAPP_LINECTRL_FEN, s->mem + HW_UARTAPP_LINECTRL);
++	__raw_writel(BM_UARTAPP_LINECTRL_FEN, s->mem + HW_UARTAPP_LINECTRL_SET);
+ 
+ 	if (!pio_mode) {
+ #ifndef RX_CHAIN
+@@ -973,8 +973,8 @@ static void stmp_appuart_shutdown(struct uart_port *u)
+ 
+ 	if (!s->keep_irq)
+ 		/* set the IP block to RESET; this should disable clock too. */
+-		stmp3xxx_setl(
+-			BM_UARTAPP_CTRL0_SFTRST, s->mem + HW_UARTAPP_CTRL0);
++		__raw_writel(
++			BM_UARTAPP_CTRL0_SFTRST, s->mem + HW_UARTAPP_CTRL0_SET);
+ 
+ 	if (!pio_mode) {
+ 		/* reset all dma channels */
+@@ -1008,7 +1008,7 @@ static void stmp_appuart_start_tx(struct uart_port *u)
+ 	dev_dbg(s->dev, "%s\n", __func__);
+ 
+ 	/* enable transmitter */
+-	stmp3xxx_setl(BM_UARTAPP_CTRL2_TXE, s->mem + HW_UARTAPP_CTRL2);
++	__raw_writel(BM_UARTAPP_CTRL2_TXE, s->mem + HW_UARTAPP_CTRL2_SET);
+ 
+ 	if (!pio_mode) {
+ 		if (stmp3xxx_dma_running(s->dma_tx))
+@@ -1042,7 +1042,7 @@ static void stmp_appuart_stop_tx(struct uart_port *u)
+ 	struct stmp_appuart_port *s = to_appuart(u);
+ 
+ 	dev_dbg(s->dev, "%s\n", __func__);
+-	stmp3xxx_clearl(BM_UARTAPP_CTRL2_TXE, s->mem + HW_UARTAPP_CTRL2);
++	__raw_writel(BM_UARTAPP_CTRL2_TXE, s->mem + HW_UARTAPP_CTRL2_CLR);
+ }
+ 
+ static int stmp_appuart_copy_tx(struct uart_port *u, u8 * target,
+diff --git a/drivers/spi/spi_stmp.c b/drivers/spi/spi_stmp.c
+index dc49b13..5862ea8 100644
+--- a/drivers/spi/spi_stmp.c
++++ b/drivers/spi/spi_stmp.c
+@@ -135,7 +135,7 @@ static int stmp_spi_setup_transfer(struct spi_device *spi,
+ 		((spi->mode & SPI_CPHA) ? BM_SSP_CTRL1_PHASE : 0) |
+ 		(pio ? 0 : BM_SSP_CTRL1_DMA_ENABLE), ss->regs + HW_SSP_CTRL1);
+ 
+-	stmp3xxx_setl(0x00, ss->regs + HW_SSP_CMD0);
++	__raw_writel(0x00, ss->regs + HW_SSP_CMD0_SET);
+ 
+ 	return 0;
+ }
+@@ -254,14 +254,14 @@ static int stmp_spi_txrx_dma(struct stmp_spi *ss, int cs,
+ 
+ static inline void stmp_spi_enable(struct stmp_spi *ss)
+ {
+-	stmp3xxx_setl(BM_SSP_CTRL0_LOCK_CS, ss->regs + HW_SSP_CTRL0);
+-	stmp3xxx_clearl(BM_SSP_CTRL0_IGNORE_CRC, ss->regs + HW_SSP_CTRL0);
++	__raw_writel(BM_SSP_CTRL0_LOCK_CS, ss->regs + HW_SSP_CTRL0_SET);
++	__raw_writel(BM_SSP_CTRL0_IGNORE_CRC, ss->regs + HW_SSP_CTRL0_CLR);
+ }
+ 
+ static inline void stmp_spi_disable(struct stmp_spi *ss)
+ {
+-	stmp3xxx_clearl(BM_SSP_CTRL0_LOCK_CS, ss->regs + HW_SSP_CTRL0);
+-	stmp3xxx_setl(BM_SSP_CTRL0_IGNORE_CRC, ss->regs + HW_SSP_CTRL0);
++	__raw_writel(BM_SSP_CTRL0_LOCK_CS, ss->regs + HW_SSP_CTRL0_CLR);
++	__raw_writel(BM_SSP_CTRL0_IGNORE_CRC, ss->regs + HW_SSP_CTRL0_SET);
+ }
+ 
+ static int stmp_spi_txrx_pio(struct stmp_spi *ss, int cs,
+@@ -275,23 +275,26 @@ static int stmp_spi_txrx_pio(struct stmp_spi *ss, int cs,
+ 		*first = 0;
+ 	}
+ 
+-	stmp3xxx_setl(stmp_spi_cs(cs), ss->regs + HW_SSP_CTRL0);
++	__raw_writel(stmp_spi_cs(cs), ss->regs + HW_SSP_CTRL0_SET);
+ 
+ 	while (len--) {
+ 		if (*last && len == 0) {
+ 			stmp_spi_disable(ss);
+ 			*last = 0;
+ 		}
+-		stmp3xxx_clearl(BM_SSP_CTRL0_XFER_COUNT, ss->regs + HW_SSP_CTRL0);
+-		stmp3xxx_setl(1, ss->regs); /* byte-by-byte */
++		__raw_writel(BM_SSP_CTRL0_XFER_COUNT,
++				ss->regs + HW_SSP_CTRL0_CLR);
++		__raw_writel(1, ss->regs + HW_SSP_CTRL0_SET); /* byte-by-byte */
+ 
+ 		if (write)
+-			stmp3xxx_clearl(BM_SSP_CTRL0_READ, ss->regs + HW_SSP_CTRL0);
++			__raw_writel(BM_SSP_CTRL0_READ,
++				ss->regs + HW_SSP_CTRL0_CLR);
+ 		else
+-			stmp3xxx_setl(BM_SSP_CTRL0_READ, ss->regs + HW_SSP_CTRL0);
++			__raw_writel(BM_SSP_CTRL0_READ,
++				ss->regs + HW_SSP_CTRL0_SET);
+ 
+ 		/* Run! */
+-		stmp3xxx_setl(BM_SSP_CTRL0_RUN, ss->regs + HW_SSP_CTRL0);
++		__raw_writel(BM_SSP_CTRL0_RUN, ss->regs + HW_SSP_CTRL0_SET);
+ 		count = 10000;
+ 		while (((__raw_readl(ss->regs + HW_SSP_CTRL0) & BM_SSP_CTRL0_RUN) == 0) && count--)
+ 			continue;
+@@ -305,7 +308,8 @@ static int stmp_spi_txrx_pio(struct stmp_spi *ss, int cs,
+ 			__raw_writel(*buf, ss->regs + HW_SSP_DATA);
+ 
+ 		/* Set TRANSFER */
+-		stmp3xxx_setl(BM_SSP_CTRL0_DATA_XFER, ss->regs + HW_SSP_CTRL0);
++		__raw_writel(BM_SSP_CTRL0_DATA_XFER,
++			ss->regs + HW_SSP_CTRL0_SET);
+ 
+ 		if (!write) {
+ 			count = 10000;
+@@ -475,7 +479,7 @@ static irqreturn_t stmp_spi_irq_err(int irq, void *dev_id)
+ 	c1 = __raw_readl(ss->regs + HW_SSP_CTRL1);
+ 	st = __raw_readl(ss->regs + HW_SSP_STATUS);
+ 	printk(KERN_ERR"IRQ - ERROR!, status = 0x%08X, c1 = 0x%08X\n", st, c1);
+-	stmp3xxx_clearl(c1 & 0xCCCC0000, ss->regs + HW_SSP_CTRL1);
++	__raw_writel(c1 & 0xCCCC0000, ss->regs + HW_SSP_CTRL1_CLR);
+ 
+ 	return IRQ_HANDLED;
+ }
+@@ -650,8 +654,9 @@ static int stmp_spi_resume(struct platform_device *pdev)
+ 	ss = spi_master_get_devdata(master);
+ 
+ 	clk_enable(ss->clk);
+-	stmp3xxx_clearl(BM_SSP_CTRL0_SFTRST | BM_SSP_CTRL0_CLKGATE, ss->regs + HW_SSP_CTRL0);
+-	stmp3xxx_setl(ss->saved_timings, ss->regs + HW_SSP_TIMING);
++	__raw_writel(BM_SSP_CTRL0_SFTRST | BM_SSP_CTRL0_CLKGATE,
++		ss->regs + HW_SSP_CTRL0_CLR);
++	__raw_writel(ss->saved_timings, ss->regs + HW_SSP_TIMING);
+ 
+ 	return 0;
+ }
+diff --git a/drivers/video/stmp37xxfb.c b/drivers/video/stmp37xxfb.c
+index 9f414b5..cb140fd 100644
+--- a/drivers/video/stmp37xxfb.c
++++ b/drivers/video/stmp37xxfb.c
+@@ -72,26 +72,31 @@ static irqreturn_t lcd_irq_handler(int irq, void *dev_id)
+ 	pr_debug("%s: irq %d\n", __func__, irq);
+ 
+ 	if (status_apbh & BM_APBH_CTRL1_CH0_CMDCMPLT_IRQ)
+-		stmp3xxx_clearl(BM_APBH_CTRL1_CH0_CMDCMPLT_IRQ, REGS_APBH_BASE + HW_APBH_CTRL1);
++		__raw_writel(BM_APBH_CTRL1_CH0_CMDCMPLT_IRQ,
++			REGS_APBH_BASE + HW_APBH_CTRL1_CLR);
+ 
+ 	if (status_lcd & BM_LCDIF_CTRL1_VSYNC_EDGE_IRQ) {
+ 		pr_debug("%s: VSYNC irq\n", __func__);
+ 		data->vsync_count++;
+-		stmp3xxx_clearl(BM_LCDIF_CTRL1_VSYNC_EDGE_IRQ, REGS_LCDIF_BASE + HW_LCDIF_CTRL1);
++		__raw_writel(BM_LCDIF_CTRL1_VSYNC_EDGE_IRQ,
++			REGS_LCDIF_BASE + HW_LCDIF_CTRL1_CLR);
+ 		wake_up_interruptible(&data->vsync_wait_q);
+ 	}
+ 	if (status_lcd & BM_LCDIF_CTRL1_CUR_FRAME_DONE_IRQ) {
+ 		pr_debug("%s: frame done irq\n", __func__);
+-		stmp3xxx_clearl(BM_LCDIF_CTRL1_CUR_FRAME_DONE_IRQ, REGS_LCDIF_BASE + HW_LCDIF_CTRL1);
++		__raw_writel(BM_LCDIF_CTRL1_CUR_FRAME_DONE_IRQ,
++			REGS_LCDIF_BASE + HW_LCDIF_CTRL1_CLR);
+ 		data->vsync_count++;
+ 	}
+ 	if (status_lcd & BM_LCDIF_CTRL1_UNDERFLOW_IRQ) {
+ 		pr_debug("%s: underflow irq\n", __func__);
+-		stmp3xxx_clearl(BM_LCDIF_CTRL1_UNDERFLOW_IRQ, REGS_LCDIF_BASE + HW_LCDIF_CTRL1);
++		__raw_writel(BM_LCDIF_CTRL1_UNDERFLOW_IRQ,
++			REGS_LCDIF_BASE + HW_LCDIF_CTRL1_CLR);
+ 	}
+ 	if (status_lcd & BM_LCDIF_CTRL1_OVERFLOW_IRQ) {
+ 		pr_debug("%s: overflow irq\n", __func__);
+-		stmp3xxx_clearl(BM_LCDIF_CTRL1_OVERFLOW_IRQ, REGS_LCDIF_BASE + HW_LCDIF_CTRL1);
++		__raw_writel(BM_LCDIF_CTRL1_OVERFLOW_IRQ,
++			REGS_LCDIF_BASE + HW_LCDIF_CTRL1_CLR);
+ 	}
+ 	return IRQ_HANDLED;
+ }
+@@ -403,10 +408,12 @@ static int stmp3xxxfb_wait_for_vsync(u32 channel, struct fb_info *info)
+ 	u32 count = data->vsync_count;
+ 	int ret = 0;
+ 
+-	stmp3xxx_setl(BM_LCDIF_CTRL1_VSYNC_EDGE_IRQ_EN, REGS_LCDIF_BASE + HW_LCDIF_CTRL1);
++	__raw_writel(BM_LCDIF_CTRL1_VSYNC_EDGE_IRQ_EN,
++		REGS_LCDIF_BASE + HW_LCDIF_CTRL1_SET);
+ 	ret = wait_event_interruptible_timeout(data->vsync_wait_q,
+ 			count != data->vsync_count, HZ / 10);
+-	stmp3xxx_clearl(BM_LCDIF_CTRL1_VSYNC_EDGE_IRQ_EN, REGS_LCDIF_BASE + HW_LCDIF_CTRL1);
++	__raw_writel(BM_LCDIF_CTRL1_VSYNC_EDGE_IRQ_EN,
++		REGS_LCDIF_BASE + HW_LCDIF_CTRL1_CLR);
+ 	if (!ret) {
+ 		dev_err(data->dev, "wait for vsync timed out\n");
+ 		ret = -ETIMEDOUT;
+diff --git a/drivers/watchdog/stmp3xxx_wdt.c b/drivers/watchdog/stmp3xxx_wdt.c
+index 5dd9526..b5947b7 100644
+--- a/drivers/watchdog/stmp3xxx_wdt.c
++++ b/drivers/watchdog/stmp3xxx_wdt.c
+@@ -3,7 +3,7 @@
+  *
+  * Author: Vitaly Wool <vital@embeddedalley.com>
+  *
+- * Copyright 2008 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
+  * Copyright 2008 Embedded Alley Solutions, Inc All Rights Reserved.
+  */
+ #include <linux/init.h>
+@@ -39,18 +39,18 @@ static void wdt_enable(u32 value)
+ {
+ 	spin_lock(&stmp3xxx_wdt_io_lock);
+ 	__raw_writel(value, REGS_RTC_BASE + HW_RTC_WATCHDOG);
+-	stmp3xxx_setl(BM_RTC_CTRL_WATCHDOGEN, REGS_RTC_BASE + HW_RTC_CTRL);
+-	stmp3xxx_setl(BV_RTC_PERSISTENT1_GENERAL__RTC_FORCE_UPDATER,
+-			REGS_RTC_BASE + HW_RTC_PERSISTENT1);
++	__raw_writel(BM_RTC_CTRL_WATCHDOGEN, REGS_RTC_BASE + HW_RTC_CTRL_SET);
++	__raw_writel(BV_RTC_PERSISTENT1_GENERAL__RTC_FORCE_UPDATER,
++			REGS_RTC_BASE + HW_RTC_PERSISTENT1_SET);
+ 	spin_unlock(&stmp3xxx_wdt_io_lock);
+ }
+ 
+ static void wdt_disable(void)
+ {
+ 	spin_lock(&stmp3xxx_wdt_io_lock);
+-	stmp3xxx_clearl(BV_RTC_PERSISTENT1_GENERAL__RTC_FORCE_UPDATER,
+-			REGS_RTC_BASE + HW_RTC_PERSISTENT1);
+-	stmp3xxx_clearl(BM_RTC_CTRL_WATCHDOGEN, REGS_RTC_BASE + HW_RTC_CTRL);
++	__raw_writel(BV_RTC_PERSISTENT1_GENERAL__RTC_FORCE_UPDATER,
++			REGS_RTC_BASE + HW_RTC_PERSISTENT1_CLR);
++	__raw_writel(BM_RTC_CTRL_WATCHDOGEN, REGS_RTC_BASE + HW_RTC_CTRL_CLR);
+ 	spin_unlock(&stmp3xxx_wdt_io_lock);
+ }
+ 
+@@ -210,8 +210,8 @@ static int __devinit stmp3xxx_wdt_probe(struct platform_device *pdev)
+ 	boot_status = __raw_readl(REGS_RTC_BASE + HW_RTC_PERSISTENT1) &
+ 			BV_RTC_PERSISTENT1_GENERAL__RTC_FORCE_UPDATER;
+ 	boot_status = !!boot_status;
+-	stmp3xxx_clearl(BV_RTC_PERSISTENT1_GENERAL__RTC_FORCE_UPDATER,
+-			REGS_RTC_BASE + HW_RTC_PERSISTENT1);
++	__raw_writel(BV_RTC_PERSISTENT1_GENERAL__RTC_FORCE_UPDATER,
++			REGS_RTC_BASE + HW_RTC_PERSISTENT1_CLR);
+ 	wdt_disable();		/* disable for now */
+ 
+ 	ret = misc_register(&stmp3xxx_wdt_miscdev);
+diff --git a/sound/soc/codecs/stmp378x_codec.c b/sound/soc/codecs/stmp378x_codec.c
+index 7701639..90df291 100644
+--- a/sound/soc/codecs/stmp378x_codec.c
++++ b/sound/soc/codecs/stmp378x_codec.c
+@@ -238,10 +238,10 @@ static int dac_put_volsw(struct snd_kcontrol *kcontrol,
+ 	reg = reg | BF(r, AUDIOOUT_DACVOLUME_VOLUME_RIGHT);
+ 
+ 	/*Clear left/right dac volume */
+-	stmp3xxx_clearl(BM_AUDIOOUT_DACVOLUME_VOLUME_LEFT |
++	__raw_writel(BM_AUDIOOUT_DACVOLUME_VOLUME_LEFT |
+ 			BM_AUDIOOUT_DACVOLUME_VOLUME_RIGHT,
+-			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_DACVOLUME);
+-	stmp3xxx_setl(reg, REGS_AUDIOOUT_BASE + HW_AUDIOOUT_DACVOLUME);
++			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_DACVOLUME_CLR);
++	__raw_writel(reg, REGS_AUDIOOUT_BASE + HW_AUDIOOUT_DACVOLUME_SET);
+ 
+ 	return 0;
+ }
+@@ -462,21 +462,21 @@ static int stmp378x_codec_hw_params(struct snd_pcm_substream *substream,
+ 	switch (params_format(params)) {
+ 	case SNDRV_PCM_FORMAT_S16_LE:
+ 		if (playback)
+-			stmp3xxx_setl(BM_AUDIOOUT_CTRL_WORD_LENGTH,
+-				      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL);
++			__raw_writel(BM_AUDIOOUT_CTRL_WORD_LENGTH,
++				REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL_SET);
+ 		else
+-			stmp3xxx_setl(BM_AUDIOIN_CTRL_WORD_LENGTH,
+-				      REGS_AUDIOIN_BASE + HW_AUDIOIN_CTRL);
++			__raw_writel(BM_AUDIOIN_CTRL_WORD_LENGTH,
++				REGS_AUDIOIN_BASE + HW_AUDIOIN_CTRL_SET);
+ 
+ 		break;
+ 
+ 	case SNDRV_PCM_FORMAT_S32_LE:
+ 		if (playback)
+-			stmp3xxx_clearl(BM_AUDIOOUT_CTRL_WORD_LENGTH,
+-					REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL);
++			__raw_writel(BM_AUDIOOUT_CTRL_WORD_LENGTH,
++				REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL_CLR);
+ 		else
+-			stmp3xxx_clearl(BM_AUDIOIN_CTRL_WORD_LENGTH,
+-					REGS_AUDIOIN_BASE + HW_AUDIOIN_CTRL);
++			__raw_writel(BM_AUDIOIN_CTRL_WORD_LENGTH,
++				REGS_AUDIOIN_BASE + HW_AUDIOIN_CTRL_CLR);
+ 
+ 		break;
+ 
+@@ -495,19 +495,19 @@ static int stmp378x_codec_dig_mute(struct snd_soc_dai *dai, int mute)
+ 	    BM_AUDIOOUT_DACVOLUME_MUTE_RIGHT;
+ 
+ 	if (mute) {
+-		stmp3xxx_setl(dac_mask,
+-			      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_DACVOLUME);
+-		stmp3xxx_setl(BM_AUDIOOUT_HPVOL_MUTE,
+-			      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_HPVOL);
+-		stmp3xxx_setl(BM_AUDIOOUT_SPEAKERCTRL_MUTE,
+-			      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_SPEAKERCTRL);
++		__raw_writel(dac_mask,
++			      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_DACVOLUME_SET);
++		__raw_writel(BM_AUDIOOUT_HPVOL_MUTE,
++			      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_HPVOL_SET);
++		__raw_writel(BM_AUDIOOUT_SPEAKERCTRL_MUTE,
++			      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_SPEAKERCTRL_SET);
+ 	} else {
+-		stmp3xxx_clearl(dac_mask,
+-				REGS_AUDIOOUT_BASE + HW_AUDIOOUT_DACVOLUME);
+-		stmp3xxx_clearl(BM_AUDIOOUT_HPVOL_MUTE,
+-				REGS_AUDIOOUT_BASE + HW_AUDIOOUT_HPVOL);
+-		stmp3xxx_clearl(BM_AUDIOOUT_SPEAKERCTRL_MUTE,
+-				REGS_AUDIOOUT_BASE + HW_AUDIOOUT_SPEAKERCTRL);
++		__raw_writel(dac_mask,
++			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_DACVOLUME_CLR);
++		__raw_writel(BM_AUDIOOUT_HPVOL_MUTE,
++			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_HPVOL_CLR);
++		__raw_writel(BM_AUDIOOUT_SPEAKERCTRL_MUTE,
++			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_SPEAKERCTRL_CLR);
+ 	}
+ 	return 0;
+ }
+@@ -535,83 +535,83 @@ static void
+ stmp378x_codec_dac_power_on(struct stmp378x_codec_priv *stmp378x_adc)
+ {
+ 	/* Ungate DAC clocks */
+-	stmp3xxx_clearl(BM_AUDIOOUT_CTRL_CLKGATE,
+-			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL);
+-	stmp3xxx_clearl(BM_AUDIOOUT_ANACLKCTRL_CLKGATE,
+-			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_ANACLKCTRL);
++	__raw_writel(BM_AUDIOOUT_CTRL_CLKGATE,
++			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL_CLR);
++	__raw_writel(BM_AUDIOOUT_ANACLKCTRL_CLKGATE,
++			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_ANACLKCTRL_CLR);
+ 
+ 	/* 16 bit word length */
+-	stmp3xxx_setl(BM_AUDIOOUT_CTRL_WORD_LENGTH,
+-		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL);
++	__raw_writel(BM_AUDIOOUT_CTRL_WORD_LENGTH,
++		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL_SET);
+ 
+ 	/* Update DAC volume over zero crossings */
+-	stmp3xxx_setl(BM_AUDIOOUT_DACVOLUME_EN_ZCD,
+-		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_DACVOLUME);
++	__raw_writel(BM_AUDIOOUT_DACVOLUME_EN_ZCD,
++		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_DACVOLUME_SET);
+ 	/* Mute DAC */
+-	stmp3xxx_setl(BM_AUDIOOUT_DACVOLUME_MUTE_LEFT |
++	__raw_writel(BM_AUDIOOUT_DACVOLUME_MUTE_LEFT |
+ 		      BM_AUDIOOUT_DACVOLUME_MUTE_RIGHT,
+-		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_DACVOLUME);
++		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_DACVOLUME_SET);
+ 
+ 	/* Update HP volume over zero crossings */
+-	stmp3xxx_setl(BM_AUDIOOUT_HPVOL_EN_MSTR_ZCD,
+-		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_HPVOL);
++	__raw_writel(BM_AUDIOOUT_HPVOL_EN_MSTR_ZCD,
++		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_HPVOL_SET);
+ 
+ 	/* Prepare powering up HP output */
+-	stmp3xxx_setl(BM_AUDIOOUT_ANACTRL_HP_HOLD_GND,
+-		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_ANACTRL);
+-	stmp3xxx_setl(BF(0x2, RTC_PERSISTENT0_SPARE_ANALOG),
+-		      REGS_RTC_BASE + HW_RTC_PERSISTENT0);
+-	stmp3xxx_setl(BM_AUDIOOUT_ANACTRL_HP_CLASSAB,
+-		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_ANACTRL);
+-	stmp3xxx_clearl(BM_AUDIOOUT_ANACTRL_HP_HOLD_GND,
+-			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_ANACTRL);
++	__raw_writel(BM_AUDIOOUT_ANACTRL_HP_HOLD_GND,
++		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_ANACTRL_SET);
++	__raw_writel(BF(0x2, RTC_PERSISTENT0_SPARE_ANALOG),
++		      REGS_RTC_BASE + HW_RTC_PERSISTENT0_SET);
++	__raw_writel(BM_AUDIOOUT_ANACTRL_HP_CLASSAB,
++		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_ANACTRL_SET);
++	__raw_writel(BM_AUDIOOUT_ANACTRL_HP_HOLD_GND,
++			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_ANACTRL_CLR);
+ 	/* Mute HP output */
+-	stmp3xxx_setl(BM_AUDIOOUT_HPVOL_MUTE,
+-		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_HPVOL);
++	__raw_writel(BM_AUDIOOUT_HPVOL_MUTE,
++		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_HPVOL_SET);
+ 
+ 	/* Mute speaker amp */
+-	stmp3xxx_setl(BM_AUDIOOUT_SPEAKERCTRL_MUTE,
+-		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_SPEAKERCTRL);
++	__raw_writel(BM_AUDIOOUT_SPEAKERCTRL_MUTE,
++		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_SPEAKERCTRL_SET);
+ }
+ 
+ static void
+ stmp378x_codec_dac_power_down(struct stmp378x_codec_priv *stmp378x_adc)
+ {
+ 	/* Disable class AB */
+-	stmp3xxx_clearl(BM_AUDIOOUT_ANACTRL_HP_CLASSAB,
+-			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_ANACTRL);
++	__raw_writel(BM_AUDIOOUT_ANACTRL_HP_CLASSAB,
++			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_ANACTRL_CLR);
+ 
+ 	/* Set hold to ground */
+-	stmp3xxx_setl(BM_AUDIOOUT_ANACTRL_HP_HOLD_GND,
+-		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_ANACTRL);
++	__raw_writel(BM_AUDIOOUT_ANACTRL_HP_HOLD_GND,
++		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_ANACTRL_SET);
+ 
+ 	/* Mute HP output */
+-	stmp3xxx_setl(BM_AUDIOOUT_HPVOL_MUTE,
+-		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_HPVOL);
++	__raw_writel(BM_AUDIOOUT_HPVOL_MUTE,
++		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_HPVOL_SET);
+ 	/* Power down HP output */
+-	stmp3xxx_setl(BM_AUDIOOUT_PWRDN_HEADPHONE,
+-		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_PWRDN);
++	__raw_writel(BM_AUDIOOUT_PWRDN_HEADPHONE,
++		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_PWRDN_SET);
+ 
+ 	/* Mute speaker amp */
+-	stmp3xxx_setl(BM_AUDIOOUT_SPEAKERCTRL_MUTE,
+-		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_SPEAKERCTRL);
++	__raw_writel(BM_AUDIOOUT_SPEAKERCTRL_MUTE,
++		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_SPEAKERCTRL_SET);
+ 	/* Power down speaker amp */
+-	stmp3xxx_setl(BM_AUDIOOUT_PWRDN_SPEAKER,
+-		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_PWRDN);
++	__raw_writel(BM_AUDIOOUT_PWRDN_SPEAKER,
++		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_PWRDN_SET);
+ 
+ 	/* Mute DAC */
+-	stmp3xxx_setl(BM_AUDIOOUT_DACVOLUME_MUTE_LEFT |
++	__raw_writel(BM_AUDIOOUT_DACVOLUME_MUTE_LEFT |
+ 		      BM_AUDIOOUT_DACVOLUME_MUTE_RIGHT,
+-		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_DACVOLUME);
++		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_DACVOLUME_SET);
+ 	/* Power down DAC */
+-	stmp3xxx_setl(BM_AUDIOOUT_PWRDN_DAC,
+-		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_PWRDN);
++	__raw_writel(BM_AUDIOOUT_PWRDN_DAC,
++		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_PWRDN_SET);
+ 
+ 	/* Gate DAC clocks */
+-	stmp3xxx_setl(BM_AUDIOOUT_ANACLKCTRL_CLKGATE,
+-		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_ANACLKCTRL);
+-	stmp3xxx_setl(BM_AUDIOOUT_CTRL_CLKGATE,
+-		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL);
++	__raw_writel(BM_AUDIOOUT_ANACLKCTRL_CLKGATE,
++		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_ANACLKCTRL_SET);
++	__raw_writel(BM_AUDIOOUT_CTRL_CLKGATE,
++		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL_SET);
+ }
+ 
+ static void
+@@ -620,54 +620,54 @@ stmp378x_codec_adc_power_on(struct stmp378x_codec_priv *stmp378x_adc)
+ 	u32 reg;
+ 
+ 	/* Ungate ADC clocks */
+-	stmp3xxx_clearl(BM_AUDIOIN_CTRL_CLKGATE,
+-			REGS_AUDIOIN_BASE + HW_AUDIOIN_CTRL);
+-	stmp3xxx_clearl(BM_AUDIOIN_ANACLKCTRL_CLKGATE,
+-			REGS_AUDIOIN_BASE + HW_AUDIOIN_ANACLKCTRL);
++	__raw_writel(BM_AUDIOIN_CTRL_CLKGATE,
++			REGS_AUDIOIN_BASE + HW_AUDIOIN_CTRL_CLR);
++	__raw_writel(BM_AUDIOIN_ANACLKCTRL_CLKGATE,
++			REGS_AUDIOIN_BASE + HW_AUDIOIN_ANACLKCTRL_CLR);
+ 
+ 	/* 16 bit word length */
+-	stmp3xxx_setl(BM_AUDIOIN_CTRL_WORD_LENGTH,
+-		      REGS_AUDIOIN_BASE + HW_AUDIOIN_CTRL);
++	__raw_writel(BM_AUDIOIN_CTRL_WORD_LENGTH,
++		      REGS_AUDIOIN_BASE + HW_AUDIOIN_CTRL_SET);
+ 
+ 	/* Unmute ADC channels */
+-	stmp3xxx_clearl(BM_AUDIOIN_ADCVOL_MUTE,
+-			REGS_AUDIOIN_BASE + HW_AUDIOIN_ADCVOL);
++	__raw_writel(BM_AUDIOIN_ADCVOL_MUTE,
++			REGS_AUDIOIN_BASE + HW_AUDIOIN_ADCVOL_CLR);
+ 
+ 	/*
+ 	 * The MUTE_LEFT and MUTE_RIGHT fields need to be cleared.
+ 	 * They aren't presented in the datasheet, so this is hardcode.
+ 	 */
+-	stmp3xxx_clearl(0x01000100, REGS_AUDIOIN_BASE + HW_AUDIOIN_ADCVOLUME);
++	__raw_writel(0x01000100, REGS_AUDIOIN_BASE + HW_AUDIOIN_ADCVOLUME_CLR);
+ 
+ 	/* Set the Input channel gain 3dB */
+-	stmp3xxx_clearl(BM_AUDIOIN_ADCVOL_GAIN_LEFT,
+-			REGS_AUDIOIN_BASE + HW_AUDIOIN_ADCVOL);
+-	stmp3xxx_clearl(BM_AUDIOIN_ADCVOL_GAIN_RIGHT,
+-			REGS_AUDIOIN_BASE + HW_AUDIOIN_ADCVOL);
+-	stmp3xxx_setl(BF(2, AUDIOIN_ADCVOL_GAIN_LEFT),
+-		      REGS_AUDIOIN_BASE + HW_AUDIOIN_ADCVOL);
+-	stmp3xxx_setl(BF(2, AUDIOIN_ADCVOL_GAIN_RIGHT),
+-		      REGS_AUDIOIN_BASE + HW_AUDIOIN_ADCVOL);
++	__raw_writel(BM_AUDIOIN_ADCVOL_GAIN_LEFT,
++			REGS_AUDIOIN_BASE + HW_AUDIOIN_ADCVOL_CLR);
++	__raw_writel(BM_AUDIOIN_ADCVOL_GAIN_RIGHT,
++			REGS_AUDIOIN_BASE + HW_AUDIOIN_ADCVOL_CLR);
++	__raw_writel(BF(2, AUDIOIN_ADCVOL_GAIN_LEFT),
++		      REGS_AUDIOIN_BASE + HW_AUDIOIN_ADCVOL_SET);
++	__raw_writel(BF(2, AUDIOIN_ADCVOL_GAIN_RIGHT),
++		      REGS_AUDIOIN_BASE + HW_AUDIOIN_ADCVOL_SET);
+ 
+ 	/* Select default input - Microphone */
+-	stmp3xxx_clearl(BM_AUDIOIN_ADCVOL_SELECT_LEFT,
+-			REGS_AUDIOIN_BASE + HW_AUDIOIN_ADCVOL);
+-	stmp3xxx_clearl(BM_AUDIOIN_ADCVOL_SELECT_RIGHT,
+-			REGS_AUDIOIN_BASE + HW_AUDIOIN_ADCVOL);
+-	stmp3xxx_setl(BF
++	__raw_writel(BM_AUDIOIN_ADCVOL_SELECT_LEFT,
++			REGS_AUDIOIN_BASE + HW_AUDIOIN_ADCVOL_CLR);
++	__raw_writel(BM_AUDIOIN_ADCVOL_SELECT_RIGHT,
++			REGS_AUDIOIN_BASE + HW_AUDIOIN_ADCVOL_CLR);
++	__raw_writel(BF
+ 		      (BV_AUDIOIN_ADCVOL_SELECT__MIC,
+ 		       AUDIOIN_ADCVOL_SELECT_LEFT),
+-		      REGS_AUDIOIN_BASE + HW_AUDIOIN_ADCVOL);
+-	stmp3xxx_setl(BF
++		      REGS_AUDIOIN_BASE + HW_AUDIOIN_ADCVOL_SET);
++	__raw_writel(BF
+ 		      (BV_AUDIOIN_ADCVOL_SELECT__MIC,
+ 		       AUDIOIN_ADCVOL_SELECT_RIGHT),
+-		      REGS_AUDIOIN_BASE + HW_AUDIOIN_ADCVOL);
++		      REGS_AUDIOIN_BASE + HW_AUDIOIN_ADCVOL_SET);
+ 
+ 	/* Supply bias voltage to microphone */
+-	stmp3xxx_setl(BF(2, AUDIOIN_MICLINE_MIC_RESISTOR),
+-		      REGS_AUDIOIN_BASE + HW_AUDIOIN_MICLINE);
+-	stmp3xxx_setl(BM_AUDIOIN_MICLINE_MIC_SELECT,
+-		      REGS_AUDIOIN_BASE + HW_AUDIOIN_MICLINE);
++	__raw_writel(BF(2, AUDIOIN_MICLINE_MIC_RESISTOR),
++		      REGS_AUDIOIN_BASE + HW_AUDIOIN_MICLINE_SET);
++	__raw_writel(BM_AUDIOIN_MICLINE_MIC_SELECT,
++		      REGS_AUDIOIN_BASE + HW_AUDIOIN_MICLINE_SET);
+ 
+ 	/* Set max ADC volume */
+ 	reg = __raw_readl(REGS_AUDIOIN_BASE + HW_AUDIOIN_ADCVOLUME);
+@@ -682,43 +682,43 @@ static void
+ stmp378x_codec_adc_power_down(struct stmp378x_codec_priv *stmp378x_adc)
+ {
+ 	/* Mute ADC channels */
+-	stmp3xxx_setl(BM_AUDIOIN_ADCVOL_MUTE,
+-		      REGS_AUDIOIN_BASE + HW_AUDIOIN_ADCVOL);
++	__raw_writel(BM_AUDIOIN_ADCVOL_MUTE,
++		      REGS_AUDIOIN_BASE + HW_AUDIOIN_ADCVOL_SET);
+ 
+ 	/* Power Down ADC */
+-	stmp3xxx_setl(BM_AUDIOOUT_PWRDN_ADC | BM_AUDIOOUT_PWRDN_RIGHT_ADC,
+-		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_PWRDN);
++	__raw_writel(BM_AUDIOOUT_PWRDN_ADC | BM_AUDIOOUT_PWRDN_RIGHT_ADC,
++		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_PWRDN_SET);
+ 
+ 	/* Gate ADC clocks */
+-	stmp3xxx_setl(BM_AUDIOIN_CTRL_CLKGATE,
+-		      REGS_AUDIOIN_BASE + HW_AUDIOIN_CTRL);
+-	stmp3xxx_setl(BM_AUDIOIN_ANACLKCTRL_CLKGATE,
+-		      REGS_AUDIOIN_BASE + HW_AUDIOIN_ANACLKCTRL);
++	__raw_writel(BM_AUDIOIN_CTRL_CLKGATE,
++		      REGS_AUDIOIN_BASE + HW_AUDIOIN_CTRL_SET);
++	__raw_writel(BM_AUDIOIN_ANACLKCTRL_CLKGATE,
++		      REGS_AUDIOIN_BASE + HW_AUDIOIN_ANACLKCTRL_SET);
+ 
+ 	/* Disable bias voltage to microphone */
+-	stmp3xxx_setl(BF(0, AUDIOIN_MICLINE_MIC_RESISTOR),
+-		      REGS_AUDIOIN_BASE + HW_AUDIOIN_MICLINE);
++	__raw_writel(BF(0, AUDIOIN_MICLINE_MIC_RESISTOR),
++		      REGS_AUDIOIN_BASE + HW_AUDIOIN_MICLINE_SET);
+ }
+ 
+ static void stmp378x_codec_dac_enable(struct stmp378x_codec_priv *stmp378x_adc)
+ {
+ 	/* Move DAC codec out of reset */
+-	stmp3xxx_clearl(BM_AUDIOOUT_CTRL_SFTRST,
+-			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL);
++	__raw_writel(BM_AUDIOOUT_CTRL_SFTRST,
++		REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL_CLR);
+ 
+ 	/* Reduce analog power */
+-	stmp3xxx_clearl(BM_AUDIOOUT_TEST_HP_I1_ADJ,
+-			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_TEST);
+-	stmp3xxx_setl(BF(0x1, AUDIOOUT_TEST_HP_I1_ADJ),
+-		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_TEST);
+-	stmp3xxx_setl(BM_AUDIOOUT_REFCTRL_LOW_PWR,
+-		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_REFCTRL);
+-	stmp3xxx_setl(BM_AUDIOOUT_REFCTRL_XTAL_BGR_BIAS,
+-		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_REFCTRL);
+-	stmp3xxx_clearl(BM_AUDIOOUT_REFCTRL_BIAS_CTRL,
+-			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_REFCTRL);
+-	stmp3xxx_clearl(BF(0x1, AUDIOOUT_REFCTRL_BIAS_CTRL),
+-			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_REFCTRL);
++	__raw_writel(BM_AUDIOOUT_TEST_HP_I1_ADJ,
++			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_TEST_CLR);
++	__raw_writel(BF(0x1, AUDIOOUT_TEST_HP_I1_ADJ),
++			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_TEST_SET);
++	__raw_writel(BM_AUDIOOUT_REFCTRL_LOW_PWR,
++			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_REFCTRL_SET);
++	__raw_writel(BM_AUDIOOUT_REFCTRL_XTAL_BGR_BIAS,
++			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_REFCTRL_SET);
++	__raw_writel(BM_AUDIOOUT_REFCTRL_BIAS_CTRL,
++			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_REFCTRL_CLR);
++	__raw_writel(BF(0x1, AUDIOOUT_REFCTRL_BIAS_CTRL),
++			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_REFCTRL_CLR);
+ 
+ 	/* Set Vag value */
+ 	stmp378x_codec_dac_set_vag();
+@@ -735,8 +735,8 @@ static void stmp378x_codec_dac_disable(struct stmp378x_codec_priv *stmp378x_adc)
+ static void stmp378x_codec_adc_enable(struct stmp378x_codec_priv *stmp378x_adc)
+ {
+ 	/* Move ADC codec out of reset */
+-	stmp3xxx_clearl(BM_AUDIOIN_CTRL_SFTRST,
+-			REGS_AUDIOIN_BASE + HW_AUDIOIN_CTRL);
++	__raw_writel(BM_AUDIOIN_CTRL_SFTRST,
++			REGS_AUDIOIN_BASE + HW_AUDIOIN_CTRL_CLR);
+ 
+ 	/* Power on ADC codec */
+ 	stmp378x_codec_adc_power_on(stmp378x_adc);
+@@ -752,14 +752,14 @@ static void stmp378x_codec_startup(struct snd_soc_codec *codec)
+ 	struct stmp378x_codec_priv *stmp378x_adc = codec->private_data;
+ 
+ 	/* Soft reset DAC block */
+-	stmp3xxx_setl(BM_AUDIOOUT_CTRL_SFTRST,
+-		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL);
++	__raw_writel(BM_AUDIOOUT_CTRL_SFTRST,
++		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL_SET);
+ 	while (!(__raw_readl(REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL) &
+ 		BM_AUDIOOUT_CTRL_CLKGATE));
+ 
+ 	/* Soft reset ADC block */
+-	stmp3xxx_setl(BM_AUDIOIN_CTRL_SFTRST,
+-		      REGS_AUDIOIN_BASE + HW_AUDIOIN_CTRL);
++	__raw_writel(BM_AUDIOIN_CTRL_SFTRST,
++		      REGS_AUDIOIN_BASE + HW_AUDIOIN_CTRL_SET);
+ 	while (!(__raw_readl(REGS_AUDIOIN_BASE + HW_AUDIOIN_CTRL) &
+ 		BM_AUDIOIN_CTRL_CLKGATE)) ;
+ 
+@@ -894,15 +894,15 @@ static int stmp378x_codec_resume(struct platform_device *pdev)
+ 	clk_enable(stmp378x_adc->clk);
+ 
+ 	/* Soft reset DAC block */
+-	stmp3xxx_setl(BM_AUDIOOUT_CTRL_SFTRST,
+-		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL);
++	__raw_writel(BM_AUDIOOUT_CTRL_SFTRST,
++		      REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL_SET);
+ 	while (!
+ 	       (__raw_readl(REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL) &
+ 		BM_AUDIOOUT_CTRL_CLKGATE)) ;
+ 
+ 	/* Soft reset ADC block */
+-	stmp3xxx_setl(BM_AUDIOIN_CTRL_SFTRST,
+-		      REGS_AUDIOIN_BASE + HW_AUDIOIN_CTRL);
++	__raw_writel(BM_AUDIOIN_CTRL_SFTRST,
++		      REGS_AUDIOIN_BASE + HW_AUDIOIN_CTRL_SET);
+ 	while (!
+ 	       (__raw_readl(REGS_AUDIOIN_BASE + HW_AUDIOIN_CTRL) &
+ 		BM_AUDIOIN_CTRL_CLKGATE)) ;
+diff --git a/sound/soc/codecs/stmp3xxx_spdif.c b/sound/soc/codecs/stmp3xxx_spdif.c
+index db5627e..afbcfa6 100644
+--- a/sound/soc/codecs/stmp3xxx_spdif.c
++++ b/sound/soc/codecs/stmp3xxx_spdif.c
+@@ -164,11 +164,13 @@ static int stmp3xxx_codec_hw_params(struct snd_pcm_substream *substream,
+ 	switch (params_format(params)) {
+ 	case SNDRV_PCM_FORMAT_S16_LE:
+ 		if (playback)
+-			stmp3xxx_setl(BM_SPDIF_CTRL_WORD_LENGTH, REGS_SPDIF_BASE + HW_SPDIF_CTRL);
++			__raw_writel(BM_SPDIF_CTRL_WORD_LENGTH,
++				REGS_SPDIF_BASE + HW_SPDIF_CTRL_SET);
+ 		break;
+ 	case SNDRV_PCM_FORMAT_S32_LE:
+ 		if (playback)
+-			stmp3xxx_clearl(BM_SPDIF_CTRL_WORD_LENGTH, REGS_SPDIF_BASE + HW_SPDIF_CTRL);
++			__raw_writel(BM_SPDIF_CTRL_WORD_LENGTH,
++				REGS_SPDIF_BASE + HW_SPDIF_CTRL_CLR);
+ 		break;
+ 	default:
+ 		printk(KERN_WARNING "%s doesn't support format %d\n",
+@@ -182,20 +184,24 @@ static void
+ stmp3xxx_codec_spdif_enable(struct stmp3xxx_codec_priv *stmp3xxx_spdif)
+ {
+ 	/* Move SPDIF codec out of reset */
+-	stmp3xxx_clearl(BM_SPDIF_CTRL_SFTRST, REGS_SPDIF_BASE + HW_SPDIF_CTRL);
++	__raw_writel(BM_SPDIF_CTRL_SFTRST,
++		REGS_SPDIF_BASE + HW_SPDIF_CTRL_CLR);
+ 
+ 	/* Ungate SPDIF clocks */
+-	stmp3xxx_clearl(BM_SPDIF_CTRL_CLKGATE, REGS_SPDIF_BASE + HW_SPDIF_CTRL);
++	__raw_writel(BM_SPDIF_CTRL_CLKGATE,
++		REGS_SPDIF_BASE + HW_SPDIF_CTRL_CLR);
+ 
+ 	/* 16 bit word length */
+-	stmp3xxx_setl(BM_SPDIF_CTRL_WORD_LENGTH, REGS_SPDIF_BASE + HW_SPDIF_CTRL);
++	__raw_writel(BM_SPDIF_CTRL_WORD_LENGTH,
++		REGS_SPDIF_BASE + HW_SPDIF_CTRL_SET);
+ }
+ 
+ static void
+ stmp3xxx_codec_spdif_disable(struct stmp3xxx_codec_priv *stmp3xxx_spdif)
+ {
+ 	/* Gate SPDIF clocks */
+-	stmp3xxx_setl(BM_SPDIF_CTRL_CLKGATE, REGS_SPDIF_BASE + HW_SPDIF_CTRL);
++	__raw_writel(BM_SPDIF_CTRL_CLKGATE,
++		REGS_SPDIF_BASE + HW_SPDIF_CTRL_SET);
+ }
+ 
+ static void stmp3xxx_codec_init(struct snd_soc_codec *codec)
+@@ -203,7 +209,7 @@ static void stmp3xxx_codec_init(struct snd_soc_codec *codec)
+ 	struct stmp3xxx_codec_priv *stmp3xxx_spdif = codec->private_data;
+ 
+ 	/* Soft reset SPDIF block */
+-	stmp3xxx_setl(BM_SPDIF_CTRL_SFTRST, REGS_SPDIF_BASE + HW_SPDIF_CTRL);
++	__raw_writel(BM_SPDIF_CTRL_SFTRST, REGS_SPDIF_BASE + HW_SPDIF_CTRL_SET);
+ 	while (!(__raw_readl(REGS_SPDIF_BASE + HW_SPDIF_CTRL) & BM_SPDIF_CTRL_CLKGATE));
+ 
+ 	stmp3xxx_codec_spdif_enable(stmp3xxx_spdif);
+@@ -323,7 +329,7 @@ static int stmp3xxx_codec_resume(struct platform_device *pdev)
+ 	clk_enable(stmp3xxx_spdif->clk);
+ 
+ 	/* Soft reset SPDIF block */
+-	stmp3xxx_setl(BM_SPDIF_CTRL_SFTRST, REGS_SPDIF_BASE + HW_SPDIF_CTRL);
++	__raw_writel(BM_SPDIF_CTRL_SFTRST, REGS_SPDIF_BASE + HW_SPDIF_CTRL_SET);
+ 	while (!(__raw_readl(REGS_SPDIF_BASE + HW_SPDIF_CTRL) & BM_SPDIF_CTRL_CLKGATE));
+ 
+ 	stmp3xxx_codec_spdif_enable(stmp3xxx_spdif);
+diff --git a/sound/soc/stmp3xxx/stmp3xxx_dai.c b/sound/soc/stmp3xxx/stmp3xxx_dai.c
+index 742b466..ab367cc 100644
+--- a/sound/soc/stmp3xxx/stmp3xxx_dai.c
++++ b/sound/soc/stmp3xxx/stmp3xxx_dai.c
+@@ -73,21 +73,25 @@ static irqreturn_t stmp3xxx_err_irq(int irq, void *dev_id)
+ 		       playback ? "DAC" : "ADC");
+ 
+ 		if (playback)
+-			stmp3xxx_clearl(
+-				BM_AUDIOOUT_CTRL_FIFO_UNDERFLOW_IRQ, REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL);
++			__raw_writel(
++				BM_AUDIOOUT_CTRL_FIFO_UNDERFLOW_IRQ,
++				REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL_CLR);
+ 		else
+-			stmp3xxx_clearl(
+-				BM_AUDIOIN_CTRL_FIFO_UNDERFLOW_IRQ, REGS_AUDIOIN_BASE + HW_AUDIOIN_CTRL);
++			__raw_writel(
++				BM_AUDIOIN_CTRL_FIFO_UNDERFLOW_IRQ,
++				REGS_AUDIOIN_BASE + HW_AUDIOIN_CTRL_CLR);
+ 
+ 	} else if (ctrl_reg & overflow_mask) {
+ 		printk(KERN_DEBUG "%s overflow detected\n",
+ 		       playback ? "DAC" : "ADC");
+ 
+ 		if (playback)
+-			stmp3xxx_clearl(
+-				BM_AUDIOOUT_CTRL_FIFO_OVERFLOW_IRQ, REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL);
++			__raw_writel(
++				BM_AUDIOOUT_CTRL_FIFO_OVERFLOW_IRQ,
++				REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL_CLR);
+ 		else
+-			stmp3xxx_clearl(BM_AUDIOIN_CTRL_FIFO_OVERFLOW_IRQ, REGS_AUDIOIN_BASE + HW_AUDIOIN_CTRL);
++			__raw_writel(BM_AUDIOIN_CTRL_FIFO_OVERFLOW_IRQ,
++				REGS_AUDIOIN_BASE + HW_AUDIOIN_CTRL_CLR);
+ 	} else
+ 		printk(KERN_WARNING "Unknown DAC error interrupt\n");
+ 
+@@ -104,16 +108,20 @@ static int stmp3xxx_adc_trigger(struct snd_pcm_substream *substream,
+ 	switch (cmd) {
+ 	case SNDRV_PCM_TRIGGER_START:
+ 		if (playback)
+-			stmp3xxx_setl(BM_AUDIOOUT_CTRL_RUN, REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL);
++			__raw_writel(BM_AUDIOOUT_CTRL_RUN,
++				REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL_SET);
+ 		else
+-			stmp3xxx_setl(BM_AUDIOIN_CTRL_RUN, REGS_AUDIOIN_BASE + HW_AUDIOIN_CTRL);
++			__raw_writel(BM_AUDIOIN_CTRL_RUN,
++				REGS_AUDIOIN_BASE + HW_AUDIOIN_CTRL_SET);
+ 		break;
+ 
+ 	case SNDRV_PCM_TRIGGER_STOP:
+ 		if (playback)
+-			stmp3xxx_clearl(BM_AUDIOOUT_CTRL_RUN, REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL);
++			__raw_writel(BM_AUDIOOUT_CTRL_RUN,
++				REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL_CLR);
+ 		else
+-			stmp3xxx_clearl(BM_AUDIOIN_CTRL_RUN, REGS_AUDIOIN_BASE + HW_AUDIOIN_CTRL);
++			__raw_writel(BM_AUDIOIN_CTRL_RUN,
++				REGS_AUDIOIN_BASE + HW_AUDIOIN_CTRL_CLR);
+ 		break;
+ 
+ 	case SNDRV_PCM_TRIGGER_RESUME:
+@@ -155,13 +163,19 @@ static int stmp3xxx_adc_startup(struct snd_pcm_substream *substream,
+ 
+ 	/* Enable error interrupt */
+ 	if (playback) {
+-		stmp3xxx_clearl(BM_AUDIOOUT_CTRL_FIFO_OVERFLOW_IRQ, REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL);
+-		stmp3xxx_clearl(BM_AUDIOOUT_CTRL_FIFO_UNDERFLOW_IRQ, REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL);
+-		stmp3xxx_setl(BM_AUDIOOUT_CTRL_FIFO_ERROR_IRQ_EN, REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL);
++		__raw_writel(BM_AUDIOOUT_CTRL_FIFO_OVERFLOW_IRQ,
++				REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL_CLR);
++		__raw_writel(BM_AUDIOOUT_CTRL_FIFO_UNDERFLOW_IRQ,
++				REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL_CLR);
++		__raw_writel(BM_AUDIOOUT_CTRL_FIFO_ERROR_IRQ_EN,
++			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL_SET);
+ 	} else {
+-		stmp3xxx_clearl(BM_AUDIOIN_CTRL_FIFO_OVERFLOW_IRQ, REGS_AUDIOIN_BASE + HW_AUDIOIN_CTRL);
+-		stmp3xxx_clearl(BM_AUDIOIN_CTRL_FIFO_UNDERFLOW_IRQ, REGS_AUDIOIN_BASE + HW_AUDIOIN_CTRL);
+-		stmp3xxx_setl(BM_AUDIOIN_CTRL_FIFO_ERROR_IRQ_EN, REGS_AUDIOIN_BASE + HW_AUDIOIN_CTRL);
++		__raw_writel(BM_AUDIOIN_CTRL_FIFO_OVERFLOW_IRQ,
++			REGS_AUDIOIN_BASE + HW_AUDIOIN_CTRL_CLR);
++		__raw_writel(BM_AUDIOIN_CTRL_FIFO_UNDERFLOW_IRQ,
++			REGS_AUDIOIN_BASE + HW_AUDIOIN_CTRL_CLR);
++		__raw_writel(BM_AUDIOIN_CTRL_FIFO_ERROR_IRQ_EN,
++			REGS_AUDIOIN_BASE + HW_AUDIOIN_CTRL_SET);
+ 	}
+ 
+ 	return 0;
+@@ -174,10 +188,12 @@ static void stmp3xxx_adc_shutdown(struct snd_pcm_substream *substream,
+ 
+ 	/* Disable error interrupt */
+ 	if (playback) {
+-		stmp3xxx_clearl(BM_AUDIOOUT_CTRL_FIFO_ERROR_IRQ_EN, REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL);
++		__raw_writel(BM_AUDIOOUT_CTRL_FIFO_ERROR_IRQ_EN,
++			REGS_AUDIOOUT_BASE + HW_AUDIOOUT_CTRL_CLR);
+ 		free_irq(IRQ_DAC_ERROR, substream);
+ 	} else {
+-		stmp3xxx_clearl(BM_AUDIOIN_CTRL_FIFO_ERROR_IRQ_EN, REGS_AUDIOIN_BASE + HW_AUDIOIN_CTRL);
++		__raw_writel(BM_AUDIOIN_CTRL_FIFO_ERROR_IRQ_EN,
++			REGS_AUDIOIN_BASE + HW_AUDIOIN_CTRL_CLR);
+ 		free_irq(IRQ_ADC_ERROR, substream);
+ 	}
+ }
+diff --git a/sound/soc/stmp3xxx/stmp3xxx_pcm.c b/sound/soc/stmp3xxx/stmp3xxx_pcm.c
+index 21cf862..cff13a5 100644
+--- a/sound/soc/stmp3xxx/stmp3xxx_pcm.c
++++ b/sound/soc/stmp3xxx/stmp3xxx_pcm.c
+@@ -89,10 +89,10 @@ static irqreturn_t stmp3xxx_pcm_dma_irq(int irq, void *dev_id)
+ 		printk(KERN_WARNING "%s: DMA audio channel %d (%s) error\n",
+ 		       __func__, prtd->params->dma_ch, prtd->params->name);
+ #ifdef CONFIG_ARCH_STMP37XX
+-		stmp3xxx_clearl(err_mask, REGS_APBX_BASE + HW_APBX_CTRL1);
++		__raw_writel(err_mask, REGS_APBX_BASE + HW_APBX_CTRL1_CLR);
+ #endif
+ #ifdef CONFIG_ARCH_STMP378X
+-		stmp3xxx_clearl(err_mask, REGS_APBX_BASE + HW_APBX_CTRL2);
++		__raw_writel(err_mask, REGS_APBX_BASE + HW_APBX_CTRL2_CLR);
+ #endif
+ 	} else if (__raw_readl(REGS_APBX_BASE + HW_APBX_CTRL1) & irq_mask) {
+ 		stmp3xxx_dma_clear_interrupt(prtd->dma_ch);
+diff --git a/sound/soc/stmp3xxx/stmp3xxx_spdif_dai.c b/sound/soc/stmp3xxx/stmp3xxx_spdif_dai.c
+index b096047..5041926 100644
+--- a/sound/soc/stmp3xxx/stmp3xxx_spdif_dai.c
++++ b/sound/soc/stmp3xxx/stmp3xxx_spdif_dai.c
+@@ -57,14 +57,14 @@ static irqreturn_t stmp3xxx_err_irq(int irq, void *dev_id)
+ 		printk(KERN_DEBUG "underflow detected SPDIF\n");
+ 
+ 		if (playback)
+-			stmp3xxx_clearl(BM_SPDIF_CTRL_FIFO_UNDERFLOW_IRQ,
+-				REGS_SPDIF_BASE + HW_SPDIF_CTRL);
++			__raw_writel(BM_SPDIF_CTRL_FIFO_UNDERFLOW_IRQ,
++				REGS_SPDIF_BASE + HW_SPDIF_CTRL_CLR);
+ 	} else if (ctrl_reg & overflow_mask) {
+ 		printk(KERN_DEBUG "overflow detected SPDIF\n");
+ 
+ 		if (playback)
+-			stmp3xxx_clearl(BM_SPDIF_CTRL_FIFO_OVERFLOW_IRQ,
+-				REGS_SPDIF_BASE + HW_SPDIF_CTRL);
++			__raw_writel(BM_SPDIF_CTRL_FIFO_OVERFLOW_IRQ,
++				REGS_SPDIF_BASE + HW_SPDIF_CTRL_CLR);
+ 	} else
+ 		printk(KERN_WARNING "Unknown SPDIF error interrupt\n");
+ 
+@@ -80,13 +80,13 @@ static int stmp3xxx_spdif_trigger(struct snd_pcm_substream *substream, int cmd,
+ 	switch (cmd) {
+ 	case SNDRV_PCM_TRIGGER_START:
+ 		if (playback)
+-			stmp3xxx_setl(BM_SPDIF_CTRL_RUN,
+-				REGS_SPDIF_BASE + HW_SPDIF_CTRL);
++			__raw_writel(BM_SPDIF_CTRL_RUN,
++				REGS_SPDIF_BASE + HW_SPDIF_CTRL_SET);
+ 		break;
+ 	case SNDRV_PCM_TRIGGER_STOP:
+ 		if (playback)
+-			stmp3xxx_clearl(BM_SPDIF_CTRL_RUN,
+-				REGS_SPDIF_BASE + HW_SPDIF_CTRL);
++			__raw_writel(BM_SPDIF_CTRL_RUN,
++				REGS_SPDIF_BASE + HW_SPDIF_CTRL_CLR);
+ 		break;
+ 	case SNDRV_PCM_TRIGGER_RESUME:
+ 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+@@ -124,12 +124,12 @@ static int stmp3xxx_spdif_startup(struct snd_pcm_substream *substream,
+ 
+ 	/* Enable error interrupt */
+ 	if (playback) {
+-		stmp3xxx_clearl(BM_SPDIF_CTRL_FIFO_OVERFLOW_IRQ,
+-				REGS_SPDIF_BASE + HW_SPDIF_CTRL);
+-		stmp3xxx_clearl(BM_SPDIF_CTRL_FIFO_UNDERFLOW_IRQ,
+-				REGS_SPDIF_BASE + HW_SPDIF_CTRL);
+-		stmp3xxx_setl(BM_SPDIF_CTRL_FIFO_ERROR_IRQ_EN,
+-				REGS_SPDIF_BASE + HW_SPDIF_CTRL);
++		__raw_writel(BM_SPDIF_CTRL_FIFO_OVERFLOW_IRQ,
++				REGS_SPDIF_BASE + HW_SPDIF_CTRL_CLR);
++		__raw_writel(BM_SPDIF_CTRL_FIFO_UNDERFLOW_IRQ,
++				REGS_SPDIF_BASE + HW_SPDIF_CTRL_CLR);
++		__raw_writel(BM_SPDIF_CTRL_FIFO_ERROR_IRQ_EN,
++				REGS_SPDIF_BASE + HW_SPDIF_CTRL_SET);
+ 	}
+ 
+ 	return 0;
+@@ -142,8 +142,8 @@ static void stmp3xxx_spdif_shutdown(struct snd_pcm_substream *substream,
+ 
+ 	/* Disable error interrupt */
+ 	if (playback) {
+-		stmp3xxx_clearl(BM_SPDIF_CTRL_FIFO_ERROR_IRQ_EN,
+-				REGS_SPDIF_BASE + HW_SPDIF_CTRL);
++		__raw_writel(BM_SPDIF_CTRL_FIFO_ERROR_IRQ_EN,
++				REGS_SPDIF_BASE + HW_SPDIF_CTRL_CLR);
+ 		free_irq(IRQ_SPDIF_ERROR, substream);
+ 	}
+ }
+-- 
+1.5.4.4
+

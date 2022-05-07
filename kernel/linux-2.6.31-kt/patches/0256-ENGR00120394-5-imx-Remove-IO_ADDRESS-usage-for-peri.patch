@@ -1,0 +1,137 @@
+From ae170cc2832ac3645678bcfa888b811ff641dc38 Mon Sep 17 00:00:00 2001
+From: Rob Herring <r.herring@freescale.com>
+Date: Thu, 4 Feb 2010 09:49:15 -0600
+Subject: [PATCH] ENGR00120394-5 imx: Remove IO_ADDRESS usage for peripheral dvfs
+
+Replace static mappings with dynamic mapping in peripheral DFVS.
+
+Signed-off-by: Rob Herring <r.herring@freescale.com>
+---
+ arch/arm/mach-mx37/cpu.c                  |    4 ++++
+ arch/arm/mach-mx51/cpu.c                  |    3 +++
+ arch/arm/plat-mxc/dvfs_per.c              |   14 +++++++++++++-
+ arch/arm/plat-mxc/include/mach/mxc_dvfs.h |   16 +++-------------
+ 4 files changed, 23 insertions(+), 14 deletions(-)
+
+diff --git a/arch/arm/mach-mx37/cpu.c b/arch/arm/mach-mx37/cpu.c
+index 044b90e..990c9ef 100644
+--- a/arch/arm/mach-mx37/cpu.c
++++ b/arch/arm/mach-mx37/cpu.c
+@@ -24,6 +24,8 @@
+ #include <mach/hardware.h>
+ #include <asm/hardware/cache-l2x0.h>
+ 
++void __iomem *gpc_base;
++
+ /*!
+  * CPU initialization. It is called by fixup_mxc_board()
+  */
+@@ -54,6 +56,8 @@ static int __init post_cpu_init(void)
+ 
+ 	iram_init(IRAM_BASE_ADDR, iram_size);
+ 
++	gpc_base = ioremap(GPC_BASE_ADDR, SZ_4K);
++
+ 	/* Set ALP bits to 000. Set ALP_EN bit in Arm Memory Controller reg. */
+ 	reg = __raw_readl(MXC_ARM1176_BASE + 0x1C);
+ 	reg = 0x8;
+diff --git a/arch/arm/mach-mx51/cpu.c b/arch/arm/mach-mx51/cpu.c
+index 6375806..cac461c 100644
+--- a/arch/arm/mach-mx51/cpu.c
++++ b/arch/arm/mach-mx51/cpu.c
+@@ -28,6 +28,7 @@
+ #include "crm_regs.h"
+ 
+ void __iomem *arm_plat_base;
++void __iomem *gpc_base;
+ 
+ /*!
+  * CPU initialization. It is called by fixup_mxc_board()
+@@ -50,6 +51,8 @@ static int __init post_cpu_init(void)
+ #endif
+ 	iram_init(IRAM_BASE_ADDR, iram_size);
+ 
++	gpc_base = ioremap(GPC_BASE_ADDR, SZ_4K);
++
+ 	/* Set ALP bits to 000. Set ALP_EN bit in Arm Memory Controller reg. */
+ 	arm_plat_base = ioremap(ARM_BASE_ADDR, SZ_4K);
+ 	reg = 0x8;
+diff --git a/arch/arm/plat-mxc/dvfs_per.c b/arch/arm/plat-mxc/dvfs_per.c
+index 3460f4f..269dbb2 100644
+--- a/arch/arm/plat-mxc/dvfs_per.c
++++ b/arch/arm/plat-mxc/dvfs_per.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2009-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -50,6 +50,17 @@
+ #include <mach/mxc_dptc.h>
+ #endif
+ 
++/* DVFS PER */
++static void __iomem *dvfs_per_base;
++#define MXC_DVFS_PER_LTR0	(dvfs_per_base)
++#define MXC_DVFS_PER_LTR1	(dvfs_per_base + 0x04)
++#define MXC_DVFS_PER_LTR2	(dvfs_per_base + 0x08)
++#define MXC_DVFS_PER_LTR3	(dvfs_per_base + 0x0C)
++#define MXC_DVFS_PER_LTBR0	(dvfs_per_base + 0x10)
++#define MXC_DVFS_PER_LTBR1	(dvfs_per_base + 0x14)
++#define MXC_DVFS_PER_PMCR0	(dvfs_per_base + 0x18)
++#define MXC_DVFS_PER_PMCR1	(dvfs_per_base + 0x1C)
++
+ #define DRIVER_NAME "DVFSPER"
+ #define DVFS_PER_DEBUG 0
+ 
+@@ -759,6 +770,7 @@ static int __devinit mxc_dvfsper_probe(struct platform_device *pdev)
+ 		ret = -ENODEV;
+ 		goto err1;
+ 	}
++	dvfs_per_base = gpc_base + 0x1C4;
+ 
+ 	/*
+ 	 * Request the DVFSPER interrupt
+diff --git a/arch/arm/plat-mxc/include/mach/mxc_dvfs.h b/arch/arm/plat-mxc/include/mach/mxc_dvfs.h
+index 8b9d6f7..fd0179b 100644
+--- a/arch/arm/plat-mxc/include/mach/mxc_dvfs.h
++++ b/arch/arm/plat-mxc/include/mach/mxc_dvfs.h
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2009-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -34,6 +34,8 @@
+ #include <linux/workqueue.h>
+ #include <linux/device.h>
+ 
++extern void __iomem *gpc_base;
++
+ #define MXC_GPCCNTR_GPCIRQ2M		(1 << 25)
+ #define MXC_GPCCNTR_GPCIRQ2		(1 << 24)
+ #define MXC_GPCCNTR_GPCIRQM		(1 << 21)
+@@ -62,18 +64,6 @@
+ #define MXC_DVFSPER_PMCR0_ENABLE_MASK	0x10
+ #define MXC_DVFSPER_PMCR0_ENABLE			(1 << 4)
+ 
+-#define MXC_DVFS_PER_BASE	IO_ADDRESS(GPC_BASE_ADDR + 0x1C4)
+-
+-/* DVFS PER */
+-#define MXC_DVFS_PER_LTR0	(MXC_DVFS_PER_BASE)
+-#define MXC_DVFS_PER_LTR1	(MXC_DVFS_PER_BASE + 0x04)
+-#define MXC_DVFS_PER_LTR2	(MXC_DVFS_PER_BASE + 0x08)
+-#define MXC_DVFS_PER_LTR3	(MXC_DVFS_PER_BASE + 0x0C)
+-#define MXC_DVFS_PER_LTBR0	(MXC_DVFS_PER_BASE + 0x10)
+-#define MXC_DVFS_PER_LTBR1	(MXC_DVFS_PER_BASE + 0x14)
+-#define MXC_DVFS_PER_PMCR0	(MXC_DVFS_PER_BASE + 0x18)
+-#define MXC_DVFS_PER_PMCR1	(MXC_DVFS_PER_BASE + 0x1C)
+-
+ #define MXC_DVFSLTR0_UPTHR_MASK		0x0FC00000
+ #define MXC_DVFSLTR0_UPTHR_OFFSET	22
+ #define MXC_DVFSLTR0_DNTHR_MASK		0x003F0000
+-- 
+1.5.4.4
+

@@ -1,0 +1,52 @@
+From f2ddfef71c73e159759e575d38eeacac4adb3ff0 Mon Sep 17 00:00:00 2001
+From: Rob Herring <r.herring@freescale.com>
+Date: Tue, 15 Sep 2009 22:20:47 -0500
+Subject: [PATCH] FEC: Add LAN8700 phy support
+
+Signed-off-by: Rob Herring <r.herring@freescale.com>
+---
+ drivers/net/fec.c |   21 +++++++++++++++++++++
+ 1 files changed, 21 insertions(+), 0 deletions(-)
+
+diff --git a/drivers/net/fec.c b/drivers/net/fec.c
+index 9c49d56..6392a67 100644
+--- a/drivers/net/fec.c
++++ b/drivers/net/fec.c
+@@ -1128,6 +1128,26 @@ static phy_info_t phy_info_dp83848= {
+ 	},
+ };
+ 
++static phy_info_t phy_info_lan8700 = {
++	0x0007C0C,
++	"LAN8700",
++	(const phy_cmd_t []) { /* config */
++		{ mk_mii_read(MII_REG_CR), mii_parse_cr },
++		{ mk_mii_read(MII_REG_ANAR), mii_parse_anar },
++		{ mk_mii_end, }
++	},
++	(const phy_cmd_t []) { /* startup */
++		{ mk_mii_write(MII_REG_CR, 0x1200), NULL }, /* autonegotiate */
++		{ mk_mii_read(MII_REG_SR), mii_parse_sr },
++		{ mk_mii_end, }
++	},
++	(const phy_cmd_t []) { /* act_int */
++		{ mk_mii_end, }
++	},
++	(const phy_cmd_t []) { /* shutdown */
++		{ mk_mii_end, }
++	},
++};
+ /* ------------------------------------------------------------------------- */
+ 
+ static phy_info_t const * const phy_info[] = {
+@@ -1137,6 +1157,7 @@ static phy_info_t const * const phy_info[] = {
+ 	&phy_info_am79c874,
+ 	&phy_info_ks8721bl,
+ 	&phy_info_dp83848,
++	&phy_info_lan8700,
+ 	NULL
+ };
+ 
+-- 
+1.5.4.4
+

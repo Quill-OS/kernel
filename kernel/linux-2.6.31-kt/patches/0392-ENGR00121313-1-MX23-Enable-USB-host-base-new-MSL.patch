@@ -1,0 +1,776 @@
+From 62c47beef29bdfe7e2cacf937df7291dbd309c66 Mon Sep 17 00:00:00 2001
+From: Frank Li <Frank.Li@freescale.com>
+Date: Mon, 15 Mar 2010 18:24:16 +0800
+Subject: [PATCH] ENGR00121313-1 MX23 Enable USB host base new MSL
+
+Enable MX23 usb host at new msl, use gpio to control vbus on/off
+
+Signed-off-by: Frank Li <Frank.Li@freescale.com>
+---
+ arch/arm/configs/imx23evk_defconfig      |  173 +++++++++++++++++++++++++++++-
+ arch/arm/mach-mx23/Makefile              |    1 -
+ arch/arm/mach-mx23/usb_dr.c              |   53 +++++++++-
+ arch/arm/mach-mx23/usb_h1.c              |   81 --------------
+ arch/arm/mach-mx28/usb_dr.c              |   19 ++++
+ arch/arm/plat-mxs/include/mach/fsl_usb.h |    8 ++
+ arch/arm/plat-mxs/regs-usbphy.h          |   95 ++++-------------
+ arch/arm/plat-mxs/usb_common.c           |   17 ++--
+ arch/arm/plat-mxs/utmixc.c               |   30 ++----
+ 9 files changed, 281 insertions(+), 196 deletions(-)
+
+diff --git a/arch/arm/configs/imx23evk_defconfig b/arch/arm/configs/imx23evk_defconfig
+index 4511569..fd00030 100644
+--- a/arch/arm/configs/imx23evk_defconfig
++++ b/arch/arm/configs/imx23evk_defconfig
+@@ -394,6 +394,7 @@ CONFIG_BLK_DEV=y
+ # CONFIG_BLK_DEV_COW_COMMON is not set
+ # CONFIG_BLK_DEV_LOOP is not set
+ # CONFIG_BLK_DEV_NBD is not set
++# CONFIG_BLK_DEV_UB is not set
+ CONFIG_BLK_DEV_RAM=y
+ CONFIG_BLK_DEV_RAM_COUNT=16
+ CONFIG_BLK_DEV_RAM_SIZE=4096
+@@ -495,10 +496,17 @@ CONFIG_TOUCHSCREEN_MXS=y
+ # CONFIG_TOUCHSCREEN_PENMOUNT is not set
+ # CONFIG_TOUCHSCREEN_TOUCHRIGHT is not set
+ # CONFIG_TOUCHSCREEN_TOUCHWIN is not set
++# CONFIG_TOUCHSCREEN_USB_COMPOSITE is not set
+ # CONFIG_TOUCHSCREEN_TOUCHIT213 is not set
+ # CONFIG_TOUCHSCREEN_TSC2007 is not set
+ # CONFIG_TOUCHSCREEN_W90X900 is not set
+ CONFIG_INPUT_MISC=y
++# CONFIG_INPUT_ATI_REMOTE is not set
++# CONFIG_INPUT_ATI_REMOTE2 is not set
++# CONFIG_INPUT_KEYSPAN_REMOTE is not set
++# CONFIG_INPUT_POWERMATE is not set
++# CONFIG_INPUT_YEALINK is not set
++# CONFIG_INPUT_CM109 is not set
+ # CONFIG_INPUT_UINPUT is not set
+ # CONFIG_INPUT_GPIO_ROTARY_ENCODER is not set
+ 
+@@ -568,6 +576,7 @@ CONFIG_I2C_MXS_SELECT0=y
+ #
+ # CONFIG_I2C_PARPORT_LIGHT is not set
+ # CONFIG_I2C_TAOS_EVM is not set
++# CONFIG_I2C_TINY_USB is not set
+ 
+ #
+ # Other I2C/SMBus bus drivers
+@@ -632,6 +641,11 @@ CONFIG_WATCHDOG=y
+ #
+ # CONFIG_SOFT_WATCHDOG is not set
+ CONFIG_MXS_WATCHDOG=y
++
++#
++# USB-based Watchdog Cards
++#
++# CONFIG_USBPCWATCHDOG is not set
+ CONFIG_SSB_POSSIBLE=y
+ 
+ #
+@@ -765,8 +779,164 @@ CONFIG_LOGO=y
+ CONFIG_LOGO_LINUX_CLUT224=y
+ # CONFIG_SOUND is not set
+ # CONFIG_HID_SUPPORT is not set
+-# CONFIG_USB_SUPPORT is not set
++CONFIG_USB_SUPPORT=y
++CONFIG_USB_ARCH_HAS_HCD=y
++# CONFIG_USB_ARCH_HAS_OHCI is not set
+ CONFIG_USB_ARCH_HAS_EHCI=y
++CONFIG_USB=y
++# CONFIG_USB_DEBUG is not set
++# CONFIG_USB_ANNOUNCE_NEW_DEVICES is not set
++
++#
++# Miscellaneous USB options
++#
++# CONFIG_USB_DEVICEFS is not set
++CONFIG_USB_DEVICE_CLASS=y
++# CONFIG_USB_DYNAMIC_MINORS is not set
++# CONFIG_USB_SUSPEND is not set
++# CONFIG_USB_OTG is not set
++# CONFIG_USB_OTG_WHITELIST is not set
++# CONFIG_USB_OTG_BLACKLIST_HUB is not set
++CONFIG_USB_MON=y
++# CONFIG_USB_WUSB is not set
++# CONFIG_USB_WUSB_CBAF is not set
++
++#
++# USB Host Controller Drivers
++#
++# CONFIG_USB_C67X00_HCD is not set
++CONFIG_USB_EHCI_HCD=m
++CONFIG_USB_EHCI_ARC=y
++CONFIG_USB_EHCI_ARC_OTG=y
++# CONFIG_USB_STATIC_IRAM is not set
++# CONFIG_USB_EHCI_FSL_MC13783 is not set
++# CONFIG_USB_EHCI_FSL_1301 is not set
++# CONFIG_USB_EHCI_FSL_1504 is not set
++CONFIG_USB_EHCI_FSL_UTMI=y
++CONFIG_USB_EHCI_ROOT_HUB_TT=y
++# CONFIG_USB_EHCI_TT_NEWSCHED is not set
++# CONFIG_USB_OXU210HP_HCD is not set
++# CONFIG_USB_ISP116X_HCD is not set
++# CONFIG_USB_ISP1760_HCD is not set
++# CONFIG_USB_SL811_HCD is not set
++# CONFIG_USB_R8A66597_HCD is not set
++# CONFIG_USB_HWA_HCD is not set
++# CONFIG_USB_MUSB_HDRC is not set
++# CONFIG_USB_GADGET_MUSB_HDRC is not set
++
++#
++# USB Device Class drivers
++#
++# CONFIG_USB_ACM is not set
++# CONFIG_USB_PRINTER is not set
++# CONFIG_USB_WDM is not set
++# CONFIG_USB_TMC is not set
++
++#
++# NOTE: USB_STORAGE depends on SCSI but BLK_DEV_SD may
++#
++
++#
++# also be needed; see USB_STORAGE Help for more info
++#
++CONFIG_USB_STORAGE=y
++# CONFIG_USB_STORAGE_DEBUG is not set
++# CONFIG_USB_STORAGE_DATAFAB is not set
++# CONFIG_USB_STORAGE_FREECOM is not set
++# CONFIG_USB_STORAGE_ISD200 is not set
++# CONFIG_USB_STORAGE_USBAT is not set
++# CONFIG_USB_STORAGE_SDDR09 is not set
++# CONFIG_USB_STORAGE_SDDR55 is not set
++# CONFIG_USB_STORAGE_JUMPSHOT is not set
++# CONFIG_USB_STORAGE_ALAUDA is not set
++# CONFIG_USB_STORAGE_ONETOUCH is not set
++# CONFIG_USB_STORAGE_KARMA is not set
++# CONFIG_USB_STORAGE_CYPRESS_ATACB is not set
++# CONFIG_USB_LIBUSUAL is not set
++
++#
++# USB Imaging devices
++#
++# CONFIG_USB_MDC800 is not set
++# CONFIG_USB_MICROTEK is not set
++
++#
++# USB port drivers
++#
++# CONFIG_USB_SERIAL is not set
++
++#
++# USB Miscellaneous drivers
++#
++# CONFIG_USB_EMI62 is not set
++# CONFIG_USB_EMI26 is not set
++# CONFIG_USB_ADUTUX is not set
++# CONFIG_USB_SEVSEG is not set
++# CONFIG_USB_RIO500 is not set
++# CONFIG_USB_LEGOTOWER is not set
++# CONFIG_USB_LCD is not set
++# CONFIG_USB_BERRY_CHARGE is not set
++# CONFIG_USB_LED is not set
++# CONFIG_USB_CYPRESS_CY7C63 is not set
++# CONFIG_USB_CYTHERM is not set
++# CONFIG_USB_IDMOUSE is not set
++# CONFIG_USB_FTDI_ELAN is not set
++# CONFIG_USB_APPLEDISPLAY is not set
++# CONFIG_USB_SISUSBVGA is not set
++# CONFIG_USB_LD is not set
++# CONFIG_USB_TRANCEVIBRATOR is not set
++# CONFIG_USB_IOWARRIOR is not set
++# CONFIG_USB_TEST is not set
++# CONFIG_USB_ISIGHTFW is not set
++# CONFIG_USB_VST is not set
++CONFIG_USB_GADGET=m
++# CONFIG_USB_GADGET_DEBUG is not set
++# CONFIG_USB_GADGET_DEBUG_FILES is not set
++CONFIG_USB_GADGET_VBUS_DRAW=2
++CONFIG_USB_GADGET_SELECTED=y
++# CONFIG_USB_GADGET_AT91 is not set
++# CONFIG_USB_GADGET_ATMEL_USBA is not set
++# CONFIG_USB_GADGET_FSL_USB2 is not set
++# CONFIG_USB_GADGET_LH7A40X is not set
++# CONFIG_USB_GADGET_OMAP is not set
++# CONFIG_USB_GADGET_PXA25X is not set
++# CONFIG_USB_GADGET_PXA27X is not set
++# CONFIG_USB_GADGET_S3C_HSOTG is not set
++# CONFIG_USB_GADGET_IMX is not set
++# CONFIG_USB_GADGET_S3C2410 is not set
++# CONFIG_USB_GADGET_M66592 is not set
++# CONFIG_USB_GADGET_AMD5536UDC is not set
++# CONFIG_USB_GADGET_FSL_QE is not set
++# CONFIG_USB_GADGET_CI13XXX is not set
++# CONFIG_USB_GADGET_NET2280 is not set
++# CONFIG_USB_GADGET_GOKU is not set
++CONFIG_USB_GADGET_ARC=y
++CONFIG_USB_ARC=m
++# CONFIG_USB_GADGET_LANGWELL is not set
++# CONFIG_USB_GADGET_DUMMY_HCD is not set
++CONFIG_USB_GADGET_DUALSPEED=y
++CONFIG_USB_GADGET_ARC_OTG=y
++# CONFIG_USB_GADGET_FSL_MC13783 is not set
++# CONFIG_USB_GADGET_FSL_1301 is not set
++# CONFIG_USB_GADGET_FSL_1504 is not set
++CONFIG_USB_GADGET_FSL_UTMI=y
++# CONFIG_USB_ZERO is not set
++# CONFIG_USB_AUDIO is not set
++CONFIG_USB_ETH=m
++CONFIG_USB_ETH_RNDIS=y
++# CONFIG_USB_GADGETFS is not set
++CONFIG_USB_FILE_STORAGE=m
++# CONFIG_USB_FILE_STORAGE_TEST is not set
++CONFIG_USB_G_SERIAL=m
++# CONFIG_USB_MIDI_GADGET is not set
++# CONFIG_USB_G_PRINTER is not set
++CONFIG_USB_CDC_COMPOSITE=m
++
++#
++# OTG and related infrastructure
++#
++# CONFIG_USB_GPIO_VBUS is not set
++# CONFIG_NOP_USB_XCEIV is not set
+ CONFIG_MMC=y
+ # CONFIG_MMC_DEBUG is not set
+ CONFIG_MMC_UNSAFE_RESUME=y
+@@ -1068,6 +1238,7 @@ CONFIG_SECURITY=y
+ # CONFIG_SECURITY_NETWORK is not set
+ # CONFIG_SECURITY_PATH is not set
+ # CONFIG_SECURITY_FILE_CAPABILITIES is not set
++# CONFIG_SECURITY_ROOTPLUG is not set
+ # CONFIG_SECURITY_TOMOYO is not set
+ CONFIG_CRYPTO=y
+ 
+diff --git a/arch/arm/mach-mx23/Makefile b/arch/arm/mach-mx23/Makefile
+index c973307..603d558 100644
+--- a/arch/arm/mach-mx23/Makefile
++++ b/arch/arm/mach-mx23/Makefile
+@@ -11,4 +11,3 @@ obj-$(CONFIG_GENERIC_GPIO) += gpio.o
+ ifneq ($(strip $(CONFIG_USB_GADGET_ARC) $(CONFIG_USB_EHCI_ARC_OTG)),)
+ 	obj-y   += usb_dr.o
+ endif
+-obj-$(CONFIG_USB_EHCI_ARC_H1)   += usb_h1.o
+diff --git a/arch/arm/mach-mx23/usb_dr.c b/arch/arm/mach-mx23/usb_dr.c
+index 69cb854..385c25a 100644
+--- a/arch/arm/mach-mx23/usb_dr.c
++++ b/arch/arm/mach-mx23/usb_dr.c
+@@ -23,7 +23,11 @@
+ #include <linux/platform_device.h>
+ #include <linux/fsl_devices.h>
+ #include <mach/irqs.h>
++#include <mach/mx23.h>
+ #include "usb.h"
++#include "mx23_pins.h"
++
++#define USB_POWER_ENABLE MXS_PIN_TO_GPIO(PINID_GMPI_CE2N)
+ 
+ static void usb_host_phy_resume(struct fsl_usb2_platform_data *plat)
+ {
+@@ -54,7 +58,7 @@ static struct fsl_usb2_platform_data __maybe_unused dr_utmi_config = {
+ 	.power_budget      = 500,	/* 500 mA max power */
+ 	.platform_resume = usb_host_phy_resume,
+ 	.transceiver       = "utmi",
+-	.phy_regs          = USBPHY0_PHYS_ADDR,
++	.phy_regs          = USBPHY_PHYS_ADDR,
+ };
+ 
+ /*
+@@ -62,15 +66,20 @@ static struct fsl_usb2_platform_data __maybe_unused dr_utmi_config = {
+  */
+ static struct resource otg_resources[] = {
+ 	[0] = {
+-		.start	= (u32)USBCTRL0_PHYS_ADDR,
+-		.end	= (u32)(USBCTRL0_PHYS_ADDR + 0x1ff),
++		.start	= (u32)USBCTRL_PHYS_ADDR,
++		.end	= (u32)(USBCTRL_PHYS_ADDR + 0x1ff),
+ 		.flags	= IORESOURCE_MEM,
+ 	},
+ 
+ 	[1] = {
+-		.start	= IRQ_USB0,
++		.start	= IRQ_USB_CTRL,
+ 		.flags	= IORESOURCE_IRQ,
+ 	},
++
++	[2] = {
++		.start = IRQ_USB_WAKEUP,
++		.flags = IORESOURCE_IRQ,
++	}
+ };
+ 
+ static u64 dr_udc_dmamask = ~(u32) 0;
+@@ -124,4 +133,40 @@ static int __init usb_dr_init(void)
+ 	return 0;
+ }
+ 
++static unsigned int g_usb_power_enable_pin;
++void fsl_phy_usb_utmi_init(struct fsl_xcvr_ops *this)
++{
++	int ret;
++	g_usb_power_enable_pin = 0;
++	ret = gpio_request(USB_POWER_ENABLE, "usb_power");
++	if (ret) {
++		pr_err("request usb power enable fail\n");
++	} else {
++		g_usb_power_enable_pin = USB_POWER_ENABLE;
++		gpio_direction_output(g_usb_power_enable_pin, 0);
++	}
++}
++
++void fsl_phy_usb_utmi_uninit(struct fsl_xcvr_ops *this)
++{
++	if (g_usb_power_enable_pin)
++		gpio_free(g_usb_power_enable_pin);
++}
++
++/*!
++ * set vbus power
++ *
++ * @param       view  viewport register
++ * @param       on    power on or off
++ */
++void fsl_phy_set_power(struct fsl_xcvr_ops *this,
++		      struct fsl_usb2_platform_data *pdata, int on)
++{
++	if (g_usb_power_enable_pin)
++		gpio_set_value(g_usb_power_enable_pin, on);
++	else
++		pr_err("not usb power control pin set\n");
++}
++
+ module_init(usb_dr_init);
++
+diff --git a/arch/arm/mach-mx23/usb_h1.c b/arch/arm/mach-mx23/usb_h1.c
+deleted file mode 100644
+index 4ee6378..0000000
+--- a/arch/arm/mach-mx23/usb_h1.c
++++ /dev/null
+@@ -1,81 +0,0 @@
+-/*
+- * Copyright (C) 2009-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+- *
+- * This program is free software; you can redistribute it and/or modify
+- * it under the terms of the GNU General Public License as published by
+- * the Free Software Foundation; either version 2 of the License, or
+- * (at your option) any later version.
+- *
+- * This program is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- * GNU General Public License for more details.
+- *
+- * You should have received a copy of the GNU General Public License along
+- * with this program; if not, write to the Free Software Foundation, Inc.,
+- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+- */
+-
+-#include <linux/kernel.h>
+-#include <linux/types.h>
+-#include <linux/clk.h>
+-#include <linux/delay.h>
+-#include <linux/platform_device.h>
+-#include <linux/fsl_devices.h>
+-#include <mach/arc_otg.h>
+-#include <asm/mach-types.h>
+-#include <asm/mach/arch.h>
+-#include <mach/irqs.h>
+-#include "usb.h"
+-
+-static void usb_host_phy_resume(struct fsl_usb2_platform_data *plat)
+-{
+-	fsl_platform_set_usb_phy_dis(plat, 0);
+-}
+-
+-static int fsl_usb_host_init_ext(struct platform_device *pdev)
+-{
+-	struct clk *usb_clk;
+-
+-	usb_clk = clk_get(NULL, "usb_clk1");
+-	clk_enable(usb_clk);
+-	clk_put(usb_clk);
+-
+-	return fsl_usb_host_init(pdev);
+-}
+-
+-static struct fsl_usb2_platform_data usbh1_config = {
+-	.name = "Host 1",
+-	.platform_init = fsl_usb_host_init_ext,
+-	.platform_uninit = fsl_usb_host_uninit,
+-	.operating_mode = FSL_USB2_MPH_HOST,
+-	.phy_mode = FSL_USB2_PHY_UTMI_WIDE,
+-	.power_budget = 500,	/* 500 mA max power */
+-	.platform_resume = usb_host_phy_resume,
+-	.transceiver = "utmi",
+-	.phy_regs = USBPHY1_PHYS_ADDR,
+-};
+-
+-static struct resource usbh1_resources[] = {
+-	[0] = {
+-	       .start = (u32) (USBCTRL1_PHYS_ADDR),
+-	       .end = (u32) (USBCTRL1_PHYS_ADDR + 0x1ff),
+-	       .flags = IORESOURCE_MEM,
+-	       },
+-	[1] = {
+-	       .start = IRQ_USB1,
+-	       .flags = IORESOURCE_IRQ,
+-	       },
+-};
+-
+-static int __init usbh1_init(void)
+-{
+-	pr_debug("%s: \n", __func__);
+-
+-	host_pdev_register(usbh1_resources,
+-			ARRAY_SIZE(usbh1_resources), &usbh1_config);
+-
+-	return 0;
+-}
+-
+-module_init(usbh1_init);
+diff --git a/arch/arm/mach-mx28/usb_dr.c b/arch/arm/mach-mx28/usb_dr.c
+index 69cb854..c9dbe3d 100644
+--- a/arch/arm/mach-mx28/usb_dr.c
++++ b/arch/arm/mach-mx28/usb_dr.c
+@@ -124,4 +124,23 @@ static int __init usb_dr_init(void)
+ 	return 0;
+ }
+ 
++void fsl_phy_usb_utmi_init(struct fsl_xcvr_ops *this)
++{
++}
++
++void fsl_phy_usb_utmi_uninit(struct fsl_xcvr_ops *this)
++{
++}
++
++/*!
++ * set vbus power
++ *
++ * @param       view  viewport register
++ * @param       on    power on or off
++ */
++void fsl_phy_set_power(struct fsl_xcvr_ops *this,
++			struct fsl_usb2_platform_data *pdata, int on)
++{
++}
++
+ module_init(usb_dr_init);
+diff --git a/arch/arm/plat-mxs/include/mach/fsl_usb.h b/arch/arm/plat-mxs/include/mach/fsl_usb.h
+index 50a9920..f883248 100644
+--- a/arch/arm/plat-mxs/include/mach/fsl_usb.h
++++ b/arch/arm/plat-mxs/include/mach/fsl_usb.h
+@@ -58,9 +58,17 @@ static inline void fsl_platform_set_host_mode(struct usb_hcd *hcd)
+ static inline void
+ fsl_platform_set_vbus_power(struct fsl_usb2_platform_data *pdata, int on)
+ {
++	if (pdata->xcvr_ops && pdata->xcvr_ops->set_vbus_power)
++		pdata->xcvr_ops->set_vbus_power(pdata->xcvr_ops, pdata, on);
+ }
+ 
+ /* Set USB AHB burst length for host */
+ static inline void fsl_platform_set_ahb_burst(struct usb_hcd *hcd)
+ {
+ }
++
++void fsl_phy_usb_utmi_init(struct fsl_xcvr_ops *this);
++void fsl_phy_usb_utmi_uninit(struct fsl_xcvr_ops *this);
++void fsl_phy_set_power(struct fsl_xcvr_ops *this,
++			struct fsl_usb2_platform_data *pdata, int on);
++
+diff --git a/arch/arm/plat-mxs/regs-usbphy.h b/arch/arm/plat-mxs/regs-usbphy.h
+index 5ab0152..cf64bfd 100644
+--- a/arch/arm/plat-mxs/regs-usbphy.h
++++ b/arch/arm/plat-mxs/regs-usbphy.h
+@@ -1,5 +1,7 @@
+ /*
+- * Copyright (C) 2009-2010 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Freescale USBPHY Register Definitions
++ *
++ * Copyright 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+@@ -11,30 +13,24 @@
+  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  * GNU General Public License for more details.
+  *
+- * You should have received a copy of the GNU General Public License along
+- * with this program; if not, write to the Free Software Foundation, Inc.,
+- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
++ *
++ * This file is created by xml file. Don't Edit it.
++ *
++ * Xml Revision: 1.52
++ * Template revision: 26195
+  */
+ 
+ #ifndef __ARCH_ARM___USBPHY_H
+-#define __ARCH_ARM___USBPHY_H  1
++#define __ARCH_ARM___USBPHY_H
+ 
+-#define REGS_USBPHY_BASE (MX28_SOC_IO_VIRT_BASE + 0x7c000)
+-#define REGS_USBPHY_PHYS (0x8007C000)
+-#define REGS_USBPHY_SIZE 0x00002000
+ 
+ #define HW_USBPHY_PWD	(0x00000000)
+ #define HW_USBPHY_PWD_SET	(0x00000004)
+ #define HW_USBPHY_PWD_CLR	(0x00000008)
+ #define HW_USBPHY_PWD_TOG	(0x0000000c)
+-#define HW_USBPHY_PWD_ADDR  \
+-		(REGS_USBPHY_BASE + HW_USBPHY_PWD)
+-#define HW_USBPHY_PWD_SET_ADDR \
+-		(REGS_USBPHY_BASE + HW_USBPHY_PWD_SET)
+-#define HW_USBPHY_PWD_CLR_ADDR \
+-		(REGS_USBPHY_BASE + HW_USBPHY_PWD_CLR)
+-#define HW_USBPHY_PWD_TOG_ADDR \
+-		(REGS_USBPHY_BASE + HW_USBPHY_PWD_TOG)
+ 
+ #define BP_USBPHY_PWD_RSVD2	21
+ #define BM_USBPHY_PWD_RSVD2	0xFFE00000
+@@ -60,14 +56,6 @@
+ #define HW_USBPHY_TX_SET	(0x00000014)
+ #define HW_USBPHY_TX_CLR	(0x00000018)
+ #define HW_USBPHY_TX_TOG	(0x0000001c)
+-#define HW_USBPHY_TX_ADDR  \
+-		(REGS_USBPHY_BASE + HW_USBPHY_TX)
+-#define HW_USBPHY_TX_SET_ADDR \
+-		(REGS_USBPHY_BASE + HW_USBPHY_TX_SET)
+-#define HW_USBPHY_TX_CLR_ADDR \
+-		(REGS_USBPHY_BASE + HW_USBPHY_TX_CLR)
+-#define HW_USBPHY_TX_TOG_ADDR \
+-		(REGS_USBPHY_BASE + HW_USBPHY_TX_TOG)
+ 
+ #define BP_USBPHY_TX_RSVD5	29
+ #define BM_USBPHY_TX_RSVD5	0xE0000000
+@@ -112,14 +100,6 @@
+ #define HW_USBPHY_RX_SET	(0x00000024)
+ #define HW_USBPHY_RX_CLR	(0x00000028)
+ #define HW_USBPHY_RX_TOG	(0x0000002c)
+-#define HW_USBPHY_RX_ADDR  \
+-		(REGS_USBPHY_BASE + HW_USBPHY_RX)
+-#define HW_USBPHY_RX_SET_ADDR \
+-		(REGS_USBPHY_BASE + HW_USBPHY_RX_SET)
+-#define HW_USBPHY_RX_CLR_ADDR \
+-		(REGS_USBPHY_BASE + HW_USBPHY_RX_CLR)
+-#define HW_USBPHY_RX_TOG_ADDR \
+-		(REGS_USBPHY_BASE + HW_USBPHY_RX_TOG)
+ 
+ #define BP_USBPHY_RX_RSVD2	23
+ #define BM_USBPHY_RX_RSVD2	0xFF800000
+@@ -144,24 +124,17 @@
+ #define HW_USBPHY_CTRL_SET	(0x00000034)
+ #define HW_USBPHY_CTRL_CLR	(0x00000038)
+ #define HW_USBPHY_CTRL_TOG	(0x0000003c)
+-#define HW_USBPHY_CTRL_ADDR  \
+-		(REGS_USBPHY_BASE + HW_USBPHY_CTRL)
+-#define HW_USBPHY_CTRL_SET_ADDR \
+-		(REGS_USBPHY_BASE + HW_USBPHY_CTRL_SET)
+-#define HW_USBPHY_CTRL_CLR_ADDR \
+-		(REGS_USBPHY_BASE + HW_USBPHY_CTRL_CLR)
+-#define HW_USBPHY_CTRL_TOG_ADDR \
+-		(REGS_USBPHY_BASE + HW_USBPHY_CTRL_TOG)
+ 
+ #define BM_USBPHY_CTRL_SFTRST	0x80000000
+ #define BM_USBPHY_CTRL_CLKGATE	0x40000000
+ #define BM_USBPHY_CTRL_UTMI_SUSPENDM	0x20000000
+ #define BM_USBPHY_CTRL_HOST_FORCE_LS_SE0	0x10000000
+-#define BP_USBPHY_CTRL_RSVD3	14
+-#define BM_USBPHY_CTRL_RSVD3	0x0FFFC000
+-#define BF_USBPHY_CTRL_RSVD3(v)  \
+-		(((v) << 14) & BM_USBPHY_CTRL_RSVD3)
+-
++#define BM_USBPHY_CTRL_RSVD3	0x08000000
++#define BM_USBPHY_CTRL_ENAUTOSET_USBCLKS	0x04000000
++#define BM_USBPHY_CTRL_ENAUTOCLR_USBCLKGATE	0x02000000
++#define BM_USBPHY_CTRL_FSDLL_RST_EN	0x01000000
++#define BM_USBPHY_CTRL_ENVBUSCHG_WKUP	0x00800000
++#define BM_USBPHY_CTRL_ENIDCHG_WKUP	0x00400000
+ #define BM_USBPHY_CTRL_ENDPDMCHG_WKUP	0x00200000
+ #define BM_USBPHY_CTRL_ENAUTOCLR_PHY_PWD	0x00100000
+ #define BM_USBPHY_CTRL_ENAUTOCLR_CLKGATE	0x00080000
+@@ -175,7 +148,7 @@
+ #define BM_USBPHY_CTRL_ENIRQDEVPLUGIN	0x00000800
+ #define BM_USBPHY_CTRL_RESUME_IRQ	0x00000400
+ #define BM_USBPHY_CTRL_ENIRQRESUMEDETECT	0x00000200
+-#define BM_USBPHY_CTRL_RSVD2	0x00000100
++#define BM_USBPHY_CTRL_RESUMEIRQSTICKY	0x00000100
+ #define BM_USBPHY_CTRL_ENOTGIDDETECT	0x00000080
+ #define BM_USBPHY_CTRL_RSVD1	0x00000040
+ #define BM_USBPHY_CTRL_DEVPLUGIN_POLARITY	0x00000020
+@@ -186,8 +159,6 @@
+ #define BM_USBPHY_CTRL_RSVD0	0x00000001
+ 
+ #define HW_USBPHY_STATUS	(0x00000040)
+-#define HW_USBPHY_STATUS_ADDR \
+-		(REGS_USBPHY_BASE + HW_USBPHY_STATUS)
+ 
+ #define BP_USBPHY_STATUS_RSVD4	11
+ #define BM_USBPHY_STATUS_RSVD4	0xFFFFF800
+@@ -212,14 +183,6 @@
+ #define HW_USBPHY_DEBUG_SET	(0x00000054)
+ #define HW_USBPHY_DEBUG_CLR	(0x00000058)
+ #define HW_USBPHY_DEBUG_TOG	(0x0000005c)
+-#define HW_USBPHY_DEBUG_ADDR  \
+-		(REGS_USBPHY_BASE + HW_USBPHY_DEBUG)
+-#define HW_USBPHY_DEBUG_SET_ADDR \
+-		(REGS_USBPHY_BASE + HW_USBPHY_DEBUG_SET)
+-#define HW_USBPHY_DEBUG_CLR_ADDR \
+-		(REGS_USBPHY_BASE + HW_USBPHY_DEBUG_CLR)
+-#define HW_USBPHY_DEBUG_TOG_ADDR \
+-		(REGS_USBPHY_BASE + HW_USBPHY_DEBUG_TOG)
+ 
+ #define BM_USBPHY_DEBUG_RSVD3	0x80000000
+ #define BM_USBPHY_DEBUG_CLKGATE	0x40000000
+@@ -262,8 +225,6 @@
+ #define BM_USBPHY_DEBUG_OTGIDPIOLOCK	0x00000001
+ 
+ #define HW_USBPHY_DEBUG0_STATUS	(0x00000060)
+-#define HW_USBPHY_DEBUG0_STATUS_ADDR \
+-		(REGS_USBPHY_BASE + HW_USBPHY_DEBUG0_STATUS)
+ 
+ #define BP_USBPHY_DEBUG0_STATUS_SQUELCH_COUNT	26
+ #define BM_USBPHY_DEBUG0_STATUS_SQUELCH_COUNT	0xFC000000
+@@ -282,14 +243,6 @@
+ #define HW_USBPHY_DEBUG1_SET	(0x00000074)
+ #define HW_USBPHY_DEBUG1_CLR	(0x00000078)
+ #define HW_USBPHY_DEBUG1_TOG	(0x0000007c)
+-#define HW_USBPHY_DEBUG1_ADDR  \
+-		(REGS_USBPHY_BASE + HW_USBPHY_DEBUG1)
+-#define HW_USBPHY_DEBUG1_SET_ADDR \
+-		(REGS_USBPHY_BASE + HW_USBPHY_DEBUG1_SET)
+-#define HW_USBPHY_DEBUG1_CLR_ADDR \
+-		(REGS_USBPHY_BASE + HW_USBPHY_DEBUG1_CLR)
+-#define HW_USBPHY_DEBUG1_TOG_ADDR \
+-		(REGS_USBPHY_BASE + HW_USBPHY_DEBUG1_TOG)
+ 
+ #define BP_USBPHY_DEBUG1_RSVD1	15
+ #define BM_USBPHY_DEBUG1_RSVD1	0xFFFF8000
+@@ -310,8 +263,6 @@
+ 		(((v) << 0) & BM_USBPHY_DEBUG1_DBG_ADDRESS)
+ 
+ #define HW_USBPHY_VERSION	(0x00000080)
+-#define HW_USBPHY_VERSION_ADDR \
+-		(REGS_USBPHY_BASE + HW_USBPHY_VERSION)
+ 
+ #define BP_USBPHY_VERSION_MAJOR	24
+ #define BM_USBPHY_VERSION_MAJOR	0xFF000000
+@@ -330,14 +281,6 @@
+ #define HW_USBPHY_IP_SET	(0x00000094)
+ #define HW_USBPHY_IP_CLR	(0x00000098)
+ #define HW_USBPHY_IP_TOG	(0x0000009c)
+-#define HW_USBPHY_IP_ADDR  \
+-		(REGS_USBPHY_BASE + HW_USBPHY_IP)
+-#define HW_USBPHY_IP_SET_ADDR \
+-		(REGS_USBPHY_BASE + HW_USBPHY_IP_SET)
+-#define HW_USBPHY_IP_CLR_ADDR \
+-		(REGS_USBPHY_BASE + HW_USBPHY_IP_CLR)
+-#define HW_USBPHY_IP_TOG_ADDR \
+-		(REGS_USBPHY_BASE + HW_USBPHY_IP_TOG)
+ 
+ #define BP_USBPHY_IP_RSVD1	25
+ #define BM_USBPHY_IP_RSVD1	0xFE000000
+diff --git a/arch/arm/plat-mxs/usb_common.c b/arch/arm/plat-mxs/usb_common.c
+index b6f5568..c9a65a0 100644
+--- a/arch/arm/plat-mxs/usb_common.c
++++ b/arch/arm/plat-mxs/usb_common.c
+@@ -48,7 +48,6 @@
+ #include <linux/io.h>
+ #include "regs-usbphy.h"
+ 
+-#ifdef CONFIG_ARCH_MX28
+ #define MXC_NUMBER_USB_TRANSCEIVER 6
+ struct fsl_xcvr_ops *g_xc_ops[MXC_NUMBER_USB_TRANSCEIVER] = { NULL };
+ 
+@@ -95,14 +94,12 @@ EXPORT_SYMBOL(fsl_platform_set_test_mode);
+ void fsl_platform_set_usb_phy_dis(struct fsl_usb2_platform_data *pdata,
+ 				  bool enable)
+ {
+-	void __iomem *ctrl_reg = IO_ADDRESS(pdata->phy_regs + HW_USBPHY_CTRL);
+-	u32 tmp = __raw_readl(ctrl_reg);
+-
+ 	if (enable)
+-		tmp |= BM_USBPHY_CTRL_ENHOSTDISCONDETECT;
++		__raw_writel(BM_USBPHY_CTRL_ENHOSTDISCONDETECT,
++			IO_ADDRESS(pdata->phy_regs) + HW_USBPHY_CTRL_SET);
+ 	else
+-		tmp &= ~BM_USBPHY_CTRL_ENHOSTDISCONDETECT;
+-	__raw_writel(tmp, ctrl_reg);
++		__raw_writel(BM_USBPHY_CTRL_ENHOSTDISCONDETECT,
++			IO_ADDRESS(pdata->phy_regs) + HW_USBPHY_CTRL_CLR);
+ }
+ EXPORT_SYMBOL(fsl_platform_set_usb_phy_dis);
+ 
+@@ -307,10 +304,10 @@ int usbotg_init(struct platform_device *pdev)
+ 
+ 	if (pdata->operating_mode == FSL_USB2_DR_HOST) {
+ 		/* enable FS/LS device */
+-		tmp = __raw_readl(HW_USBPHY_CTRL_ADDR);
++		tmp = __raw_readl(IO_ADDRESS(pdata->phy_regs) + HW_USBPHY_CTRL);
+ 		tmp |= (BM_USBPHY_CTRL_ENUTMILEVEL2 |
+ 			BM_USBPHY_CTRL_ENUTMILEVEL3);
+-		__raw_writel(tmp, HW_USBPHY_CTRL_ADDR);
++		__raw_writel(tmp, IO_ADDRESS(pdata->phy_regs) + HW_USBPHY_CTRL);
+ 	}
+ 
+ 	otg_used++;
+@@ -378,7 +375,7 @@ int usb_host_wakeup_irq(struct device *wkup_dev)
+ 	return 0;
+ }
+ EXPORT_SYMBOL(usb_host_wakeup_irq);
+-#endif
++
+ void usb_host_set_wakeup(struct device *wkup_dev, bool para)
+ {
+ }
+diff --git a/arch/arm/plat-mxs/utmixc.c b/arch/arm/plat-mxs/utmixc.c
+index 427526c..a3b0175 100644
+--- a/arch/arm/plat-mxs/utmixc.c
++++ b/arch/arm/plat-mxs/utmixc.c
+@@ -32,33 +32,17 @@
+ #include <mach/arc_otg.h>
+ #include <asm/mach-types.h>
+ 
+-
+-static void usb_utmi_init(struct fsl_xcvr_ops *this)
+-{
+-}
+-
+-static void usb_utmi_uninit(struct fsl_xcvr_ops *this)
+-{
+-}
+-
+-/*!
+- * set vbus power
+- *
+- * @param       view  viewport register
+- * @param       on    power on or off
+- */
+-static void set_power(struct fsl_xcvr_ops *this,
+-		      struct fsl_usb2_platform_data *pdata, int on)
+-{
+-
+-}
++extern void fsl_phy_usb_utmi_init(struct fsl_xcvr_ops *this);
++extern void fsl_phy_usb_utmi_uninit(struct fsl_xcvr_ops *this);
++extern void fsl_phy_set_power(struct fsl_xcvr_ops *this,
++			struct fsl_usb2_platform_data *pdata, int on);
+ 
+ static struct fsl_xcvr_ops utmi_ops = {
+ 	.name = "utmi",
+ 	.xcvr_type = PORTSC_PTS_UTMI,
+-	.init = usb_utmi_init,
+-	.uninit = usb_utmi_uninit,
+-	.set_vbus_power = set_power,
++	.init = fsl_phy_usb_utmi_init,
++	.uninit = fsl_phy_usb_utmi_uninit,
++	.set_vbus_power = fsl_phy_set_power,
+ };
+ 
+ extern void fsl_usb_xcvr_register(struct fsl_xcvr_ops *xcvr_ops);
+-- 
+1.5.4.4
+

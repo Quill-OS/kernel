@@ -1,0 +1,1777 @@
+From 1ba388ba5d88c1cf06354b42fdfe8f9dfa0fd2f8 Mon Sep 17 00:00:00 2001
+From: Zhou Jingyu <b02241@freescale.com>
+Date: Wed, 24 Feb 2010 16:35:17 +0800
+Subject: [PATCH] ENGR00117740-2 mxs battery driver, porting
+
+mxs battery driver, porting
+
+Signed-off-by: Zhou Jingyu <Jingyu.Zhou@freescale.com>
+---
+ arch/arm/mach-mx28/device.c             |   84 ++++++++++
+ arch/arm/mach-mx28/include/mach/mx28.h  |    5 +-
+ arch/arm/plat-mxs/Kconfig               |    1 +
+ arch/arm/plat-mxs/device.c              |   19 ++
+ arch/arm/plat-mxs/include/mach/ddi_bc.h |    2 +
+ arch/arm/plat-mxs/usb_common.c          |   15 ++
+ drivers/power/Kconfig                   |    7 +
+ drivers/power/Makefile                  |    1 +
+ drivers/power/mxs/Makefile              |    9 +-
+ drivers/power/mxs/ddi_bc_api.c          |    9 +-
+ drivers/power/mxs/ddi_bc_sm.c           |    4 +-
+ drivers/power/mxs/ddi_power_battery.c   |  275 +++++++++++++++++--------------
+ drivers/power/mxs/linux.c               |  215 +++++++++++++-----------
+ 13 files changed, 415 insertions(+), 231 deletions(-)
+
+diff --git a/arch/arm/mach-mx28/device.c b/arch/arm/mach-mx28/device.c
+index b3343eb..39012dc 100644
+--- a/arch/arm/mach-mx28/device.c
++++ b/arch/arm/mach-mx28/device.c
+@@ -38,6 +38,7 @@
+ #include <mach/dma.h>
+ #include <mach/lradc.h>
+ #include <mach/lcdif.h>
++#include <mach/ddi_bc.h>
+ 
+ #include "device.h"
+ #include "mx28_pins.h"
+@@ -884,6 +885,87 @@ static inline void mx28_init_flexcan(void)
+ {
+ }
+ #endif
++#if defined(CONFIG_BATTERY_MXS)
++/* battery info data */
++static ddi_bc_Cfg_t battery_data = {
++	.u32StateMachinePeriod		 = 100,		/* ms */
++	.u16CurrentRampSlope		 = 75,		/* mA/s */
++	.u16ConditioningThresholdVoltage = 2900, 	/* mV */
++	.u16ConditioningMaxVoltage	 = 3000,	/* mV */
++	.u16ConditioningCurrent		 = 60,		/* mA */
++	.u32ConditioningTimeout		 = 4*60*60*1000, /* ms (4 hours) */
++	.u16ChargingVoltage		 = 4200,	/* mV */
++	/* FIXME: the current comparator could have h/w bugs in current
++	 * detection through POWER_STS.CHRGSTS bit */
++	.u16ChargingCurrent		 = 600,		/* mA 600 */
++	.u16ChargingThresholdCurrent	 = 60,		/* mA 60 */
++	.u32ChargingTimeout		 = 4*60*60*1000,/* ms (4 hours) */
++	.u32TopOffPeriod		 = 30*60*1000,	/* ms (30 minutes) */
++	.monitorDieTemp			 = 1,		/* Monitor the die */
++	.u8DieTempHigh			 = 75,		/* deg centigrade */
++	.u8DieTempLow			 = 65,		/* deg centigrade */
++	.u16DieTempSafeCurrent		 = 0,		/* mA */
++	.monitorBatteryTemp		 = 0,		/* Monitor the battery*/
++	.u8BatteryTempChannel		 = 1,		/* LRADC 1 */
++	.u16BatteryTempHigh		 = 642,		/* Unknown units */
++	.u16BatteryTempLow		 = 497,		/* Unknown units */
++	.u16BatteryTempSafeCurrent	 = 0,		/* mA */
++};
++
++static struct resource battery_resource[] = {
++	{/* 0 */
++		.flags  = IORESOURCE_IRQ,
++		.start  = IRQ_VDD5V,
++		.end    = IRQ_VDD5V,
++	},
++	{/* 1 */
++		.flags  = IORESOURCE_IRQ,
++		.start  = IRQ_DCDC4P2_BRNOUT,
++		.end    = IRQ_DCDC4P2_BRNOUT,
++	},
++	{/* 2 */
++		.flags  = IORESOURCE_IRQ,
++		.start  = IRQ_BATT_BRNOUT,
++		.end    = IRQ_BATT_BRNOUT,
++	},
++	{/* 3 */
++		.flags  = IORESOURCE_IRQ,
++		.start  = IRQ_VDDD_BRNOUT,
++		.end    = IRQ_VDDD_BRNOUT,
++	},
++	{/* 4 */
++		.flags  = IORESOURCE_IRQ,
++		.start  = IRQ_VDDA_BRNOUT,
++		.end    = IRQ_VDDA_BRNOUT,
++	},
++	{/* 5 */
++		.flags  = IORESOURCE_IRQ,
++		.start  = IRQ_VDDIO_BRNOUT,
++		.end    = IRQ_VDDIO_BRNOUT,
++	},
++	{/* 6 */
++		.flags  = IORESOURCE_IRQ,
++		.start  = IRQ_VDD5V_DROOP,
++		.end    = IRQ_VDD5V_DROOP,
++	},
++};
++
++static void mx28_init_battery(void)
++{
++	struct platform_device *pdev;
++	pdev = mxs_get_device("mxs-battery", 0);
++	if (pdev) {
++		pdev->resource = battery_resource,
++		pdev->num_resources = ARRAY_SIZE(battery_resource),
++		pdev->dev.platform_data = &battery_data;
++		mxs_add_device(pdev, 3);
++	}
++}
++#else
++static void mx28_init_battery(void)
++{
++}
++#endif
+ 
+ #if defined(CONFIG_CRYPTO_DEV_DCP)
+ 
+@@ -939,6 +1021,8 @@ int __init mx28_device_init(void)
+ 	mx28_init_lcdif();
+ 	mx28_init_pxp();
+ 	mx28_init_dcp();
++	mx28_init_battery();
++
+ 	return 0;
+ }
+ 
+diff --git a/arch/arm/mach-mx28/include/mach/mx28.h b/arch/arm/mach-mx28/include/mach/mx28.h
+index 1680f06..465336b 100644
+--- a/arch/arm/mach-mx28/include/mach/mx28.h
++++ b/arch/arm/mach-mx28/include/mach/mx28.h
+@@ -80,7 +80,7 @@
+ 
+ /* IRQ Definitions */
+ #define IRQ_BATT_BRNOUT			0
+-#define IRQ_VDD_BRNOUT			1
++#define IRQ_VDDD_BRNOUT			1
+ #define IRQ_VDDIO_BRNOUT		2
+ #define IRQ_VDDA_BRNOUT			3
+ #define IRQ_VDD5V_DROOP			4
+@@ -210,6 +210,9 @@
+ 
+ #define ARCH_NR_IRQS		128
+ 
++/* On i.MX28, all interrupt sources can be configured as FIQ */
++#define FIQ_START		IRQ_BATT_BRNOUT
++
+ #define MX28_SOC_IO_ADDRESS(x) \
+ 	((x) - MX28_SOC_IO_PHYS_BASE + MX28_SOC_IO_VIRT_BASE)
+ 
+diff --git a/arch/arm/plat-mxs/Kconfig b/arch/arm/plat-mxs/Kconfig
+index f1ce4da..22ad702 100644
+--- a/arch/arm/plat-mxs/Kconfig
++++ b/arch/arm/plat-mxs/Kconfig
+@@ -8,6 +8,7 @@ choice
+ config ARCH_MX28
+ 	bool "Freescale MX28"
+ 	select CPU_ARM926T
++	select FIQ
+ 	select ZONE_DMA
+ 	select MXS_ICOLL
+ 	select MXS_DMA_ENGINE
+diff --git a/arch/arm/plat-mxs/device.c b/arch/arm/plat-mxs/device.c
+index 7bdf57e..f078414 100644
+--- a/arch/arm/plat-mxs/device.c
++++ b/arch/arm/plat-mxs/device.c
+@@ -363,6 +363,16 @@ static struct platform_device mxs_dcp = {
+ };
+ #endif
+ 
++#if defined(CONFIG_BATTERY_MXS)
++static struct platform_device mxs_battery = {
++	.name   = "mxs-battery",
++	.id = 0,
++	.dev	= {
++		.release = mxs_nop_release,
++		} ,
++};
++#endif
++
+ static struct mxs_dev_lookup dev_lookup[] = {
+ #if defined(CONFIG_SERIAL_MXS_DUART) || \
+ 	defined(CONFIG_SERIAL_MXS_DUART_MODULE)
+@@ -502,6 +512,15 @@ static struct mxs_dev_lookup dev_lookup[] = {
+ 	.pdev = &mxs_dcp,
+ 	},
+ #endif
++
++#if defined(CONFIG_BATTERY_MXS)
++	{
++	 .name = "mxs-battery",
++	 .size = 1,
++	 .pdev = &mxs_battery,
++	},
++#endif
++
+ };
+ 
+ struct platform_device *mxs_get_device(char *name, int id)
+diff --git a/arch/arm/plat-mxs/include/mach/ddi_bc.h b/arch/arm/plat-mxs/include/mach/ddi_bc.h
+index 81b6aeb..ceeed0c 100644
+--- a/arch/arm/plat-mxs/include/mach/ddi_bc.h
++++ b/arch/arm/plat-mxs/include/mach/ddi_bc.h
+@@ -705,7 +705,9 @@ ddi_bc_BrokenReason_t ddi_bc_GetBrokenReason(void);
+ 
+ ddi_bc_Status_t ddi_bc_ForceChargingToStart(void);
+ 
++void fsl_enable_usb_plugindetect(void);
+ 
++int fsl_is_usb_plugged(void);
+ /* End of file */
+ 
+ #endif				/* _DDI_BC_H */
+diff --git a/arch/arm/plat-mxs/usb_common.c b/arch/arm/plat-mxs/usb_common.c
+index 5544480..0bc12d4 100644
+--- a/arch/arm/plat-mxs/usb_common.c
++++ b/arch/arm/plat-mxs/usb_common.c
+@@ -381,3 +381,18 @@ void usb_host_set_wakeup(struct device *wkup_dev, bool para)
+ {
+ }
+ EXPORT_SYMBOL(usb_host_set_wakeup);
++
++int fsl_is_usb_plugged(void)
++{
++	return __raw_readl(REGS_USBPHY_BASE + HW_USBPHY_STATUS) & \
++		BM_USBPHY_STATUS_DEVPLUGIN_STATUS;
++}
++EXPORT_SYMBOL(fsl_is_usb_plugged);
++
++void fsl_enable_usb_plugindetect(void)
++{
++	__raw_writel(BM_USBPHY_CTRL_ENDEVPLUGINDETECT,
++			REGS_USBPHY_BASE + HW_USBPHY_CTRL_SET);
++}
++EXPORT_SYMBOL(fsl_enable_usb_plugindetect);
++
+diff --git a/drivers/power/Kconfig b/drivers/power/Kconfig
+index e7b1040..8793ce6 100644
+--- a/drivers/power/Kconfig
++++ b/drivers/power/Kconfig
+@@ -110,4 +110,11 @@ config BATTERY_STMP3XXX
+ 	  Say Y to enable support for the battery charger state machine
+ 	  for the Sigmatel STMP3xxx based SoC's.
+ 
++config BATTERY_MXS
++	tristate "MXS SoC battery charger driver"
++	depends on ARCH_MXS
++	help
++	  Say Y to enable support for the battery charger state machine
++	  for the Sigmatel MXS based SoC's.
++
+ endif # POWER_SUPPLY
+diff --git a/drivers/power/Makefile b/drivers/power/Makefile
+index 0d6b10d..cc430bd 100644
+--- a/drivers/power/Makefile
++++ b/drivers/power/Makefile
+@@ -29,3 +29,4 @@ obj-$(CONFIG_BATTERY_DA9030)	+= da9030_battery.o
+ obj-$(CONFIG_BATTERY_MAX17040)	+= max17040_battery.o
+ obj-$(CONFIG_CHARGER_PCF50633)	+= pcf50633-charger.o
+ obj-$(CONFIG_BATTERY_STMP3XXX)	+= stmp37xx/
++obj-$(CONFIG_BATTERY_MXS)	+= mxs/
+diff --git a/drivers/power/mxs/Makefile b/drivers/power/mxs/Makefile
+index 65f670e..6662def 100644
+--- a/drivers/power/mxs/Makefile
++++ b/drivers/power/mxs/Makefile
+@@ -1,10 +1,9 @@
+ #
+-# Makefile for the STMP3xxx battery charger driver
++# Makefile for the MXS battery charger driver
+ #
+ 
+-obj-$(CONFIG_BATTERY_STMP3XXX) += stmp3xxx-battery.o
++obj-$(CONFIG_BATTERY_MXS) += mxs-battery.o
+ 
+-stmp3xxx-battery-objs := ddi_bc_api.o ddi_bc_hw.o ddi_bc_init.o \
+-		         ddi_bc_ramp.o ddi_bc_sm.o ddi_power_battery.o linux.o \
+-			 fiq.o
++mxs-battery-objs := ddi_bc_api.o ddi_bc_hw.o ddi_bc_init.o \
++		         ddi_bc_ramp.o ddi_bc_sm.o ddi_power_battery.o linux.o
+ 
+diff --git a/drivers/power/mxs/ddi_bc_api.c b/drivers/power/mxs/ddi_bc_api.c
+index 2778f32..e6fefe6 100644
+--- a/drivers/power/mxs/ddi_bc_api.c
++++ b/drivers/power/mxs/ddi_bc_api.c
+@@ -15,6 +15,7 @@
+ /* Includes */
+ 
+ 
++#include <linux/kernel.h>
+ #include "ddi_bc_internal.h"
+ 
+ 
+@@ -103,6 +104,7 @@ void ddi_bc_ShutDown()
+ 
+ ddi_bc_Status_t ddi_bc_StateMachine()
+ {
++	int ret, state;
+ 
+ 	/* -------------------------------------------------------------------------- */
+ 	/* Check if we've been initialized yet. */
+@@ -115,7 +117,12 @@ ddi_bc_Status_t ddi_bc_StateMachine()
+ 	/* Execute the function for the current state. */
+ 	/* -------------------------------------------------------------------------- */
+ 
+-	return stateFunctionTable[g_ddi_bc_State] ();
++	state = g_ddi_bc_State;
++	ret = (stateFunctionTable[g_ddi_bc_State] ());
++	if (state != g_ddi_bc_State)
++		pr_info("Charger: transit from state %d to %d\n",
++			state, g_ddi_bc_State);
++	return ret;
+ 
+ }
+ 
+diff --git a/drivers/power/mxs/ddi_bc_sm.c b/drivers/power/mxs/ddi_bc_sm.c
+index dbe7092..6626ed8 100644
+--- a/drivers/power/mxs/ddi_bc_sm.c
++++ b/drivers/power/mxs/ddi_bc_sm.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright (C) 2010 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2010 Freescale Semiconductor, Inc.
+  */
+ 
+ /*
+@@ -266,6 +266,8 @@ static void TransitionToBroken(void)
+ 
+ 	g_ddi_bc_State = DDI_BC_STATE_BROKEN;
+ 
++	pr_info("charger------ ddi_bc_gBrokenReason=%d\n",
++		ddi_bc_gBrokenReason);
+ #ifdef CONFIG_POWER_SUPPLY_DEBUG
+ 	printk("Battery charger: declaring a broken battery\n");
+ #endif
+diff --git a/drivers/power/mxs/ddi_power_battery.c b/drivers/power/mxs/ddi_power_battery.c
+index 0875b90..2da4f4e 100644
+--- a/drivers/power/mxs/ddi_power_battery.c
++++ b/drivers/power/mxs/ddi_power_battery.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright (C) 2010 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2010 Freescale Semiconductor, Inc.
+  */
+ 
+ /*
+@@ -26,8 +26,8 @@
+ #include <linux/kernel.h>
+ #include <linux/errno.h>
+ #include <linux/delay.h>
++#include <linux/io.h>
+ #include <asm/processor.h> /* cpu_relax */
+-#include <mach/platform.h>
+ #include <mach/hardware.h>
+ #include <mach/ddi_bc.h>
+ #include <mach/lradc.h>
+@@ -35,7 +35,6 @@
+ #include <mach/regs-lradc.h>
+ #include <mach/lradc.h>
+ #include "ddi_bc_internal.h"
+-#include <mach/platform.h>
+ 
+ /* brief Base voltage to start battery calculations for LiIon */
+ #define BATT_BRWNOUT_LIION_BASE_MV 2800
+@@ -177,23 +176,23 @@ void ddi_power_Enable5vDetection(void)
+ 
+ 	/* Set 5V detection threshold to 4.3V for VBUSVALID. */
+ 	__raw_writel(
+-		BF(VBUSVALID_THRESH_4_30V, POWER_5VCTRL_VBUSVALID_TRSH),
++		BF_POWER_5VCTRL_VBUSVALID_TRSH(VBUSVALID_THRESH_4_30V),
+ 			REGS_POWER_BASE + HW_POWER_5VCTRL_SET);
+ 
+ 	/* gotta set LINREG_OFFSET to STEP_BELOW according to manual */
+ 	val = __raw_readl(REGS_POWER_BASE + HW_POWER_VDDIOCTRL);
+ 	val &= ~(BM_POWER_VDDIOCTRL_LINREG_OFFSET);
+-	val |= BF(LINREG_OFFSET_STEP_BELOW, POWER_VDDIOCTRL_LINREG_OFFSET);
++	val |= BF_POWER_VDDIOCTRL_LINREG_OFFSET(LINREG_OFFSET_STEP_BELOW);
+ 	__raw_writel(val, REGS_POWER_BASE + HW_POWER_VDDIOCTRL);
+ 
+ 	val = __raw_readl(REGS_POWER_BASE + HW_POWER_VDDACTRL);
+ 	val &= ~(BM_POWER_VDDACTRL_LINREG_OFFSET);
+-	val |= BF(LINREG_OFFSET_STEP_BELOW, POWER_VDDACTRL_LINREG_OFFSET);
++	val |= BF_POWER_VDDACTRL_LINREG_OFFSET(LINREG_OFFSET_STEP_BELOW);
+ 	__raw_writel(val, REGS_POWER_BASE + HW_POWER_VDDACTRL);
+ 
+ 	val = __raw_readl(REGS_POWER_BASE + HW_POWER_VDDDCTRL);
+ 	val &= ~(BM_POWER_VDDDCTRL_LINREG_OFFSET);
+-	val |= BF(LINREG_OFFSET_STEP_BELOW, POWER_VDDDCTRL_LINREG_OFFSET);
++	val |= BF_POWER_VDDDCTRL_LINREG_OFFSET(LINREG_OFFSET_STEP_BELOW);
+ 	__raw_writel(val, REGS_POWER_BASE + HW_POWER_VDDDCTRL);
+ 
+ 	/* Clear vbusvalid interrupt flag */
+@@ -263,10 +262,10 @@ void ddi_power_execute_5v_to_battery_handoff(void)
+ 
+ 	/* make VBUSVALID_TRSH 4400mV and set PWD_CHARGE_4P2 */
+ 	__raw_writel(BM_POWER_5VCTRL_VBUSVALID_TRSH,
+-		HW_POWER_5VCTRL_CLR_ADDR);
++		REGS_POWER_BASE + HW_POWER_5VCTRL_CLR);
+ 
+ 	__raw_writel(BF_POWER_5VCTRL_VBUSVALID_TRSH(VBUSVALID_THRESH_4_40V),
+-		HW_POWER_5VCTRL_SET_ADDR);
++		REGS_POWER_BASE + HW_POWER_5VCTRL_SET);
+ 
+ #else
+ 	/* VDDD has different configurations depending on the battery type */
+@@ -425,9 +424,11 @@ void ddi_power_Start4p2Dcdc(bool battery_ready)
+ 
+ 	uint32_t temp_reg, old_values;
+ 
++#ifndef CONFIG_ARCH_MX28
+ 	/* set vbusvalid threshold to 2.9V because of errata */
+ 	__raw_writel(BM_POWER_5VCTRL_VBUSVALID_TRSH,
+-			HW_POWER_5VCTRL_CLR_ADDR);
++			REGS_POWER_BASE + HW_POWER_5VCTRL_CLR);
++#endif
+ 
+ 
+ #if 0
+@@ -440,20 +441,20 @@ void ddi_power_Start4p2Dcdc(bool battery_ready)
+ 	/* enable hardware shutdown on battery brownout */
+ 	__raw_writel(
+ 			BM_POWER_BATTMONITOR_PWDN_BATTBRNOUT |
+-			__raw_readl(HW_POWER_BATTMONITOR_ADDR),
+-			HW_POWER_BATTMONITOR_ADDR);
++			__raw_readl(REGS_POWER_BASE + HW_POWER_BATTMONITOR),
++			REGS_POWER_BASE + HW_POWER_BATTMONITOR);
+ 
+ 	/* set VBUS DROOP threshold to 4.3V */
+ 	__raw_writel(BM_POWER_5VCTRL_VBUSDROOP_TRSH,
+-			HW_POWER_5VCTRL_CLR_ADDR);
++			REGS_POWER_BASE + HW_POWER_5VCTRL_CLR);
+ 
+ 	/* turn of vbus valid detection.  Part of errate
+ 	 * workaround. */
+ 	__raw_writel(BM_POWER_5VCTRL_PWRUP_VBUS_CMPS,
+-			HW_POWER_5VCTRL_SET_ADDR);
++			REGS_POWER_BASE + HW_POWER_5VCTRL_SET);
+ 
+ 	__raw_writel(BM_POWER_5VCTRL_VBUSVALID_5VDETECT,
+-			HW_POWER_5VCTRL_CLR_ADDR);
++			REGS_POWER_BASE + HW_POWER_5VCTRL_CLR);
+ 
+ 
+ 	temp_reg = (BM_POWER_CTRL_ENIRQ_VDDD_BO |
+@@ -463,16 +464,16 @@ void ddi_power_Start4p2Dcdc(bool battery_ready)
+ 		BM_POWER_CTRL_ENIRQ_VBUS_VALID);
+ 
+ 	/* save off old brownout enable values */
+-	old_values = __raw_readl(HW_POWER_CTRL_ADDR) &
++	old_values = __raw_readl(REGS_POWER_BASE + HW_POWER_CTRL) &
+ 		temp_reg;
+ 
+ 	/* disable irqs affected by errata */
+-	__raw_writel(temp_reg, HW_POWER_CTRL_CLR_ADDR);
++	__raw_writel(temp_reg, REGS_POWER_BASE + HW_POWER_CTRL_CLR);
+ 
+ 	/* Enable DCDC from 4P2 */
+-	__raw_writel(__raw_readl(HW_POWER_DCDC4P2_ADDR) |
++	__raw_writel(__raw_readl(REGS_POWER_BASE + HW_POWER_DCDC4P2) |
+ 			BM_POWER_DCDC4P2_ENABLE_DCDC,
+-			HW_POWER_DCDC4P2_ADDR);
++			REGS_POWER_BASE + HW_POWER_DCDC4P2);
+ 
+ 	/* give a delay to check for errate noise problem */
+ 	mdelay(1);
+@@ -486,20 +487,20 @@ void ddi_power_Start4p2Dcdc(bool battery_ready)
+ 	/* stay in this loop until the false brownout indciations
+ 	 * no longer occur or until 5V actually goes away
+ 	 */
+-	while ((__raw_readl(HW_POWER_CTRL_ADDR) & temp_reg) &&
+-		!(__raw_readl(HW_POWER_CTRL_ADDR) &
++	while ((__raw_readl(REGS_POWER_BASE + HW_POWER_CTRL) & temp_reg) &&
++		!(__raw_readl(REGS_POWER_BASE + HW_POWER_CTRL) &
+ 				BM_POWER_CTRL_VDD5V_GT_VDDIO_IRQ)) {
+-		__raw_writel(temp_reg, HW_POWER_CTRL_CLR_ADDR);
++		__raw_writel(temp_reg, REGS_POWER_BASE + HW_POWER_CTRL_CLR);
+ 
+ 		mdelay(1);
+ 	}
+ 
+ 	/* revert to previous enable irq values */
+-	__raw_writel(old_values, HW_POWER_CTRL_SET_ADDR);
++	__raw_writel(old_values, REGS_POWER_BASE + HW_POWER_CTRL_SET);
+ 
+ 	if (DetectionMethod == DDI_POWER_5V_VBUSVALID)
+ 		__raw_writel(BM_POWER_5VCTRL_VBUSVALID_5VDETECT,
+-			HW_POWER_5VCTRL_SET_ADDR);
++			REGS_POWER_BASE + HW_POWER_5VCTRL_SET);
+ }
+ 
+ 
+@@ -510,7 +511,7 @@ void ddi_power_Start4p2Dcdc(bool battery_ready)
+ void ddi_power_handle_cmptrip(void)
+ {
+ 	enum ddi_power_5v_status pmu_5v_status;
+-	uint32_t temp = __raw_readl(HW_POWER_DCDC4P2_ADDR);
++	uint32_t temp = __raw_readl(REGS_POWER_BASE + HW_POWER_DCDC4P2);
+ 	temp &= ~(BM_POWER_DCDC4P2_CMPTRIP);
+ 
+ 	pmu_5v_status = ddi_power_GetPmu5vStatus();
+@@ -530,7 +531,7 @@ void ddi_power_handle_cmptrip(void)
+ 		temp |= (31 << BP_POWER_DCDC4P2_CMPTRIP);
+ 
+ 
+-	__raw_writel(temp, HW_POWER_DCDC4P2_ADDR);
++	__raw_writel(temp, REGS_POWER_BASE + HW_POWER_DCDC4P2);
+ }
+ 
+ void ddi_power_Init4p2Params(void)
+@@ -539,16 +540,16 @@ void ddi_power_Init4p2Params(void)
+ 
+ 	ddi_power_handle_cmptrip();
+ 
+-	temp = __raw_readl(HW_POWER_DCDC4P2_ADDR);
++	temp = __raw_readl(REGS_POWER_BASE + HW_POWER_DCDC4P2);
+ 
+ 	/* DROPOUT CTRL to 10, TRG to 0 */
+ 	temp &= ~(BM_POWER_DCDC4P2_TRG | BM_POWER_DCDC4P2_DROPOUT_CTRL);
+ 	temp |= (0xa << BP_POWER_DCDC4P2_DROPOUT_CTRL);
+ 
+-	__raw_writel(temp, HW_POWER_DCDC4P2_ADDR);
++	__raw_writel(temp, REGS_POWER_BASE + HW_POWER_DCDC4P2);
+ 
+ 
+-	temp = __raw_readl(HW_POWER_5VCTRL_ADDR);
++	temp = __raw_readl(REGS_POWER_BASE + HW_POWER_5VCTRL);
+ 
+ 	/* HEADROOM_ADJ to 4, CHARGE_4P2_ILIMIT to 0 */
+ 	temp &= ~(BM_POWER_5VCTRL_HEADROOM_ADJ |
+@@ -565,17 +566,16 @@ bool ddi_power_IsBattRdyForXfer(void)
+ 		return true;
+ 	else
+ 		return false;
+-
+ }
+ 
+ void ddi_power_EnableVbusDroopIrq(void)
+ {
+ 
+ 	__raw_writel(BM_POWER_CTRL_VDD5V_DROOP_IRQ,
+-			HW_POWER_CTRL_CLR_ADDR);
++			REGS_POWER_BASE + HW_POWER_CTRL_CLR);
+ 
+ 	__raw_writel(BM_POWER_CTRL_ENIRQ_VDD5V_DROOP,
+-			HW_POWER_CTRL_SET_ADDR);
++			REGS_POWER_BASE + HW_POWER_CTRL_SET);
+ 
+ }
+ 
+@@ -591,7 +591,7 @@ void ddi_power_Enable4p2(uint16_t target_current_limit_ma)
+ 	/* disable 4p2 rail brownouts for now. (they
+ 	 * should have already been off at this point) */
+ 	__raw_writel(BM_POWER_CTRL_ENIRQ_DCDC4P2_BO,
+-		HW_POWER_CTRL_CLR_ADDR);
++		REGS_POWER_BASE + HW_POWER_CTRL_CLR);
+ 
+ 	u16BatteryVoltage = ddi_power_GetBattery();
+ 
+@@ -599,13 +599,13 @@ void ddi_power_Enable4p2(uint16_t target_current_limit_ma)
+ 
+ 		/* PWD_CHARGE_4P2 should already be set but just in case... */
+ 		__raw_writel(BM_POWER_5VCTRL_PWD_CHARGE_4P2,
+-				HW_POWER_5VCTRL_SET_ADDR);
++				REGS_POWER_BASE + HW_POWER_5VCTRL_SET);
+ 
+ 		/* set CMPTRIP to DCDC_4P2 pin >= BATTERY pin */
+-		temp_reg = __raw_readl(HW_POWER_DCDC4P2_ADDR);
++		temp_reg = __raw_readl(REGS_POWER_BASE + HW_POWER_DCDC4P2);
+ 		temp_reg &= ~(BM_POWER_DCDC4P2_CMPTRIP);
+ 		temp_reg |= (31 << BP_POWER_DCDC4P2_CMPTRIP);
+-		__raw_writel(temp_reg, HW_POWER_DCDC4P2_ADDR);
++		__raw_writel(temp_reg, REGS_POWER_BASE + HW_POWER_DCDC4P2);
+ 
+ 		/* since we have a good battery, we can go ahead
+ 		 * and turn on the Dcdcing from the 4p2 source.
+@@ -618,7 +618,7 @@ void ddi_power_Enable4p2(uint16_t target_current_limit_ma)
+ 
+ 		/* set vbus droop detection level to 4.3V */
+ 		__raw_writel(BM_POWER_5VCTRL_VBUSDROOP_TRSH,
+-				HW_POWER_5VCTRL_CLR_ADDR);
++				REGS_POWER_BASE + HW_POWER_5VCTRL_CLR);
+ 
+ 		ddi_power_EnableVbusDroopIrq();
+ 		/* now that the DCDC4P2 problems are cleared,
+@@ -639,7 +639,7 @@ void ddi_power_Enable4p2(uint16_t target_current_limit_ma)
+ 		 *  with) can avoid shutting down if 5V is present and
+ 		 *  battery voltage goes away.
+ 		 */
+-		if (!(__raw_readl(HW_POWER_CTRL_ADDR) &
++		if (!(__raw_readl(REGS_POWER_BASE + HW_POWER_CTRL) &
+ 			(BM_POWER_CTRL_VBUSVALID_IRQ |
+ 			BM_POWER_CTRL_VDD5V_DROOP_IRQ))) {
+ 			ddi_power_EnableBatteryBoInterrupt(false);
+@@ -658,7 +658,7 @@ void ddi_power_Enable4p2(uint16_t target_current_limit_ma)
+ 			yet handled by the kernel driver, only by the\
+ 			bootlets.  Remaining on battery power.\n");
+ 
+-		if ((__raw_readl(HW_POWER_5VCTRL_ADDR) &&
++		if ((__raw_readl(REGS_POWER_BASE + HW_POWER_5VCTRL) &&
+ 					BM_POWER_5VCTRL_ENABLE_DCDC))
+ 			ddi_power_EnableBatteryBoInterrupt(true);
+ 
+@@ -667,8 +667,8 @@ void ddi_power_Enable4p2(uint16_t target_current_limit_ma)
+ 		 * on battery brownout */
+ 		__raw_writel(
+ 			BM_POWER_BATTMONITOR_PWDN_BATTBRNOUT |
+-			__raw_readl(HW_POWER_BATTMONITOR_ADDR),
+-			HW_POWER_BATTMONITOR_ADDR);
++			__raw_readl(REGS_POWER_BASE + HW_POWER_BATTMONITOR),
++			REGS_POWER_BASE + HW_POWER_BATTMONITOR);
+ 
+ 		/* turn on and ramp up the 4p2 regulator */
+ 		temp_reg = ddi_power_BringUp4p2Regulator(
+@@ -691,20 +691,20 @@ uint16_t ddi_power_BringUp4p2Regulator(
+ 
+ 	/* initial current limit to 0 */
+ 	__raw_writel(BM_POWER_5VCTRL_CHARGE_4P2_ILIMIT,
+-		HW_POWER_5VCTRL_CLR_ADDR);
++		REGS_POWER_BASE + HW_POWER_5VCTRL_CLR);
+ 
+-	__raw_writel(__raw_readl(HW_POWER_DCDC4P2_ADDR) |
++	__raw_writel(__raw_readl(REGS_POWER_BASE + HW_POWER_DCDC4P2) |
+ 		BM_POWER_DCDC4P2_ENABLE_4P2,
+-		HW_POWER_DCDC4P2_ADDR);
++		REGS_POWER_BASE + HW_POWER_DCDC4P2);
+ 
+ 	/* set 4p2 target voltage to zero */
+-	temp_reg = __raw_readl(HW_POWER_DCDC4P2_ADDR);
++	temp_reg = __raw_readl(REGS_POWER_BASE + HW_POWER_DCDC4P2);
+ 	temp_reg &= (~BM_POWER_DCDC4P2_TRG);
+-	__raw_writel(temp_reg, HW_POWER_DCDC4P2_ADDR);
++	__raw_writel(temp_reg, REGS_POWER_BASE + HW_POWER_DCDC4P2);
+ 
+ 	/* Enable 4P2 regulator*/
+ 	__raw_writel(BM_POWER_5VCTRL_PWD_CHARGE_4P2,
+-			HW_POWER_5VCTRL_CLR_ADDR);
++			REGS_POWER_BASE + HW_POWER_5VCTRL_CLR);
+ 
+ 	if (target_current_limit_ma > 780)
+ 		target_current_limit_ma = 780;
+@@ -715,11 +715,11 @@ uint16_t ddi_power_BringUp4p2Regulator(
+ 	 * 4p2 rail
+ 	 */
+ 	__raw_writel(BM_POWER_CHARGE_ENABLE_LOAD,
+-		HW_POWER_CHARGE_SET_ADDR);
++		REGS_POWER_BASE + HW_POWER_CHARGE_SET);
+ 
+ 	while (charge_4p2_ilimit < target_current_limit_ma) {
+ 
+-		if (__raw_readl(HW_POWER_CTRL_ADDR) &
++		if (__raw_readl(REGS_POWER_BASE + HW_POWER_CTRL) &
+ 			(BM_POWER_CTRL_VBUSVALID_IRQ |
+ 			BM_POWER_CTRL_VDD5V_DROOP_IRQ))
+ 			break;
+@@ -737,7 +737,7 @@ uint16_t ddi_power_BringUp4p2Regulator(
+ 		 */
+ 		if (!(b4p2_dcdc_enabled))
+ 			msleep(1);
+-		else if	(__raw_readl(HW_POWER_STS_ADDR) &
++		else if	(__raw_readl(REGS_POWER_BASE + HW_POWER_STS) &
+ 			BM_POWER_STS_DCDC_4P2_BO)
+ 			msleep(1);
+ 		else {
+@@ -749,13 +749,13 @@ uint16_t ddi_power_BringUp4p2Regulator(
+ 	ddi_power_Set4p2BoLevel(3600);
+ 
+ 	__raw_writel(BM_POWER_CTRL_DCDC4P2_BO_IRQ,
+-			HW_POWER_CTRL_CLR_ADDR);
++			REGS_POWER_BASE + HW_POWER_CTRL_CLR);
+ 
+ 	/* rail should now be up and loaded.  Extra
+ 	 * internal load is not necessary.
+ 	 */
+ 	__raw_writel(BM_POWER_CHARGE_ENABLE_LOAD,
+-		HW_POWER_CHARGE_CLR_ADDR);
++		REGS_POWER_BASE + HW_POWER_CHARGE_CLR);
+ 
+ 	return charge_4p2_ilimit;
+ 
+@@ -774,10 +774,10 @@ void ddi_power_Set4p2BoLevel(uint16_t bo_voltage_mv)
+ 
+ 	bo_reg_value = (bo_voltage_mv - 3600) / 25;
+ 
+-	temp = __raw_readl(HW_POWER_DCDC4P2_ADDR);
++	temp = __raw_readl(REGS_POWER_BASE + HW_POWER_DCDC4P2);
+ 	temp &= (~BM_POWER_DCDC4P2_BO);
+ 	temp |= (bo_reg_value << BP_POWER_DCDC4P2_BO);
+-	__raw_writel(temp, HW_POWER_DCDC4P2_ADDR);
++	__raw_writel(temp, REGS_POWER_BASE + HW_POWER_DCDC4P2);
+ }
+ 
+ 
+@@ -808,20 +808,22 @@ void ddi_power_EnableBatteryInterrupt(bool enable)
+ {
+ 
+ 	__raw_writel(BM_POWER_CTRL_BATT_BO_IRQ,
+-			HW_POWER_CTRL_CLR_ADDR);
++			REGS_POWER_BASE + HW_POWER_CTRL_CLR);
+ 
+ 	__raw_writel(BM_POWER_CTRL_ENIRQBATT_BO,
+-			HW_POWER_CTRL_SET_ADDR);
++			REGS_POWER_BASE + HW_POWER_CTRL_SET);
+ 
+ }
+ 
+ 
++#define REGS_LRADC_BASE IO_ADDRESS(LRADC_PHYS_ADDR)
++
+ int ddi_power_init_battery(void)
+ {
+ 
+ 	int ret = 0;
+ 
+-	if (!(__raw_readl(HW_POWER_5VCTRL_ADDR) &&
++	if (!(__raw_readl(REGS_POWER_BASE + HW_POWER_5VCTRL) &&
+ 			BM_POWER_5VCTRL_ENABLE_DCDC)) {
+ 		printk(KERN_ERR "WARNING: Power Supply not\
+ 			initialized correctly by \
+@@ -857,16 +859,16 @@ int ddi_power_init_battery(void)
+ 			0, 200);
+ 
+ 		/* Clear the accumulator & NUM_SAMPLES */
+-		stmp3xxx_clearl(0xFFFFFFFF,
+-			REGS_LRADC_BASE + HW_LRADC_CHn(BATTERY_VOLTAGE_CH));
++		__raw_writel(0xFFFFFFFF,
++			REGS_LRADC_BASE + HW_LRADC_CHn_CLR(BATTERY_VOLTAGE_CH));
+ 
+ 		/* clear previous "measurement performed" status */
+ 		__raw_writel(1 << BATTERY_VOLTAGE_CH,
+-			HW_LRADC_CTRL1_CLR_ADDR);
++			REGS_LRADC_BASE + HW_LRADC_CTRL1_CLR);
+ 
+ 		/* set to LiIon scale factor */
+ 		__raw_writel(BM_LRADC_CONVERSION_SCALE_FACTOR,
+-			HW_LRADC_CONVERSION_SET_ADDR);
++			REGS_LRADC_BASE + HW_LRADC_CONVERSION_SET);
+ 
+ 		/* kick off the trigger */
+ 		hw_lradc_set_delay_trigger_kick(
+@@ -877,15 +879,26 @@ int ddi_power_init_battery(void)
+ 		 * enabling automatic copy to power supply
+ 		 * peripheral
+ 		 */
+-		while (!(__raw_readl(HW_LRADC_CTRL1_ADDR) &
++		while (!(__raw_readl(REGS_LRADC_BASE + HW_LRADC_CTRL1) &
+ 			1 << BATTERY_VOLTAGE_CH) &&
+ 				(wait_time < 10)) {
+ 			wait_time++;
+-			udelay(1);
++			mdelay(1);
+ 		}
+ 
+ 		__raw_writel(BM_LRADC_CONVERSION_AUTOMATIC,
+-			HW_LRADC_CONVERSION_SET_ADDR);
++			REGS_LRADC_BASE + HW_LRADC_CONVERSION_SET);
++#ifdef CONFIG_ARCH_MX28
++		/* workaround for mx28 lradc result incorrect in the
++		first several ms */
++		for (wait_time = 0; wait_time < 20; wait_time++)
++			if (ddi_bc_hwGetBatteryVoltage() < 1000) {
++				pr_info("ddi_bc_hwGetBatteryVoltage=%u\n",
++				ddi_bc_hwGetBatteryVoltage());
++				mdelay(100);
++			} else
++				break;
++#endif
+ 	}
+ 
+ #ifndef VDD4P2_ENABLED
+@@ -908,15 +921,15 @@ uint16_t MeasureInternalDieTemperature(void)
+ 			REGS_LRADC_BASE + HW_LRADC_CTRL2_CLR);
+ 
+ 	/* mux to the lradc 8th temp channel */
+-	__raw_writel(BF(0xF, LRADC_CTRL4_LRADC1SELECT),
++	__raw_writel(BF_LRADC_CTRL4_LRADC1SELECT(0xF),
+ 			REGS_LRADC_BASE + HW_LRADC_CTRL4_CLR);
+-	__raw_writel(BF(8, LRADC_CTRL4_LRADC1SELECT),
++	__raw_writel(BF_LRADC_CTRL4_LRADC1SELECT(8),
+ 			REGS_LRADC_BASE + HW_LRADC_CTRL4_SET);
+ 
+ 	/* Clear the interrupt flag */
+ 	__raw_writel(BM_LRADC_CTRL1_LRADC1_IRQ,
+ 			REGS_LRADC_BASE + HW_LRADC_CTRL1_CLR);
+-	__raw_writel(BF(1 << LRADC_CH1, LRADC_CTRL0_SCHEDULE),
++	__raw_writel(BF_LRADC_CTRL0_SCHEDULE(1 << LRADC_CH1),
+ 			REGS_LRADC_BASE + HW_LRADC_CTRL0_SET);
+ 
+ 	/* Wait for conversion complete*/
+@@ -937,15 +950,15 @@ uint16_t MeasureInternalDieTemperature(void)
+ 			REGS_LRADC_BASE + HW_LRADC_CHn_CLR(LRADC_CH1));
+ 
+ 	/* mux to the lradc 9th temp channel */
+-	__raw_writel(BF(0xF, LRADC_CTRL4_LRADC1SELECT),
++	__raw_writel(BF_LRADC_CTRL4_LRADC1SELECT(0xF),
+ 			REGS_LRADC_BASE + HW_LRADC_CTRL4_CLR);
+-	__raw_writel(BF(9, LRADC_CTRL4_LRADC1SELECT),
++	__raw_writel(BF_LRADC_CTRL4_LRADC1SELECT(9),
+ 			REGS_LRADC_BASE + HW_LRADC_CTRL4_SET);
+ 
+ 	/* Clear the interrupt flag */
+ 	__raw_writel(BM_LRADC_CTRL1_LRADC1_IRQ,
+ 			REGS_LRADC_BASE + HW_LRADC_CTRL1_CLR);
+-	__raw_writel(BF(1 << LRADC_CH1, LRADC_CTRL0_SCHEDULE),
++	__raw_writel(BF_LRADC_CTRL0_SCHEDULE(1 << LRADC_CH1),
+ 			REGS_LRADC_BASE + HW_LRADC_CTRL0_SET);
+ 	/* Wait for conversion complete */
+ 	while (!(__raw_readl(REGS_LRADC_BASE + HW_LRADC_CTRL1)
+@@ -1193,7 +1206,7 @@ int ddi_power_SetBatteryBrownout(uint16_t u16BattBrownout_mV)
+ 	if (i16BrownoutLevel <= 0x0f) {
+ 		/* Write the battery brownout level */
+ 		__raw_writel(
+-			BF(i16BrownoutLevel, POWER_BATTMONITOR_BRWNOUT_LVL),
++			BF_POWER_BATTMONITOR_BRWNOUT_LVL(i16BrownoutLevel),
+ 				REGS_POWER_BASE + HW_POWER_BATTMONITOR_SET);
+ 	} else
+ 		ret = -EINVAL;
+@@ -1366,10 +1379,12 @@ bool ddi_power_Get5vPresentFlag(void)
+ 	switch (DetectionMethod) {
+ 	case DDI_POWER_5V_VBUSVALID:
+ 		/* Check VBUSVALID for 5V present */
+-		return ((__raw_readl(REGS_POWER_BASE + HW_POWER_STS) & BM_POWER_STS_VBUSVALID) != 0);
++		return ((__raw_readl(REGS_POWER_BASE + HW_POWER_STS) &
++			BM_POWER_STS_VBUSVALID0) != 0);
+ 	case DDI_POWER_5V_VDD5V_GT_VDDIO:
+ 		/* Check VDD5V_GT_VDDIO for 5V present */
+-		return ((__raw_readl(REGS_POWER_BASE + HW_POWER_STS) & BM_POWER_STS_VDD5V_GT_VDDIO) != 0);
++		return ((__raw_readl(REGS_POWER_BASE + HW_POWER_STS) &
++			BM_POWER_STS_VDD5V_GT_VDDIO) != 0);
+ 	default:
+ 		break;
+ 	}
+@@ -1395,7 +1410,7 @@ bool ddi_power_Get5vPresentFlag(void)
+ #define TEMP_READING_ERROR_MARGIN 5
+ #define KELVIN_TO_CELSIUS_CONST 273
+ 
+-void ddi_power_GetDieTemp(int16_t *pLow, int16_t *pHigh);
++void ddi_power_GetDieTemp(int16_t *pLow, int16_t *pHigh)
+ {
+ 	int16_t i16High, i16Low;
+ 	uint16_t u16Reading;
+@@ -1441,6 +1456,7 @@ bool ddi_power_IsDcdcOn(void)
+ void ddi_power_SetPowerClkGate(bool bGate)
+ {
+ 	/* Gate/Ungate the clock to the power block */
++#ifndef CONFIG_ARCH_MX28
+ 	if (bGate) {
+ 		__raw_writel(BM_POWER_CTRL_CLKGATE,
+ 			REGS_POWER_BASE + HW_POWER_CTRL_SET);
+@@ -1448,6 +1464,7 @@ void ddi_power_SetPowerClkGate(bool bGate)
+ 		__raw_writel(BM_POWER_CTRL_CLKGATE,
+ 			REGS_POWER_BASE + HW_POWER_CTRL_CLR);
+ 	}
++#endif
+ }
+ 
+ 
+@@ -1455,7 +1472,11 @@ void ddi_power_SetPowerClkGate(bool bGate)
+ 
+ bool ddi_power_GetPowerClkGate(void)
+ {
++#ifdef CONFIG_ARCH_MX28
++	return 0;
++#else
+ 	return (__raw_readl(REGS_POWER_BASE + HW_POWER_CTRL) & BM_POWER_CTRL_CLKGATE) ? 1 : 0;
++#endif
+ }
+ 
+ 
+@@ -1464,16 +1485,16 @@ enum ddi_power_5v_status ddi_power_GetPmu5vStatus(void)
+ 
+ 	if (DetectionMethod == DDI_POWER_5V_VDD5V_GT_VDDIO) {
+ 
+-		if (__raw_readl(HW_POWER_CTRL_ADDR) &
++		if (__raw_readl(REGS_POWER_BASE + HW_POWER_CTRL) &
+ 			BM_POWER_CTRL_POLARITY_VDD5V_GT_VDDIO) {
+-			if ((__raw_readl(HW_POWER_CTRL_ADDR) &
++			if ((__raw_readl(REGS_POWER_BASE + HW_POWER_CTRL) &
+ 				BM_POWER_CTRL_VDD5V_GT_VDDIO_IRQ) ||
+ 				ddi_power_Get5vPresentFlag())
+ 				return new_5v_connection;
+ 			else
+ 				return existing_5v_disconnection;
+ 		} else {
+-			if ((__raw_readl(HW_POWER_CTRL_ADDR) &
++			if ((__raw_readl(REGS_POWER_BASE + HW_POWER_CTRL) &
+ 				BM_POWER_CTRL_VDD5V_GT_VDDIO_IRQ) ||
+ 				!ddi_power_Get5vPresentFlag() ||
+ 				ddi_power_Get5vDroopFlag())
+@@ -1483,16 +1504,16 @@ enum ddi_power_5v_status ddi_power_GetPmu5vStatus(void)
+ 		}
+ 	} else {
+ 
+-		if (__raw_readl(HW_POWER_CTRL_ADDR) &
++		if (__raw_readl(REGS_POWER_BASE + HW_POWER_CTRL) &
+ 			BM_POWER_CTRL_POLARITY_VBUSVALID) {
+-			if ((__raw_readl(HW_POWER_CTRL_ADDR) &
++			if ((__raw_readl(REGS_POWER_BASE + HW_POWER_CTRL) &
+ 				BM_POWER_CTRL_VBUSVALID_IRQ) ||
+ 				ddi_power_Get5vPresentFlag())
+ 				return new_5v_connection;
+ 			else
+ 				return existing_5v_disconnection;
+ 		} else {
+-			if ((__raw_readl(HW_POWER_CTRL_ADDR) &
++			if ((__raw_readl(REGS_POWER_BASE + HW_POWER_CTRL) &
+ 				BM_POWER_CTRL_VBUSVALID_IRQ) ||
+ 				!ddi_power_Get5vPresentFlag() ||
+ 				ddi_power_Get5vDroopFlag())
+@@ -1509,25 +1530,25 @@ void ddi_power_disable_5v_connection_irq(void)
+ 
+ 	__raw_writel((BM_POWER_CTRL_ENIRQ_VBUS_VALID |
+ 		BM_POWER_CTRL_ENIRQ_VDD5V_GT_VDDIO),
+-		HW_POWER_CTRL_CLR_ADDR);
++		REGS_POWER_BASE + HW_POWER_CTRL_CLR);
+ }
+ 
+ void ddi_power_enable_5v_disconnect_detection(void)
+ {
+ 	__raw_writel(BM_POWER_CTRL_POLARITY_VDD5V_GT_VDDIO |
+ 		BM_POWER_CTRL_POLARITY_VBUSVALID,
+-		HW_POWER_CTRL_CLR_ADDR);
++		REGS_POWER_BASE + HW_POWER_CTRL_CLR);
+ 
+ 	__raw_writel(BM_POWER_CTRL_VDD5V_GT_VDDIO_IRQ |
+ 		BM_POWER_CTRL_VBUSVALID_IRQ,
+-		HW_POWER_CTRL_CLR_ADDR);
++		REGS_POWER_BASE + HW_POWER_CTRL_CLR);
+ 
+ 	if (DetectionMethod == DDI_POWER_5V_VDD5V_GT_VDDIO) {
+ 		__raw_writel(BM_POWER_CTRL_ENIRQ_VDD5V_GT_VDDIO,
+-			HW_POWER_CTRL_SET_ADDR);
++			REGS_POWER_BASE + HW_POWER_CTRL_SET);
+ 	} else {
+ 		__raw_writel(BM_POWER_CTRL_ENIRQ_VBUS_VALID,
+-			HW_POWER_CTRL_SET_ADDR);
++			REGS_POWER_BASE + HW_POWER_CTRL_SET);
+ 	}
+ }
+ 
+@@ -1535,18 +1556,18 @@ void ddi_power_enable_5v_connect_detection(void)
+ {
+ 	__raw_writel(BM_POWER_CTRL_POLARITY_VDD5V_GT_VDDIO |
+ 		BM_POWER_CTRL_POLARITY_VBUSVALID,
+-		HW_POWER_CTRL_SET_ADDR);
++		REGS_POWER_BASE + HW_POWER_CTRL_SET);
+ 
+ 	__raw_writel(BM_POWER_CTRL_VDD5V_GT_VDDIO_IRQ |
+ 		BM_POWER_CTRL_VBUSVALID_IRQ,
+-		HW_POWER_CTRL_CLR_ADDR);
++		REGS_POWER_BASE + HW_POWER_CTRL_CLR);
+ 
+ 	if (DetectionMethod == DDI_POWER_5V_VDD5V_GT_VDDIO) {
+ 		__raw_writel(BM_POWER_CTRL_ENIRQ_VDD5V_GT_VDDIO,
+-			HW_POWER_CTRL_SET_ADDR);
++			REGS_POWER_BASE + HW_POWER_CTRL_SET);
+ 	} else {
+ 		__raw_writel(BM_POWER_CTRL_ENIRQ_VBUS_VALID,
+-			HW_POWER_CTRL_SET_ADDR);
++			REGS_POWER_BASE + HW_POWER_CTRL_SET);
+ 	}
+ }
+ 
+@@ -1555,15 +1576,15 @@ void ddi_power_EnableBatteryBoInterrupt(bool bEnable)
+ 	if (bEnable) {
+ 
+ 		__raw_writel(BM_POWER_CTRL_BATT_BO_IRQ,
+-			HW_POWER_CTRL_CLR_ADDR);
++			REGS_POWER_BASE + HW_POWER_CTRL_CLR);
+ 		__raw_writel(BM_POWER_CTRL_ENIRQBATT_BO,
+-			HW_POWER_CTRL_SET_ADDR);
++			REGS_POWER_BASE + HW_POWER_CTRL_SET);
+ 		/* todo: make sure the battery brownout comparator
+ 		 * is enabled in HW_POWER_BATTMONITOR
+ 		 */
+ 	} else {
+ 		__raw_writel(BM_POWER_CTRL_ENIRQBATT_BO,
+-			HW_POWER_CTRL_CLR_ADDR);
++			REGS_POWER_BASE + HW_POWER_CTRL_CLR);
+ 	}
+ }
+ 
+@@ -1572,12 +1593,12 @@ void ddi_power_EnableDcdc4p2BoInterrupt(bool bEnable)
+ 	if (bEnable) {
+ 
+ 		__raw_writel(BM_POWER_CTRL_DCDC4P2_BO_IRQ,
+-			HW_POWER_CTRL_CLR_ADDR);
++			REGS_POWER_BASE + HW_POWER_CTRL_CLR);
+ 		__raw_writel(BM_POWER_CTRL_ENIRQ_DCDC4P2_BO,
+-			HW_POWER_CTRL_SET_ADDR);
++			REGS_POWER_BASE + HW_POWER_CTRL_SET);
+ 	} else {
+ 		__raw_writel(BM_POWER_CTRL_ENIRQ_DCDC4P2_BO,
+-			HW_POWER_CTRL_CLR_ADDR);
++			REGS_POWER_BASE + HW_POWER_CTRL_CLR);
+ 	}
+ }
+ 
+@@ -1586,12 +1607,12 @@ void ddi_power_EnableVdd5vDroopInterrupt(bool bEnable)
+ 	if (bEnable) {
+ 
+ 		__raw_writel(BM_POWER_CTRL_VDD5V_DROOP_IRQ,
+-			HW_POWER_CTRL_CLR_ADDR);
++			REGS_POWER_BASE + HW_POWER_CTRL_CLR);
+ 		__raw_writel(BM_POWER_CTRL_ENIRQ_VDD5V_DROOP,
+-			HW_POWER_CTRL_SET_ADDR);
++			REGS_POWER_BASE + HW_POWER_CTRL_SET);
+ 	} else {
+ 		__raw_writel(BM_POWER_CTRL_ENIRQ_VDD5V_DROOP,
+-			HW_POWER_CTRL_CLR_ADDR);
++			REGS_POWER_BASE + HW_POWER_CTRL_CLR);
+ 	}
+ }
+ 
+@@ -1600,10 +1621,10 @@ void ddi_power_Enable5vDisconnectShutdown(bool bEnable)
+ {
+ 	if (bEnable) {
+ 		__raw_writel(BM_POWER_5VCTRL_PWDN_5VBRNOUT,
+-			HW_POWER_5VCTRL_SET_ADDR);
++			REGS_POWER_BASE + HW_POWER_5VCTRL_SET);
+ 	} else {
+ 		__raw_writel(BM_POWER_5VCTRL_PWDN_5VBRNOUT,
+-			HW_POWER_5VCTRL_CLR_ADDR);
++			REGS_POWER_BASE + HW_POWER_5VCTRL_CLR);
+ 	}
+ }
+ 
+@@ -1629,17 +1650,19 @@ void ddi_power_init_4p2_protection(void)
+ {
+ 	/* set vbus droop detection level to 4.3V */
+ 	__raw_writel(BM_POWER_5VCTRL_VBUSDROOP_TRSH,
+-			HW_POWER_5VCTRL_CLR_ADDR);
++			REGS_POWER_BASE + HW_POWER_5VCTRL_CLR);
+ 
+ 	/* VBUSDROOP THRESHOLD to 4.3V */
+ 	__raw_writel(BM_POWER_5VCTRL_VBUSDROOP_TRSH,
+-		HW_POWER_5VCTRL_CLR_ADDR);
++		REGS_POWER_BASE + HW_POWER_5VCTRL_CLR);
+ 
+ 	ddi_power_EnableVbusDroopIrq();
+ 
++#ifndef CONFIG_ARCH_MX28
+ 	/* VBUSVALID THRESH = 2.9V */
+ 	__raw_writel(BM_POWER_5VCTRL_VBUSVALID_TRSH,
+-		HW_POWER_5VCTRL_CLR_ADDR);
++		REGS_POWER_BASE + HW_POWER_5VCTRL_CLR);
++#endif
+ 
+ }
+ 
+@@ -1650,20 +1673,20 @@ bool ddi_power_check_4p2_bits(void)
+ 
+ 	uint32_t temp;
+ 
+-	temp = __raw_readl(HW_POWER_5VCTRL_ADDR) &
++	temp = __raw_readl(REGS_POWER_BASE + HW_POWER_5VCTRL) &
+ 		BM_POWER_5VCTRL_PWD_CHARGE_4P2;
+ 
+ 	/* if PWD_CHARGE_4P2 = 1, 4p2 is disabled */
+ 	if (temp)
+ 		return false;
+ 
+-	temp = __raw_readl(HW_POWER_DCDC4P2_ADDR) &
++	temp = __raw_readl(REGS_POWER_BASE + HW_POWER_DCDC4P2) &
+ 		BM_POWER_DCDC4P2_ENABLE_DCDC;
+ 
+ 	if (!temp)
+ 		return false;
+ 
+-	temp = __raw_readl(HW_POWER_DCDC4P2_ADDR) &
++	temp = __raw_readl(REGS_POWER_BASE + HW_POWER_DCDC4P2) &
+ 			BM_POWER_DCDC4P2_ENABLE_4P2;
+ 
+ 	if (temp)
+@@ -1679,19 +1702,19 @@ uint16_t ddi_power_set_4p2_ilimit(uint16_t ilimit)
+ 
+ 	if (ilimit > 780)
+ 		ilimit = 780;
+-	temp_reg = __raw_readl(HW_POWER_5VCTRL_ADDR);
++	temp_reg = __raw_readl(REGS_POWER_BASE + HW_POWER_5VCTRL);
+ 	temp_reg &= (~BM_POWER_5VCTRL_CHARGE_4P2_ILIMIT);
+ 	temp_reg |= BF_POWER_5VCTRL_CHARGE_4P2_ILIMIT(
+ 		ddi_power_convert_current_to_setting(
+ 				ilimit));
+-	__raw_writel(temp_reg, HW_POWER_5VCTRL_ADDR);
++	__raw_writel(temp_reg, REGS_POWER_BASE + HW_POWER_5VCTRL);
+ 
+ 	return ilimit;
+ }
+ 
+ void ddi_power_shutdown(void)
+ {
+-	__raw_writel(0x3e770001, HW_POWER_RESET_ADDR);
++	__raw_writel(0x3e770001, REGS_POWER_BASE + HW_POWER_RESET);
+ }
+ 
+ void ddi_power_handle_dcdc4p2_bo(void)
+@@ -1704,14 +1727,14 @@ void ddi_power_enable_vddio_interrupt(bool enable)
+ {
+ 	if (enable) {
+ 		__raw_writel(BM_POWER_CTRL_VDDIO_BO_IRQ,
+-			HW_POWER_CTRL_CLR_ADDR);
++			REGS_POWER_BASE + HW_POWER_CTRL_CLR);
+ #ifndef DISABLE_VDDIO_BO_PROTECTION
+ 		__raw_writel(BM_POWER_CTRL_ENIRQ_VDDIO_BO,
+-			HW_POWER_CTRL_SET_ADDR);
++			REGS_POWER_BASE + HW_POWER_CTRL_SET);
+ #endif
+ 	} else {
+ 		__raw_writel(BM_POWER_CTRL_ENIRQ_VDDIO_BO,
+-			HW_POWER_CTRL_CLR_ADDR);
++			REGS_POWER_BASE + HW_POWER_CTRL_CLR);
+ 	}
+ }
+ 
+@@ -1735,13 +1758,13 @@ void ddi_power_handle_vdd5v_droop(void)
+ 	uint32_t temp;
+ 
+ 	/* handle errata */
+-	temp = __raw_readl(HW_POWER_DCDC4P2_ADDR);
+-	temp |= (BF(31, POWER_DCDC4P2_CMPTRIP) | BM_POWER_DCDC4P2_TRG);
+-	__raw_writel(temp, HW_POWER_DCDC4P2_ADDR);
++	temp = __raw_readl(REGS_POWER_BASE + HW_POWER_DCDC4P2);
++	temp |= (BF_POWER_DCDC4P2_CMPTRIP(31) | BM_POWER_DCDC4P2_TRG);
++	__raw_writel(temp, REGS_POWER_BASE + HW_POWER_DCDC4P2);
+ 
+ 
+ 	/* if battery is below brownout level, shutdown asap */
+-	if (__raw_readl(HW_POWER_STS_ADDR) & BM_POWER_STS_BATT_BO)
++	if (__raw_readl(REGS_POWER_BASE + HW_POWER_STS) & BM_POWER_STS_BATT_BO)
+ 		ddi_power_shutdown();
+ 
+ 	/* due to 5v connect vddio bo chip bug, we need to
+@@ -1764,24 +1787,24 @@ void ddi_power_InitOutputBrownouts(void)
+ 	__raw_writel(BM_POWER_CTRL_VDDD_BO_IRQ |
+ 		BM_POWER_CTRL_VDDA_BO_IRQ |
+ 		BM_POWER_CTRL_VDDIO_BO_IRQ,
+-		HW_POWER_CTRL_CLR_ADDR);
++		REGS_POWER_BASE + HW_POWER_CTRL_CLR);
+ 
+ 	__raw_writel(BM_POWER_CTRL_ENIRQ_VDDD_BO |
+ 		BM_POWER_CTRL_ENIRQ_VDDA_BO |
+ 		BM_POWER_CTRL_ENIRQ_VDDIO_BO,
+-		HW_POWER_CTRL_SET_ADDR);
++		REGS_POWER_BASE + HW_POWER_CTRL_SET);
+ 
+-	temp = __raw_readl(HW_POWER_VDDDCTRL_ADDR);
++	temp = __raw_readl(REGS_POWER_BASE + HW_POWER_VDDDCTRL);
+ 	temp &= ~BM_POWER_VDDDCTRL_PWDN_BRNOUT;
+-	__raw_writel(temp, HW_POWER_VDDDCTRL_ADDR);
++	__raw_writel(temp, REGS_POWER_BASE + HW_POWER_VDDDCTRL);
+ 
+-	temp = __raw_readl(HW_POWER_VDDACTRL_ADDR);
++	temp = __raw_readl(REGS_POWER_BASE + HW_POWER_VDDACTRL);
+ 	temp &= ~BM_POWER_VDDACTRL_PWDN_BRNOUT;
+-	__raw_writel(temp, HW_POWER_VDDACTRL_ADDR);
++	__raw_writel(temp, REGS_POWER_BASE + HW_POWER_VDDACTRL);
+ 
+-	temp = __raw_readl(HW_POWER_VDDIOCTRL_ADDR);
++	temp = __raw_readl(REGS_POWER_BASE + HW_POWER_VDDIOCTRL);
+ 	temp &= ~BM_POWER_VDDIOCTRL_PWDN_BRNOUT;
+-	__raw_writel(temp, HW_POWER_VDDIOCTRL_ADDR);
++	__raw_writel(temp, REGS_POWER_BASE + HW_POWER_VDDIOCTRL);
+ }
+ 
+ /* used for debugging purposes only */
+@@ -1797,13 +1820,13 @@ void ddi_power_disable_power_interrupts(void)
+ 		BM_POWER_CTRL_ENIRQ_VDDD_BO |
+ 		BM_POWER_CTRL_ENIRQ_VBUS_VALID |
+ 		BM_POWER_CTRL_ENIRQ_VDD5V_GT_VDDIO,
+-		HW_POWER_CTRL_CLR_ADDR);
++		REGS_POWER_BASE + HW_POWER_CTRL_CLR);
+ 
+ }
+ 
+ bool ddi_power_Get5vDroopFlag(void)
+ {
+-	if (__raw_readl(HW_POWER_STS_ADDR) &
++	if (__raw_readl(REGS_POWER_BASE + HW_POWER_STS) &
+ 		BM_POWER_STS_VDD5V_DROOP)
+ 		return true;
+ 	else
+diff --git a/drivers/power/mxs/linux.c b/drivers/power/mxs/linux.c
+index 8f97037..5025e8a 100644
+--- a/drivers/power/mxs/linux.c
++++ b/drivers/power/mxs/linux.c
+@@ -1,5 +1,5 @@
+ /*
+- * Linux glue to STMP3xxx battery state machine.
++ * Linux glue to MXS battery state machine.
+  *
+  * Author: Steve Longerbeam <stevel@embeddedalley.com>
+  *
+@@ -16,6 +16,7 @@
+ #include <linux/platform_device.h>
+ #include <linux/power_supply.h>
+ #include <linux/jiffies.h>
++#include <linux/io.h>
+ #include <linux/sched.h>
+ #include <mach/ddi_bc.h>
+ #include "ddi_bc_internal.h"
+@@ -23,8 +24,7 @@
+ #include <linux/regulator/driver.h>
+ #include <mach/regulator.h>
+ #include <mach/regs-power.h>
+-#include <mach/regs-usbphy.h>
+-#include <mach/platform.h>
++#include <mach/mx28.h>
+ #include <mach/irqs.h>
+ #include <mach/regs-icoll.h>
+ #include <linux/delay.h>
+@@ -39,7 +39,7 @@ enum application_5v_status{
+ 	_5v_disconnected_verified,
+ };
+ 
+-struct stmp3xxx_info {
++struct mxs_info {
+ 	struct device *dev;
+ 	struct regulator *regulator;
+ 
+@@ -75,7 +75,7 @@ struct stmp3xxx_info {
+ 	int is_usb_online;
+ };
+ 
+-#define to_stmp3xxx_info(x) container_of((x), struct stmp3xxx_info, bat)
++#define to_mxs_info(x) container_of((x), struct mxs_info, bat)
+ 
+ #ifndef NON_USB_5V_SUPPLY_CURRENT_LIMIT_MA
+ #define NON_USB_5V_SUPPLY_CURRENT_LIMIT_MA 780
+@@ -97,7 +97,9 @@ struct stmp3xxx_info {
+ #define OS_SHUTDOWN_BATTERY_VOLTAGE_THRESHOLD_MV 3350
+ #endif
+ 
++#ifdef CONFIG_ARCH_STMP3XXX
+ #define  POWER_FIQ
++#endif
+ 
+ /* #define DEBUG_IRQS */
+ 
+@@ -107,17 +109,15 @@ struct stmp3xxx_info {
+  * is online.
+  */
+ 
+-#define is_usb_plugged()(__raw_readl(REGS_USBPHY_BASE + HW_USBPHY_STATUS) & \
+-		BM_USBPHY_STATUS_DEVPLUGIN_STATUS)
+ 
+ #define is_ac_online()	\
+-		(ddi_power_Get5vPresentFlag() ? (!is_usb_plugged()) : 0)
++		(ddi_power_Get5vPresentFlag() ? (!fsl_is_usb_plugged()) : 0)
+ #define is_usb_online()	\
+-		(ddi_power_Get5vPresentFlag() ? (!!is_usb_plugged()) : 0)
++		(ddi_power_Get5vPresentFlag() ? (!!fsl_is_usb_plugged()) : 0)
+ 
+ 
+ 
+-void init_protection(struct stmp3xxx_info *info)
++void init_protection(struct mxs_info *info)
+ {
+ 	enum ddi_power_5v_status pmu_5v_status;
+ 	uint16_t battery_voltage;
+@@ -126,8 +126,9 @@ void init_protection(struct stmp3xxx_info *info)
+ 	battery_voltage = ddi_power_GetBattery();
+ 
+ 	/* InitializeFiqSystem(); */
+-
++#ifdef POWER_FIQ
+ 	ddi_power_InitOutputBrownouts();
++#endif
+ 
+ 
+ 	/* if we start the kernel with 4p2 already started
+@@ -195,7 +196,7 @@ void init_protection(struct stmp3xxx_info *info)
+ 
+ 
+ 
+-static void check_and_handle_5v_connection(struct stmp3xxx_info *info)
++static void check_and_handle_5v_connection(struct mxs_info *info)
+ {
+ 
+ 	switch (ddi_power_GetPmu5vStatus()) {
+@@ -284,7 +285,7 @@ static void check_and_handle_5v_connection(struct stmp3xxx_info *info)
+ }
+ 
+ 
+-static void handle_battery_voltage_changes(struct stmp3xxx_info *info)
++static void handle_battery_voltage_changes(struct mxs_info *info)
+ {
+ #if 0
+ 	uint16_t battery_voltage;
+@@ -319,11 +320,11 @@ static void handle_battery_voltage_changes(struct stmp3xxx_info *info)
+ /*
+  * Power properties
+  */
+-static enum power_supply_property stmp3xxx_power_props[] = {
++static enum power_supply_property mxs_power_props[] = {
+ 	POWER_SUPPLY_PROP_ONLINE,
+ };
+ 
+-static int stmp3xxx_power_get_property(struct power_supply *psy,
++static int mxs_power_get_property(struct power_supply *psy,
+ 				     enum power_supply_property psp,
+ 				     union power_supply_propval *val)
+ {
+@@ -345,7 +346,7 @@ static int stmp3xxx_power_get_property(struct power_supply *psy,
+ /*
+  * Battery properties
+  */
+-static enum power_supply_property stmp3xxx_bat_props[] = {
++static enum power_supply_property mxs_bat_props[] = {
+ 	POWER_SUPPLY_PROP_STATUS,
+ 	POWER_SUPPLY_PROP_PRESENT,
+ 	POWER_SUPPLY_PROP_HEALTH,
+@@ -355,11 +356,11 @@ static enum power_supply_property stmp3xxx_bat_props[] = {
+ 	POWER_SUPPLY_PROP_TEMP,
+ };
+ 
+-static int stmp3xxx_bat_get_property(struct power_supply *psy,
++static int mxs_bat_get_property(struct power_supply *psy,
+ 				     enum power_supply_property psp,
+ 				     union power_supply_propval *val)
+ {
+-	struct stmp3xxx_info *info = to_stmp3xxx_info(psy);
++	struct mxs_info *info = to_mxs_info(psy);
+ 	ddi_bc_State_t state;
+ 	ddi_bc_BrokenReason_t reason;
+ 	int temp_alarm;
+@@ -456,7 +457,7 @@ static int stmp3xxx_bat_get_property(struct power_supply *psy,
+ 
+ static void state_machine_timer(unsigned long data)
+ {
+-	struct stmp3xxx_info *info = (struct stmp3xxx_info *)data;
++	struct mxs_info *info = (struct mxs_info *)data;
+ 	ddi_bc_Cfg_t *cfg = info->sm_cfg;
+ 	int ret;
+ 
+@@ -476,8 +477,8 @@ static void state_machine_timer(unsigned long data)
+  */
+ static void state_machine_work(struct work_struct *work)
+ {
+-	struct stmp3xxx_info *info =
+-		container_of(work, struct stmp3xxx_info, sm_work);
++	struct mxs_info *info =
++		container_of(work, struct mxs_info, sm_work);
+ 
+ 	mutex_lock(&info->sm_lock);
+ 
+@@ -565,7 +566,7 @@ out:
+ 
+ 
+ 
+-static int bc_sm_restart(struct stmp3xxx_info *info)
++static int bc_sm_restart(struct mxs_info *info)
+ {
+ 	ddi_bc_Status_t bcret;
+ 	int ret = 0;
+@@ -612,10 +613,10 @@ out:
+ 
+ #ifndef POWER_FIQ
+ 
+-static irqreturn_t stmp3xxx_irq_dcdc4p2_bo(int irq, void *cookie)
++static irqreturn_t mxs_irq_dcdc4p2_bo(int irq, void *cookie)
+ {
+ #ifdef DEBUG_IRQS
+-	struct stmp3xxx_info *info = (struct stmp3xxx_info *)cookie;
++	struct mxs_info *info = (struct mxs_info *)cookie;
+ 	dev_info(info->dev, "dcdc4p2 brownout interrupt occurred\n");
+ 
+ #endif
+@@ -623,10 +624,10 @@ static irqreturn_t stmp3xxx_irq_dcdc4p2_bo(int irq, void *cookie)
+ 	return IRQ_HANDLED;
+ }
+ 
+-static irqreturn_t stmp3xxx_irq_batt_brnout(int irq, void *cookie)
++static irqreturn_t mxs_irq_batt_brnout(int irq, void *cookie)
+ {
+ #ifdef DEBUG_IRQS
+-	struct stmp3xxx_info *info = (struct stmp3xxx_info *)cookie;
++	struct mxs_info *info = (struct mxs_info *)cookie;
+ 	dev_info(info->dev, "battery brownout interrupt occurred\n");
+ 	ddi_power_disable_power_interrupts();
+ #else
+@@ -634,10 +635,10 @@ static irqreturn_t stmp3xxx_irq_batt_brnout(int irq, void *cookie)
+ #endif
+ 	return IRQ_HANDLED;
+ }
+-static irqreturn_t stmp3xxx_irq_vddd_brnout(int irq, void *cookie)
++static irqreturn_t mxs_irq_vddd_brnout(int irq, void *cookie)
+ {
+ #ifdef DEBUG_IRQS
+-	struct stmp3xxx_info *info = (struct stmp3xxx_info *)cookie;
++	struct mxs_info *info = (struct mxs_info *)cookie;
+ 	dev_info(info->dev, "vddd brownout interrupt occurred\n");
+ 	ddi_power_disable_power_interrupts();
+ #else
+@@ -645,10 +646,10 @@ static irqreturn_t stmp3xxx_irq_vddd_brnout(int irq, void *cookie)
+ #endif
+ 	return IRQ_HANDLED;
+ }
+-static irqreturn_t stmp3xxx_irq_vdda_brnout(int irq, void *cookie)
++static irqreturn_t mxs_irq_vdda_brnout(int irq, void *cookie)
+ {
+ #ifdef DEBUG_IRQS
+-	struct stmp3xxx_info *info = (struct stmp3xxx_info *)cookie;
++	struct mxs_info *info = (struct mxs_info *)cookie;
+ 	dev_info(info->dev, "vdda brownout interrupt occurred\n");
+ 	ddi_power_disable_power_interrupts();
+ #else
+@@ -657,10 +658,10 @@ static irqreturn_t stmp3xxx_irq_vdda_brnout(int irq, void *cookie)
+ 	return IRQ_HANDLED;
+ }
+ 
+-static irqreturn_t stmp3xxx_irq_vdd5v_droop(int irq, void *cookie)
++static irqreturn_t mxs_irq_vdd5v_droop(int irq, void *cookie)
+ {
+ #ifdef DEBUG_IRQS
+-	struct stmp3xxx_info *info = (struct stmp3xxx_info *)cookie;
++	struct mxs_info *info = (struct mxs_info *)cookie;
+ 	dev_info(info->dev, "vdd5v droop interrupt occurred\n");
+ #endif
+ 	ddi_power_handle_vdd5v_droop();
+@@ -670,10 +671,10 @@ static irqreturn_t stmp3xxx_irq_vdd5v_droop(int irq, void *cookie)
+ 
+ #endif /* if POWER_FIQ */
+ 
+-static irqreturn_t stmp3xxx_irq_vddio_brnout(int irq, void *cookie)
++static irqreturn_t mxs_irq_vddio_brnout(int irq, void *cookie)
+ {
+ #ifdef DEBUG_IRQS
+-	struct stmp3xxx_info *info = (struct stmp3xxx_info *)cookie;
++	struct mxs_info *info = (struct mxs_info *)cookie;
+ 	dev_info(info->dev, "vddio brownout interrupt occurred\n");
+ 	ddi_power_disable_power_interrupts();
+ #else
+@@ -682,11 +683,11 @@ static irqreturn_t stmp3xxx_irq_vddio_brnout(int irq, void *cookie)
+ 	return IRQ_HANDLED;
+ }
+ 
+-static irqreturn_t stmp3xxx_irq_vdd5v(int irq, void *cookie)
++static irqreturn_t mxs_irq_vdd5v(int irq, void *cookie)
+ {
+-	struct stmp3xxx_info *info = (struct stmp3xxx_info *)cookie;
+-
++	struct mxs_info *info = (struct mxs_info *)cookie;
+ 
++	pr_info("%s %d\n", __func__, __LINE__);
+ 	switch (ddi_power_GetPmu5vStatus()) {
+ 
+ 	case new_5v_connection:
+@@ -722,9 +723,9 @@ static irqreturn_t stmp3xxx_irq_vdd5v(int irq, void *cookie)
+ 	return IRQ_HANDLED;
+ }
+ 
+-static int stmp3xxx_bat_probe(struct platform_device *pdev)
++static int mxs_bat_probe(struct platform_device *pdev)
+ {
+-	struct stmp3xxx_info *info;
++	struct mxs_info *info;
+ 	int ret = 0;
+ 
+ 
+@@ -800,23 +801,23 @@ static int stmp3xxx_bat_probe(struct platform_device *pdev)
+ 	/* initialize bat power_supply struct */
+ 	info->bat.name           = "battery";
+ 	info->bat.type           = POWER_SUPPLY_TYPE_BATTERY;
+-	info->bat.properties     = stmp3xxx_bat_props;
+-	info->bat.num_properties = ARRAY_SIZE(stmp3xxx_bat_props);
+-	info->bat.get_property   = stmp3xxx_bat_get_property;
++	info->bat.properties     = mxs_bat_props;
++	info->bat.num_properties = ARRAY_SIZE(mxs_bat_props);
++	info->bat.get_property   = mxs_bat_get_property;
+ 
+ 	/* initialize ac power_supply struct */
+ 	info->ac.name           = "ac";
+ 	info->ac.type           = POWER_SUPPLY_TYPE_MAINS;
+-	info->ac.properties     = stmp3xxx_power_props;
+-	info->ac.num_properties = ARRAY_SIZE(stmp3xxx_power_props);
+-	info->ac.get_property   = stmp3xxx_power_get_property;
++	info->ac.properties     = mxs_power_props;
++	info->ac.num_properties = ARRAY_SIZE(mxs_power_props);
++	info->ac.get_property   = mxs_power_get_property;
+ 
+ 	/* initialize usb power_supply struct */
+ 	info->usb.name           = "usb";
+ 	info->usb.type           = POWER_SUPPLY_TYPE_USB;
+-	info->usb.properties     = stmp3xxx_power_props;
+-	info->usb.num_properties = ARRAY_SIZE(stmp3xxx_power_props);
+-	info->usb.get_property   = stmp3xxx_power_get_property;
++	info->usb.properties     = mxs_power_props;
++	info->usb.num_properties = ARRAY_SIZE(mxs_power_props);
++	info->usb.get_property   = mxs_power_get_property;
+ 
+ 	init_timer(&info->sm_timer);
+ 	info->sm_timer.data = (unsigned long)info;
+@@ -836,7 +837,7 @@ static int stmp3xxx_bat_probe(struct platform_device *pdev)
+ 
+ 
+ 	ret = request_irq(info->irq_vdd5v->start,
+-			stmp3xxx_irq_vdd5v, IRQF_DISABLED | IRQF_SHARED,
++			mxs_irq_vdd5v, IRQF_DISABLED | IRQF_SHARED,
+ 			pdev->name, info);
+ 	if (ret) {
+ 		dev_err(info->dev, "failed to request irq\n");
+@@ -844,7 +845,7 @@ static int stmp3xxx_bat_probe(struct platform_device *pdev)
+ 	}
+ 
+ 	ret = request_irq(info->irq_vddio_brnout->start,
+-			stmp3xxx_irq_vddio_brnout, IRQF_DISABLED,
++			mxs_irq_vddio_brnout, IRQF_DISABLED,
+ 			pdev->name, info);
+ 	if (ret) {
+ 		dev_err(info->dev, "failed to request irq\n");
+@@ -853,7 +854,7 @@ static int stmp3xxx_bat_probe(struct platform_device *pdev)
+ 
+ #ifndef POWER_FIQ
+ 	ret = request_irq(info->irq_dcdc4p2_bo->start,
+-			stmp3xxx_irq_dcdc4p2_bo, IRQF_DISABLED,
++			mxs_irq_dcdc4p2_bo, IRQF_DISABLED,
+ 			pdev->name, info);
+ 	if (ret) {
+ 		dev_err(info->dev, "failed to request irq\n");
+@@ -861,7 +862,7 @@ static int stmp3xxx_bat_probe(struct platform_device *pdev)
+ 	}
+ 
+ 	ret = request_irq(info->irq_batt_brnout->start,
+-			stmp3xxx_irq_batt_brnout, IRQF_DISABLED,
++			mxs_irq_batt_brnout, IRQF_DISABLED,
+ 			pdev->name, info);
+ 	if (ret) {
+ 		dev_err(info->dev, "failed to request irq\n");
+@@ -869,7 +870,7 @@ static int stmp3xxx_bat_probe(struct platform_device *pdev)
+ 	}
+ 
+ 	ret = request_irq(info->irq_vddd_brnout->start,
+-			stmp3xxx_irq_vddd_brnout, IRQF_DISABLED,
++			mxs_irq_vddd_brnout, IRQF_DISABLED,
+ 			pdev->name, info);
+ 	if (ret) {
+ 		dev_err(info->dev, "failed to request irq\n");
+@@ -877,7 +878,7 @@ static int stmp3xxx_bat_probe(struct platform_device *pdev)
+ 	}
+ 
+ 	ret = request_irq(info->irq_vdda_brnout->start,
+-			stmp3xxx_irq_vdda_brnout, IRQF_DISABLED,
++			mxs_irq_vdda_brnout, IRQF_DISABLED,
+ 			pdev->name, info);
+ 	if (ret) {
+ 		dev_err(info->dev, "failed to request irq\n");
+@@ -886,7 +887,7 @@ static int stmp3xxx_bat_probe(struct platform_device *pdev)
+ 
+ 
+ 	ret = request_irq(info->irq_vdd5v_droop->start,
+-			stmp3xxx_irq_vdd5v_droop, IRQF_DISABLED,
++			mxs_irq_vdd5v_droop, IRQF_DISABLED,
+ 			pdev->name, info);
+ 	if (ret) {
+ 		dev_err(info->dev, "failed to request irq\n");
+@@ -918,8 +919,7 @@ static int stmp3xxx_bat_probe(struct platform_device *pdev)
+ 	init_protection(info);
+ 
+ 	/* enable usb device presence detection */
+-	__raw_writel(BM_USBPHY_CTRL_ENDEVPLUGINDETECT,
+-			REGS_USBPHY_BASE + HW_USBPHY_CTRL_SET);
++	fsl_enable_usb_plugindetect();
+ 
+ 	return 0;
+ 
+@@ -945,9 +945,9 @@ free_info:
+ 	return ret;
+ }
+ 
+-static int stmp3xxx_bat_remove(struct platform_device *pdev)
++static int mxs_bat_remove(struct platform_device *pdev)
+ {
+-	struct stmp3xxx_info *info = platform_get_drvdata(pdev);
++	struct mxs_info *info = platform_get_drvdata(pdev);
+ 
+ 	if (info->regulator)
+ 		regulator_put(info->regulator);
+@@ -967,7 +967,7 @@ static int stmp3xxx_bat_remove(struct platform_device *pdev)
+ 	return 0;
+ }
+ 
+-static void stmp3xxx_bat_shutdown(struct platform_device *pdev)
++static void mxs_bat_shutdown(struct platform_device *pdev)
+ {
+ 	ddi_bc_ShutDown();
+ }
+@@ -975,9 +975,9 @@ static void stmp3xxx_bat_shutdown(struct platform_device *pdev)
+ 
+ #ifdef CONFIG_PM
+ 
+-static int stmp3xxx_bat_suspend(struct platform_device *pdev, pm_message_t msg)
++static int mxs_bat_suspend(struct platform_device *pdev, pm_message_t msg)
+ {
+-	struct stmp3xxx_info *info = platform_get_drvdata(pdev);
++	struct mxs_info *info = platform_get_drvdata(pdev);
+ 
+ 	mutex_lock(&info->sm_lock);
+ 
+@@ -991,9 +991,9 @@ static int stmp3xxx_bat_suspend(struct platform_device *pdev, pm_message_t msg)
+ 	return 0;
+ }
+ 
+-static int stmp3xxx_bat_resume(struct platform_device *pdev)
++static int mxs_bat_resume(struct platform_device *pdev)
+ {
+-	struct stmp3xxx_info *info = platform_get_drvdata(pdev);
++	struct mxs_info *info = platform_get_drvdata(pdev);
+ 	ddi_bc_Cfg_t *cfg = info->sm_cfg;
+ 
+ 	mutex_lock(&info->sm_lock);
+@@ -1036,18 +1036,18 @@ static int stmp3xxx_bat_resume(struct platform_device *pdev)
+ }
+ 
+ #else
+-#define stmp3xxx_bat_suspend NULL
+-#define stmp3xxx_bat_resume  NULL
++#define mxs_bat_suspend NULL
++#define mxs_bat_resume  NULL
+ #endif
+ 
+-static struct platform_driver stmp3xxx_batdrv = {
+-	.probe		= stmp3xxx_bat_probe,
+-	.remove		= stmp3xxx_bat_remove,
+-	.shutdown       = stmp3xxx_bat_shutdown,
+-	.suspend	= stmp3xxx_bat_suspend,
+-	.resume		= stmp3xxx_bat_resume,
++static struct platform_driver mxs_batdrv = {
++	.probe		= mxs_bat_probe,
++	.remove		= mxs_bat_remove,
++	.shutdown       = mxs_bat_shutdown,
++	.suspend	= mxs_bat_suspend,
++	.resume		= mxs_bat_resume,
+ 	.driver		= {
+-		.name	= "stmp3xxx-battery",
++		.name	= "mxs-battery",
+ 		.owner	= THIS_MODULE,
+ 	},
+ };
+@@ -1058,7 +1058,7 @@ static int power_relinquish(void *data, int relinquish)
+ }
+ 
+ static struct fiq_handler power_fiq = {
+-	.name = "stmp3xxx-battery",
++	.name = "mxs-battery",
+ 	.fiq_op = power_relinquish
+ };
+ 
+@@ -1068,7 +1068,7 @@ extern void lock_vector_tlb(void *);
+ extern long power_fiq_count;
+ static struct proc_dir_entry *power_fiq_proc;
+ 
+-static int __init stmp3xxx_bat_init(void)
++static int __init mxs_bat_init(void)
+ {
+ #ifdef POWER_FIQ
+ 	int ret;
+@@ -1083,69 +1083,90 @@ static int __init stmp3xxx_bat_init(void)
+ 
+ 		/* disable interrupts to be configured as FIQs */
+ 		__raw_writel(BM_ICOLL_INTERRUPTn_ENABLE,
+-				HW_ICOLL_INTERRUPTn_CLR_ADDR(IRQ_DCDC4P2_BO));
++			REGS_ICOLL_BASE +
++			HW_ICOLL_INTERRUPTn_CLR(IRQ_DCDC4P2_BRNOUT));
+ 
+ 		__raw_writel(BM_ICOLL_INTERRUPTn_ENABLE,
+-				HW_ICOLL_INTERRUPTn_CLR_ADDR(IRQ_BATT_BRNOUT));
++			REGS_ICOLL_BASE +
++			HW_ICOLL_INTERRUPTn_CLR(IRQ_BATT_BRNOUT));
+ 
+ 		__raw_writel(BM_ICOLL_INTERRUPTn_ENABLE,
+-				HW_ICOLL_INTERRUPTn_CLR_ADDR(IRQ_VDDD_BRNOUT));
++			REGS_ICOLL_BASE +
++			HW_ICOLL_INTERRUPTn_CLR(IRQ_VDDD_BRNOUT));
+ 
++#ifndef CONFIG_ARCH_MX28
+ 		__raw_writel(BM_ICOLL_INTERRUPTn_ENABLE,
+-				HW_ICOLL_INTERRUPTn_CLR_ADDR(IRQ_VDD18_BRNOUT));
++			REGS_ICOLL_BASE +
++			HW_ICOLL_INTERRUPTn_CLR(IRQ_VDD18_BRNOUT));
++#endif
+ 
+ 		__raw_writel(BM_ICOLL_INTERRUPTn_ENABLE,
+-				HW_ICOLL_INTERRUPTn_CLR_ADDR(IRQ_VDD5V_DROOP));
++			REGS_ICOLL_BASE +
++			HW_ICOLL_INTERRUPTn_CLR(IRQ_VDD5V_DROOP));
+ 
+ 		/* Enable these interrupts as FIQs */
+ 		__raw_writel(BM_ICOLL_INTERRUPTn_ENFIQ,
+-			HW_ICOLL_INTERRUPTn_SET_ADDR(IRQ_DCDC4P2_BO));
++			REGS_ICOLL_BASE +
++			HW_ICOLL_INTERRUPTn_SET(IRQ_DCDC4P2_BRNOUT));
+ 
+ 		__raw_writel(BM_ICOLL_INTERRUPTn_ENFIQ,
+-			HW_ICOLL_INTERRUPTn_SET_ADDR(IRQ_BATT_BRNOUT));
++			REGS_ICOLL_BASE +
++			HW_ICOLL_INTERRUPTn_SET(IRQ_BATT_BRNOUT));
+ 
+ 		__raw_writel(BM_ICOLL_INTERRUPTn_ENFIQ,
+-			HW_ICOLL_INTERRUPTn_SET_ADDR(IRQ_VDDD_BRNOUT));
++			REGS_ICOLL_BASE +
++			HW_ICOLL_INTERRUPTn_SET(IRQ_VDDD_BRNOUT));
+ 
++#ifndef CONFIG_ARCH_MX28
+ 		__raw_writel(BM_ICOLL_INTERRUPTn_ENFIQ,
+-			HW_ICOLL_INTERRUPTn_SET_ADDR(IRQ_VDD18_BRNOUT));
++			REGS_ICOLL_BASE +
++			HW_ICOLL_INTERRUPTn_SET(IRQ_VDD18_BRNOUT));
++#endif
+ 
+ 		__raw_writel(BM_ICOLL_INTERRUPTn_ENFIQ,
+-			HW_ICOLL_INTERRUPTn_SET_ADDR(IRQ_VDD5V_DROOP));
++			REGS_ICOLL_BASE +
++			HW_ICOLL_INTERRUPTn_SET(IRQ_VDD5V_DROOP));
+ 
+ 		/* enable FIQ functionality */
+ 		__raw_writel(BM_ICOLL_CTRL_FIQ_FINAL_ENABLE,
+-				HW_ICOLL_CTRL_SET_ADDR);
++				REGS_ICOLL_BASE + HW_ICOLL_CTRL_SET);
+ 
+ 		/* enable these interrupts */
+ 		__raw_writel(BM_ICOLL_INTERRUPTn_ENABLE,
+-				HW_ICOLL_INTERRUPTn_SET_ADDR(IRQ_DCDC4P2_BO));
++				REGS_ICOLL_BASE +
++				HW_ICOLL_INTERRUPTn_SET(IRQ_DCDC4P2_BRNOUT));
+ 
+ 		__raw_writel(BM_ICOLL_INTERRUPTn_ENABLE,
+-				HW_ICOLL_INTERRUPTn_SET_ADDR(IRQ_BATT_BRNOUT));
++				REGS_ICOLL_BASE +
++				HW_ICOLL_INTERRUPTn_SET(IRQ_BATT_BRNOUT));
+ 
+ 		__raw_writel(BM_ICOLL_INTERRUPTn_ENABLE,
+-				HW_ICOLL_INTERRUPTn_SET_ADDR(IRQ_VDDD_BRNOUT));
++				REGS_ICOLL_BASE +
++				HW_ICOLL_INTERRUPTn_SET(IRQ_VDDD_BRNOUT));
+ 
++#ifndef CONFIG_ARCH_MX28
+ 		__raw_writel(BM_ICOLL_INTERRUPTn_ENABLE,
+-				HW_ICOLL_INTERRUPTn_SET_ADDR(IRQ_VDD18_BRNOUT));
++				REGS_ICOLL_BASE +
++				HW_ICOLL_INTERRUPTn_SET(IRQ_VDD18_BRNOUT));
++#endif
+ 
+ 		__raw_writel(BM_ICOLL_INTERRUPTn_ENABLE,
+-				HW_ICOLL_INTERRUPTn_SET_ADDR(IRQ_VDD5V_DROOP));
++				REGS_ICOLL_BASE +
++				HW_ICOLL_INTERRUPTn_SET(IRQ_VDD5V_DROOP));
+ 
+ 	}
+ #endif
+-	return platform_driver_register(&stmp3xxx_batdrv);
++	return platform_driver_register(&mxs_batdrv);
+ }
+ 
+-static void __exit stmp3xxx_bat_exit(void)
++static void __exit mxs_bat_exit(void)
+ {
+-	platform_driver_unregister(&stmp3xxx_batdrv);
++	platform_driver_unregister(&mxs_batdrv);
+ }
+ 
+-module_init(stmp3xxx_bat_init);
+-module_exit(stmp3xxx_bat_exit);
++module_init(mxs_bat_init);
++module_exit(mxs_bat_exit);
+ 
+ MODULE_LICENSE("GPL");
+ MODULE_AUTHOR("Steve Longerbeam <stevel@embeddedalley.com>");
+-MODULE_DESCRIPTION("Linux glue to STMP3xxx battery state machine");
++MODULE_DESCRIPTION("Linux glue to MXS battery state machine");
+-- 
+1.5.4.4
+

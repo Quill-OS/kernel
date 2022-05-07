@@ -1,0 +1,1315 @@
+From 2e11f9345f81cc865ab9c2448df43946ffea3266 Mon Sep 17 00:00:00 2001
+From: Rob Herring <r.herring@freescale.com>
+Date: Fri, 22 Jan 2010 15:01:30 -0200
+Subject: [PATCH] ENGR00120393-5 imx: convert platform code to use iram allocator
+
+Convert all i.MX platforms over to iram allocator functions.
+
+Signed-off-by: Rob Herring <r.herring@freescale.com>
+---
+ arch/arm/mach-mx25/Kconfig            |   20 +--
+ arch/arm/mach-mx25/cpu.c              |    7 +-
+ arch/arm/mach-mx25/mm.c               |    7 +-
+ arch/arm/mach-mx3/Kconfig             |   17 +--
+ arch/arm/mach-mx3/cpu.c               |    7 +-
+ arch/arm/mach-mx3/mm.c                |    7 +-
+ arch/arm/mach-mx35/Kconfig            |   20 +--
+ arch/arm/mach-mx35/cpu.c              |    7 +-
+ arch/arm/mach-mx35/mm.c               |    7 +-
+ arch/arm/mach-mx35/mx35_3stack.c      |    2 -
+ arch/arm/mach-mx37/Kconfig            |   18 +--
+ arch/arm/mach-mx37/cpu.c              |   12 ++-
+ arch/arm/mach-mx37/devices.c          |    7 +-
+ arch/arm/mach-mx37/mm.c               |    7 +-
+ arch/arm/mach-mx51/Kconfig            |   18 +--
+ arch/arm/mach-mx51/clock.c            |    4 +-
+ arch/arm/mach-mx51/cpu.c              |   12 ++-
+ arch/arm/mach-mx51/devices.c          |    7 +-
+ arch/arm/mach-mx51/mm.c               |    7 +-
+ arch/arm/mach-mx51/pm.c               |   21 +--
+ arch/arm/mach-mx51/system.c           |   14 +--
+ arch/arm/plat-mxc/include/mach/mx25.h |   11 --
+ arch/arm/plat-mxc/include/mach/mx31.h |    2 -
+ arch/arm/plat-mxc/include/mach/mx35.h |    8 -
+ arch/arm/plat-mxc/include/mach/mx37.h |   45 ++----
+ arch/arm/plat-mxc/include/mach/mx51.h |   26 +---
+ arch/arm/plat-mxc/sdma/sdma_malloc.c  |  287 ++++++++-------------------------
+ 27 files changed, 154 insertions(+), 453 deletions(-)
+
+diff --git a/arch/arm/mach-mx25/Kconfig b/arch/arm/mach-mx25/Kconfig
+index 3f404ee..3049e52 100644
+--- a/arch/arm/mach-mx25/Kconfig
++++ b/arch/arm/mach-mx25/Kconfig
+@@ -28,23 +28,11 @@ config MXC_SDMA_API
+            This selects the Freescale MXC SDMA API.
+            If unsure, say N.
+ 
+-menu "SDMA options"
+-        depends on MXC_SDMA_API
+-
+ config SDMA_IRAM
+-        bool "Use Internal RAM for SDMA transfer"
+-        default n
+-        help
+-           Support Internal RAM as SDMA buffer or control structures
+-
+-config SDMA_IRAM_SIZE
+-        hex "Reserved bytes of IRAM for SDMA (0x800-0x1000)"
+-        range 0x800 0x1000
+-        depends on SDMA_IRAM
+-        default "0x1000"
+-        help
+-           Set the size of IRAM for SDMA. It must be a multiple of 512bytes.
+-endmenu
++	bool "Use Internal RAM for SDMA transfer"
++	depends on MXC_SDMA_API
++	help
++	  Support Internal RAM as SDMA buffer or control structures
+ 
+ config ARCH_MXC_HAS_NFC_V2
+         bool "MXC NFC Hardware Version 2"
+diff --git a/arch/arm/mach-mx25/cpu.c b/arch/arm/mach-mx25/cpu.c
+index d44ad55..22a0854 100644
+--- a/arch/arm/mach-mx25/cpu.c
++++ b/arch/arm/mach-mx25/cpu.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -22,8 +22,9 @@
+ #include <linux/types.h>
+ #include <linux/kernel.h>
+ #include <linux/init.h>
++#include <linux/io.h>
++#include <linux/iram_alloc.h>
+ #include <mach/hardware.h>
+-#include <asm/io.h>
+ 
+ /*!
+  * CPU initialization. It is called by fixup_mxc_board()
+@@ -39,6 +40,8 @@ static int __init post_cpu_init(void)
+ 	void __iomem *base;
+ 	unsigned int reg;
+ 
++	iram_init(IRAM_BASE_ADDR, IRAM_SIZE);
++
+ 	base = IO_ADDRESS(AIPS1_BASE_ADDR);
+ 	__raw_writel(0x0, base + 0x40);
+ 	__raw_writel(0x0, base + 0x44);
+diff --git a/arch/arm/mach-mx25/mm.c b/arch/arm/mach-mx25/mm.c
+index bfd8383..8f58a51 100644
+--- a/arch/arm/mach-mx25/mm.c
++++ b/arch/arm/mach-mx25/mm.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -30,11 +30,6 @@
+  */
+ static struct map_desc mx25_io_desc[] __initdata = {
+ 	{
+-	 .virtual = IRAM_BASE_ADDR_VIRT,
+-	 .pfn = __phys_to_pfn(IRAM_BASE_ADDR),
+-	 .length = IRAM_SIZE,
+-	 .type = MT_DEVICE},
+-	{
+ 	 .virtual = X_MEMC_BASE_ADDR_VIRT,
+ 	 .pfn = __phys_to_pfn(X_MEMC_BASE_ADDR),
+ 	 .length = X_MEMC_SIZE,
+diff --git a/arch/arm/mach-mx3/Kconfig b/arch/arm/mach-mx3/Kconfig
+index 5aaae39..adabbcb 100644
+--- a/arch/arm/mach-mx3/Kconfig
++++ b/arch/arm/mach-mx3/Kconfig
+@@ -110,23 +110,12 @@ config MXC_SDMA_API
+            This selects the Freescale MXC SDMA API.
+            If unsure, say N.
+ 
+-menu "SDMA options"
+-        depends on MXC_SDMA_API
+-
+ config SDMA_IRAM
+-        bool "Use Internal RAM for SDMA transfer"
+-        default n
++	bool "Use Internal RAM for SDMA transfer"
++	depends on MXC_SDMA_API
+ 	help
+-           Support Internal RAM as SDMA buffer or control structures
++	  Support Internal RAM as SDMA buffer or control structures
+ 
+-config SDMA_IRAM_SIZE
+-        hex "Reserved bytes of IRAM for SDMA (0x800-0x2000)"
+-        range 0x800 0x2000
+-        depends on SDMA_IRAM
+-        default "0x1000"
+-        help
+-           Set the size of IRAM for SDMA. It must be multiple of 512bytes.
+-endmenu
+ 
+ config ARCH_MXC_HAS_NFC_V1
+         bool "MXC NFC Hardware Version 1"
+diff --git a/arch/arm/mach-mx3/cpu.c b/arch/arm/mach-mx3/cpu.c
+index c89dfab..6d70961 100644
+--- a/arch/arm/mach-mx3/cpu.c
++++ b/arch/arm/mach-mx3/cpu.c
+@@ -1,6 +1,6 @@
+ /*
+  *  Copyright (C) 2001 Deep Blue Solutions Ltd.
+- *  Copyright 2004-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ *  Copyright (C) 2004-2010 Freescale Semiconductor, Inc.
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License version 2 as
+@@ -19,8 +19,9 @@
+ #include <linux/types.h>
+ #include <linux/kernel.h>
+ #include <linux/init.h>
+-#include <mach/hardware.h>
+ #include <linux/io.h>
++#include <linux/iram_alloc.h>
++#include <mach/hardware.h>
+ #include <asm/hardware/cache-l2x0.h>
+ 
+ /*!
+@@ -45,6 +46,8 @@ static int __init post_cpu_init(void)
+ {
+ 	volatile unsigned long aips_reg;
+ 
++	iram_init(MX31_IRAM_BASE_ADDR, MX31_IRAM_SIZE);
++
+ 	/*
+ 	 * S/W workaround: Clear the off platform peripheral modules
+ 	 * Supervisor Protect bit for SDMA to access them.
+diff --git a/arch/arm/mach-mx3/mm.c b/arch/arm/mach-mx3/mm.c
+index de000f0..12ac4d0 100644
+--- a/arch/arm/mach-mx3/mm.c
++++ b/arch/arm/mach-mx3/mm.c
+@@ -2,7 +2,7 @@
+  *  Copyright (C) 1999,2000 Arm Limited
+  *  Copyright (C) 2000 Deep Blue Solutions Ltd
+  *  Copyright (C) 2002 Shane Nay (shane@minirl.com)
+- *  Copyright 2005-2007 Freescale Semiconductor, Inc. All Rights Reserved.
++ *  Copyright (C) 2005-2010 Freescale Semiconductor, Inc.
+  *    - add MX31 specific definitions
+  *
+  * This program is free software; you can redistribute it and/or modify
+@@ -68,11 +68,6 @@ static struct map_desc mx31_io_desc[] __initdata = {
+ 		.pfn		= __phys_to_pfn(SPBA0_BASE_ADDR),
+ 		.length		= SPBA0_SIZE,
+ 		.type		= MT_DEVICE_NONSHARED
+-	}, {
+-	 .virtual		= MX31_IRAM_BASE_ADDR_VIRT & 0xFFF00000,
+-	 .pfn			= __phys_to_pfn(MX31_IRAM_BASE_ADDR & 0xFFF00000),
+-	 .length		= SZ_1M,
+-	 .type			= MT_DEVICE_NONSHARED
+ 	},
+ };
+ 
+diff --git a/arch/arm/mach-mx35/Kconfig b/arch/arm/mach-mx35/Kconfig
+index 6fdc1dd..3e126e0 100644
+--- a/arch/arm/mach-mx35/Kconfig
++++ b/arch/arm/mach-mx35/Kconfig
+@@ -46,23 +46,11 @@ config MXC_SDMA_API
+            This selects the Freescale MXC SDMA API.
+            If unsure, say N.
+ 
+-menu "SDMA options"
+-        depends on MXC_SDMA_API
+-
+ config SDMA_IRAM
+-        bool "Use Internal RAM for SDMA transfer"
+-        default n
+-       help
+-           Support Internal RAM as SDMA buffer or control structures
+-
+-config SDMA_IRAM_SIZE
+-        hex "Reserved bytes of IRAM for SDMA (0x800-0x1000)"
+-        range 0x800 0x1000
+-        depends on SDMA_IRAM
+-        default "0x1000"
+-        help
+-           Set the size of IRAM for SDMA. It must be a multiple of 512bytes.
+-endmenu
++	bool "Use Internal RAM for SDMA transfer"
++	depends on MXC_SDMA_API
++	help
++	  Support Internal RAM as SDMA buffer or control structures
+ 
+ config ARCH_MXC_HAS_NFC_V2
+         bool "MXC NFC Hardware Version 2"
+diff --git a/arch/arm/mach-mx35/cpu.c b/arch/arm/mach-mx35/cpu.c
+index 90848a5..9d754ea 100644
+--- a/arch/arm/mach-mx35/cpu.c
++++ b/arch/arm/mach-mx35/cpu.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -22,8 +22,9 @@
+ #include <linux/types.h>
+ #include <linux/kernel.h>
+ #include <linux/init.h>
+-#include <mach/hardware.h>
+ #include <linux/io.h>
++#include <linux/iram_alloc.h>
++#include <mach/hardware.h>
+ #include <asm/hardware/cache-l2x0.h>
+ 
+ /*!
+@@ -57,6 +58,8 @@ static int __init post_cpu_init(void)
+ 	if (l2_base)
+ 		l2x0_init(l2_base, 0x00030024, 0x00000000);
+ 
++	iram_init(MX35_IRAM_BASE_ADDR, MX35_IRAM_SIZE);
++
+ 	/*
+ 	 * S/W workaround: Clear the off platform peripheral modules
+ 	 * Supervisor Protect bit for SDMA to access them.
+diff --git a/arch/arm/mach-mx35/mm.c b/arch/arm/mach-mx35/mm.c
+index 2d86bae..371080e 100644
+--- a/arch/arm/mach-mx35/mm.c
++++ b/arch/arm/mach-mx35/mm.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -30,11 +30,6 @@
+  */
+ static struct map_desc mx35_io_desc[] __initdata = {
+ 	{
+-	 .virtual = IRAM_BASE_ADDR_VIRT,
+-	 .pfn = __phys_to_pfn(MX35_IRAM_BASE_ADDR),
+-	 .length = MX35_IRAM_SIZE,
+-	 .type = MT_DEVICE_NONSHARED},
+-	{
+ 	 .virtual = X_MEMC_BASE_ADDR_VIRT,
+ 	 .pfn = __phys_to_pfn(X_MEMC_BASE_ADDR),
+ 	 .length = X_MEMC_SIZE,
+diff --git a/arch/arm/mach-mx35/mx35_3stack.c b/arch/arm/mach-mx35/mx35_3stack.c
+index 8aba744..74cd396 100644
+--- a/arch/arm/mach-mx35/mx35_3stack.c
++++ b/arch/arm/mach-mx35/mx35_3stack.c
+@@ -279,8 +279,6 @@ static struct resource mlb_resource[] = {
+ };
+ 
+ static struct mxc_mlb_platform_data mlb_data = {
+-	.buf_address = IRAM_BASE_ADDR_VIRT + MLB_IRAM_ADDR_OFFSET,
+-	.phy_address = IRAM_BASE_ADDR + MLB_IRAM_ADDR_OFFSET,
+ 	.reg_nvcc = "VVIDEO",
+ 	.mlb_clk = "mlb_clk",
+ };
+diff --git a/arch/arm/mach-mx37/Kconfig b/arch/arm/mach-mx37/Kconfig
+index 75b5e0c..cb5c616 100644
+--- a/arch/arm/mach-mx37/Kconfig
++++ b/arch/arm/mach-mx37/Kconfig
+@@ -28,23 +28,11 @@ config MXC_SDMA_API
+            This selects the Freescale MXC SDMA API.
+            If unsure, say N.
+ 
+-menu "SDMA options"
+-        depends on MXC_SDMA_API
+-
+ config SDMA_IRAM
+-        bool "Use Internal RAM for SDMA transfer"
+-        default n
++	bool "Use Internal RAM for SDMA transfer"
++	depends on MXC_SDMA_API
+ 	help
+-           Support Internal RAM as SDMA buffer or control structures
+-
+-config SDMA_IRAM_SIZE
+-        hex "Reserved bytes of IRAM for SDMA (0x800-0x1000)"
+-        range 0x800 0x1000
+-        depends on SDMA_IRAM
+-        default "0x1000"
+-        help
+-           Set the size of IRAM for SDMA. It must be a multiple of 512bytes.
+-endmenu
++	  Support Internal RAM as SDMA buffer or control structures
+ 
+ config ARCH_MXC_HAS_NFC_V3
+         bool "MXC NFC Hardware Version 3"
+diff --git a/arch/arm/mach-mx37/cpu.c b/arch/arm/mach-mx37/cpu.c
+index e059e47..044b90e 100644
+--- a/arch/arm/mach-mx37/cpu.c
++++ b/arch/arm/mach-mx37/cpu.c
+@@ -1,6 +1,6 @@
+ /*
+  *  Copyright (C) 2001 Deep Blue Solutions Ltd.
+- *  Copyright 2004-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ *  Copyright (C) 2004-2010 Freescale Semiconductor, Inc.
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License version 2 as
+@@ -19,8 +19,9 @@
+ #include <linux/types.h>
+ #include <linux/kernel.h>
+ #include <linux/init.h>
+-#include <mach/hardware.h>
+ #include <linux/io.h>
++#include <linux/iram_alloc.h>
++#include <mach/hardware.h>
+ #include <asm/hardware/cache-l2x0.h>
+ 
+ /*!
+@@ -45,6 +46,13 @@ static int __init post_cpu_init(void)
+ 	u32 reg;
+ 	void *l2_base;
+ 	volatile unsigned long aips_reg;
++	int iram_size = IRAM_SIZE;
++
++#if defined(CONFIG_MXC_SECURITY_SCC) || defined(CONFIG_MXC_SECURITY_SCC_MODULE)
++	iram_size -= SCC_RAM_SIZE;
++#endif
++
++	iram_init(IRAM_BASE_ADDR, iram_size);
+ 
+ 	/* Set ALP bits to 000. Set ALP_EN bit in Arm Memory Controller reg. */
+ 	reg = __raw_readl(MXC_ARM1176_BASE + 0x1C);
+diff --git a/arch/arm/mach-mx37/devices.c b/arch/arm/mach-mx37/devices.c
+index 63cfeb2..d4f5c48 100644
+--- a/arch/arm/mach-mx37/devices.c
++++ b/arch/arm/mach-mx37/devices.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2007-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2007-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -19,6 +19,7 @@
+ #include <linux/clk.h>
+ #include <linux/mxc_scc2_driver.h>
+ #include <linux/spi/spi.h>
++#include <linux/iram_alloc.h>
+ 
+ #include <mach/gpio.h>
+ #include <mach/hardware.h>
+@@ -808,8 +809,6 @@ int __init mxc_register_gpios(void)
+ #if defined(CONFIG_MXC_VPU) || defined(CONFIG_MXC_VPU_MODULE)
+ static struct resource vpu_resources[] = {
+ 	[0] = {
+-	       .start = VPU_IRAM_BASE_ADDR,
+-	       .end = VPU_IRAM_BASE_ADDR + VPU_IRAM_SIZE,
+ 	       .flags = IORESOURCE_MEM,
+ 	       },
+ 	[1] = {
+@@ -832,6 +831,8 @@ static struct platform_device mxcvpu_device = {
+ 
+ static inline void mxc_init_vpu(void)
+ {
++	iram_alloc(VPU_IRAM_SIZE, (unsigned long *)&vpu_resources[0].start);
++	vpu_resources[0].end = vpu_resources[0].start + VPU_IRAM_SIZE - 1;
+ 	if (platform_device_register(&mxcvpu_device) < 0)
+ 		printk(KERN_ERR "Error: Registering the VPU.\n");
+ }
+diff --git a/arch/arm/mach-mx37/mm.c b/arch/arm/mach-mx37/mm.c
+index 8f9947f..5b10a7f 100644
+--- a/arch/arm/mach-mx37/mm.c
++++ b/arch/arm/mach-mx37/mm.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2007-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2007-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -30,11 +30,6 @@
+  */
+ static struct map_desc mx37_io_desc[] __initdata = {
+ 	{
+-	 .virtual = IRAM_BASE_ADDR_VIRT,
+-	 .pfn = __phys_to_pfn(IRAM_BASE_ADDR),
+-	 .length = IRAM_SIZE,
+-	 .type = MT_DEVICE_NONSHARED},
+-	{
+ 	 .virtual = PLATFORM_BASE_ADDR_VIRT,
+ 	 .pfn = __phys_to_pfn(PLATFORM_BASE_ADDR),
+ 	 .length = PLATFORM_SIZE,
+diff --git a/arch/arm/mach-mx51/Kconfig b/arch/arm/mach-mx51/Kconfig
+index f6a0598..99ad216 100644
+--- a/arch/arm/mach-mx51/Kconfig
++++ b/arch/arm/mach-mx51/Kconfig
+@@ -48,23 +48,11 @@ config ARCH_MXC_HAS_NFC_V3_2
+            This selects the Freescale MXC Nand Flash Controller Hardware Version 3.1
+            If unsure, say N.
+ 
+-menu "SDMA options"
+-        depends on MXC_SDMA_API
+-
+ config SDMA_IRAM
+-        bool "Use Internal RAM for SDMA transfer"
+-        default n
++	bool "Use Internal RAM for SDMA transfer"
++	depends on MXC_SDMA_API
+ 	help
+-           Support Internal RAM as SDMA buffer or control structures
+-
+-config SDMA_IRAM_SIZE
+-        hex "Reserved bytes of IRAM for SDMA (0x800-0x1000)"
+-        range 0x800 0x1000
+-        depends on SDMA_IRAM
+-        default "0x1000"
+-        help
+-           Set the size of IRAM for SDMA. It must be a multiple of 512bytes.
+-endmenu
++	  Support Internal RAM as SDMA buffer or control structures
+ 
+ menu "Device options"
+ 
+diff --git a/arch/arm/mach-mx51/clock.c b/arch/arm/mach-mx51/clock.c
+index 6a4f854..7a138ae 100644
+--- a/arch/arm/mach-mx51/clock.c
++++ b/arch/arm/mach-mx51/clock.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -458,7 +458,7 @@ static int _clk_pll1_sw_set_parent(struct clk *clk, struct clk *parent)
+ 		}
+ 	}
+ 	__raw_writel(reg, MXC_CCM_CCSR);
+-	
++
+ 	return 0;
+ }
+ 
+diff --git a/arch/arm/mach-mx51/cpu.c b/arch/arm/mach-mx51/cpu.c
+index f4b404a..2f8f216 100644
+--- a/arch/arm/mach-mx51/cpu.c
++++ b/arch/arm/mach-mx51/cpu.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -22,8 +22,9 @@
+ #include <linux/types.h>
+ #include <linux/kernel.h>
+ #include <linux/init.h>
++#include <linux/iram_alloc.h>
++#include <linux/io.h>
+ #include <mach/hardware.h>
+-#include <asm/io.h>
+ #include "crm_regs.h"
+ 
+ /*!
+@@ -39,6 +40,13 @@ static int __init post_cpu_init(void)
+ {
+ 	void __iomem *base;
+ 	unsigned int reg;
++	int iram_size = IRAM_SIZE;
++
++#if defined(CONFIG_MXC_SECURITY_SCC) || defined(CONFIG_MXC_SECURITY_SCC_MODULE)
++	if (cpu_is_mx51())
++		iram_size -= SCC_RAM_SIZE;
++#endif
++	iram_init(IRAM_BASE_ADDR, iram_size);
+ 
+ 	/* Set ALP bits to 000. Set ALP_EN bit in Arm Memory Controller reg. */
+ 	reg = 0x8;
+diff --git a/arch/arm/mach-mx51/devices.c b/arch/arm/mach-mx51/devices.c
+index f17e860..f2cb967 100644
+--- a/arch/arm/mach-mx51/devices.c
++++ b/arch/arm/mach-mx51/devices.c
+@@ -24,6 +24,7 @@
+ #include <linux/uio_driver.h>
+ #include <linux/mxc_scc2_driver.h>
+ #include <linux/pwm_backlight.h>
++#include <linux/iram_alloc.h>
+ #include <asm/mach-types.h>
+ #include <mach/hardware.h>
+ #include <mach/spba.h>
+@@ -343,8 +344,6 @@ static inline void mxc_init_ipu(void)
+ #if defined(CONFIG_MXC_VPU) || defined(CONFIG_MXC_VPU_MODULE)
+ static struct resource vpu_resources[] = {
+ 	[0] = {
+-	       .start = VPU_IRAM_BASE_ADDR,
+-	       .end = VPU_IRAM_BASE_ADDR + VPU_IRAM_SIZE,
+ 	       .flags = IORESOURCE_MEM,
+ 	       },
+ 	[1] = {
+@@ -367,6 +366,10 @@ static struct platform_device mxcvpu_device = {
+ 
+ static inline void mxc_init_vpu(void)
+ {
++	unsigned long addr;
++	iram_alloc(VPU_IRAM_SIZE, &addr);
++	vpu_resources[0].start = addr;
++	vpu_resources[0].end = addr + VPU_IRAM_SIZE - 1;
+ 	if (platform_device_register(&mxcvpu_device) < 0)
+ 		printk(KERN_ERR "Error: Registering the VPU.\n");
+ }
+diff --git a/arch/arm/mach-mx51/mm.c b/arch/arm/mach-mx51/mm.c
+index 5d1695b..8b3b450 100644
+--- a/arch/arm/mach-mx51/mm.c
++++ b/arch/arm/mach-mx51/mm.c
+@@ -30,11 +30,6 @@
+  */
+ static struct map_desc mx51_io_desc[] __initdata = {
+ 	{
+-	 .virtual = IRAM_BASE_ADDR_VIRT,
+-	 .pfn = __phys_to_pfn(IRAM_BASE_ADDR),
+-	 .length = IRAM_SIZE,
+-	 .type = MT_DEVICE},
+-	{
+ 	 .virtual = DEBUG_BASE_ADDR_VIRT,
+ 	 .pfn = __phys_to_pfn(DEBUG_BASE_ADDR),
+ 	 .length = DEBUG_SIZE,
+@@ -79,6 +74,6 @@ void __init mx51_map_io(void)
+ 	else
+ 		tzic_addr = TZIC_BASE_ADDR;
+ 
+-	mx51_io_desc[2].pfn =  __phys_to_pfn(tzic_addr);
++	mx51_io_desc[1].pfn =  __phys_to_pfn(tzic_addr);
+ 	iotable_init(mx51_io_desc, ARRAY_SIZE(mx51_io_desc));
+ }
+diff --git a/arch/arm/mach-mx51/pm.c b/arch/arm/mach-mx51/pm.c
+index be36679..c257e04 100644
+--- a/arch/arm/mach-mx51/pm.c
++++ b/arch/arm/mach-mx51/pm.c
+@@ -1,5 +1,5 @@
+ /*
+- *  Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ *  Copyright (C) 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -20,6 +20,7 @@
+ #include <linux/suspend.h>
+ #include <linux/proc_fs.h>
+ #include <linux/cpufreq.h>
++#include <linux/iram_alloc.h>
+ #include <asm/cacheflush.h>
+ #include <asm/tlb.h>
+ #include <asm/mach/map.h>
+@@ -79,16 +80,7 @@ static int mx51_suspend_enter(suspend_state_t state)
+ 		__raw_writel(0, MXC_SRPG_EMPGC0_SRPGCR);
+ 		__raw_writel(0, MXC_SRPG_EMPGC1_SRPGCR);
+ 	} else {
+-		if ((mxc_cpu_is_rev(CHIP_REV_2_0)) < 0) {
+-			/* do cpu_idle_workaround */
+-			u32 l2_iram_addr = IDLE_IRAM_BASE_ADDR;
+-			if (!iram_ready)
+-				return 0;
+-			if (l2_iram_addr > 0x1FFE8000)
+-				cpu_cortexa8_do_idle(IO_ADDRESS(l2_iram_addr));
+-		} else {
+ 			cpu_do_idle();
+-		}
+ 	}
+ 	clk_disable(gpc_dvfs_clk);
+ 
+@@ -178,6 +170,7 @@ static struct platform_driver mx51_pm_driver = {
+ static int __init pm_init(void)
+ {
+ 	int cpu_wp_nr;
++	unsigned long iram_paddr;
+ 
+ 	pr_info("Static Power Management for Freescale i.MX51\n");
+ 	if (platform_driver_register(&mx51_pm_driver) != 0) {
+@@ -186,12 +179,12 @@ static int __init pm_init(void)
+ 	}
+ 	suspend_set_ops(&mx51_suspend_ops);
+ 	/* Move suspend routine into iRAM */
+-	suspend_iram_base = IO_ADDRESS(SUSPEND_IRAM_BASE_ADDR);
+-	memcpy(suspend_iram_base, cpu_do_suspend_workaround, SZ_4K);
++	iram_alloc(SZ_4K, &iram_paddr);
+ 	/* Need to remap the area here since we want the memory region
+ 		 to be executable. */
+-	suspend_iram_base = __arm_ioremap(SUSPEND_IRAM_BASE_ADDR, SZ_4K,
+-										MT_HIGH_VECTORS);
++	suspend_iram_base = __arm_ioremap(iram_paddr, SZ_4K,
++					  MT_HIGH_VECTORS);
++	memcpy(suspend_iram_base, cpu_do_suspend_workaround, SZ_4K);
+ 	suspend_in_iram = (void *)suspend_iram_base;
+ 
+ 	cpu_wp_tbl = get_cpu_wp(&cpu_wp_nr);
+diff --git a/arch/arm/mach-mx51/system.c b/arch/arm/mach-mx51/system.c
+index 0e1ae54..0d6e7ef 100644
+--- a/arch/arm/mach-mx51/system.c
++++ b/arch/arm/mach-mx51/system.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -155,17 +155,7 @@ void arch_idle(void)
+ 		/* gpc clock is needed for SRPG */
+ 		clk_enable(gpc_dvfs_clk);
+ 		mxc_cpu_lp_set(arch_idle_mode);
+-		if ((mxc_cpu_is_rev(CHIP_REV_2_0)) < 0) {
+-			u32 l2_iram_addr = IDLE_IRAM_BASE_ADDR;
+-
+-			if (!iram_ready)
+-				return;
+-
+-			if (l2_iram_addr > 0x1FFE8000)
+-				cpu_cortexa8_do_idle(IO_ADDRESS(l2_iram_addr));
+-		} else {
+-			cpu_do_idle();
+-		}
++		cpu_do_idle();
+ 		clk_disable(gpc_dvfs_clk);
+ 	}
+ }
+diff --git a/arch/arm/plat-mxc/include/mach/mx25.h b/arch/arm/plat-mxc/include/mach/mx25.h
+index 58497d0..15305c4 100644
+--- a/arch/arm/plat-mxc/include/mach/mx25.h
++++ b/arch/arm/plat-mxc/include/mach/mx25.h
+@@ -57,21 +57,14 @@
+  * IRAM
+  */
+ #define IRAM_BASE_ADDR       0x78000000	/* internal ram */
+-#define IRAM_BASE_ADDR_VIRT  0xFC500000
+ #define IRAM_SIZE            SZ_128K
+ 
+-#ifndef CONFIG_SDMA_IRAM
+-#define CONFIG_SDMA_IRAM_SIZE 0
+-#endif
+ #ifdef CONFIG_SND_MXC_SOC_IRAM
+ #define SND_RAM_SIZE 0x10000
+ #else
+ #define SND_RAM_SIZE 0
+ #endif
+ 
+-#define SND_RAM_BASE_ADDR	(IRAM_BASE_ADDR + CONFIG_SDMA_IRAM_SIZE)
+-
+-#define USB_IRAM_BASE_ADDR (SND_RAM_BASE_ADDR + SND_RAM_SIZE)
+ #ifdef CONFIG_USB_STATIC_IRAM_PPH
+ #define USB_IRAM_SIZE	(2*SZ_8K)
+ #else
+@@ -281,7 +274,6 @@
+ 	((x >= AIPS2_BASE_ADDR) && (x < (AIPS2_BASE_ADDR + AIPS2_SIZE))) ? AIPS2_IO_ADDRESS(x):\
+ 	((x >= ROMP_BASE_ADDR) && (x < (ROMP_BASE_ADDR + ROMP_SIZE))) ? ROMP_IO_ADDRESS(x):\
+ 	((x >= ASIC_BASE_ADDR) && (x < (ASIC_BASE_ADDR + AVIC_SIZE))) ? ASIC_IO_ADDRESS(x):\
+-	((x >= IRAM_BASE_ADDR) && (x < (IRAM_BASE_ADDR + IRAM_SIZE))) ? IRAM_IO_ADDRESS(x):\
+ 	((x >= X_MEMC_BASE_ADDR) && (x < (X_MEMC_BASE_ADDR + X_MEMC_SIZE))) ? X_MEMC_IO_ADDRESS(x):\
+ 	((x >= NFC_BASE_ADDR) && (x < (NFC_BASE_ADDR + NFC_SIZE))) ? NFC_IO_ADDRESS(x):\
+ 	0xDEADBEEF)
+@@ -308,9 +300,6 @@
+ /* for entry-macro.S */
+ #define AVIC_IO_ADDRESS(x)	ASIC_IO_ADDRESS(x)
+ 
+-#define IRAM_IO_ADDRESS(x)  \
+-	(((x) - IRAM_BASE_ADDR) + IRAM_BASE_ADDR_VIRT)
+-
+ #define X_MEMC_IO_ADDRESS(x)  \
+ 	(((x) - X_MEMC_BASE_ADDR) + X_MEMC_BASE_ADDR_VIRT)
+ 
+diff --git a/arch/arm/plat-mxc/include/mach/mx31.h b/arch/arm/plat-mxc/include/mach/mx31.h
+index 2ca31d6..4cf6d00 100644
+--- a/arch/arm/plat-mxc/include/mach/mx31.h
++++ b/arch/arm/plat-mxc/include/mach/mx31.h
+@@ -3,9 +3,7 @@
+  */
+ #define MX31_IRAM_BASE_ADDR		0x1FFC0000	/* internal ram */
+ #define MX31_IRAM_SIZE			SZ_16K
+-#define MX31_IRAM_BASE_ADDR_VIRT	0xFC340000
+ 
+-#define USB_IRAM_BASE_ADDR		(MX31_IRAM_BASE_ADDR)
+ #ifdef CONFIG_USB_STATIC_IRAM
+ #define USB_IRAM_SIZE   (2*SZ_8K)
+ #else
+diff --git a/arch/arm/plat-mxc/include/mach/mx35.h b/arch/arm/plat-mxc/include/mach/mx35.h
+index da83e11..b13a0ec 100644
+--- a/arch/arm/plat-mxc/include/mach/mx35.h
++++ b/arch/arm/plat-mxc/include/mach/mx35.h
+@@ -8,22 +8,14 @@
+  * IRAM
+  */
+ #define MX35_IRAM_BASE_ADDR		0x10000000	/* internal ram */
+-#define IRAM_BASE_ADDR			MX35_IRAM_BASE_ADDR
+-#define IRAM_BASE_ADDR_VIRT		0xFC600000
+ #define MX35_IRAM_SIZE		SZ_128K
+ 
+-#ifndef CONFIG_SDMA_IRAM
+-#define CONFIG_SDMA_IRAM_SIZE 0
+-#endif
+ #ifdef CONFIG_SND_MXC_SOC_IRAM
+ #define SND_RAM_SIZE 0x10000
+ #else
+ #define SND_RAM_SIZE 0
+ #endif
+ 
+-#define SND_RAM_BASE_ADDR	(MX35_IRAM_BASE_ADDR + CONFIG_SDMA_IRAM_SIZE)
+-#define MLB_IRAM_ADDR_OFFSET	(CONFIG_SDMA_IRAM_SIZE + SND_RAM_SIZE)
+-
+ #define MXC_FEC_BASE_ADDR	0x50038000
+ #define MX35_NFC_BASE_ADDR	0xBB000000
+ #define NFC_BASE_ADDR		MX35_NFC_BASE_ADDR
+diff --git a/arch/arm/plat-mxc/include/mach/mx37.h b/arch/arm/plat-mxc/include/mach/mx37.h
+index 1090a38..8f0e38e 100644
+--- a/arch/arm/plat-mxc/include/mach/mx37.h
++++ b/arch/arm/plat-mxc/include/mach/mx37.h
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2009-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -39,7 +39,6 @@
+  * IRAM
+  */
+ #define IRAM_BASE_ADDR		0x10000000	/* internal ram */
+-#define IRAM_BASE_ADDR_VIRT	0xF8000000
+ #define IRAM_SIZE			(9*SZ_8K)	/* 72KB */
+ 
+ #if defined(CONFIG_MXC_SECURITY_SCC2) \
+@@ -49,15 +48,6 @@
+ #define SCC_IRAM_SIZE  0
+ #endif
+ 
+-/*#ifndef CONFIG_SDMA_IRAM
+-#define CONFIG_SDMA_IRAM_SIZE 0
+-#endif*/
+-#ifdef CONFIG_SDMA_IRAM
+-#define SDMA_IRAM_SIZE  CONFIG_SDMA_IRAM_SIZE
+-#else
+-#define SDMA_IRAM_SIZE  0
+-#endif
+-
+ #ifdef CONFIG_SND_MXC_SOC_IRAM
+ #define SND_RAM_SIZE 0x6000
+ #else
+@@ -70,23 +60,12 @@
+ #define USB_IRAM_SIZE 0
+ #endif
+ 
+-#if (IRAM_SIZE < (SCC_IRAM_SIZE + SDMA_IRAM_SIZE + SND_RAM_SIZE + \
+-	USB_IRAM_SIZE))
+-#error "IRAM size exceeded"
+-#endif
+-
+ #ifdef CONFIG_MXC_VPU_IRAM
+-#define VPU_IRAM_SIZE	(IRAM_BASE_ADDR + IRAM_SIZE - VPU_IRAM_BASE_ADDR)
++#define VPU_IRAM_SIZE	(36 * SZ_1K)
+ #else
+ #define VPU_IRAM_SIZE 0
+ #endif
+ 
+-#define SCC_IRAM_BASE_ADDR (IRAM_BASE_ADDR + IRAM_SIZE - SCC_IRAM_SIZE)
+-#define SDMA_RAM_BASE_ADDR (IRAM_BASE_ADDR)
+-#define SND_RAM_BASE_ADDR	(IRAM_BASE_ADDR + SDMA_IRAM_SIZE)
+-#define USB_IRAM_BASE_ADDR	(SND_RAM_BASE_ADDR + SND_RAM_SIZE)
+-#define VPU_IRAM_BASE_ADDR	(USB_IRAM_BASE_ADDR + USB_IRAM_SIZE)
+-
+ /*
+  * NFC
+  */
+@@ -266,23 +245,19 @@
+  */
+ #define IO_ADDRESS(x)   \
+ 	(void __force __iomem *) \
+-        (((x >= (unsigned long)IRAM_BASE_ADDR) && (x < (unsigned long)IRAM_BASE_ADDR + IRAM_SIZE)) ? IRAM_IO_ADDRESS(x):\
+-        ((x >= (unsigned long)PLATFORM_BASE_ADDR) && (x < (unsigned long)PLATFORM_BASE_ADDR + PLATFORM_SIZE)) ? PLATFORM_IO_ADDRESS(x):\
+-        ((x >= (unsigned long)TZIC_BASE_ADDR) && (x < (unsigned long)TZIC_BASE_ADDR + TZIC_SIZE)) ? TZIC_IO_ADDRESS(x):\
+-        ((x >= (unsigned long)DEBUG_BASE_ADDR) && (x < (unsigned long)DEBUG_BASE_ADDR + DEBUG_SIZE)) ? DEBUG_IO_ADDRESS(x):\
+-        ((x >= (unsigned long)SPBA0_BASE_ADDR) && (x < (unsigned long)SPBA0_BASE_ADDR + SPBA0_SIZE)) ? SPBA0_IO_ADDRESS(x):\
+-        ((x >= (unsigned long)AIPS1_BASE_ADDR) && (x < (unsigned long)AIPS1_BASE_ADDR + AIPS1_SIZE)) ? AIPS1_IO_ADDRESS(x):\
+-        ((x >= (unsigned long)AIPS2_BASE_ADDR) && (x < (unsigned long)AIPS2_BASE_ADDR + AIPS2_SIZE)) ? AIPS2_IO_ADDRESS(x):\
+-        ((x >= (unsigned long)NFC_BASE_ADDR_AXI) && (x < (unsigned long)NFC_BASE_ADDR_AXI + NFC_AXI_SIZE)) ? NFC_BASE_ADDR_AXI_IO_ADDRESS(x):\
+-        0xDEADBEEF)
++	(((x >= (unsigned long)PLATFORM_BASE_ADDR) && (x < (unsigned long)PLATFORM_BASE_ADDR + PLATFORM_SIZE)) ? PLATFORM_IO_ADDRESS(x) :\
++	((x >= (unsigned long)TZIC_BASE_ADDR) && (x < (unsigned long)TZIC_BASE_ADDR + TZIC_SIZE)) ? TZIC_IO_ADDRESS(x) :\
++	((x >= (unsigned long)DEBUG_BASE_ADDR) && (x < (unsigned long)DEBUG_BASE_ADDR + DEBUG_SIZE)) ? DEBUG_IO_ADDRESS(x) :\
++	((x >= (unsigned long)SPBA0_BASE_ADDR) && (x < (unsigned long)SPBA0_BASE_ADDR + SPBA0_SIZE)) ? SPBA0_IO_ADDRESS(x) :\
++	((x >= (unsigned long)AIPS1_BASE_ADDR) && (x < (unsigned long)AIPS1_BASE_ADDR + AIPS1_SIZE)) ? AIPS1_IO_ADDRESS(x) :\
++	((x >= (unsigned long)AIPS2_BASE_ADDR) && (x < (unsigned long)AIPS2_BASE_ADDR + AIPS2_SIZE)) ? AIPS2_IO_ADDRESS(x) :\
++	((x >= (unsigned long)NFC_BASE_ADDR_AXI) && (x < (unsigned long)NFC_BASE_ADDR_AXI + NFC_AXI_SIZE)) ? NFC_BASE_ADDR_AXI_IO_ADDRESS(x) :\
++	0xDEADBEEF)
+ 
+ /*
+  * define the address mapping macros: in physical address order
+  */
+ 
+-#define IRAM_IO_ADDRESS(x)  \
+-        (((x) - IRAM_BASE_ADDR) + IRAM_BASE_ADDR_VIRT)
+-
+ #define PLATFORM_IO_ADDRESS(x)  \
+         (((x) - PLATFORM_BASE_ADDR) + PLATFORM_BASE_ADDR_VIRT)
+ 
+diff --git a/arch/arm/plat-mxc/include/mach/mx51.h b/arch/arm/plat-mxc/include/mach/mx51.h
+index 8113ea9..12b1db9 100644
+--- a/arch/arm/plat-mxc/include/mach/mx51.h
++++ b/arch/arm/plat-mxc/include/mach/mx51.h
+@@ -64,7 +64,6 @@
+  * IRAM
+  */
+ #define IRAM_BASE_ADDR		0x1FFE0000	/* internal ram */
+-#define IRAM_BASE_ADDR_VIRT	0xFA3E0000
+ #define IRAM_PARTITIONS		16
+ #define IRAM_PARTITIONS_TO1	12
+ #define IRAM_SIZE		(IRAM_PARTITIONS*SZ_8K)	/* 128KB */
+@@ -76,12 +75,6 @@
+ #define SCC_IRAM_SIZE  0
+ #endif
+ 
+-#ifdef CONFIG_SDMA_IRAM
+-#define SDMA_IRAM_SIZE  CONFIG_SDMA_IRAM_SIZE
+-#else
+-#define SDMA_IRAM_SIZE  0
+-#endif
+-
+ #ifdef CONFIG_SND_MXC_SOC_IRAM
+ #define SND_RAM_SIZE 0x6000
+ #else
+@@ -94,17 +87,6 @@
+ #define VPU_IRAM_SIZE 0
+ #endif
+ 
+-#if (IRAM_SIZE < (SDMA_IRAM_SIZE + SND_RAM_SIZE + VPU_IRAM_SIZE + \
+-	SCC_IRAM_SIZE))
+-#error "IRAM size exceeded"
+-#endif
+-
+-#define SCC_IRAM_BASE_ADDR	(IRAM_BASE_ADDR + IRAM_SIZE - SCC_IRAM_SIZE)
+-#define VPU_IRAM_BASE_ADDR	(SCC_IRAM_BASE_ADDR - VPU_IRAM_SIZE)
+-#define SND_RAM_BASE_ADDR	(VPU_IRAM_BASE_ADDR - SND_RAM_SIZE)
+-#define SDMA_IRAM_BASE_ADDR	(SND_RAM_BASE_ADDR - SDMA_IRAM_SIZE)
+-#define IDLE_IRAM_BASE_ADDR	(SDMA_IRAM_BASE_ADDR - SZ_4K)
+-#define SUSPEND_IRAM_BASE_ADDR	(IDLE_IRAM_BASE_ADDR - SZ_4K)
+ /*
+  * NFC
+  */
+@@ -294,10 +276,7 @@
+  */
+ #define IO_ADDRESS(x)   \
+ 	(void __force __iomem *) \
+-	((((x) >= (unsigned long)IRAM_BASE_ADDR) && \
+-	    ((x) < (unsigned long)IRAM_BASE_ADDR + IRAM_SIZE)) ? \
+-	     IRAM_IO_ADDRESS(x):\
+-	(((x) >= (unsigned long)TZIC_BASE_ADDR) && \
++	((((x) >= (unsigned long)TZIC_BASE_ADDR) && \
+ 	    ((x) < (unsigned long)TZIC_BASE_ADDR + TZIC_SIZE)) ? \
+ 	     TZIC_IO_ADDRESS(x):\
+ 	(((x) >= (unsigned long)DEBUG_BASE_ADDR) && \
+@@ -320,9 +299,6 @@
+ /*
+  * define the address mapping macros: in physical address order
+  */
+-#define IRAM_IO_ADDRESS(x)  \
+-	(((x) - IRAM_BASE_ADDR) + IRAM_BASE_ADDR_VIRT)
+-
+ #define TZIC_IO_ADDRESS(x)  \
+ 	(((x) - TZIC_BASE_ADDR) + TZIC_BASE_ADDR_VIRT)
+ 
+diff --git a/arch/arm/plat-mxc/sdma/sdma_malloc.c b/arch/arm/plat-mxc/sdma/sdma_malloc.c
+index 21118b4..aac8654 100644
+--- a/arch/arm/plat-mxc/sdma/sdma_malloc.c
++++ b/arch/arm/plat-mxc/sdma/sdma_malloc.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2004-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2004-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -20,15 +20,17 @@
+  * @ingroup SDMA
+  */
+ 
++#include <linux/device.h>
++#include <linux/dma-mapping.h>
++#include <linux/dmapool.h>
+ #include <linux/init.h>
+ #include <linux/types.h>
+ #include <linux/mm.h>
++#include <linux/genalloc.h>
++#include <linux/iram_alloc.h>
+ #include <asm/dma.h>
+ #include <mach/hardware.h>
+ 
+-#include <linux/device.h>
+-#include <linux/dma-mapping.h>
+-#include <linux/dmapool.h>
+ 
+ #define DEBUG 0
+ 
+@@ -39,53 +41,29 @@
+ #endif
+ 
+ #ifdef CONFIG_SDMA_IRAM
+-#define IRAM_VIRT_BASE  IRAM_BASE_ADDR_VIRT
+-#define IRAM_PHYS_BASE  IRAM_BASE_ADDR
+-#if (CONFIG_SDMA_IRAM_SIZE&0x3FF)
+-#error  "IRAM size of SDMA should be multiple of 1Kbytes"
+-#else
+-#define IRAM_SDMA_SIZE  CONFIG_SDMA_IRAM_SIZE	/* 4K */
++#define IRAM_SDMA_SIZE	SZ_4K
+ #endif
+-#define IRAM_UNIT_SIZE  512
+-#define IRAM_POOL_SIZE  (IRAM_SDMA_SIZE/IRAM_UNIT_SIZE)
+-
+-#define IS_IRAM_VIRT(x) (((x)<IRAM_VIRT_BASE)?0:\
+-                                (((x) - IRAM_VIRT_BASE)>IRAM_SDMA_SIZE)?0:1)
+-
+-#define IS_IRAM_PHYS(x) (((x)<IRAM_PHYS_BASE)?0:\
+-                                (((x) - IRAM_PHYS_BASE)>IRAM_SDMA_SIZE)?0:1)
+-#endif				/*CONFIG_SDMA_IRAM */
+ 
+ /*!
+  * Defines SDMA non-cacheable buffers pool
+  */
+ static struct dma_pool *pool;
+-
+-#ifdef CONFIG_SDMA_IRAM
+-typedef struct iram_head_s {
+-	struct list_head list;
+-} iram_head_t;
+-
+-static spinlock_t iram_pool_lock = SPIN_LOCK_UNLOCKED;
+-static struct list_head iram_free_list;
+-static unsigned char iram_pool_flag[IRAM_POOL_SIZE];
+-
+-static void sdma_iram_free(void *buf);
+-#endif				/*CONFIG_SDMA_IRAM */
++static struct gen_pool *sdma_iram_pool;
+ 
+ /*!
+  * SDMA memory conversion hashing structure
+  */
+ typedef struct {
+ 	struct list_head node;
+-	int use_count;
+ 	/*! Virtual address */
+ 	void *virt;
+ 	/*! Physical address */
+ 	unsigned long phys;
++	int size;
++	bool in_iram;
+ } virt_phys_struct;
+ 
+-static struct list_head buf_map;
++static struct list_head alloc_list;
+ 
+ /*!
+  * Defines the size of each buffer in SDMA pool.
+@@ -94,68 +72,12 @@ static struct list_head buf_map;
+  */
+ #define SDMA_POOL_SIZE 1024
+ 
+-/*!
+- * Adds new buffer structure into conversion hash tables
+- *
+- * @param   vf   SDMA memory conversion hashing structure
+- *
+- * @return       1 on success, 0 on fail
+- */
+-static int add_entry(virt_phys_struct * vf)
+-{
+-	virt_phys_struct *p;
+-
+-	vf->phys &= PAGE_MASK;
+-	vf->virt = (void *)((u32) vf->virt & PAGE_MASK);
+-
+-	list_for_each_entry(p, &buf_map, node) {
+-		if (p->virt == vf->virt) {
+-			p->use_count++;
+-			return 0;
+-		}
+-	}
+-
+-	p = kmalloc(sizeof(virt_phys_struct), GFP_KERNEL);
+-	if (p == 0) {
+-		return -ENOMEM;
+-	}
+-
+-	*p = *vf;
+-	p->use_count = 1;
+-	list_add_tail(&p->node, &buf_map);
+-
+-	DPRINTK("added vaddr 0x%p, paddr 0x%08X to list\n", p->virt, p->phys);
+-
+-	return 0;
+-}
+-
+-/*!
+- * Deletes buffer stracture from conversion hash tables
+- *
+- * @param   buf   SDMA memory buffer virtual addr
+- *
+- * @return       0 on success, -1 on fail
+- */
+-static int delete_entry(void *buf)
+-{
+-	virt_phys_struct *p;
+-
+-	buf = (void *)((u32) buf & PAGE_MASK);
+-
+-	list_for_each_entry(p, &buf_map, node) {
+-		if (p->virt == buf) {
+-			p->use_count--;
+-			break;
+-		}
+-	}
+-
+-	if (p->use_count == 0) {
+-		list_del(&p->node);
+-		kfree(p);
+-	}
+-
+-	return 0;
+-}
++#ifdef CONFIG_SDMA_IRAM
++static unsigned long iram_paddr;
++static void *iram_vaddr;
++#define iram_phys_to_virt(p) (iram_vaddr + ((p) - iram_paddr))
++#define iram_virt_to_phys(v) (iram_paddr + ((v) - iram_vaddr))
++#endif
+ 
+ /*!
+  * Virtual to physical address conversion functio
+@@ -171,19 +93,9 @@ unsigned long sdma_virt_to_phys(void *buf)
+ 
+ 	DPRINTK("searching for vaddr 0x%p\n", buf);
+ 
+-#ifdef CONFIG_SDMA_IRAM
+-	if (IS_IRAM_VIRT((unsigned long)buf)) {
+-		if ((unsigned long)buf & (IRAM_UNIT_SIZE - 1)) {
+-			printk(KERN_WARNING "%s buffer offset = %ld\n",
+-			       __FUNCTION__, (unsigned long)buf);
+-		}
+-		return (unsigned long)buf + IRAM_PHYS_BASE - IRAM_VIRT_BASE;
+-	}
+-#endif				/*CONFIG_SDMA_IRAM */
+-
+-	list_for_each_entry(p, &buf_map, node) {
+-		if ((u32) p->virt == ((u32) buf & PAGE_MASK)) {
+-			return p->phys | offset;
++	list_for_each_entry(p, &alloc_list, node) {
++		if (((u32)p->virt & PAGE_MASK) == ((u32) buf & PAGE_MASK)) {
++			return (p->phys & PAGE_MASK) | offset;
+ 		}
+ 	}
+ 
+@@ -208,19 +120,11 @@ void *sdma_phys_to_virt(unsigned long buf)
+ 	u32 offset = buf & (~PAGE_MASK);
+ 	virt_phys_struct *p;
+ 
+-#ifdef CONFIG_SDMA_IRAM
+-	if (IS_IRAM_PHYS((unsigned long)buf)) {
+-		if (buf & (IRAM_UNIT_SIZE - 1)) {
+-			printk(KERN_WARNING "%s buffer offset = %ld\n",
+-			       __FUNCTION__, (unsigned long)buf);
+-		}
+-		return (void *)buf + IRAM_VIRT_BASE - IRAM_PHYS_BASE;
+-	}
+-#endif				/*CONFIG_SDMA_IRAM */
++	DPRINTK("searching for paddr 0x%p\n", buf);
+ 
+-	list_for_each_entry(p, &buf_map, node) {
+-		if (p->phys == (buf & PAGE_MASK)) {
+-			return (void *)((u32) p->virt | offset);
++	list_for_each_entry(p, &alloc_list, node) {
++		if ((p->phys & PAGE_MASK) == (buf & PAGE_MASK)) {
++			return (void *)(((u32)p->virt & PAGE_MASK) | offset);
+ 		}
+ 	}
+ 
+@@ -239,26 +143,24 @@ void *sdma_malloc(size_t size)
+ {
+ 	void *buf;
+ 	dma_addr_t dma_addr;
+-	virt_phys_struct vf;
++	virt_phys_struct *p;
+ 
+ 	if (size > SDMA_POOL_SIZE) {
+ 		printk(KERN_WARNING
+ 		       "size in sdma_malloc is more than %d bytes\n",
+ 		       SDMA_POOL_SIZE);
+-		buf = 0;
+-	} else {
+-		buf = dma_pool_alloc(pool, GFP_KERNEL, &dma_addr);
+-		if (buf > 0) {
+-			vf.virt = buf;
+-			vf.phys = dma_addr;
+-
+-			if (add_entry(&vf) < 0) {
+-				dma_pool_free(pool, buf, dma_addr);
+-				buf = 0;
+-			}
+-		}
++		return 0;
+ 	}
+ 
++	buf = dma_pool_alloc(pool, GFP_KERNEL, &dma_addr);
++	if (buf == 0)
++		return 0;
++
++	p = kzalloc(sizeof(*p), GFP_KERNEL);
++	p->virt = buf;
++	p->phys = dma_addr;
++	list_add_tail(&p->node, &alloc_list);
++
+ 	DPRINTK("allocated vaddr 0x%p\n", buf);
+ 	return buf;
+ }
+@@ -270,15 +172,19 @@ void *sdma_malloc(size_t size)
+  */
+ void sdma_free(void *buf)
+ {
+-#ifdef CONFIG_SDMA_IRAM
+-	if (IS_IRAM_VIRT((unsigned long)buf)) {
+-		sdma_iram_free(buf);
+-		return;
+-	}
+-#endif				/*CONFIG_SDMA_IRAM */
++	virt_phys_struct *p;
+ 
+-	dma_pool_free(pool, buf, sdma_virt_to_phys(buf));
+-	delete_entry(buf);
++	list_for_each_entry(p, &alloc_list, node) {
++		if (p->virt == buf) {
++			if (p->in_iram)
++				gen_pool_free(sdma_iram_pool, p->phys, p->size);
++			else
++				dma_pool_free(pool, p->virt, p->phys);
++			list_del(&p->node);
++			kfree(p);
++			return;
++		}
++	}
+ }
+ 
+ #ifdef CONFIG_SDMA_IRAM
+@@ -287,84 +193,21 @@ void sdma_free(void *buf)
+  */
+ void *sdma_iram_malloc(size_t size)
+ {
+-	void *buf = NULL;
+-	int index = -1;
+-	unsigned long flags;
+-	if (size > IRAM_UNIT_SIZE) {
+-		printk(KERN_WARNING
+-		       "size in sdma_iram_malloc is more than %d bytes\n",
+-		       IRAM_UNIT_SIZE);
+-	} else {
+-		spin_lock_irqsave(&iram_pool_lock, flags);
+-		if (!list_empty(&iram_free_list)) {
+-			buf =
+-			    list_entry(iram_free_list.next, iram_head_t, list);
+-			list_del(iram_free_list.next);
+-			index =
+-			    ((unsigned long)buf -
+-			     IRAM_VIRT_BASE) / IRAM_UNIT_SIZE;
+-			if (index < 0 || index >= IRAM_POOL_SIZE) {
+-				spin_unlock_irqrestore(&iram_pool_lock, flags);
+-				printk(KERN_ERR "The iram pool has crashed\n");
+-				return NULL;
+-			}
+-			if (iram_pool_flag[index]) {
+-				spin_unlock_irqrestore(&iram_pool_lock, flags);
+-				printk(KERN_WARNING
+-				       "iram block %d  already has been allocated \n",
+-				       index);
+-			}
+-			iram_pool_flag[index] = 1;
+-		}
+-		spin_unlock_irqrestore(&iram_pool_lock, flags);
+-		if ((unsigned long)buf & (IRAM_UNIT_SIZE - 1)) {
+-			printk(KERN_WARNING
+-			       "the start address is not align of %d, buffer offset %ld\n",
+-			       IRAM_UNIT_SIZE, (unsigned long)buf);
++	virt_phys_struct *p = kzalloc(sizeof(*p), GFP_KERNEL);
++	unsigned long buf;
+ 
+-			buf = PTR_ALIGN(buf, IRAM_UNIT_SIZE);
+-		}
++	buf = gen_pool_alloc(sdma_iram_pool, size);
++	if (!buf) {
++		kfree(p);
++		return NULL;
+ 	}
+-	return buf;
+-}
+ 
+-/*!
+- * Free uncacheable buffer into IRAM.
+- */
+-static void sdma_iram_free(void *buf)
+-{
+-	iram_head_t *p;
+-	int index;
+-	unsigned long flags;
+-	/* The check of parameter will be done in sdma_free */
+-	index = ((unsigned long)buf - IRAM_VIRT_BASE) / IRAM_UNIT_SIZE;
+-	spin_lock_irqsave(&iram_pool_lock, flags);
+-	p = (iram_head_t *) ((unsigned long)buf & (~(IRAM_UNIT_SIZE - 1)));
+-	list_add_tail(&(p->list), &iram_free_list);
+-	if (iram_pool_flag[index]) {
+-		iram_pool_flag[index] = 0;
+-		spin_unlock_irqrestore(&iram_pool_lock, flags);
+-	} else {
+-		printk(KERN_WARNING
+-		       "Free %p which IRAM block %d is already freed\n", buf,
+-		       index);
+-		spin_unlock_irqrestore(&iram_pool_lock, flags);
+-	}
+-}
+-
+-/*!
+- * Initialized the free list of IRAM.
+- */
+-static void iram_pool_init(void)
+-{
+-	int i;
+-	iram_head_t *p;
+-	memset(iram_pool_flag, 0, IRAM_POOL_SIZE);
+-	INIT_LIST_HEAD(&iram_free_list);
+-	for (i = 0; i < IRAM_POOL_SIZE; i++) {
+-		p = (iram_head_t *) (IRAM_VIRT_BASE + i * IRAM_UNIT_SIZE);
+-		list_add_tail(&(p->list), &iram_free_list);
+-	}
++	p->virt = iram_vaddr + (buf - iram_paddr);
++	p->phys = buf;
++	p->size = size;
++	p->in_iram = true;
++	list_add_tail(&p->node, &alloc_list);
++	return p->virt;
+ }
+ #endif				/*CONFIG_SDMA_IRAM */
+ 
+@@ -373,13 +216,15 @@ static void iram_pool_init(void)
+  */
+ void __init init_sdma_pool(void)
+ {
+-#ifdef CONFIG_SDMA_IRAM
+-	iram_pool_init();
+-#endif				/*CONFIG_SDMA_IRAM */
+-
+ 	pool = dma_pool_create("SDMA", NULL, SDMA_POOL_SIZE, 0, 0);
+ 
+-	INIT_LIST_HEAD(&buf_map);
++#ifdef CONFIG_SDMA_IRAM
++	iram_vaddr = iram_alloc(SZ_4K, &iram_paddr);
++	sdma_iram_pool = gen_pool_create(6, -1);
++	gen_pool_add(sdma_iram_pool, iram_paddr, SZ_4K, -1);
++#endif
++
++	INIT_LIST_HEAD(&alloc_list);
+ }
+ 
+ MODULE_AUTHOR("Freescale Semiconductor, Inc.");
+-- 
+1.5.4.4
+

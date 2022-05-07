@@ -1,0 +1,30 @@
+From b271f49b4abeb674265fa42b085c85f28e4b1d6a Mon Sep 17 00:00:00 2001
+From: Jason Chen <b02280@freescale.com>
+Date: Fri, 16 Oct 2009 17:22:36 +0800
+Subject: [PATCH] ENGR00117373 ipuv3: disable IPU channel not correct
+
+IPU channel disable should wait all channels finish busy state, should
+wait for input dma interrupt as the correct finish signal for all
+channels. This patch fix the DQ_BUF fail issue in VPU unit test.
+
+Signed-off-by: Jason Chen <b02280@freescale.com>
+---
+ drivers/mxc/ipu3/ipu_common.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/drivers/mxc/ipu3/ipu_common.c b/drivers/mxc/ipu3/ipu_common.c
+index 9ee4c6b..95387b0 100644
+--- a/drivers/mxc/ipu3/ipu_common.c
++++ b/drivers/mxc/ipu3/ipu_common.c
+@@ -1669,7 +1669,7 @@ int32_t ipu_disable_channel(ipu_channel_t channel, bool wait_for_stop)
+ 			(g_thrd_chan_en[IPU_CHAN_ID(channel)] &&
+ 			idma_is_set(IDMAC_CHA_BUSY, thrd_dma)) ||
+ 		       (_ipu_channel_status(channel) == TASK_STAT_ACTIVE)) {
+-			uint32_t ret, irq = out_dma;
++			uint32_t ret, irq = in_dma;
+ 			DECLARE_COMPLETION_ONSTACK(disable_comp);
+ 
+ 			ret = ipu_request_irq(irq, disable_chan_irq_handler, 0, NULL, &disable_comp);
+-- 
+1.5.4.4
+

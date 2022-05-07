@@ -1,0 +1,407 @@
+From 4f96f8cd1dcd79f3c1160a27360689bdc40afa98 Mon Sep 17 00:00:00 2001
+From: Sammy He <r62914@freescale.com>
+Date: Fri, 25 Jun 2010 23:59:08 +0800
+Subject: [PATCH] ENGR00124683-1 Add CCIR interlaced mode for TV decoder
+
+Add CCIR interlaced mode for TV decoder. And add pwdn callback
+function in mxc_camera_platform_data.
+
+Signed-off-by: Sammy He <r62914@freescale.com>
+---
+ arch/arm/plat-mxc/include/mach/mxc.h               |    1 +
+ drivers/media/video/mxc/capture/Kconfig            |    2 +-
+ drivers/media/video/mxc/capture/Makefile           |    2 +-
+ drivers/media/video/mxc/capture/adv7180.c          |   67 +++++++++++++-------
+ drivers/media/video/mxc/capture/mxc_v4l2_capture.c |   25 ++++----
+ drivers/media/video/mxc/capture/ov3640.c           |   16 +++++-
+ drivers/mxc/ipu/ipu_csi.c                          |    9 ++-
+ drivers/mxc/ipu3/ipu_capture.c                     |   13 +++-
+ 8 files changed, 90 insertions(+), 45 deletions(-)
+
+diff --git a/arch/arm/plat-mxc/include/mach/mxc.h b/arch/arm/plat-mxc/include/mach/mxc.h
+index 27f4a32..33806d5 100644
+--- a/arch/arm/plat-mxc/include/mach/mxc.h
++++ b/arch/arm/plat-mxc/include/mach/mxc.h
+@@ -341,6 +341,7 @@ struct mxc_camera_platform_data {
+ 	char *gpo_regulator;
+ 	u32 mclk;
+ 	u32 csi;
++	void (*pwdn) (int pwdn);
+ };
+ 
+ /*gpo1-3 is in fixed state by hardware design,
+diff --git a/drivers/media/video/mxc/capture/Kconfig b/drivers/media/video/mxc/capture/Kconfig
+index adab0a8..1b352af 100644
+--- a/drivers/media/video/mxc/capture/Kconfig
++++ b/drivers/media/video/mxc/capture/Kconfig
+@@ -72,7 +72,7 @@ config MXC_CAMERA_OV3640
+ 
+ config MXC_TVIN_ADV7180
+ 	tristate "Analog Device adv7180 TV Decoder Input support"
+-	depends on MACH_MX35_3DS
++	depends on (MACH_MX35_3DS || MACH_MX51_3DS)
+ 	---help---
+ 	  If you plan to use the adv7180 video decoder with your MXC system, say Y here.
+ 
+diff --git a/drivers/media/video/mxc/capture/Makefile b/drivers/media/video/mxc/capture/Makefile
+index 112923c..03ff094 100644
+--- a/drivers/media/video/mxc/capture/Makefile
++++ b/drivers/media/video/mxc/capture/Makefile
+@@ -35,5 +35,5 @@ obj-$(CONFIG_MXC_CAMERA_OV2640) += ov2640_camera.o
+ ov3640_camera-objs := ov3640.o sensor_clock.o
+ obj-$(CONFIG_MXC_CAMERA_OV3640) += ov3640_camera.o
+ 
+-adv7180_tvin-objs := adv7180.o sensor_clock.o
++adv7180_tvin-objs := adv7180.o
+ obj-$(CONFIG_MXC_TVIN_ADV7180) += adv7180_tvin.o
+diff --git a/drivers/media/video/mxc/capture/adv7180.c b/drivers/media/video/mxc/capture/adv7180.c
+index 1edee76..527a0d1 100644
+--- a/drivers/media/video/mxc/capture/adv7180.c
++++ b/drivers/media/video/mxc/capture/adv7180.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2005-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2005-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -39,6 +39,7 @@ static struct regulator *dvddio_regulator;
+ static struct regulator *dvdd_regulator;
+ static struct regulator *avdd_regulator;
+ static struct regulator *pvdd_regulator;
++static struct mxc_tvin_platform_data *tvin_plat;
+ 
+ extern void gpio_sensor_active(void);
+ extern void gpio_sensor_inactive(void);
+@@ -118,26 +119,26 @@ static video_fmt_t video_fmts[] = {
+ 	{			/*! NTSC */
+ 	 .v4l2_id = V4L2_STD_NTSC,
+ 	 .name = "NTSC",
+-	 .raw_width = 720 - 1,	/* SENS_FRM_WIDTH */
+-	 .raw_height = 288 - 1,	/* SENS_FRM_HEIGHT */
++	 .raw_width = 720,	/* SENS_FRM_WIDTH */
++	 .raw_height = 525,	/* SENS_FRM_HEIGHT */
+ 	 .active_width = 720,	/* ACT_FRM_WIDTH plus 1 */
+-	 .active_height = (480 / 2),	/* ACT_FRM_WIDTH plus 1 */
++	 .active_height = 480,	/* ACT_FRM_WIDTH plus 1 */
+ 	 },
+ 	{			/*! (B, G, H, I, N) PAL */
+ 	 .v4l2_id = V4L2_STD_PAL,
+ 	 .name = "PAL",
+-	 .raw_width = 720 - 1,
+-	 .raw_height = (576 / 2) + 24 * 2 - 1,
++	 .raw_width = 720,
++	 .raw_height = 625,
+ 	 .active_width = 720,
+-	 .active_height = (576 / 2),
++	 .active_height = 576,
+ 	 },
+ 	{			/*! Unlocked standard */
+ 	 .v4l2_id = V4L2_STD_ALL,
+ 	 .name = "Autodetect",
+-	 .raw_width = 720 - 1,
+-	 .raw_height = (576 / 2) + 24 * 2 - 1,
++	 .raw_width = 720,
++	 .raw_height = 625,
+ 	 .active_width = 720,
+-	 .active_height = (576 / 2),
++	 .active_height = 576,
+ 	 },
+ };
+ 
+@@ -246,6 +247,10 @@ static void adv7180_get_std(v4l2_std_id *std)
+ 
+ 	dev_dbg(&adv7180_data.i2c_client->dev, "In adv7180_get_std\n");
+ 
++	/* Make sure power on */
++	if (tvin_plat->pwdn)
++		tvin_plat->pwdn(0);
++
+ 	/* Read the AD_RESULT to get the detect output video standard */
+ 	tmp = adv7180_read(ADV7180_STATUS_1) & 0x70;
+ 
+@@ -335,6 +340,11 @@ static int ioctl_s_power(struct v4l2_int_device *s, int on)
+ 
+ 	if (on && !sensor->on) {
+ 		gpio_sensor_active();
++
++		/* Make sure pwoer on */
++		if (tvin_plat->pwdn)
++			tvin_plat->pwdn(0);
++
+ 		if (adv7180_write_reg(ADV7180_PWR_MNG, 0) != 0)
+ 			return -EIO;
+ 	} else if (!on && sensor->on) {
+@@ -500,6 +510,10 @@ static int ioctl_g_ctrl(struct v4l2_int_device *s, struct v4l2_control *vc)
+ 
+ 	dev_dbg(&adv7180_data.i2c_client->dev, "In adv7180:ioctl_g_ctrl\n");
+ 
++	/* Make sure power on */
++	if (tvin_plat->pwdn)
++		tvin_plat->pwdn(0);
++
+ 	switch (vc->id) {
+ 	case V4L2_CID_BRIGHTNESS:
+ 		dev_dbg(&adv7180_data.i2c_client->dev,
+@@ -593,6 +607,10 @@ static int ioctl_s_ctrl(struct v4l2_int_device *s, struct v4l2_control *vc)
+ 
+ 	dev_dbg(&adv7180_data.i2c_client->dev, "In adv7180:ioctl_s_ctrl\n");
+ 
++	/* Make sure power on */
++	if (tvin_plat->pwdn)
++		tvin_plat->pwdn(0);
++
+ 	switch (vc->id) {
+ 	case V4L2_CID_BRIGHTNESS:
+ 		dev_dbg(&adv7180_data.i2c_client->dev,
+@@ -803,13 +821,13 @@ static int adv7180_probe(struct i2c_client *client,
+ {
+ 	int rev_id;
+ 	int ret = 0;
+-	struct mxc_tvin_platform_data *plat_data = client->dev.platform_data;
++	tvin_plat = client->dev.platform_data;
+ 
+ 	dev_dbg(&adv7180_data.i2c_client->dev, "In adv7180_probe\n");
+ 
+-	if (plat_data->dvddio_reg) {
++	if (tvin_plat->dvddio_reg) {
+ 		dvddio_regulator =
+-		    regulator_get(&client->dev, plat_data->dvddio_reg);
++		    regulator_get(&client->dev, tvin_plat->dvddio_reg);
+ 		if (!IS_ERR_VALUE((unsigned long)dvddio_regulator)) {
+ 			regulator_set_voltage(dvddio_regulator, 3300000, 3300000);
+ 			if (regulator_enable(dvddio_regulator) != 0)
+@@ -817,9 +835,9 @@ static int adv7180_probe(struct i2c_client *client,
+ 		}
+ 	}
+ 
+-	if (plat_data->dvdd_reg) {
++	if (tvin_plat->dvdd_reg) {
+ 		dvdd_regulator =
+-		    regulator_get(&client->dev, plat_data->dvdd_reg);
++		    regulator_get(&client->dev, tvin_plat->dvdd_reg);
+ 		if (!IS_ERR_VALUE((unsigned long)dvdd_regulator)) {
+ 			regulator_set_voltage(dvdd_regulator, 1800000, 1800000);
+ 			if (regulator_enable(dvdd_regulator) != 0)
+@@ -827,9 +845,9 @@ static int adv7180_probe(struct i2c_client *client,
+ 		}
+ 	}
+ 
+-	if (plat_data->avdd_reg) {
++	if (tvin_plat->avdd_reg) {
+ 		avdd_regulator =
+-		    regulator_get(&client->dev, plat_data->avdd_reg);
++		    regulator_get(&client->dev, tvin_plat->avdd_reg);
+ 		if (!IS_ERR_VALUE((unsigned long)avdd_regulator)) {
+ 			regulator_set_voltage(avdd_regulator, 1800000, 1800000);
+ 			if (regulator_enable(avdd_regulator) != 0)
+@@ -837,9 +855,9 @@ static int adv7180_probe(struct i2c_client *client,
+ 		}
+ 	}
+ 
+-	if (plat_data->pvdd_reg) {
++	if (tvin_plat->pvdd_reg) {
+ 		pvdd_regulator =
+-		    regulator_get(&client->dev, plat_data->pvdd_reg);
++		    regulator_get(&client->dev, tvin_plat->pvdd_reg);
+ 		if (!IS_ERR_VALUE((unsigned long)pvdd_regulator)) {
+ 			regulator_set_voltage(pvdd_regulator, 1800000, 1800000);
+ 			if (regulator_enable(pvdd_regulator) != 0)
+@@ -847,11 +865,12 @@ static int adv7180_probe(struct i2c_client *client,
+ 		}
+ 	}
+ 
+-	if (plat_data->reset)
+-		plat_data->reset();
+ 
+-	if (plat_data->pwdn)
+-		plat_data->pwdn(1);
++	if (tvin_plat->reset)
++		tvin_plat->reset();
++
++	if (tvin_plat->pwdn)
++		tvin_plat->pwdn(0);
+ 
+ 	msleep(1);
+ 
+@@ -913,7 +932,7 @@ static int adv7180_detach(struct i2c_client *client)
+ 		__func__, IF_NAME, client->addr << 1, client->adapter->name);
+ 
+ 	if (plat_data->pwdn)
+-		plat_data->pwdn(0);
++		plat_data->pwdn(1);
+ 
+ 	if (dvddio_regulator) {
+ 		regulator_disable(dvddio_regulator);
+diff --git a/drivers/media/video/mxc/capture/mxc_v4l2_capture.c b/drivers/media/video/mxc/capture/mxc_v4l2_capture.c
+index 7d1e483..60a792c 100644
+--- a/drivers/media/video/mxc/capture/mxc_v4l2_capture.c
++++ b/drivers/media/video/mxc/capture/mxc_v4l2_capture.c
+@@ -128,30 +128,30 @@ static video_fmt_t video_fmts[] = {
+ 	{			/*! NTSC */
+ 	 .v4l2_id = V4L2_STD_NTSC,
+ 	 .name = "NTSC",
+-	 .raw_width = 720 - 1,		/* SENS_FRM_WIDTH */
+-	 .raw_height = 288 - 1,		/* SENS_FRM_HEIGHT */
+-	 .active_width = 720,		/* ACT_FRM_WIDTH plus 1 */
+-	 .active_height = (480 / 2),	/* ACT_FRM_HEIGHT plus 1 */
+-	 .active_top = 12,
++	 .raw_width = 720,		/* SENS_FRM_WIDTH */
++	 .raw_height = 525,		/* SENS_FRM_HEIGHT */
++	 .active_width = 720,		/* ACT_FRM_WIDTH */
++	 .active_height = 240,		/* ACT_FRM_HEIGHT */
++	 .active_top = 0,
+ 	 .active_left = 0,
+ 	 },
+ 	{			/*! (B, G, H, I, N) PAL */
+ 	 .v4l2_id = V4L2_STD_PAL,
+ 	 .name = "PAL",
+-	 .raw_width = 720 - 1,
+-	 .raw_height = (576 / 2) + 24 * 2 - 1,
++	 .raw_width = 720,
++	 .raw_height = 625,
+ 	 .active_width = 720,
+-	 .active_height = (576 / 2),
++	 .active_height = 288,
+ 	 .active_top = 0,
+ 	 .active_left = 0,
+ 	 },
+ 	{			/*! Unlocked standard */
+ 	 .v4l2_id = V4L2_STD_ALL,
+ 	 .name = "Autodetect",
+-	 .raw_width = 720 - 1,
+-	 .raw_height = (576 / 2) + 24 * 2 - 1,
++	 .raw_width = 720,
++	 .raw_height = 625,
+ 	 .active_width = 720,
+-	 .active_height = (576 / 2),
++	 .active_height = 288,
+ 	 .active_top = 0,
+ 	 .active_left = 0,
+ 	 },
+@@ -1139,7 +1139,7 @@ static int mxc_v4l2_s_param(cam_data *cam, struct v4l2_streamparm *parm)
+ 	/* This may not work on other platforms. Check when adding a new one.*/
+ 	pr_debug("   clock_curr=mclk=%d\n", ifparm.u.bt656.clock_curr);
+ 	if (ifparm.u.bt656.clock_curr == 0) {
+-		csi_param.clk_mode = IPU_CSI_CLK_MODE_CCIR656_PROGRESSIVE;
++		csi_param.clk_mode = IPU_CSI_CLK_MODE_CCIR656_INTERLACED;
+ 	} else {
+ 		csi_param.clk_mode = IPU_CSI_CLK_MODE_GATED_CLK;
+ 	}
+@@ -2569,6 +2569,7 @@ static int mxc_v4l2_master_attach(struct v4l2_int_device *slave)
+ 	}
+ 
+ 	ipu_csi_enable_mclk_if(CSI_MCLK_I2C, cam->csi, true, true);
++	vidioc_int_s_power(cam->sensor, 1);
+ 	vidioc_int_dev_init(slave);
+ 	ipu_csi_enable_mclk_if(CSI_MCLK_I2C, cam->csi, false, false);
+ 	cam_fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+diff --git a/drivers/media/video/mxc/capture/ov3640.c b/drivers/media/video/mxc/capture/ov3640.c
+index 29e6123..9fa7c3b 100644
+--- a/drivers/media/video/mxc/capture/ov3640.c
++++ b/drivers/media/video/mxc/capture/ov3640.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2005-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2005-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -674,6 +674,7 @@ static struct regulator *io_regulator;
+ static struct regulator *core_regulator;
+ static struct regulator *analog_regulator;
+ static struct regulator *gpo_regulator;
++static struct mxc_camera_platform_data *camera_plat;
+ 
+ static int ov3640_probe(struct i2c_client *adapter,
+ 				const struct i2c_device_id *device_id);
+@@ -843,6 +844,10 @@ static int ioctl_s_power(struct v4l2_int_device *s, int on)
+ 		if (analog_regulator)
+ 			if (regulator_enable(analog_regulator) != 0)
+ 				return -EIO;
++		/* Make sure power on */
++		if (camera_plat->pwdn)
++			camera_plat->pwdn(0);
++
+ 	} else if (!on && sensor->on) {
+ 		if (analog_regulator)
+ 			regulator_disable(analog_regulator);
+@@ -920,6 +925,10 @@ static int ioctl_s_parm(struct v4l2_int_device *s, struct v4l2_streamparm *a)
+ 	enum ov3640_frame_rate frame_rate;
+ 	int ret = 0;
+ 
++	/* Make sure power on */
++	if (camera_plat->pwdn)
++		camera_plat->pwdn(0);
++
+ 	switch (a->type) {
+ 	/* This is the only case currently handled. */
+ 	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
+@@ -1297,6 +1306,11 @@ static int ov3640_probe(struct i2c_client *client,
+ 			gpo_regulator = NULL;
+ 	}
+ 
++	if (plat_data->pwdn)
++		plat_data->pwdn(0);
++
++	camera_plat = plat_data;
++
+ 	ov3640_int_device.priv = &ov3640_data;
+ 	retval = v4l2_int_device_register(&ov3640_int_device);
+ 
+diff --git a/drivers/mxc/ipu/ipu_csi.c b/drivers/mxc/ipu/ipu_csi.c
+index 10708cf..58d58c1 100644
+--- a/drivers/mxc/ipu/ipu_csi.c
++++ b/drivers/mxc/ipu/ipu_csi.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2005-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2005-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -90,10 +90,13 @@ ipu_csi_init_interface(uint16_t width, uint16_t height, uint32_t pixel_fmt,
+ 	__raw_writel(height << 16 | 0x22, CSI_FLASH_STROBE_2);
+ 
+ 	/* Set CCIR registers */
+-	if ((sig.clk_mode == IPU_CSI_CLK_MODE_CCIR656_PROGRESSIVE) ||
+-	    (sig.clk_mode == IPU_CSI_CLK_MODE_CCIR656_INTERLACED)) {
++	if (sig.clk_mode == IPU_CSI_CLK_MODE_CCIR656_PROGRESSIVE) {
+ 		__raw_writel(0x40030, CSI_CCIR_CODE_1);
+ 		__raw_writel(0xFF0000, CSI_CCIR_CODE_3);
++	} else if (sig.clk_mode == IPU_CSI_CLK_MODE_CCIR656_INTERLACED) {
++		__raw_writel(0xD07DF, CSI_CCIR_CODE_1);
++		__raw_writel(0x40596, CSI_CCIR_CODE_2);
++		__raw_writel(0xFF0000, CSI_CCIR_CODE_3);
+ 	}
+ 
+ 	dev_dbg(g_ipu_dev, "CSI_SENS_CONF = 0x%08X\n",
+diff --git a/drivers/mxc/ipu3/ipu_capture.c b/drivers/mxc/ipu3/ipu_capture.c
+index 5d084ab..f7510cf 100644
+--- a/drivers/mxc/ipu3/ipu_capture.c
++++ b/drivers/mxc/ipu3/ipu_capture.c
+@@ -101,11 +101,18 @@ ipu_csi_init_interface(uint16_t width, uint16_t height, uint32_t pixel_fmt,
+ 	__raw_writel((width - 1) | (height - 1) << 16, CSI_SENS_FRM_SIZE(csi));
+ 
+ 	/* Set CCIR registers */
+-	if ((cfg_param.clk_mode == IPU_CSI_CLK_MODE_CCIR656_PROGRESSIVE) ||
+-	    (cfg_param.clk_mode == IPU_CSI_CLK_MODE_CCIR656_INTERLACED)) {
+-		_ipu_csi_ccir_err_detection_enable(csi);
++	if (cfg_param.clk_mode == IPU_CSI_CLK_MODE_CCIR656_PROGRESSIVE) {
+ 		__raw_writel(0x40030, CSI_CCIR_CODE_1(csi));
+ 		__raw_writel(0xFF0000, CSI_CCIR_CODE_3(csi));
++	} else if (cfg_param.clk_mode == IPU_CSI_CLK_MODE_CCIR656_INTERLACED) {
++		_ipu_csi_ccir_err_detection_enable(csi);
++		/* Field0BlankEnd = 0x7, Field0BlankStart = 0x3,
++		   Field0ActiveEnd = 0x5, Field0ActiveStart = 0x1 */
++		__raw_writel(0xD07DF, CSI_CCIR_CODE_1(csi));
++		/* Field1BlankEnd = 0x6, Field1BlankStart = 0x2,
++		   Field1ActiveEnd = 0x4, Field1ActiveStart = 0 */
++		__raw_writel(0x40596, CSI_CCIR_CODE_2(csi));
++		__raw_writel(0xFF0000, CSI_CCIR_CODE_3(csi));
+ 	} else if ((cfg_param.clk_mode ==
+ 			IPU_CSI_CLK_MODE_CCIR1120_PROGRESSIVE_DDR) ||
+ 		(cfg_param.clk_mode ==
+-- 
+1.5.4.4
+

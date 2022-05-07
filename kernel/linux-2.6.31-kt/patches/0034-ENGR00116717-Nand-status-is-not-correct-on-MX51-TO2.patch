@@ -1,0 +1,78 @@
+From 9fe14aadab20d216bbbbdb893fdf05546c3a1984 Mon Sep 17 00:00:00 2001
+From: Jason <r64343@freescale.com>
+Date: Wed, 23 Sep 2009 11:20:49 +0800
+Subject: [PATCH] ENGR00116717 Nand status is not correct on MX51 TO2 and TO3
+
+Nand status does not correct on MX51 TO2 and TO3.
+1. Should use RBB_MODE 1 instead of 0 due to NFC bug(ENGcm09970)
+   For RBB_MODE 0,NFC has a bug,it doesn't sample correctly the
+   returned data on the I/O and therefore the INT is
+   asserted earlier than expected (i.e during the busy period)
+
+2. Should use atomic status read instead of auto mode.
+   Auto mode status is not correct, the WP bit (IO7)
+   is not correct randomly, it wrongly report nand in write-protect
+   mode, which result in program/erase fail.
+
+Signed-off-by:Jason Liu <r64343@freescale.com>
+---
+ drivers/mtd/nand/mxc_nd2.c |   20 +++++++++++++-------
+ drivers/mtd/nand/mxc_nd2.h |    3 ++-
+ 2 files changed, 15 insertions(+), 8 deletions(-)
+
+diff --git a/drivers/mtd/nand/mxc_nd2.c b/drivers/mtd/nand/mxc_nd2.c
+index 65b0fd6..f53707a 100644
+--- a/drivers/mtd/nand/mxc_nd2.c
++++ b/drivers/mtd/nand/mxc_nd2.c
+@@ -370,7 +370,9 @@ static void send_cmd(struct mtd_info *mtd, u16 cmd, bool useirq)
+ 		break;
+ 	case NAND_CMD_RESET:
+ 		auto_cmd_interleave(mtd, cmd);
++		break;
+ 	case NAND_CMD_STATUS:
++		send_atomic_cmd(cmd, useirq);
+ 		break;
+ 	default:
+ 		break;
+@@ -483,13 +485,17 @@ static inline void read_dev_status(u16 *status)
+ 	/* clear status */
+ 	ACK_OPS;
+ 
+-	do {
+-		/* send auto read status command */
+-		raw_write(NFC_AUTO_STATE, REG_NFC_OPS);
+-		if (cpu_is_mx51_rev(CHIP_REV_2_0) == 1)
+-			wait_op_done(TROP_US_DELAY, false);
+-		*status = (raw_read(NFC_CONFIG1) & mask) >> 16;
+-	} while ((*status & NAND_STATUS_READY) == 0);
++
++	/* use atomic mode to read status instead
++	   of using auto mode,auto-mode has issues
++	   and the status is not correct.
++	*/
++	raw_write(NFC_STATUS, REG_NFC_OPS);
++
++	wait_op_done(TROP_US_DELAY, false);
++
++	*status = (raw_read(NFC_CONFIG1) & mask) >> 16;
++
+ }
+ #endif
+ 
+diff --git a/drivers/mtd/nand/mxc_nd2.h b/drivers/mtd/nand/mxc_nd2.h
+index 9cb9210..48d8ead 100644
+--- a/drivers/mtd/nand/mxc_nd2.h
++++ b/drivers/mtd/nand/mxc_nd2.h
+@@ -448,7 +448,8 @@ do {	\
+ 		NFC_SET_SPAS(GET_NAND_OOB_SIZE >> 1);	\
+ 		NFC_SET_ECC_MODE(GET_NAND_OOB_SIZE >> 1); \
+ 		NFC_SET_ST_CMD(0x70); \
+-		raw_write(raw_read(NFC_CONFIG3) | 1 << 20, NFC_CONFIG3); \
++		raw_write(raw_read(NFC_CONFIG3) | NFC_NO_SDMA, NFC_CONFIG3); \
++		raw_write(raw_read(NFC_CONFIG3) | NFC_RBB_MODE, NFC_CONFIG3); \
+ 		SET_NFC_DELAY_LINE(0); \
+ 	} \
+ } while (0)
+-- 
+1.5.4.4
+

@@ -1,0 +1,66 @@
+From 82dcfcb48cb93fc10124b265860ad403d52445d0 Mon Sep 17 00:00:00 2001
+From: Richard Zhao <richard.zhao@freescale.com>
+Date: Wed, 21 Apr 2010 13:22:15 +0800
+Subject: [PATCH] ENGR00122691-2 imx5: Build ath6kl driver by default
+
+Enable ath6kl driver by default
+
+Signed-off-by: Richard Zhao <richard.zhao@freescale.com>
+---
+ arch/arm/configs/imx5_defconfig |   26 ++++++++++++++++++++------
+ 1 files changed, 20 insertions(+), 6 deletions(-)
+
+diff --git a/arch/arm/configs/imx5_defconfig b/arch/arm/configs/imx5_defconfig
+index 89e9620..04a59dc 100644
+--- a/arch/arm/configs/imx5_defconfig
++++ b/arch/arm/configs/imx5_defconfig
+@@ -1,7 +1,7 @@
+ #
+ # Automatically generated make config: don't edit
+ # Linux kernel version: 2.6.31
+-# Wed Apr 14 18:55:09 2010
++# Mon Apr 19 17:24:46 2010
+ #
+ CONFIG_ARM=y
+ CONFIG_HAVE_PWM=y
+@@ -684,7 +684,25 @@ CONFIG_FEC=y
+ # Wireless LAN
+ #
+ # CONFIG_WLAN_PRE80211 is not set
+-# CONFIG_WLAN_80211 is not set
++CONFIG_WLAN_80211=y
++# CONFIG_LIBERTAS is not set
++# CONFIG_USB_ZD1201 is not set
++# CONFIG_HOSTAP is not set
++CONFIG_ATH6K_LEGACY=m
++CONFIG_AR600x_SD31_XXX=y
++# CONFIG_AR600x_WB31_XXX is not set
++# CONFIG_AR600x_SD32_XXX is not set
++# CONFIG_AR600x_CUSTOM_XXX is not set
++# CONFIG_ATH6KL_ENABLE_COEXISTENCE is not set
++# CONFIG_ATH6KL_HCI_BRIDGE is not set
++# CONFIG_ATH6KL_CFG80211 is not set
++# CONFIG_ATH6KL_HTC_RAW_INTERFACE is not set
++# CONFIG_ATH6KL_VIRTUAL_SCATTER_GATHER is not set
++CONFIG_ATH6KL_DEBUG=y
++# CONFIG_ATH6KL_ENABLE_HOST_DEBUG is not set
++CONFIG_ATH6KL_ENABLE_TARGET_DEBUG_PRINTS=y
++CONFIG_AR600x_DEBUG_UART_TX_PIN=8
++# CONFIG_ATH6KL_DISABLE_TARGET_DBGLOGS is not set
+ 
+ #
+ # Enable WiMAX (Networking options) to see the WiMAX drivers
+@@ -1438,10 +1456,6 @@ CONFIG_USB_EHCI_HCD=y
+ CONFIG_USB_EHCI_ARC=y
+ # CONFIG_USB_EHCI_ARC_OTG is not set
+ # CONFIG_USB_STATIC_IRAM is not set
+-# CONFIG_USB_EHCI_FSL_MC13783 is not set
+-# CONFIG_USB_EHCI_FSL_1301 is not set
+-# CONFIG_USB_EHCI_FSL_1504 is not set
+-# CONFIG_USB_EHCI_FSL_UTMI is not set
+ CONFIG_USB_EHCI_ROOT_HUB_TT=y
+ # CONFIG_USB_EHCI_TT_NEWSCHED is not set
+ # CONFIG_USB_OXU210HP_HCD is not set
+-- 
+1.5.4.4
+

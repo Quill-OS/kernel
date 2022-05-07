@@ -1,0 +1,28 @@
+From c402d14360f835942e471b35ab194bfdfa6c11c9 Mon Sep 17 00:00:00 2001
+From: Frank Li <Frank.Li@freescale.com>
+Date: Tue, 1 Dec 2009 12:43:59 +0800
+Subject: [PATCH] ENGR00118888-1 Fix iMX23 mfg firmware usb segment fault
+
+Miss some configuration and wrong use put_unaligned_be32
+
+Signed-off-by: Frank Li <Frank.Li@freescale.com>
+---
+ drivers/usb/gadget/file_storage.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/drivers/usb/gadget/file_storage.c b/drivers/usb/gadget/file_storage.c
+index 5750da4..3c5f6e6 100644
+--- a/drivers/usb/gadget/file_storage.c
++++ b/drivers/usb/gadget/file_storage.c
+@@ -2109,7 +2109,7 @@ static int do_request_sense(struct fsg_dev *fsg, struct fsg_buffhd *bh)
+ 	buf[12] = ASC(sd);
+ 	buf[13] = ASCQ(sd);
+ #ifdef CONFIG_STMP_UTP
+-	put_unaligned_be32(&buf[8], UTP_CTX(fsg)->sdinfo_h);
++	put_unaligned_be32(UTP_CTX(fsg)->sdinfo_h, &buf[8]);
+ #endif
+ 	return 18;
+ }
+-- 
+1.5.4.4
+

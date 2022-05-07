@@ -1,0 +1,47 @@
+From 1621558cc918e5e7c0196f796bd4b65eff2ff8f7 Mon Sep 17 00:00:00 2001
+From: Frank Li <Frank.Li@freescale.com>
+Date: Mon, 24 May 2010 17:27:34 +0800
+Subject: [PATCH] ENGR00123744-3 iMX23 enable unique id support
+
+Add config file
+
+Signed-off-by: Frank Li <Frank.Li@freescale.com>
+---
+ arch/arm/configs/imx23evk_defconfig |    6 ++++--
+ 1 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm/configs/imx23evk_defconfig b/arch/arm/configs/imx23evk_defconfig
+index fa3b822..d65c1fb 100644
+--- a/arch/arm/configs/imx23evk_defconfig
++++ b/arch/arm/configs/imx23evk_defconfig
+@@ -1,7 +1,7 @@
+ #
+ # Automatically generated make config: don't edit
+ # Linux kernel version: 2.6.31
+-# Mon May 17 17:59:55 2010
++# Mon May 24 17:09:02 2010
+ #
+ CONFIG_ARM=y
+ CONFIG_SYS_SUPPORTS_APM_EMULATION=y
+@@ -193,6 +193,8 @@ CONFIG_VECTORS_PHY_ADDR=0
+ # CONFIG_ARCH_MX28 is not set
+ CONFIG_ARCH_MX23=y
+ CONFIG_MACH_MX23EVK=y
++CONFIG_MXS_UNIQUE_ID=y
++CONFIG_MXS_UNIQUE_ID_OTP=y
+ CONFIG_MXS_ICOLL=y
+ CONFIG_MXS_EARLY_CONSOLE=y
+ CONFIG_MXS_DMA_ENGINE=y
+@@ -592,8 +594,8 @@ CONFIG_MTD_UBI_BLOCK=y
+ # CONFIG_PARPORT is not set
+ CONFIG_BLK_DEV=y
+ # CONFIG_BLK_DEV_COW_COMMON is not set
+-# CONFIG_BLK_DEV_LOOP is not set
+ CONFIG_BLK_DEV_LOOP=y
++# CONFIG_BLK_DEV_CRYPTOLOOP is not set
+ # CONFIG_BLK_DEV_NBD is not set
+ # CONFIG_BLK_DEV_UB is not set
+ CONFIG_BLK_DEV_RAM=y
+-- 
+1.5.4.4
+

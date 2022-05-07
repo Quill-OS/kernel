@@ -1,0 +1,1903 @@
+From 0db8c7e96b8292565fa62f46bd9f652e5aed13bc Mon Sep 17 00:00:00 2001
+From: Robby Cai <R63905@freescale.com>
+Date: Fri, 26 Feb 2010 11:00:18 +0800
+Subject: [PATCH] ENGR00117731 MX28: PxP and V4L2 driver Porting
+
+Porting PxP(combined with V4L2) driver onto MX28
+
+Signed-off-by: Robby Cai <R63905@freescale.com>
+---
+ arch/arm/configs/imx28evk_defconfig        |  123 ++++++-
+ arch/arm/mach-mx28/device.c                |   31 ++
+ arch/arm/mach-mx28/include/mach/regs-pxp.h |  518 ++++++++++++++++++++++++++
+ arch/arm/plat-mxs/device.c                 |   22 ++
+ drivers/media/video/Kconfig                |    4 +-
+ drivers/media/video/pxp.c                  |  543 ++++++++++++++--------------
+ drivers/media/video/pxp.h                  |   27 +-
+ 7 files changed, 978 insertions(+), 290 deletions(-)
+
+diff --git a/arch/arm/configs/imx28evk_defconfig b/arch/arm/configs/imx28evk_defconfig
+index 83dd3de..1842fed 100644
+--- a/arch/arm/configs/imx28evk_defconfig
++++ b/arch/arm/configs/imx28evk_defconfig
+@@ -1,7 +1,7 @@
+ #
+ # Automatically generated make config: don't edit
+ # Linux kernel version: 2.6.31
+-# Wed Feb 24 15:41:46 2010
++# Fri Feb 26 11:22:01 2010
+ #
+ CONFIG_ARM=y
+ CONFIG_SYS_SUPPORTS_APM_EMULATION=y
+@@ -856,7 +856,118 @@ CONFIG_SSB=m
+ # CONFIG_MFD_WM8350_I2C is not set
+ # CONFIG_MFD_PCF50633 is not set
+ # CONFIG_AB3100_CORE is not set
+-# CONFIG_MEDIA_SUPPORT is not set
++CONFIG_MEDIA_SUPPORT=y
++
++#
++# Multimedia core support
++#
++CONFIG_VIDEO_DEV=y
++CONFIG_VIDEO_V4L2_COMMON=y
++# CONFIG_VIDEO_ALLOW_V4L1 is not set
++CONFIG_VIDEO_V4L1_COMPAT=y
++# CONFIG_DVB_CORE is not set
++CONFIG_VIDEO_MEDIA=y
++
++#
++# Multimedia drivers
++#
++# CONFIG_MEDIA_ATTACH is not set
++CONFIG_MEDIA_TUNER=y
++# CONFIG_MEDIA_TUNER_CUSTOMISE is not set
++CONFIG_MEDIA_TUNER_SIMPLE=y
++CONFIG_MEDIA_TUNER_TDA8290=y
++CONFIG_MEDIA_TUNER_TDA9887=y
++CONFIG_MEDIA_TUNER_TEA5761=y
++CONFIG_MEDIA_TUNER_TEA5767=y
++CONFIG_MEDIA_TUNER_MT20XX=y
++CONFIG_MEDIA_TUNER_XC2028=y
++CONFIG_MEDIA_TUNER_XC5000=y
++CONFIG_MEDIA_TUNER_MC44S803=y
++CONFIG_VIDEO_V4L2=y
++CONFIG_VIDEOBUF_GEN=y
++CONFIG_VIDEOBUF_DMA_CONTIG=y
++CONFIG_VIDEO_CAPTURE_DRIVERS=y
++# CONFIG_VIDEO_ADV_DEBUG is not set
++# CONFIG_VIDEO_FIXED_MINOR_RANGES is not set
++# CONFIG_VIDEO_HELPER_CHIPS_AUTO is not set
++
++#
++# Encoders/decoders and other helper chips
++#
++
++#
++# Audio decoders
++#
++# CONFIG_VIDEO_TVAUDIO is not set
++# CONFIG_VIDEO_TDA7432 is not set
++# CONFIG_VIDEO_TDA9840 is not set
++# CONFIG_VIDEO_TDA9875 is not set
++# CONFIG_VIDEO_TEA6415C is not set
++# CONFIG_VIDEO_TEA6420 is not set
++# CONFIG_VIDEO_MSP3400 is not set
++# CONFIG_VIDEO_CS5345 is not set
++# CONFIG_VIDEO_CS53L32A is not set
++# CONFIG_VIDEO_M52790 is not set
++# CONFIG_VIDEO_TLV320AIC23B is not set
++# CONFIG_VIDEO_WM8775 is not set
++# CONFIG_VIDEO_WM8739 is not set
++# CONFIG_VIDEO_VP27SMPX is not set
++
++#
++# RDS decoders
++#
++# CONFIG_VIDEO_SAA6588 is not set
++
++#
++# Video decoders
++#
++# CONFIG_VIDEO_BT819 is not set
++# CONFIG_VIDEO_BT856 is not set
++# CONFIG_VIDEO_BT866 is not set
++# CONFIG_VIDEO_KS0127 is not set
++# CONFIG_VIDEO_OV7670 is not set
++# CONFIG_VIDEO_MT9V011 is not set
++# CONFIG_VIDEO_TCM825X is not set
++# CONFIG_VIDEO_SAA7110 is not set
++# CONFIG_VIDEO_SAA711X is not set
++# CONFIG_VIDEO_SAA717X is not set
++# CONFIG_VIDEO_TVP514X is not set
++# CONFIG_VIDEO_TVP5150 is not set
++# CONFIG_VIDEO_VPX3220 is not set
++
++#
++# Video and audio decoders
++#
++# CONFIG_VIDEO_CX25840 is not set
++
++#
++# MPEG video encoders
++#
++# CONFIG_VIDEO_CX2341X is not set
++
++#
++# Video encoders
++#
++# CONFIG_VIDEO_SAA7127 is not set
++# CONFIG_VIDEO_SAA7185 is not set
++# CONFIG_VIDEO_ADV7170 is not set
++# CONFIG_VIDEO_ADV7175 is not set
++# CONFIG_VIDEO_THS7303 is not set
++# CONFIG_VIDEO_ADV7343 is not set
++
++#
++# Video improvement chips
++#
++# CONFIG_VIDEO_UPD64031A is not set
++# CONFIG_VIDEO_UPD64083 is not set
++# CONFIG_VIDEO_VIVI is not set
++CONFIG_VIDEO_PXP=y
++# CONFIG_VIDEO_SAA5246A is not set
++# CONFIG_VIDEO_SAA5249 is not set
++# CONFIG_SOC_CAMERA is not set
++# CONFIG_V4L_USB_DRIVERS is not set
++# CONFIG_RADIO_ADAPTERS is not set
++# CONFIG_DAB is not set
+ 
+ #
+ # Graphics support
+@@ -1522,7 +1633,7 @@ CONFIG_CRYPTO_HMAC=y
+ #
+ # Digest
+ #
+-# CONFIG_CRYPTO_CRC32C is not set
++CONFIG_CRYPTO_CRC32C=m
+ # CONFIG_CRYPTO_MD4 is not set
+ CONFIG_CRYPTO_MD5=y
+ # CONFIG_CRYPTO_MICHAEL_MIC is not set
+@@ -1568,7 +1679,7 @@ CONFIG_CRYPTO_LZO=y
+ # CONFIG_CRYPTO_ANSI_CPRNG is not set
+ CONFIG_CRYPTO_HW=y
+ CONFIG_CRYPTO_DEV_DCP=y
+-# CONFIG_BINARY_PRINTF is not set
++CONFIG_BINARY_PRINTF=y
+ 
+ #
+ # Library routines
+@@ -1584,7 +1695,9 @@ CONFIG_CRC32=y
+ CONFIG_LIBCRC32C=m
+ CONFIG_AUDIT_GENERIC=y
+ CONFIG_ZLIB_INFLATE=y
+-CONFIG_ZLIB_DEFLATE=m
++CONFIG_ZLIB_DEFLATE=y
++CONFIG_LZO_COMPRESS=y
++CONFIG_LZO_DECOMPRESS=y
+ CONFIG_DECOMPRESS_GZIP=y
+ CONFIG_DECOMPRESS_BZIP2=y
+ CONFIG_DECOMPRESS_LZMA=y
+diff --git a/arch/arm/mach-mx28/device.c b/arch/arm/mach-mx28/device.c
+index e618bc5..b3343eb 100644
+--- a/arch/arm/mach-mx28/device.c
++++ b/arch/arm/mach-mx28/device.c
+@@ -161,6 +161,36 @@ static void __init mx28_init_lcdif(void)
+ }
+ #endif
+ 
++#if defined(CONFIG_VIDEO_PXP) || \
++	defined(CONFIG_VIDEO_PXP_MODULE)
++static struct resource pxp_resource[] = {
++	{
++		.flags	= IORESOURCE_MEM,
++		.start	= (unsigned int)IO_ADDRESS(PXP_PHYS_ADDR),
++		.end	= (unsigned int)IO_ADDRESS(PXP_PHYS_ADDR) + 0x2000 - 1,
++	}, {
++		.flags	= IORESOURCE_IRQ,
++		.start	= IRQ_PXP,
++		.end	= IRQ_PXP,
++	},
++};
++static void __init mx28_init_pxp(void)
++{
++	struct platform_device *pdev;
++	pdev = mxs_get_device("mxs-pxp", 0);
++	if (pdev == NULL || IS_ERR(pdev))
++		return;
++	pdev->resource = pxp_resource;
++	pdev->num_resources = ARRAY_SIZE(pxp_resource);
++	mxs_add_device(pdev, 3);
++}
++#else
++static void __init mx28_init_pxp(void)
++{
++	;
++}
++#endif
++
+ #if defined(CONFIG_I2C_MXS) || \
+ 	defined(CONFIG_I2C_MXS_MODULE)
+ #ifdef	CONFIG_I2C_MXS_SELECT0
+@@ -907,6 +937,7 @@ int __init mx28_device_init(void)
+ 	mx28_init_kbd();
+ 	mx28_init_ts();
+ 	mx28_init_lcdif();
++	mx28_init_pxp();
+ 	mx28_init_dcp();
+ 	return 0;
+ }
+diff --git a/arch/arm/mach-mx28/include/mach/regs-pxp.h b/arch/arm/mach-mx28/include/mach/regs-pxp.h
+new file mode 100644
+index 0000000..2feb8f8
+--- /dev/null
++++ b/arch/arm/mach-mx28/include/mach/regs-pxp.h
+@@ -0,0 +1,518 @@
++/*
++ * Freescale PXP Register Definitions
++ *
++ * Copyright 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
++ *
++ * This file is created by xml file. Don't Edit it.
++ *
++ * Xml Revision: 1.57
++ * Template revision: 26195
++ */
++
++#ifndef __ARCH_ARM___PXP_H
++#define __ARCH_ARM___PXP_H
++
++
++#define HW_PXP_CTRL	(0x00000000)
++#define HW_PXP_CTRL_SET	(0x00000004)
++#define HW_PXP_CTRL_CLR	(0x00000008)
++#define HW_PXP_CTRL_TOG	(0x0000000c)
++
++#define BM_PXP_CTRL_SFTRST	0x80000000
++#define BM_PXP_CTRL_CLKGATE	0x40000000
++#define BP_PXP_CTRL_RSVD2	28
++#define BM_PXP_CTRL_RSVD2	0x30000000
++#define BF_PXP_CTRL_RSVD2(v)  \
++		(((v) << 28) & BM_PXP_CTRL_RSVD2)
++#define BP_PXP_CTRL_INTERLACED_OUTPUT	26
++#define BM_PXP_CTRL_INTERLACED_OUTPUT	0x0C000000
++#define BF_PXP_CTRL_INTERLACED_OUTPUT(v)  \
++		(((v) << 26) & BM_PXP_CTRL_INTERLACED_OUTPUT)
++#define BV_PXP_CTRL_INTERLACED_OUTPUT__PROGRESSIVE 0x0
++#define BV_PXP_CTRL_INTERLACED_OUTPUT__FIELD0      0x1
++#define BV_PXP_CTRL_INTERLACED_OUTPUT__FIELD1      0x2
++#define BV_PXP_CTRL_INTERLACED_OUTPUT__INTERLACED  0x3
++#define BP_PXP_CTRL_INTERLACED_INPUT	24
++#define BM_PXP_CTRL_INTERLACED_INPUT	0x03000000
++#define BF_PXP_CTRL_INTERLACED_INPUT(v)  \
++		(((v) << 24) & BM_PXP_CTRL_INTERLACED_INPUT)
++#define BV_PXP_CTRL_INTERLACED_INPUT__PROGRESSIVE 0x0
++#define BV_PXP_CTRL_INTERLACED_INPUT__FIELD0      0x2
++#define BV_PXP_CTRL_INTERLACED_INPUT__FIELD1      0x3
++#define BM_PXP_CTRL_BLOCK_SIZE	0x00800000
++#define BV_PXP_CTRL_BLOCK_SIZE__8X8   0x0
++#define BV_PXP_CTRL_BLOCK_SIZE__16X16 0x1
++#define BM_PXP_CTRL_ALPHA_OUTPUT	0x00400000
++#define BM_PXP_CTRL_IN_PLACE	0x00200000
++#define BM_PXP_CTRL_DELTA	0x00100000
++#define BM_PXP_CTRL_CROP	0x00080000
++#define BM_PXP_CTRL_SCALE	0x00040000
++#define BM_PXP_CTRL_UPSAMPLE	0x00020000
++#define BM_PXP_CTRL_SUBSAMPLE	0x00010000
++#define BP_PXP_CTRL_S0_FORMAT	12
++#define BM_PXP_CTRL_S0_FORMAT	0x0000F000
++#define BF_PXP_CTRL_S0_FORMAT(v)  \
++		(((v) << 12) & BM_PXP_CTRL_S0_FORMAT)
++#define BV_PXP_CTRL_S0_FORMAT__ARGB8888  0x0
++#define BV_PXP_CTRL_S0_FORMAT__RGB888    0x1
++#define BV_PXP_CTRL_S0_FORMAT__RGB565    0x4
++#define BV_PXP_CTRL_S0_FORMAT__RGB555    0x5
++#define BV_PXP_CTRL_S0_FORMAT__YUV422    0x8
++#define BV_PXP_CTRL_S0_FORMAT__YUV420    0x9
++#define BV_PXP_CTRL_S0_FORMAT__UYVY1P422 0xA
++#define BV_PXP_CTRL_S0_FORMAT__VYUY1P422 0xB
++#define BV_PXP_CTRL_S0_FORMAT__YUV2P422  0xC
++#define BV_PXP_CTRL_S0_FORMAT__YUV2P420  0xD
++#define BV_PXP_CTRL_S0_FORMAT__YVU2P422  0xE
++#define BV_PXP_CTRL_S0_FORMAT__YVU2P420  0xF
++#define BM_PXP_CTRL_VFLIP	0x00000800
++#define BM_PXP_CTRL_HFLIP	0x00000400
++#define BP_PXP_CTRL_ROTATE	8
++#define BM_PXP_CTRL_ROTATE	0x00000300
++#define BF_PXP_CTRL_ROTATE(v)  \
++		(((v) << 8) & BM_PXP_CTRL_ROTATE)
++#define BV_PXP_CTRL_ROTATE__ROT_0   0x0
++#define BV_PXP_CTRL_ROTATE__ROT_90  0x1
++#define BV_PXP_CTRL_ROTATE__ROT_180 0x2
++#define BV_PXP_CTRL_ROTATE__ROT_270 0x3
++#define BP_PXP_CTRL_OUTBUF_FORMAT	4
++#define BM_PXP_CTRL_OUTBUF_FORMAT	0x000000F0
++#define BF_PXP_CTRL_OUTBUF_FORMAT(v)  \
++		(((v) << 4) & BM_PXP_CTRL_OUTBUF_FORMAT)
++#define BV_PXP_CTRL_OUTBUF_FORMAT__ARGB8888  0x0
++#define BV_PXP_CTRL_OUTBUF_FORMAT__RGB888    0x1
++#define BV_PXP_CTRL_OUTBUF_FORMAT__RGB888P   0x2
++#define BV_PXP_CTRL_OUTBUF_FORMAT__ARGB1555  0x3
++#define BV_PXP_CTRL_OUTBUF_FORMAT__RGB565    0x4
++#define BV_PXP_CTRL_OUTBUF_FORMAT__RGB555    0x5
++#define BV_PXP_CTRL_OUTBUF_FORMAT__YUV444    0x7
++#define BV_PXP_CTRL_OUTBUF_FORMAT__UYVY1P422 0xA
++#define BV_PXP_CTRL_OUTBUF_FORMAT__VYUY1P422 0xB
++#define BV_PXP_CTRL_OUTBUF_FORMAT__YUV2P422  0xC
++#define BV_PXP_CTRL_OUTBUF_FORMAT__YUV2P420  0xD
++#define BV_PXP_CTRL_OUTBUF_FORMAT__YVU2P422  0xE
++#define BV_PXP_CTRL_OUTBUF_FORMAT__YVU2P420  0xF
++#define BM_PXP_CTRL_ENABLE_LCD_HANDSHAKE	0x00000008
++#define BM_PXP_CTRL_NEXT_IRQ_ENABLE	0x00000004
++#define BM_PXP_CTRL_IRQ_ENABLE	0x00000002
++#define BM_PXP_CTRL_ENABLE	0x00000001
++
++#define HW_PXP_STAT	(0x00000010)
++#define HW_PXP_STAT_SET	(0x00000014)
++#define HW_PXP_STAT_CLR	(0x00000018)
++#define HW_PXP_STAT_TOG	(0x0000001c)
++
++#define BP_PXP_STAT_BLOCKX	24
++#define BM_PXP_STAT_BLOCKX	0xFF000000
++#define BF_PXP_STAT_BLOCKX(v) \
++		(((v) << 24) & BM_PXP_STAT_BLOCKX)
++#define BP_PXP_STAT_BLOCKY	16
++#define BM_PXP_STAT_BLOCKY	0x00FF0000
++#define BF_PXP_STAT_BLOCKY(v)  \
++		(((v) << 16) & BM_PXP_STAT_BLOCKY)
++#define BP_PXP_STAT_RSVD2	8
++#define BM_PXP_STAT_RSVD2	0x0000FF00
++#define BF_PXP_STAT_RSVD2(v)  \
++		(((v) << 8) & BM_PXP_STAT_RSVD2)
++#define BP_PXP_STAT_AXI_ERROR_ID	4
++#define BM_PXP_STAT_AXI_ERROR_ID	0x000000F0
++#define BF_PXP_STAT_AXI_ERROR_ID(v)  \
++		(((v) << 4) & BM_PXP_STAT_AXI_ERROR_ID)
++#define BM_PXP_STAT_NEXT_IRQ	0x00000008
++#define BM_PXP_STAT_AXI_READ_ERROR	0x00000004
++#define BM_PXP_STAT_AXI_WRITE_ERROR	0x00000002
++#define BM_PXP_STAT_IRQ	0x00000001
++
++#define HW_PXP_OUTBUF	(0x00000020)
++
++#define BP_PXP_OUTBUF_ADDR	0
++#define BM_PXP_OUTBUF_ADDR	0xFFFFFFFF
++#define BF_PXP_OUTBUF_ADDR(v)	(v)
++
++#define HW_PXP_OUTBUF2	(0x00000030)
++
++#define BP_PXP_OUTBUF2_ADDR	0
++#define BM_PXP_OUTBUF2_ADDR	0xFFFFFFFF
++#define BF_PXP_OUTBUF2_ADDR(v)	(v)
++
++#define HW_PXP_OUTSIZE	(0x00000040)
++
++#define BP_PXP_OUTSIZE_ALPHA	24
++#define BM_PXP_OUTSIZE_ALPHA	0xFF000000
++#define BF_PXP_OUTSIZE_ALPHA(v) \
++		(((v) << 24) & BM_PXP_OUTSIZE_ALPHA)
++#define BP_PXP_OUTSIZE_WIDTH	12
++#define BM_PXP_OUTSIZE_WIDTH	0x00FFF000
++#define BF_PXP_OUTSIZE_WIDTH(v)  \
++		(((v) << 12) & BM_PXP_OUTSIZE_WIDTH)
++#define BP_PXP_OUTSIZE_HEIGHT	0
++#define BM_PXP_OUTSIZE_HEIGHT	0x00000FFF
++#define BF_PXP_OUTSIZE_HEIGHT(v)  \
++		(((v) << 0) & BM_PXP_OUTSIZE_HEIGHT)
++
++#define HW_PXP_S0BUF	(0x00000050)
++
++#define BP_PXP_S0BUF_ADDR	0
++#define BM_PXP_S0BUF_ADDR	0xFFFFFFFF
++#define BF_PXP_S0BUF_ADDR(v)	(v)
++
++#define HW_PXP_S0UBUF	(0x00000060)
++
++#define BP_PXP_S0UBUF_ADDR	0
++#define BM_PXP_S0UBUF_ADDR	0xFFFFFFFF
++#define BF_PXP_S0UBUF_ADDR(v)	(v)
++
++#define HW_PXP_S0VBUF	(0x00000070)
++
++#define BP_PXP_S0VBUF_ADDR	0
++#define BM_PXP_S0VBUF_ADDR	0xFFFFFFFF
++#define BF_PXP_S0VBUF_ADDR(v)	(v)
++
++#define HW_PXP_S0PARAM	(0x00000080)
++
++#define BP_PXP_S0PARAM_XBASE	24
++#define BM_PXP_S0PARAM_XBASE	0xFF000000
++#define BF_PXP_S0PARAM_XBASE(v) \
++		(((v) << 24) & BM_PXP_S0PARAM_XBASE)
++#define BP_PXP_S0PARAM_YBASE	16
++#define BM_PXP_S0PARAM_YBASE	0x00FF0000
++#define BF_PXP_S0PARAM_YBASE(v)  \
++		(((v) << 16) & BM_PXP_S0PARAM_YBASE)
++#define BP_PXP_S0PARAM_WIDTH	8
++#define BM_PXP_S0PARAM_WIDTH	0x0000FF00
++#define BF_PXP_S0PARAM_WIDTH(v)  \
++		(((v) << 8) & BM_PXP_S0PARAM_WIDTH)
++#define BP_PXP_S0PARAM_HEIGHT	0
++#define BM_PXP_S0PARAM_HEIGHT	0x000000FF
++#define BF_PXP_S0PARAM_HEIGHT(v)  \
++		(((v) << 0) & BM_PXP_S0PARAM_HEIGHT)
++
++#define HW_PXP_S0BACKGROUND	(0x00000090)
++
++#define BP_PXP_S0BACKGROUND_COLOR	0
++#define BM_PXP_S0BACKGROUND_COLOR	0xFFFFFFFF
++#define BF_PXP_S0BACKGROUND_COLOR(v)	(v)
++
++#define HW_PXP_S0CROP	(0x000000a0)
++
++#define BP_PXP_S0CROP_XBASE	24
++#define BM_PXP_S0CROP_XBASE	0xFF000000
++#define BF_PXP_S0CROP_XBASE(v) \
++		(((v) << 24) & BM_PXP_S0CROP_XBASE)
++#define BP_PXP_S0CROP_YBASE	16
++#define BM_PXP_S0CROP_YBASE	0x00FF0000
++#define BF_PXP_S0CROP_YBASE(v)  \
++		(((v) << 16) & BM_PXP_S0CROP_YBASE)
++#define BP_PXP_S0CROP_WIDTH	8
++#define BM_PXP_S0CROP_WIDTH	0x0000FF00
++#define BF_PXP_S0CROP_WIDTH(v)  \
++		(((v) << 8) & BM_PXP_S0CROP_WIDTH)
++#define BP_PXP_S0CROP_HEIGHT	0
++#define BM_PXP_S0CROP_HEIGHT	0x000000FF
++#define BF_PXP_S0CROP_HEIGHT(v)  \
++		(((v) << 0) & BM_PXP_S0CROP_HEIGHT)
++
++#define HW_PXP_S0SCALE	(0x000000b0)
++
++#define BM_PXP_S0SCALE_RSVD2	0x80000000
++#define BP_PXP_S0SCALE_YSCALE	16
++#define BM_PXP_S0SCALE_YSCALE	0x7FFF0000
++#define BF_PXP_S0SCALE_YSCALE(v)  \
++		(((v) << 16) & BM_PXP_S0SCALE_YSCALE)
++#define BM_PXP_S0SCALE_RSVD1	0x00008000
++#define BP_PXP_S0SCALE_XSCALE	0
++#define BM_PXP_S0SCALE_XSCALE	0x00007FFF
++#define BF_PXP_S0SCALE_XSCALE(v)  \
++		(((v) << 0) & BM_PXP_S0SCALE_XSCALE)
++
++#define HW_PXP_S0OFFSET	(0x000000c0)
++
++#define BP_PXP_S0OFFSET_RSVD2	28
++#define BM_PXP_S0OFFSET_RSVD2	0xF0000000
++#define BF_PXP_S0OFFSET_RSVD2(v) \
++		(((v) << 28) & BM_PXP_S0OFFSET_RSVD2)
++#define BP_PXP_S0OFFSET_YOFFSET	16
++#define BM_PXP_S0OFFSET_YOFFSET	0x0FFF0000
++#define BF_PXP_S0OFFSET_YOFFSET(v)  \
++		(((v) << 16) & BM_PXP_S0OFFSET_YOFFSET)
++#define BP_PXP_S0OFFSET_RSVD1	12
++#define BM_PXP_S0OFFSET_RSVD1	0x0000F000
++#define BF_PXP_S0OFFSET_RSVD1(v)  \
++		(((v) << 12) & BM_PXP_S0OFFSET_RSVD1)
++#define BP_PXP_S0OFFSET_XOFFSET	0
++#define BM_PXP_S0OFFSET_XOFFSET	0x00000FFF
++#define BF_PXP_S0OFFSET_XOFFSET(v)  \
++		(((v) << 0) & BM_PXP_S0OFFSET_XOFFSET)
++
++#define HW_PXP_CSCCOEFF0	(0x000000d0)
++
++#define BM_PXP_CSCCOEFF0_YCBCR_MODE	0x80000000
++#define BP_PXP_CSCCOEFF0_RSVD1	29
++#define BM_PXP_CSCCOEFF0_RSVD1	0x60000000
++#define BF_PXP_CSCCOEFF0_RSVD1(v)  \
++		(((v) << 29) & BM_PXP_CSCCOEFF0_RSVD1)
++#define BP_PXP_CSCCOEFF0_C0	18
++#define BM_PXP_CSCCOEFF0_C0	0x1FFC0000
++#define BF_PXP_CSCCOEFF0_C0(v)  \
++		(((v) << 18) & BM_PXP_CSCCOEFF0_C0)
++#define BP_PXP_CSCCOEFF0_UV_OFFSET	9
++#define BM_PXP_CSCCOEFF0_UV_OFFSET	0x0003FE00
++#define BF_PXP_CSCCOEFF0_UV_OFFSET(v)  \
++		(((v) << 9) & BM_PXP_CSCCOEFF0_UV_OFFSET)
++#define BP_PXP_CSCCOEFF0_Y_OFFSET	0
++#define BM_PXP_CSCCOEFF0_Y_OFFSET	0x000001FF
++#define BF_PXP_CSCCOEFF0_Y_OFFSET(v)  \
++		(((v) << 0) & BM_PXP_CSCCOEFF0_Y_OFFSET)
++
++#define HW_PXP_CSCCOEFF1	(0x000000e0)
++
++#define BP_PXP_CSCCOEFF1_RSVD1	27
++#define BM_PXP_CSCCOEFF1_RSVD1	0xF8000000
++#define BF_PXP_CSCCOEFF1_RSVD1(v) \
++		(((v) << 27) & BM_PXP_CSCCOEFF1_RSVD1)
++#define BP_PXP_CSCCOEFF1_C1	16
++#define BM_PXP_CSCCOEFF1_C1	0x07FF0000
++#define BF_PXP_CSCCOEFF1_C1(v)  \
++		(((v) << 16) & BM_PXP_CSCCOEFF1_C1)
++#define BP_PXP_CSCCOEFF1_RSVD0	11
++#define BM_PXP_CSCCOEFF1_RSVD0	0x0000F800
++#define BF_PXP_CSCCOEFF1_RSVD0(v)  \
++		(((v) << 11) & BM_PXP_CSCCOEFF1_RSVD0)
++#define BP_PXP_CSCCOEFF1_C4	0
++#define BM_PXP_CSCCOEFF1_C4	0x000007FF
++#define BF_PXP_CSCCOEFF1_C4(v)  \
++		(((v) << 0) & BM_PXP_CSCCOEFF1_C4)
++
++#define HW_PXP_CSCCOEFF2	(0x000000f0)
++
++#define BP_PXP_CSCCOEFF2_RSVD1	27
++#define BM_PXP_CSCCOEFF2_RSVD1	0xF8000000
++#define BF_PXP_CSCCOEFF2_RSVD1(v) \
++		(((v) << 27) & BM_PXP_CSCCOEFF2_RSVD1)
++#define BP_PXP_CSCCOEFF2_C2	16
++#define BM_PXP_CSCCOEFF2_C2	0x07FF0000
++#define BF_PXP_CSCCOEFF2_C2(v)  \
++		(((v) << 16) & BM_PXP_CSCCOEFF2_C2)
++#define BP_PXP_CSCCOEFF2_RSVD0	11
++#define BM_PXP_CSCCOEFF2_RSVD0	0x0000F800
++#define BF_PXP_CSCCOEFF2_RSVD0(v)  \
++		(((v) << 11) & BM_PXP_CSCCOEFF2_RSVD0)
++#define BP_PXP_CSCCOEFF2_C3	0
++#define BM_PXP_CSCCOEFF2_C3	0x000007FF
++#define BF_PXP_CSCCOEFF2_C3(v)  \
++		(((v) << 0) & BM_PXP_CSCCOEFF2_C3)
++
++#define HW_PXP_NEXT	(0x00000100)
++#define HW_PXP_NEXT_SET	(0x00000104)
++#define HW_PXP_NEXT_CLR	(0x00000108)
++#define HW_PXP_NEXT_TOG	(0x0000010c)
++
++#define BP_PXP_NEXT_POINTER	2
++#define BM_PXP_NEXT_POINTER	0xFFFFFFFC
++#define BF_PXP_NEXT_POINTER(v) \
++		(((v) << 2) & BM_PXP_NEXT_POINTER)
++#define BM_PXP_NEXT_RSVD	0x00000002
++#define BM_PXP_NEXT_ENABLED	0x00000001
++
++#define HW_PXP_S0COLORKEYLOW	(0x00000180)
++
++#define BP_PXP_S0COLORKEYLOW_RSVD1	24
++#define BM_PXP_S0COLORKEYLOW_RSVD1	0xFF000000
++#define BF_PXP_S0COLORKEYLOW_RSVD1(v) \
++		(((v) << 24) & BM_PXP_S0COLORKEYLOW_RSVD1)
++#define BP_PXP_S0COLORKEYLOW_PIXEL	0
++#define BM_PXP_S0COLORKEYLOW_PIXEL	0x00FFFFFF
++#define BF_PXP_S0COLORKEYLOW_PIXEL(v)  \
++		(((v) << 0) & BM_PXP_S0COLORKEYLOW_PIXEL)
++
++#define HW_PXP_S0COLORKEYHIGH	(0x00000190)
++
++#define BP_PXP_S0COLORKEYHIGH_RSVD1	24
++#define BM_PXP_S0COLORKEYHIGH_RSVD1	0xFF000000
++#define BF_PXP_S0COLORKEYHIGH_RSVD1(v) \
++		(((v) << 24) & BM_PXP_S0COLORKEYHIGH_RSVD1)
++#define BP_PXP_S0COLORKEYHIGH_PIXEL	0
++#define BM_PXP_S0COLORKEYHIGH_PIXEL	0x00FFFFFF
++#define BF_PXP_S0COLORKEYHIGH_PIXEL(v)  \
++		(((v) << 0) & BM_PXP_S0COLORKEYHIGH_PIXEL)
++
++#define HW_PXP_OLCOLORKEYLOW	(0x000001a0)
++
++#define BP_PXP_OLCOLORKEYLOW_RSVD1	24
++#define BM_PXP_OLCOLORKEYLOW_RSVD1	0xFF000000
++#define BF_PXP_OLCOLORKEYLOW_RSVD1(v) \
++		(((v) << 24) & BM_PXP_OLCOLORKEYLOW_RSVD1)
++#define BP_PXP_OLCOLORKEYLOW_PIXEL	0
++#define BM_PXP_OLCOLORKEYLOW_PIXEL	0x00FFFFFF
++#define BF_PXP_OLCOLORKEYLOW_PIXEL(v)  \
++		(((v) << 0) & BM_PXP_OLCOLORKEYLOW_PIXEL)
++
++#define HW_PXP_OLCOLORKEYHIGH	(0x000001b0)
++
++#define BP_PXP_OLCOLORKEYHIGH_RSVD1	24
++#define BM_PXP_OLCOLORKEYHIGH_RSVD1	0xFF000000
++#define BF_PXP_OLCOLORKEYHIGH_RSVD1(v) \
++		(((v) << 24) & BM_PXP_OLCOLORKEYHIGH_RSVD1)
++#define BP_PXP_OLCOLORKEYHIGH_PIXEL	0
++#define BM_PXP_OLCOLORKEYHIGH_PIXEL	0x00FFFFFF
++#define BF_PXP_OLCOLORKEYHIGH_PIXEL(v)  \
++		(((v) << 0) & BM_PXP_OLCOLORKEYHIGH_PIXEL)
++
++#define HW_PXP_DEBUGCTRL	(0x000001d0)
++
++#define BP_PXP_DEBUGCTRL_RSVD	9
++#define BM_PXP_DEBUGCTRL_RSVD	0xFFFFFE00
++#define BF_PXP_DEBUGCTRL_RSVD(v) \
++		(((v) << 9) & BM_PXP_DEBUGCTRL_RSVD)
++#define BM_PXP_DEBUGCTRL_RESET_TLB_STATS	0x00000100
++#define BP_PXP_DEBUGCTRL_SELECT	0
++#define BM_PXP_DEBUGCTRL_SELECT	0x000000FF
++#define BF_PXP_DEBUGCTRL_SELECT(v)  \
++		(((v) << 0) & BM_PXP_DEBUGCTRL_SELECT)
++#define BV_PXP_DEBUGCTRL_SELECT__NONE     0x0
++#define BV_PXP_DEBUGCTRL_SELECT__CTRL     0x1
++#define BV_PXP_DEBUGCTRL_SELECT__S0REGS   0x2
++#define BV_PXP_DEBUGCTRL_SELECT__S0BAX    0x3
++#define BV_PXP_DEBUGCTRL_SELECT__S0BAY    0x4
++#define BV_PXP_DEBUGCTRL_SELECT__PXBUF    0x5
++#define BV_PXP_DEBUGCTRL_SELECT__ROTATION 0x6
++#define BV_PXP_DEBUGCTRL_SELECT__ROTBUF0  0x7
++#define BV_PXP_DEBUGCTRL_SELECT__ROTBUF1  0x8
++#define BV_PXP_DEBUGCTRL_SELECT__TLBCOUNT 0xF0
++#define BV_PXP_DEBUGCTRL_SELECT__TLBHIT   0xF1
++#define BV_PXP_DEBUGCTRL_SELECT__TLBMISS  0xF2
++#define BV_PXP_DEBUGCTRL_SELECT__TLBLAT   0xF3
++#define BV_PXP_DEBUGCTRL_SELECT__TLBSTATE 0xF8
++
++#define HW_PXP_DEBUG	(0x000001e0)
++
++#define BP_PXP_DEBUG_DATA	0
++#define BM_PXP_DEBUG_DATA	0xFFFFFFFF
++#define BF_PXP_DEBUG_DATA(v)	(v)
++
++#define HW_PXP_VERSION	(0x000001f0)
++
++#define BP_PXP_VERSION_MAJOR	24
++#define BM_PXP_VERSION_MAJOR	0xFF000000
++#define BF_PXP_VERSION_MAJOR(v) \
++		(((v) << 24) & BM_PXP_VERSION_MAJOR)
++#define BP_PXP_VERSION_MINOR	16
++#define BM_PXP_VERSION_MINOR	0x00FF0000
++#define BF_PXP_VERSION_MINOR(v)  \
++		(((v) << 16) & BM_PXP_VERSION_MINOR)
++#define BP_PXP_VERSION_STEP	0
++#define BM_PXP_VERSION_STEP	0x0000FFFF
++#define BF_PXP_VERSION_STEP(v)  \
++		(((v) << 0) & BM_PXP_VERSION_STEP)
++
++/*
++ *  multi-register-define name HW_PXP_OLn
++ *              base 0x00000200
++ *              count 8
++ *              offset 0x40
++ */
++#define HW_PXP_OLn(n)	(0x00000200 + (n) * 0x40)
++#define BP_PXP_OLn_ADDR	0
++#define BM_PXP_OLn_ADDR	0xFFFFFFFF
++#define BF_PXP_OLn_ADDR(v)	(v)
++
++/*
++ *  multi-register-define name HW_PXP_OLnSIZE
++ *              base 0x00000210
++ *              count 8
++ *              offset 0x40
++ */
++#define HW_PXP_OLnSIZE(n)	(0x00000210 + (n) * 0x40)
++#define BP_PXP_OLnSIZE_XBASE	24
++#define BM_PXP_OLnSIZE_XBASE	0xFF000000
++#define BF_PXP_OLnSIZE_XBASE(v) \
++		(((v) << 24) & BM_PXP_OLnSIZE_XBASE)
++#define BP_PXP_OLnSIZE_YBASE	16
++#define BM_PXP_OLnSIZE_YBASE	0x00FF0000
++#define BF_PXP_OLnSIZE_YBASE(v)  \
++		(((v) << 16) & BM_PXP_OLnSIZE_YBASE)
++#define BP_PXP_OLnSIZE_WIDTH	8
++#define BM_PXP_OLnSIZE_WIDTH	0x0000FF00
++#define BF_PXP_OLnSIZE_WIDTH(v)  \
++		(((v) << 8) & BM_PXP_OLnSIZE_WIDTH)
++#define BP_PXP_OLnSIZE_HEIGHT	0
++#define BM_PXP_OLnSIZE_HEIGHT	0x000000FF
++#define BF_PXP_OLnSIZE_HEIGHT(v)  \
++		(((v) << 0) & BM_PXP_OLnSIZE_HEIGHT)
++
++/*
++ *  multi-register-define name HW_PXP_OLnPARAM
++ *              base 0x00000220
++ *              count 8
++ *              offset 0x40
++ */
++#define HW_PXP_OLnPARAM(n)	(0x00000220 + (n) * 0x40)
++#define BP_PXP_OLnPARAM_RSVD1	20
++#define BM_PXP_OLnPARAM_RSVD1	0xFFF00000
++#define BF_PXP_OLnPARAM_RSVD1(v) \
++		(((v) << 20) & BM_PXP_OLnPARAM_RSVD1)
++#define BP_PXP_OLnPARAM_ROP	16
++#define BM_PXP_OLnPARAM_ROP	0x000F0000
++#define BF_PXP_OLnPARAM_ROP(v)  \
++		(((v) << 16) & BM_PXP_OLnPARAM_ROP)
++#define BV_PXP_OLnPARAM_ROP__MASKOL     0x0
++#define BV_PXP_OLnPARAM_ROP__MASKNOTOL  0x1
++#define BV_PXP_OLnPARAM_ROP__MASKOLNOT  0x2
++#define BV_PXP_OLnPARAM_ROP__MERGEOL    0x3
++#define BV_PXP_OLnPARAM_ROP__MERGENOTOL 0x4
++#define BV_PXP_OLnPARAM_ROP__MERGEOLNOT 0x5
++#define BV_PXP_OLnPARAM_ROP__NOTCOPYOL  0x6
++#define BV_PXP_OLnPARAM_ROP__NOT        0x7
++#define BV_PXP_OLnPARAM_ROP__NOTMASKOL  0x8
++#define BV_PXP_OLnPARAM_ROP__NOTMERGEOL 0x9
++#define BV_PXP_OLnPARAM_ROP__XOROL      0xA
++#define BV_PXP_OLnPARAM_ROP__NOTXOROL   0xB
++#define BP_PXP_OLnPARAM_ALPHA	8
++#define BM_PXP_OLnPARAM_ALPHA	0x0000FF00
++#define BF_PXP_OLnPARAM_ALPHA(v)  \
++		(((v) << 8) & BM_PXP_OLnPARAM_ALPHA)
++#define BP_PXP_OLnPARAM_FORMAT	4
++#define BM_PXP_OLnPARAM_FORMAT	0x000000F0
++#define BF_PXP_OLnPARAM_FORMAT(v)  \
++		(((v) << 4) & BM_PXP_OLnPARAM_FORMAT)
++#define BV_PXP_OLnPARAM_FORMAT__ARGB8888 0x0
++#define BV_PXP_OLnPARAM_FORMAT__RGB888   0x1
++#define BV_PXP_OLnPARAM_FORMAT__ARGB1555 0x3
++#define BV_PXP_OLnPARAM_FORMAT__RGB565   0x4
++#define BV_PXP_OLnPARAM_FORMAT__RGB555   0x5
++#define BM_PXP_OLnPARAM_ENABLE_COLORKEY	0x00000008
++#define BP_PXP_OLnPARAM_ALPHA_CNTL	1
++#define BM_PXP_OLnPARAM_ALPHA_CNTL	0x00000006
++#define BF_PXP_OLnPARAM_ALPHA_CNTL(v)  \
++		(((v) << 1) & BM_PXP_OLnPARAM_ALPHA_CNTL)
++#define BV_PXP_OLnPARAM_ALPHA_CNTL__Embedded 0x0
++#define BV_PXP_OLnPARAM_ALPHA_CNTL__Override 0x1
++#define BV_PXP_OLnPARAM_ALPHA_CNTL__Multiply 0x2
++#define BV_PXP_OLnPARAM_ALPHA_CNTL__ROPs     0x3
++#define BM_PXP_OLnPARAM_ENABLE	0x00000001
++
++/*
++ *  multi-register-define name HW_PXP_OLnPARAM2
++ *              base 0x00000230
++ *              count 8
++ *              offset 0x40
++ */
++#define HW_PXP_OLnPARAM2(n)	(0x00000230 + (n) * 0x40)
++#define BP_PXP_OLnPARAM2_RSVD	0
++#define BM_PXP_OLnPARAM2_RSVD	0xFFFFFFFF
++#define BF_PXP_OLnPARAM2_RSVD(v)	(v)
++#endif /* __ARCH_ARM___PXP_H */
+diff --git a/arch/arm/plat-mxs/device.c b/arch/arm/plat-mxs/device.c
+index a87e6d2..7bdf57e 100644
+--- a/arch/arm/plat-mxs/device.c
++++ b/arch/arm/plat-mxs/device.c
+@@ -208,6 +208,19 @@ struct platform_device mxs_bl = {
+ };
+ #endif
+ 
++#if defined(CONFIG_VIDEO_PXP) || \
++	defined(CONFIG_VIDEO_PXP_MODULE)
++static struct platform_device mxs_pxp = {
++	.name		= "mxs-pxp",
++	.id		= 0,
++	.dev		= {
++		.release = mxs_nop_release,
++		.dma_mask		= &common_dmamask,
++		.coherent_dma_mask	= DMA_BIT_MASK(32),
++	},
++};
++#endif
++
+ #if defined(CONFIG_RTC_DRV_MXS) || defined(CONFIG_RTC_DRV_MXS_MODULE)
+ static struct platform_device mxs_rtc = {
+ 	.name = "mxs-rtc",
+@@ -416,6 +429,15 @@ static struct mxs_dev_lookup dev_lookup[] = {
+ 	 },
+ #endif
+ 
++#if defined(CONFIG_VIDEO_PXP) || \
++	defined(CONFIG_VIDEO_PXP_MODULE)
++	{
++	 .name	= "mxs-pxp",
++	 .size	= 1,
++	 .pdev	= &mxs_pxp,
++	 },
++#endif
++
+ #if defined(CONFIG_FEC) || defined(CONFIG_FEC_MODULE)
+ 	{
+ 	.name = "mxs-fec",
+diff --git a/drivers/media/video/Kconfig b/drivers/media/video/Kconfig
+index 7210c4f..9183ebd 100644
+--- a/drivers/media/video/Kconfig
++++ b/drivers/media/video/Kconfig
+@@ -569,8 +569,8 @@ config VIDEO_MXC_OUTPUT
+ source "drivers/media/video/mxc/output/Kconfig"
+ 
+ config VIDEO_PXP
+-	tristate "STMP3xxx PxP"
+-	depends on VIDEO_DEV && VIDEO_V4L2 && ARCH_STMP3XXX
++	tristate "MXS PxP"
++	depends on VIDEO_DEV && VIDEO_V4L2 && (ARCH_STMP3XXX || ARCH_MXS)
+ 	select VIDEOBUF_DMA_CONTIG
+ 	---help---
+ 	  This is a video4linux driver for the Freescale PxP
+diff --git a/drivers/media/video/pxp.c b/drivers/media/video/pxp.c
+index 0aaa93a..e496362 100644
+--- a/drivers/media/video/pxp.c
++++ b/drivers/media/video/pxp.c
+@@ -1,22 +1,26 @@
+ /*
+- * Freescale STMP378X PxP driver
++ * Freescale MXS PxP driver
+  *
+  * Author: Matt Porter <mporter@embeddedalley.com>
+  *
+  * Copyright 2008-2010 Freescale Semiconductor, Inc.
+  * Copyright 2008-2009 Embedded Alley Solutions, Inc All Rights Reserved.
+- */
+-
+-/*
+- * The code contained herein is licensed under the GNU General Public
+- * License. You may obtain a copy of the GNU General Public License
+- * Version 2 or later at the following locations:
+  *
+- * http://www.opensource.org/licenses/gpl-license.html
+- * http://www.gnu.org/copyleft/gpl.html
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License along
++ * with this program; if not, write to the Free Software Foundation, Inc.,
++ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+  */
+ 
+-#include <linux/dma-mapping.h>
+ #include <linux/fb.h>
+ #include <linux/init.h>
+ #include <linux/interrupt.h>
+@@ -33,13 +37,15 @@
+ #include <media/v4l2-dev.h>
+ #include <media/v4l2-ioctl.h>
+ 
+-#include <mach/platform.h>
++#include <mach/hardware.h>
+ #include <mach/regs-pxp.h>
+ #include <mach/lcdif.h>
+ 
+ #include "pxp.h"
+ 
+-#define PXP_DRIVER_NAME			"stmp3xxx-pxp"
++#define	PXP_BASE_ADDR	IO_ADDRESS(PXP_PHYS_ADDR)
++
++#define PXP_DRIVER_NAME			"mxs-pxp"
+ #define PXP_DRIVER_MAJOR		1
+ #define PXP_DRIVER_MINOR		0
+ 
+@@ -48,8 +54,8 @@
+ 
+ #define V4L2_OUTPUT_TYPE_INTERNAL	4
+ 
+-#define PXP_WAITCON	((__raw_readl(HW_PXP_NEXT_ADDR) & BM_PXP_NEXT_ENABLED) \
+-				!= BM_PXP_NEXT_ENABLED)
++#define PXP_WAITCON	((__raw_readl(PXP_BASE_ADDR + HW_PXP_NEXT) & \
++				BM_PXP_NEXT_ENABLED) != BM_PXP_NEXT_ENABLED)
+ 
+ #define REG_OFFSET	0x10
+ #define REGS1_NUMS	16
+@@ -61,103 +67,111 @@ static u32 regs3[REGS3_NUMS];
+ 
+ static struct pxp_data_format pxp_s0_formats[] = {
+ 	{
+-		.name = "24-bit RGB",
+-		.bpp = 4,
+-		.fourcc = V4L2_PIX_FMT_RGB24,
+-		.colorspace = V4L2_COLORSPACE_SRGB,
+-		.ctrl_s0_fmt = BV_PXP_CTRL_S0_FORMAT__RGB888,
+-	}, {
+-		.name = "16-bit RGB 5:6:5",
+-		.bpp = 2,
+-		.fourcc = V4L2_PIX_FMT_RGB565,
+-		.colorspace = V4L2_COLORSPACE_SRGB,
+-		.ctrl_s0_fmt = BV_PXP_CTRL_S0_FORMAT__RGB565,
+-	}, {
+-		.name = "16-bit RGB 5:5:5",
+-		.bpp = 2,
+-		.fourcc = V4L2_PIX_FMT_RGB555,
+-		.colorspace = V4L2_COLORSPACE_SRGB,
+-		.ctrl_s0_fmt = BV_PXP_CTRL_S0_FORMAT__RGB555,
+-	}, {
+-		.name = "YUV 4:2:0 Planar",
+-		.bpp = 2,
+-		.fourcc = V4L2_PIX_FMT_YUV420,
+-		.colorspace = V4L2_COLORSPACE_JPEG,
+-		.ctrl_s0_fmt = BV_PXP_CTRL_S0_FORMAT__YUV420,
+-	}, {
+-		.name = "YUV 4:2:2 Planar",
+-		.bpp = 2,
+-		.fourcc = V4L2_PIX_FMT_YUV422P,
+-		.colorspace = V4L2_COLORSPACE_JPEG,
+-		.ctrl_s0_fmt = BV_PXP_CTRL_S0_FORMAT__YUV422,
+-	},
++	 .name = "24-bit RGB",
++	 .bpp = 4,
++	 .fourcc = V4L2_PIX_FMT_RGB24,
++	 .colorspace = V4L2_COLORSPACE_SRGB,
++	 .ctrl_s0_fmt = BV_PXP_CTRL_S0_FORMAT__RGB888,
++	 },
++	{
++	 .name = "16-bit RGB 5:6:5",
++	 .bpp = 2,
++	 .fourcc = V4L2_PIX_FMT_RGB565,
++	 .colorspace = V4L2_COLORSPACE_SRGB,
++	 .ctrl_s0_fmt = BV_PXP_CTRL_S0_FORMAT__RGB565,
++	 },
++	{
++	 .name = "16-bit RGB 5:5:5",
++	 .bpp = 2,
++	 .fourcc = V4L2_PIX_FMT_RGB555,
++	 .colorspace = V4L2_COLORSPACE_SRGB,
++	 .ctrl_s0_fmt = BV_PXP_CTRL_S0_FORMAT__RGB555,
++	 },
++	{
++	 .name = "YUV 4:2:0 Planar",
++	 .bpp = 2,
++	 .fourcc = V4L2_PIX_FMT_YUV420,
++	 .colorspace = V4L2_COLORSPACE_JPEG,
++	 .ctrl_s0_fmt = BV_PXP_CTRL_S0_FORMAT__YUV420,
++	 },
++	{
++	 .name = "YUV 4:2:2 Planar",
++	 .bpp = 2,
++	 .fourcc = V4L2_PIX_FMT_YUV422P,
++	 .colorspace = V4L2_COLORSPACE_JPEG,
++	 .ctrl_s0_fmt = BV_PXP_CTRL_S0_FORMAT__YUV422,
++	 },
+ };
+ 
+ struct v4l2_queryctrl pxp_controls[] = {
+ 	{
+-		.id 		= V4L2_CID_HFLIP,
+-		.type 		= V4L2_CTRL_TYPE_BOOLEAN,
+-		.name 		= "Horizontal Flip",
+-		.minimum 	= 0,
+-		.maximum 	= 1,
+-		.step 		= 1,
+-		.default_value	= 0,
+-		.flags		= 0,
+-	}, {
+-		.id		= V4L2_CID_VFLIP,
+-		.type		= V4L2_CTRL_TYPE_BOOLEAN,
+-		.name		= "Vertical Flip",
+-		.minimum	= 0,
+-		.maximum	= 1,
+-		.step		= 1,
+-		.default_value	= 0,
+-		.flags		= 0,
+-	}, {
+-		.id		= V4L2_CID_PRIVATE_BASE,
+-		.type		= V4L2_CTRL_TYPE_INTEGER,
+-		.name		= "Rotation",
+-		.minimum	= 0,
+-		.maximum	= 270,
+-		.step		= 90,
+-		.default_value	= 0,
+-		.flags		= 0,
+-	}, {
+-		.id		= V4L2_CID_PRIVATE_BASE + 1,
+-		.name		= "Background Color",
+-		.minimum	= 0,
+-		.maximum	= 0xFFFFFF,
+-		.step		= 1,
+-		.default_value	= 0,
+-		.flags		= 0,
+-		.type		= V4L2_CTRL_TYPE_INTEGER,
+-	}, {
+-		.id		= V4L2_CID_PRIVATE_BASE + 2,
+-		.name		= "Set S0 Chromakey",
+-		.minimum	= -1,
+-		.maximum	= 0xFFFFFF,
+-		.step		= 1,
+-		.default_value	= -1,
+-		.flags		= 0,
+-		.type		= V4L2_CTRL_TYPE_INTEGER,
+-	}, {
+-		.id		= V4L2_CID_PRIVATE_BASE + 3,
+-		.name		= "YUV Colorspace",
+-		.minimum	= 0,
+-		.maximum	= 1,
+-		.step		= 1,
+-		.default_value	= 0,
+-		.flags		= 0,
+-		.type		= V4L2_CTRL_TYPE_BOOLEAN,
+-	},
++	 .id = V4L2_CID_HFLIP,
++	 .type = V4L2_CTRL_TYPE_BOOLEAN,
++	 .name = "Horizontal Flip",
++	 .minimum = 0,
++	 .maximum = 1,
++	 .step = 1,
++	 .default_value = 0,
++	 .flags = 0,
++	 },
++	{
++	 .id = V4L2_CID_VFLIP,
++	 .type = V4L2_CTRL_TYPE_BOOLEAN,
++	 .name = "Vertical Flip",
++	 .minimum = 0,
++	 .maximum = 1,
++	 .step = 1,
++	 .default_value = 0,
++	 .flags = 0,
++	 },
++	{
++	 .id = V4L2_CID_PRIVATE_BASE,
++	 .type = V4L2_CTRL_TYPE_INTEGER,
++	 .name = "Rotation",
++	 .minimum = 0,
++	 .maximum = 270,
++	 .step = 90,
++	 .default_value = 0,
++	 .flags = 0,
++	 },
++	{
++	 .id = V4L2_CID_PRIVATE_BASE + 1,
++	 .name = "Background Color",
++	 .minimum = 0,
++	 .maximum = 0xFFFFFF,
++	 .step = 1,
++	 .default_value = 0,
++	 .flags = 0,
++	 .type = V4L2_CTRL_TYPE_INTEGER,
++	 },
++	{
++	 .id = V4L2_CID_PRIVATE_BASE + 2,
++	 .name = "Set S0 Chromakey",
++	 .minimum = -1,
++	 .maximum = 0xFFFFFF,
++	 .step = 1,
++	 .default_value = -1,
++	 .flags = 0,
++	 .type = V4L2_CTRL_TYPE_INTEGER,
++	 },
++	{
++	 .id = V4L2_CID_PRIVATE_BASE + 3,
++	 .name = "YUV Colorspace",
++	 .minimum = 0,
++	 .maximum = 1,
++	 .step = 1,
++	 .default_value = 0,
++	 .flags = 0,
++	 .type = V4L2_CTRL_TYPE_BOOLEAN,
++	 },
+ };
+ 
+ static void pxp_set_ctrl(struct pxps *pxp)
+ {
+ 	u32 ctrl;
+ 
+-	ctrl = BF(pxp->s0_fmt->ctrl_s0_fmt, PXP_CTRL_S0_FORMAT);
+-	ctrl |=
+-	BF(BV_PXP_CTRL_OUTPUT_RGB_FORMAT__RGB888, PXP_CTRL_OUTPUT_RGB_FORMAT);
++	ctrl = BF_PXP_CTRL_S0_FORMAT(pxp->s0_fmt->ctrl_s0_fmt);
++	ctrl |= BF_PXP_CTRL_OUTBUF_FORMAT(BV_PXP_CTRL_OUTBUF_FORMAT__RGB888);
+ 	ctrl |= BM_PXP_CTRL_CROP;
+ 
+ 	if (pxp->scaling)
+@@ -167,13 +181,13 @@ static void pxp_set_ctrl(struct pxps *pxp)
+ 	if (pxp->hflip)
+ 		ctrl |= BM_PXP_CTRL_HFLIP;
+ 	if (pxp->rotate)
+-		ctrl |= BF(pxp->rotate/90, PXP_CTRL_ROTATE);
++		ctrl |= BF_PXP_CTRL_ROTATE(pxp->rotate / 90);
+ 
+ 	ctrl |= BM_PXP_CTRL_IRQ_ENABLE;
+ 	if (pxp->active)
+ 		ctrl |= BM_PXP_CTRL_ENABLE;
+ 
+-	__raw_writel(ctrl, HW_PXP_CTRL_ADDR);
++	__raw_writel(ctrl, PXP_BASE_ADDR + HW_PXP_CTRL);
+ 	pxp->regs_virt->ctrl = ctrl;
+ }
+ 
+@@ -181,8 +195,8 @@ static void pxp_set_rgbbuf(struct pxps *pxp)
+ {
+ 	pxp->regs_virt->rgbbuf = pxp->outb_phys;
+ 	/* Always equal to the FB size */
+-	pxp->regs_virt->rgbsize = BF(pxp->fb.fmt.width, PXP_RGBSIZE_WIDTH) |
+-				BF(pxp->fb.fmt.height, PXP_RGBSIZE_HEIGHT);
++	pxp->regs_virt->rgbsize = BF_PXP_OUTSIZE_WIDTH(pxp->fb.fmt.width) |
++	    BF_PXP_OUTSIZE_HEIGHT(pxp->fb.fmt.height);
+ }
+ 
+ static void pxp_set_s0colorkey(struct pxps *pxp)
+@@ -213,10 +227,10 @@ static void pxp_set_s1colorkey(struct pxps *pxp)
+ 
+ static void pxp_set_oln(struct pxps *pxp)
+ {
+-	pxp->regs_virt->ol0.ol = (u32)pxp->fb.base;
++	pxp->regs_virt->ol0.ol = (u32) pxp->fb.base;
+ 	pxp->regs_virt->ol0.olsize =
+-		BF(pxp->fb.fmt.width >> 3, PXP_OLnSIZE_WIDTH) |
+-		BF(pxp->fb.fmt.height >> 3, PXP_OLnSIZE_HEIGHT);
++	    BF_PXP_OLnSIZE_WIDTH(pxp->fb.fmt.width >> 3) |
++	    BF_PXP_OLnSIZE_HEIGHT(pxp->fb.fmt.height >> 3);
+ }
+ 
+ static void pxp_set_olparam(struct pxps *pxp)
+@@ -224,16 +238,17 @@ static void pxp_set_olparam(struct pxps *pxp)
+ 	u32 olparam;
+ 	struct v4l2_pix_format *fmt = &pxp->fb.fmt;
+ 
+-	olparam = BF(pxp->global_alpha, PXP_OLnPARAM_ALPHA);
++	olparam = BF_PXP_OLnPARAM_ALPHA(pxp->global_alpha);
+ 	if (fmt->pixelformat == V4L2_PIX_FMT_RGB24)
+ 		olparam |=
+-		BF(BV_PXP_OLnPARAM_FORMAT__RGB888, PXP_OLnPARAM_FORMAT);
++		    BF_PXP_OLnPARAM_FORMAT(BV_PXP_OLnPARAM_FORMAT__RGB888);
+ 	else
+ 		olparam |=
+-		BF(BV_PXP_OLnPARAM_FORMAT__RGB565, PXP_OLnPARAM_FORMAT);
++		    BF_PXP_OLnPARAM_FORMAT(BV_PXP_OLnPARAM_FORMAT__RGB565);
+ 	if (pxp->global_alpha_state)
+-		olparam |= BF(BV_PXP_OLnPARAM_ALPHA_CNTL__Override,
+-					PXP_OLnPARAM_ALPHA_CNTL);
++		olparam |=
++		    BF_PXP_OLnPARAM_ALPHA_CNTL
++		    (BV_PXP_OLnPARAM_ALPHA_CNTL__Override);
+ 	if (pxp->s1_chromakey_state)
+ 		olparam |= BM_PXP_OLnPARAM_ENABLE_COLORKEY;
+ 	if (pxp->overlay_state)
+@@ -246,10 +261,10 @@ static void pxp_set_s0param(struct pxps *pxp)
+ {
+ 	u32 s0param;
+ 
+-	s0param = BF(pxp->drect.left >> 3, PXP_S0PARAM_XBASE);
+-	s0param |= BF(pxp->drect.top >> 3, PXP_S0PARAM_YBASE);
+-	s0param |= BF(pxp->s0_width >> 3, PXP_S0PARAM_WIDTH);
+-	s0param |= BF(pxp->s0_height >> 3, PXP_S0PARAM_HEIGHT);
++	s0param = BF_PXP_S0PARAM_XBASE(pxp->drect.left >> 3);
++	s0param |= BF_PXP_S0PARAM_YBASE(pxp->drect.top >> 3);
++	s0param |= BF_PXP_S0PARAM_WIDTH(pxp->s0_width >> 3);
++	s0param |= BF_PXP_S0PARAM_HEIGHT(pxp->s0_height >> 3);
+ 	pxp->regs_virt->s0param = s0param;
+ }
+ 
+@@ -257,10 +272,10 @@ static void pxp_set_s0crop(struct pxps *pxp)
+ {
+ 	u32 s0crop;
+ 
+-	s0crop = BF(pxp->srect.left >> 3, PXP_S0CROP_XBASE);
+-	s0crop |= BF(pxp->srect.top >> 3, PXP_S0CROP_YBASE);
+-	s0crop |= BF(pxp->drect.width >> 3, PXP_S0CROP_WIDTH);
+-	s0crop |= BF(pxp->drect.height >> 3, PXP_S0CROP_HEIGHT);
++	s0crop = BF_PXP_S0CROP_XBASE(pxp->srect.left >> 3);
++	s0crop |= BF_PXP_S0CROP_YBASE(pxp->srect.top >> 3);
++	s0crop |= BF_PXP_S0CROP_WIDTH(pxp->drect.width >> 3);
++	s0crop |= BF_PXP_S0CROP_HEIGHT(pxp->drect.height >> 3);
+ 	pxp->regs_virt->s0crop = s0crop;
+ }
+ 
+@@ -270,14 +285,14 @@ static int pxp_set_scaling(struct pxps *pxp)
+ 	u32 xscale, yscale, s0scale;
+ 
+ 	if ((pxp->s0_fmt->fourcc != V4L2_PIX_FMT_YUV420) &&
+-		(pxp->s0_fmt->fourcc != V4L2_PIX_FMT_YUV422P)) {
++	    (pxp->s0_fmt->fourcc != V4L2_PIX_FMT_YUV422P)) {
+ 		pxp->scaling = 0;
+ 		ret = -EINVAL;
+ 		goto out;
+ 	}
+ 
+ 	if ((pxp->srect.width == pxp->drect.width) &&
+-		(pxp->srect.height == pxp->drect.height)) {
++	    (pxp->srect.height == pxp->drect.height)) {
+ 		pxp->scaling = 0;
+ 		goto out;
+ 	}
+@@ -285,8 +300,7 @@ static int pxp_set_scaling(struct pxps *pxp)
+ 	pxp->scaling = 1;
+ 	xscale = pxp->srect.width * 0x1000 / pxp->drect.width;
+ 	yscale = pxp->srect.height * 0x1000 / pxp->drect.height;
+-	s0scale = BF(yscale, PXP_S0SCALE_YSCALE) |
+-		  BF(xscale, PXP_S0SCALE_XSCALE);
++	s0scale = BF_PXP_S0SCALE_YSCALE(yscale) | BF_PXP_S0SCALE_XSCALE(xscale);
+ 	pxp->regs_virt->s0scale = s0scale;
+ 
+ out:
+@@ -302,7 +316,7 @@ static int pxp_set_fbinfo(struct pxps *pxp)
+ 	struct v4l2_framebuffer *fb = &pxp->fb;
+ 	int err;
+ 
+-	err = stmp3xxxfb_get_info(&var, &fix);
++	err = mxsfb_get_info(&var, &fix);
+ 
+ 	fb->fmt.width = var.xres;
+ 	fb->fmt.height = var.yres;
+@@ -323,14 +337,14 @@ static void pxp_set_csc(struct pxps *pxp)
+ {
+ 	if (pxp->yuv) {
+ 		/* YUV colorspace */
+-		__raw_writel(0x04030000, HW_PXP_CSCCOEFF0_ADDR);
+-		__raw_writel(0x01230208, HW_PXP_CSCCOEFF1_ADDR);
+-		__raw_writel(0x076b079c, HW_PXP_CSCCOEFF2_ADDR);
++		__raw_writel(0x04030000, PXP_BASE_ADDR + HW_PXP_CSCCOEFF0);
++		__raw_writel(0x01230208, PXP_BASE_ADDR + HW_PXP_CSCCOEFF1);
++		__raw_writel(0x076b079b, PXP_BASE_ADDR + HW_PXP_CSCCOEFF2);
+ 	} else {
+ 		/* YCrCb colorspace */
+-		__raw_writel(0x84ab01f0, HW_PXP_CSCCOEFF0_ADDR);
+-		__raw_writel(0x01230204, HW_PXP_CSCCOEFF1_ADDR);
+-		__raw_writel(0x0730079c, HW_PXP_CSCCOEFF2_ADDR);
++		__raw_writel(0x84ab01f0, PXP_BASE_ADDR + HW_PXP_CSCCOEFF0);
++		__raw_writel(0x01230204, PXP_BASE_ADDR + HW_PXP_CSCCOEFF1);
++		__raw_writel(0x0730079c, PXP_BASE_ADDR + HW_PXP_CSCCOEFF2);
+ 	}
+ }
+ 
+@@ -379,8 +393,7 @@ static int pxp_get_cstate(struct pxps *pxp, struct v4l2_control *vc)
+ 	return 0;
+ }
+ 
+-static int pxp_enumoutput(struct file *file, void *fh,
+-			struct v4l2_output *o)
++static int pxp_enumoutput(struct file *file, void *fh, struct v4l2_output *o)
+ {
+ 	struct pxps *pxp = video_get_drvdata(video_devdata(file));
+ 
+@@ -402,8 +415,7 @@ static int pxp_enumoutput(struct file *file, void *fh,
+ 	return 0;
+ }
+ 
+-static int pxp_g_output(struct file *file, void *fh,
+-			unsigned int *i)
++static int pxp_g_output(struct file *file, void *fh, unsigned int *i)
+ {
+ 	struct pxps *pxp = video_get_drvdata(video_devdata(file));
+ 
+@@ -412,8 +424,7 @@ static int pxp_g_output(struct file *file, void *fh,
+ 	return 0;
+ }
+ 
+-static int pxp_s_output(struct file *file, void *fh,
+-			unsigned int i)
++static int pxp_s_output(struct file *file, void *fh, unsigned int i)
+ {
+ 	struct pxps *pxp = video_get_drvdata(video_devdata(file));
+ 	struct v4l2_pix_format *fmt = &pxp->fb.fmt;
+@@ -434,7 +445,7 @@ static int pxp_s_output(struct file *file, void *fh,
+ 	pxp->outb = kmalloc(fmt->width * fmt->height * bpp, GFP_KERNEL);
+ 	pxp->outb_phys = virt_to_phys(pxp->outb);
+ 	dma_map_single(NULL, pxp->outb,
+-			fmt->width * fmt->height * bpp, DMA_TO_DEVICE);
++		       fmt->width * fmt->height * bpp, DMA_TO_DEVICE);
+ 
+ out:
+ 	pxp_set_rgbbuf(pxp);
+@@ -443,7 +454,7 @@ out:
+ }
+ 
+ static int pxp_enum_fmt_video_output(struct file *file, void *fh,
+-				struct v4l2_fmtdesc *fmt)
++				     struct v4l2_fmtdesc *fmt)
+ {
+ 	enum v4l2_buf_type type = fmt->type;
+ 	int index = fmt->index;
+@@ -461,7 +472,7 @@ static int pxp_enum_fmt_video_output(struct file *file, void *fh,
+ }
+ 
+ static int pxp_g_fmt_video_output(struct file *file, void *fh,
+-				struct v4l2_format *f)
++				  struct v4l2_format *f)
+ {
+ 	struct v4l2_pix_format *pf = &f->fmt.pix;
+ 	struct pxps *pxp = video_get_drvdata(video_devdata(file));
+@@ -497,7 +508,7 @@ static struct pxp_data_format *pxp_get_format(struct v4l2_format *f)
+ }
+ 
+ static int pxp_try_fmt_video_output(struct file *file, void *fh,
+-				struct v4l2_format *f)
++				    struct v4l2_format *f)
+ {
+ 	int w = f->fmt.pix.width;
+ 	int h = f->fmt.pix.height;
+@@ -519,7 +530,7 @@ static int pxp_try_fmt_video_output(struct file *file, void *fh,
+ }
+ 
+ static int pxp_s_fmt_video_output(struct file *file, void *fh,
+-				struct v4l2_format *f)
++				  struct v4l2_format *f)
+ {
+ 	struct pxps *pxp = video_get_drvdata(video_devdata(file));
+ 	struct v4l2_pix_format *pf = &f->fmt.pix;
+@@ -537,7 +548,7 @@ static int pxp_s_fmt_video_output(struct file *file, void *fh,
+ }
+ 
+ static int pxp_g_fmt_output_overlay(struct file *file, void *fh,
+-				struct v4l2_format *f)
++				    struct v4l2_format *f)
+ {
+ 	struct pxps *pxp = video_get_drvdata(video_devdata(file));
+ 	struct v4l2_window *wf = &f->fmt.win;
+@@ -558,7 +569,7 @@ static int pxp_g_fmt_output_overlay(struct file *file, void *fh,
+ }
+ 
+ static int pxp_try_fmt_output_overlay(struct file *file, void *fh,
+-				struct v4l2_format *f)
++				      struct v4l2_format *f)
+ {
+ 	struct pxps *pxp = video_get_drvdata(video_devdata(file));
+ 	struct v4l2_window *wf = &f->fmt.win;
+@@ -576,14 +587,14 @@ static int pxp_try_fmt_output_overlay(struct file *file, void *fh,
+ 	/* Constrain parameters to the input buffer */
+ 	wf->w.left = srect.left;
+ 	wf->w.top = srect.top;
+-	wf->w.width = min(srect.width, ((__s32)pxp->s0_width - wf->w.left));
+-	wf->w.height = min(srect.height, ((__s32)pxp->s0_height - wf->w.top));
++	wf->w.width = min(srect.width, ((__s32) pxp->s0_width - wf->w.left));
++	wf->w.height = min(srect.height, ((__s32) pxp->s0_height - wf->w.top));
+ 
+ 	return 0;
+ }
+ 
+ static int pxp_s_fmt_output_overlay(struct file *file, void *fh,
+-					struct v4l2_format *f)
++				    struct v4l2_format *f)
+ {
+ 	struct pxps *pxp = video_get_drvdata(video_devdata(file));
+ 	struct v4l2_window *wf = &f->fmt.win;
+@@ -607,39 +618,35 @@ static int pxp_s_fmt_output_overlay(struct file *file, void *fh,
+ }
+ 
+ static int pxp_reqbufs(struct file *file, void *priv,
+-			struct v4l2_requestbuffers *r)
++		       struct v4l2_requestbuffers *r)
+ {
+ 	struct pxps *pxp = video_get_drvdata(video_devdata(file));
+ 
+ 	return videobuf_reqbufs(&pxp->s0_vbq, r);
+ }
+ 
+-static int pxp_querybuf(struct file *file, void *priv,
+-			struct v4l2_buffer *b)
++static int pxp_querybuf(struct file *file, void *priv, struct v4l2_buffer *b)
+ {
+ 	struct pxps *pxp = video_get_drvdata(video_devdata(file));
+ 
+ 	return videobuf_querybuf(&pxp->s0_vbq, b);
+ }
+ 
+-static int pxp_qbuf(struct file *file, void *priv,
+-			struct v4l2_buffer *b)
++static int pxp_qbuf(struct file *file, void *priv, struct v4l2_buffer *b)
+ {
+ 	struct pxps *pxp = video_get_drvdata(video_devdata(file));
+ 
+ 	return videobuf_qbuf(&pxp->s0_vbq, b);
+ }
+ 
+-static int pxp_dqbuf(struct file *file, void *priv,
+-			struct v4l2_buffer *b)
++static int pxp_dqbuf(struct file *file, void *priv, struct v4l2_buffer *b)
+ {
+ 	struct pxps *pxp = video_get_drvdata(video_devdata(file));
+ 
+ 	return videobuf_dqbuf(&pxp->s0_vbq, b, file->f_flags & O_NONBLOCK);
+ }
+ 
+-static int pxp_streamon(struct file *file, void *priv,
+-			enum v4l2_buf_type t)
++static int pxp_streamon(struct file *file, void *priv, enum v4l2_buf_type t)
+ {
+ 	struct pxps *pxp = video_get_drvdata(video_devdata(file));
+ 	int ret = 0;
+@@ -650,13 +657,12 @@ static int pxp_streamon(struct file *file, void *priv,
+ 	ret = videobuf_streamon(&pxp->s0_vbq);
+ 
+ 	if (!ret && (pxp->output == 0))
+-		stmp3xxxfb_cfg_pxp(1, pxp->outb_phys);
++		mxsfb_cfg_pxp(1, pxp->outb_phys);
+ 
+ 	return ret;
+ }
+ 
+-static int pxp_streamoff(struct file *file, void *priv,
+-			enum v4l2_buf_type t)
++static int pxp_streamoff(struct file *file, void *priv, enum v4l2_buf_type t)
+ {
+ 	struct pxps *pxp = video_get_drvdata(video_devdata(file));
+ 	int ret = 0;
+@@ -667,13 +673,13 @@ static int pxp_streamoff(struct file *file, void *priv,
+ 	ret = videobuf_streamoff(&pxp->s0_vbq);
+ 
+ 	if (!ret)
+-		stmp3xxxfb_cfg_pxp(0, 0);
++		mxsfb_cfg_pxp(0, 0);
+ 
+ 	return ret;
+ }
+ 
+ static int pxp_buf_setup(struct videobuf_queue *q,
+-			unsigned int *count, unsigned *size)
++			 unsigned int *count, unsigned *size)
+ {
+ 	struct pxps *pxp = q->priv_data;
+ 
+@@ -696,8 +702,7 @@ static void pxp_buf_free(struct videobuf_queue *q, struct videobuf_buffer *vb)
+ }
+ 
+ static int pxp_buf_prepare(struct videobuf_queue *q,
+-			struct videobuf_buffer *vb,
+-			enum v4l2_field field)
++			   struct videobuf_buffer *vb, enum v4l2_field field)
+ {
+ 	struct pxps *pxp = q->priv_data;
+ 	int ret = 0;
+@@ -739,10 +744,11 @@ static void pxp_buf_next(struct pxps *pxp)
+ 			pxp->regs_virt->s0vbuf = V;
+ 		}
+ 		pxp->regs_virt->ctrl =
+-			__raw_readl(HW_PXP_CTRL_ADDR) | BM_PXP_CTRL_ENABLE;
++		    __raw_readl(PXP_BASE_ADDR +
++				HW_PXP_CTRL) | BM_PXP_CTRL_ENABLE;
+ 	}
+ 
+-	__raw_writel(pxp->regs_phys, HW_PXP_NEXT_ADDR);
++	__raw_writel(pxp->regs_phys, PXP_BASE_ADDR + HW_PXP_NEXT);
+ }
+ 
+ static void pxp_next_handle(struct work_struct *w)
+@@ -760,19 +766,18 @@ static void pxp_next_handle(struct work_struct *w)
+ 		spin_unlock_irqrestore(&pxp->lock, flags);
+ 
+ 		if (!wait_event_interruptible_timeout(pxp->done, PXP_WAITCON,
+-					5 * HZ) || signal_pending(current)) {
++						      5 * HZ)
++		    || signal_pending(current)) {
+ 			spin_lock_irqsave(&pxp->lock, flags);
+ 			list_for_each_entry_safe(buf, next, &pxp->nextq, queue)
+-				list_del(&buf->queue);
++			    list_del(&buf->queue);
+ 			spin_unlock_irqrestore(&pxp->lock, flags);
+ 			pxp->next_queue_ended = 1;
+ 			return;
+ 		}
+ 
+ 		spin_lock_irqsave(&pxp->lock, flags);
+-		buf = list_entry(pxp->nextq.next,
+-					struct pxp_buffer,
+-					queue);
++		buf = list_entry(pxp->nextq.next, struct pxp_buffer, queue);
+ 		list_del_init(&buf->queue);
+ 		pxp->active = &buf->vb;
+ 		pxp->active->state = VIDEOBUF_QUEUED;
+@@ -782,8 +787,7 @@ static void pxp_next_handle(struct work_struct *w)
+ 	spin_unlock_irqrestore(&pxp->lock, flags);
+ }
+ 
+-static void pxp_buf_queue(struct videobuf_queue *q,
+-			struct videobuf_buffer *vb)
++static void pxp_buf_queue(struct videobuf_queue *q, struct videobuf_buffer *vb)
+ {
+ 	struct pxps *pxp = q->priv_data;
+ 	struct pxp_buffer *buf;
+@@ -809,16 +813,16 @@ static void pxp_buf_queue(struct videobuf_queue *q,
+ }
+ 
+ static void pxp_buf_release(struct videobuf_queue *q,
+-			struct videobuf_buffer *vb)
++			    struct videobuf_buffer *vb)
+ {
+ 	pxp_buf_free(q, vb);
+ }
+ 
+ static struct videobuf_queue_ops pxp_vbq_ops = {
+-	.buf_setup	= pxp_buf_setup,
+-	.buf_prepare	= pxp_buf_prepare,
+-	.buf_queue	= pxp_buf_queue,
+-	.buf_release	= pxp_buf_release,
++	.buf_setup = pxp_buf_setup,
++	.buf_prepare = pxp_buf_prepare,
++	.buf_queue = pxp_buf_queue,
++	.buf_release = pxp_buf_release,
+ };
+ 
+ static int pxp_querycap(struct file *file, void *fh,
+@@ -829,28 +833,27 @@ static int pxp_querycap(struct file *file, void *fh,
+ 	memset(cap, 0, sizeof(*cap));
+ 	strcpy(cap->driver, "pxp");
+ 	strcpy(cap->card, "pxp");
+-	strlcpy(cap->bus_info, dev_name(&pxp->pdev->dev), sizeof(cap->bus_info));
++	strlcpy(cap->bus_info, dev_name(&pxp->pdev->dev),
++		sizeof(cap->bus_info));
+ 
+ 	cap->version = (PXP_DRIVER_MAJOR << 8) + PXP_DRIVER_MINOR;
+ 
+ 	cap->capabilities = V4L2_CAP_VIDEO_OUTPUT |
+-				V4L2_CAP_VIDEO_OUTPUT_OVERLAY |
+-				V4L2_CAP_STREAMING;
++	    V4L2_CAP_VIDEO_OUTPUT_OVERLAY | V4L2_CAP_STREAMING;
+ 
+ 	return 0;
+ }
+ 
+ static int pxp_g_fbuf(struct file *file, void *priv,
+-			struct v4l2_framebuffer *fb)
++		      struct v4l2_framebuffer *fb)
+ {
+ 	struct pxps *pxp = video_get_drvdata(video_devdata(file));
+ 
+ 	memset(fb, 0, sizeof(*fb));
+ 
+ 	fb->capability = V4L2_FBUF_CAP_EXTERNOVERLAY |
+-			 V4L2_FBUF_CAP_CHROMAKEY |
+-			 V4L2_FBUF_CAP_LOCAL_ALPHA |
+-			 V4L2_FBUF_CAP_GLOBAL_ALPHA;
++	    V4L2_FBUF_CAP_CHROMAKEY |
++	    V4L2_FBUF_CAP_LOCAL_ALPHA | V4L2_FBUF_CAP_GLOBAL_ALPHA;
+ 
+ 	if (pxp->global_alpha_state)
+ 		fb->flags |= V4L2_FBUF_FLAG_GLOBAL_ALPHA;
+@@ -863,21 +866,18 @@ static int pxp_g_fbuf(struct file *file, void *priv,
+ }
+ 
+ static int pxp_s_fbuf(struct file *file, void *priv,
+-			struct v4l2_framebuffer *fb)
++		      struct v4l2_framebuffer *fb)
+ {
+ 	struct pxps *pxp = video_get_drvdata(video_devdata(file));
+ 
+-	pxp->overlay_state =
+-		(fb->flags & V4L2_FBUF_FLAG_OVERLAY) != 0;
++	pxp->overlay_state = (fb->flags & V4L2_FBUF_FLAG_OVERLAY) != 0;
+ 	pxp->global_alpha_state =
+-		(fb->flags & V4L2_FBUF_FLAG_GLOBAL_ALPHA) != 0;
+-	pxp->local_alpha_state =
+-		(fb->flags & V4L2_FBUF_FLAG_LOCAL_ALPHA) != 0;
++	    (fb->flags & V4L2_FBUF_FLAG_GLOBAL_ALPHA) != 0;
++	pxp->local_alpha_state = (fb->flags & V4L2_FBUF_FLAG_LOCAL_ALPHA) != 0;
+ 	/* Global alpha overrides local alpha if both are requested */
+ 	if (pxp->global_alpha_state && pxp->local_alpha_state)
+ 		pxp->local_alpha_state = 0;
+-	pxp->s1_chromakey_state =
+-		(fb->flags & V4L2_FBUF_FLAG_CHROMAKEY) != 0;
++	pxp->s1_chromakey_state = (fb->flags & V4L2_FBUF_FLAG_CHROMAKEY) != 0;
+ 
+ 	pxp_set_olparam(pxp);
+ 	pxp_set_s0crop(pxp);
+@@ -886,8 +886,7 @@ static int pxp_s_fbuf(struct file *file, void *priv,
+ 	return 0;
+ }
+ 
+-static int pxp_g_crop(struct file *file, void *fh,
+-			struct v4l2_crop *c)
++static int pxp_g_crop(struct file *file, void *fh, struct v4l2_crop *c)
+ {
+ 	struct pxps *pxp = video_get_drvdata(video_devdata(file));
+ 
+@@ -902,8 +901,7 @@ static int pxp_g_crop(struct file *file, void *fh,
+ 	return 0;
+ }
+ 
+-static int pxp_s_crop(struct file *file, void *fh,
+-			struct v4l2_crop *c)
++static int pxp_s_crop(struct file *file, void *fh, struct v4l2_crop *c)
+ {
+ 	struct pxps *pxp = video_get_drvdata(video_devdata(file));
+ 	int l = c->c.left;
+@@ -958,8 +956,7 @@ static int pxp_queryctrl(struct file *file, void *priv,
+ 	return -EINVAL;
+ }
+ 
+-static int pxp_g_ctrl(struct file *file, void *priv,
+-			 struct v4l2_control *vc)
++static int pxp_g_ctrl(struct file *file, void *priv, struct v4l2_control *vc)
+ {
+ 	int i;
+ 
+@@ -972,8 +969,7 @@ static int pxp_g_ctrl(struct file *file, void *priv,
+ 	return -EINVAL;
+ }
+ 
+-static int pxp_s_ctrl(struct file *file, void *priv,
+-			 struct v4l2_control *vc)
++static int pxp_s_ctrl(struct file *file, void *priv, struct v4l2_control *vc)
+ {
+ 	int i;
+ 	struct pxps *pxp = video_get_drvdata(video_devdata(file));
+@@ -1004,12 +1000,12 @@ static int pxp_hw_init(struct pxps *pxp)
+ 	struct fb_fix_screeninfo fix;
+ 	int err;
+ 
+-	err = stmp3xxxfb_get_info(&var, &fix);
++	err = mxsfb_get_info(&var, &fix);
+ 	if (err)
+ 		return err;
+ 
+ 	/* Pull PxP out of reset */
+-	__raw_writel(0, HW_PXP_CTRL_ADDR);
++	__raw_writel(0, PXP_BASE_ADDR + HW_PXP_CTRL);
+ 
+ 	/* Config defaults */
+ 	pxp->active = NULL;
+@@ -1075,13 +1071,12 @@ out:
+ 	pxp->workqueue = create_singlethread_workqueue("pxp");
+ 
+ 	videobuf_queue_dma_contig_init(&pxp->s0_vbq,
+-				&pxp_vbq_ops,
+-				&pxp->pdev->dev,
+-				&pxp->lock,
+-				V4L2_BUF_TYPE_VIDEO_OUTPUT,
+-				V4L2_FIELD_NONE,
+-				sizeof(struct pxp_buffer),
+-				pxp);
++				       &pxp_vbq_ops,
++				       &pxp->pdev->dev,
++				       &pxp->lock,
++				       V4L2_BUF_TYPE_VIDEO_OUTPUT,
++				       V4L2_FIELD_NONE,
++				       sizeof(struct pxp_buffer), pxp);
+ 
+ 	return 0;
+ }
+@@ -1115,57 +1110,55 @@ static int pxp_mmap(struct file *file, struct vm_area_struct *vma)
+ }
+ 
+ static const struct v4l2_file_operations pxp_fops = {
+-	.owner		= THIS_MODULE,
+-	.open		= pxp_open,
+-	.release	= pxp_close,
+-	.ioctl		= video_ioctl2,
+-	.mmap		= pxp_mmap,
++	.owner = THIS_MODULE,
++	.open = pxp_open,
++	.release = pxp_close,
++	.ioctl = video_ioctl2,
++	.mmap = pxp_mmap,
+ };
+ 
+ static const struct v4l2_ioctl_ops pxp_ioctl_ops = {
+-	.vidioc_querycap		= pxp_querycap,
++	.vidioc_querycap = pxp_querycap,
+ 
+-	.vidioc_reqbufs			= pxp_reqbufs,
+-	.vidioc_querybuf		= pxp_querybuf,
+-	.vidioc_qbuf			= pxp_qbuf,
+-	.vidioc_dqbuf			= pxp_dqbuf,
++	.vidioc_reqbufs = pxp_reqbufs,
++	.vidioc_querybuf = pxp_querybuf,
++	.vidioc_qbuf = pxp_qbuf,
++	.vidioc_dqbuf = pxp_dqbuf,
+ 
+-	.vidioc_streamon		= pxp_streamon,
+-	.vidioc_streamoff		= pxp_streamoff,
++	.vidioc_streamon = pxp_streamon,
++	.vidioc_streamoff = pxp_streamoff,
+ 
+-	.vidioc_enum_output		= pxp_enumoutput,
+-	.vidioc_g_output		= pxp_g_output,
+-	.vidioc_s_output		= pxp_s_output,
++	.vidioc_enum_output = pxp_enumoutput,
++	.vidioc_g_output = pxp_g_output,
++	.vidioc_s_output = pxp_s_output,
+ 
+-	.vidioc_enum_fmt_vid_out	= pxp_enum_fmt_video_output,
+-	.vidioc_try_fmt_vid_out		= pxp_try_fmt_video_output,
+-	.vidioc_g_fmt_vid_out		= pxp_g_fmt_video_output,
+-	.vidioc_s_fmt_vid_out		= pxp_s_fmt_video_output,
++	.vidioc_enum_fmt_vid_out = pxp_enum_fmt_video_output,
++	.vidioc_try_fmt_vid_out = pxp_try_fmt_video_output,
++	.vidioc_g_fmt_vid_out = pxp_g_fmt_video_output,
++	.vidioc_s_fmt_vid_out = pxp_s_fmt_video_output,
+ 
+-	.vidioc_try_fmt_vid_out_overlay	= pxp_try_fmt_output_overlay,
+-	.vidioc_g_fmt_vid_out_overlay	= pxp_g_fmt_output_overlay,
+-	.vidioc_s_fmt_vid_out_overlay	= pxp_s_fmt_output_overlay,
++	.vidioc_try_fmt_vid_out_overlay = pxp_try_fmt_output_overlay,
++	.vidioc_g_fmt_vid_out_overlay = pxp_g_fmt_output_overlay,
++	.vidioc_s_fmt_vid_out_overlay = pxp_s_fmt_output_overlay,
+ 
+-	.vidioc_g_fbuf			= pxp_g_fbuf,
+-	.vidioc_s_fbuf			= pxp_s_fbuf,
++	.vidioc_g_fbuf = pxp_g_fbuf,
++	.vidioc_s_fbuf = pxp_s_fbuf,
+ 
+-	.vidioc_g_crop			= pxp_g_crop,
+-	.vidioc_s_crop			= pxp_s_crop,
++	.vidioc_g_crop = pxp_g_crop,
++	.vidioc_s_crop = pxp_s_crop,
+ 
+-	.vidioc_queryctrl		= pxp_queryctrl,
+-	.vidioc_g_ctrl			= pxp_g_ctrl,
+-	.vidioc_s_ctrl			= pxp_s_ctrl,
++	.vidioc_queryctrl = pxp_queryctrl,
++	.vidioc_g_ctrl = pxp_g_ctrl,
++	.vidioc_s_ctrl = pxp_s_ctrl,
+ };
+ 
+ static const struct video_device pxp_template = {
+-	.name				= "PxP",
+-	.vfl_type			= VID_TYPE_OVERLAY |
+-					  VID_TYPE_CLIPPING |
+-					  VID_TYPE_SCALES,
+-	.fops				= &pxp_fops,
+-	.release			= pxp_release,
+-	.minor				= -1,
+-	.ioctl_ops			= &pxp_ioctl_ops,
++	.name = "PxP",
++	.vfl_type = VID_TYPE_OVERLAY | VID_TYPE_CLIPPING | VID_TYPE_SCALES,
++	.fops = &pxp_fops,
++	.release = pxp_release,
++	.minor = -1,
++	.ioctl_ops = &pxp_ioctl_ops,
+ };
+ 
+ static irqreturn_t pxp_irq(int irq, void *dev_id)
+@@ -1176,16 +1169,14 @@ static irqreturn_t pxp_irq(int irq, void *dev_id)
+ 
+ 	spin_lock_irqsave(&pxp->lock, flags);
+ 
+-	__raw_writel(BM_PXP_STAT_IRQ, HW_PXP_STAT_CLR_ADDR);
++	__raw_writel(BM_PXP_STAT_IRQ, PXP_BASE_ADDR + HW_PXP_STAT_CLR);
+ 
+ 	if (list_empty(&pxp->outq)) {
+ 		pr_warning("irq: outq empty!!!\n");
+ 		goto out;
+ 	}
+ 
+-	vb = list_entry(pxp->outq.next,
+-				struct videobuf_buffer,
+-				queue);
++	vb = list_entry(pxp->outq.next, struct videobuf_buffer, queue);
+ 	list_del_init(&vb->queue);
+ 
+ 	vb->state = VIDEOBUF_DONE;
+@@ -1241,8 +1232,9 @@ static int pxp_probe(struct platform_device *pdev)
+ 	pxp->irq = irq;
+ 
+ 	pxp->regs_virt = dma_alloc_coherent(NULL,
+-				PAGE_ALIGN(sizeof(struct pxp_registers)),
+-				&pxp->regs_phys, GFP_KERNEL);
++					    PAGE_ALIGN(sizeof
++						       (struct pxp_registers)),
++					    &pxp->regs_phys, GFP_KERNEL);
+ 	if (pxp->regs_virt == NULL) {
+ 		dev_err(&pdev->dev, "failed to allocate pxp_register object\n");
+ 		err = -ENOMEM;
+@@ -1263,7 +1255,7 @@ static int pxp_probe(struct platform_device *pdev)
+ 		goto freepxp;
+ 	}
+ 
+-	pxp->regs = (void __iomem *)res->start; /* it is already ioremapped */
++	pxp->regs = (void __iomem *)res->start;	/* it is already ioremapped */
+ 	pxp->pdev = pdev;
+ 
+ 	err = request_irq(pxp->irq, pxp_irq, 0, PXP_DRIVER_NAME, pxp);
+@@ -1327,7 +1319,7 @@ static int __devexit pxp_remove(struct platform_device *pdev)
+ 
+ 	if (pxp->regs_virt)
+ 		dma_free_coherent(0, PAGE_ALIGN(sizeof(struct pxp_registers)),
+-				pxp->regs_virt, pxp->regs_phys);
++				  pxp->regs_virt, pxp->regs_phys);
+ 	kfree(pxp->outb);
+ 	kfree(pxp);
+ 
+@@ -1339,19 +1331,23 @@ static int pxp_suspend(struct platform_device *pdev, pm_message_t state)
+ {
+ 	int i;
+ 
+-	while (__raw_readl(HW_PXP_CTRL_ADDR) & BM_PXP_CTRL_ENABLE)
++	while (__raw_readl(PXP_BASE_ADDR + HW_PXP_CTRL) & BM_PXP_CTRL_ENABLE)
+ 		;
+ 
+ 	for (i = 0; i < REGS1_NUMS; i++)
+-		regs1[i] = __raw_readl(HW_PXP_CTRL_ADDR + REG_OFFSET * i);
++		regs1[i] =
++		    __raw_readl(PXP_BASE_ADDR + HW_PXP_CTRL + REG_OFFSET * i);
+ 
+ 	for (i = 0; i < REGS2_NUMS; i++)
+-		regs2[i] = __raw_readl(HW_PXP_PAGETABLE_ADDR + REG_OFFSET * i);
++		regs2[i] =
++		    __raw_readl(PXP_BASE_ADDR + HW_PXP_S0COLORKEYLOW +
++				REG_OFFSET * i);
+ 
+ 	for (i = 0; i < REGS3_NUMS; i++)
+-		regs3[i] = __raw_readl(HW_PXP_OLn_ADDR(0) + REG_OFFSET * i);
++		regs3[i] =
++		    __raw_readl(PXP_BASE_ADDR + HW_PXP_OLn(0) + REG_OFFSET * i);
+ 
+-	__raw_writel(BM_PXP_CTRL_SFTRST, HW_PXP_CTRL_ADDR);
++	__raw_writel(BM_PXP_CTRL_SFTRST, PXP_BASE_ADDR + HW_PXP_CTRL);
+ 
+ 	return 0;
+ }
+@@ -1361,16 +1357,20 @@ static int pxp_resume(struct platform_device *pdev)
+ 	int i;
+ 
+ 	/* Pull PxP out of reset */
+-	__raw_writel(0, HW_PXP_CTRL_ADDR);
++	__raw_writel(0, PXP_BASE_ADDR + HW_PXP_CTRL);
+ 
+ 	for (i = 0; i < REGS1_NUMS; i++)
+-		__raw_writel(regs1[i], HW_PXP_CTRL_ADDR + REG_OFFSET * i);
++		__raw_writel(regs1[i],
++			     PXP_BASE_ADDR + HW_PXP_CTRL + REG_OFFSET * i);
+ 
+ 	for (i = 0; i < REGS2_NUMS; i++)
+-		__raw_writel(regs2[i], HW_PXP_PAGETABLE_ADDR + REG_OFFSET * i);
++		__raw_writel(regs2[i],
++			     PXP_BASE_ADDR + HW_PXP_S0COLORKEYLOW +
++			     REG_OFFSET * i);
+ 
+ 	for (i = 0; i < REGS3_NUMS; i++)
+-		__raw_writel(regs3[i], HW_PXP_OLn_ADDR(0) + REG_OFFSET * i);
++		__raw_writel(regs3[i],
++			     PXP_BASE_ADDR + HW_PXP_OLn(0) + REG_OFFSET * i);
+ 
+ 	return 0;
+ }
+@@ -1380,16 +1380,15 @@ static int pxp_resume(struct platform_device *pdev)
+ #endif
+ 
+ static struct platform_driver pxp_driver = {
+-	.driver 	= {
+-		.name	= PXP_DRIVER_NAME,
+-	},
+-	.probe		= pxp_probe,
+-	.remove		= __exit_p(pxp_remove),
+-	.suspend	= pxp_suspend,
+-	.resume		= pxp_resume,
++	.driver = {
++		   .name = PXP_DRIVER_NAME,
++		   },
++	.probe = pxp_probe,
++	.remove = __exit_p(pxp_remove),
++	.suspend = pxp_suspend,
++	.resume = pxp_resume,
+ };
+ 
+-
+ static int __devinit pxp_init(void)
+ {
+ 	return platform_driver_register(&pxp_driver);
+diff --git a/drivers/media/video/pxp.h b/drivers/media/video/pxp.h
+index 11b41dc..14ce76c 100644
+--- a/drivers/media/video/pxp.h
++++ b/drivers/media/video/pxp.h
+@@ -1,19 +1,24 @@
+ /*
+- * Freescale STMP378X PxP driver
++ * Freescale MXS PxP driver
+  *
+  * Author: Matt Porter <mporter@embeddedalley.com>
+  *
+  * Copyright 2008-2010 Freescale Semiconductor, Inc.
+  * Copyright 2008-2009 Embedded Alley Solutions, Inc All Rights Reserved.
+- */
+-
+-/*
+- * The code contained herein is licensed under the GNU General Public
+- * License. You may obtain a copy of the GNU General Public License
+- * Version 2 or later at the following locations:
+  *
+- * http://www.opensource.org/licenses/gpl-license.html
+- * http://www.gnu.org/copyleft/gpl.html
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License along
++ * with this program; if not, write to the Free Software Foundation, Inc.,
++ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+  */
+ 
+ struct pxp_overlay_registers {
+@@ -125,6 +130,6 @@ struct pxp_data_format {
+ 	u32 ctrl_s0_fmt;
+ };
+ 
+-extern int stmp3xxxfb_get_info(struct fb_var_screeninfo *var,
++extern int mxsfb_get_info(struct fb_var_screeninfo *var,
+ 				struct fb_fix_screeninfo *fix);
+-extern void stmp3xxxfb_cfg_pxp(int enable, dma_addr_t pxp_phys);
++extern void mxsfb_cfg_pxp(int enable, dma_addr_t pxp_phys);
+-- 
+1.5.4.4
+

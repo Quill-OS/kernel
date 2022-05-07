@@ -1,0 +1,310 @@
+From fe24d9473a244a8465721decee1bb58eb1b421f8 Mon Sep 17 00:00:00 2001
+From: Rob Herring <r.herring@freescale.com>
+Date: Fri, 22 Jan 2010 15:03:01 -0200
+Subject: [PATCH] ENGR00120394-3 imx: remove IO_ADDRESS usage in drivers
+
+This replaces IO_ADDRESS with ioremap in drivers. Drivers needing more
+than trivial changes are not included.
+
+Signed-off-by: Rob Herring <r.herring@freescale.com>
+---
+ drivers/i2c-slave/mxc_i2c_slave.c  |   15 ++++++++++-----
+ drivers/i2c/busses/mxc_i2c.c       |   16 ++++++++++------
+ drivers/i2c/busses/mxc_i2c_hs.c    |    6 ++++--
+ drivers/mxc/security/scc2_driver.c |    4 ++--
+ drivers/spi/mxc_spi.c              |    7 +++++--
+ drivers/watchdog/mxc_wdt.c         |   21 ++++++++-------------
+ 6 files changed, 39 insertions(+), 30 deletions(-)
+
+diff --git a/drivers/i2c-slave/mxc_i2c_slave.c b/drivers/i2c-slave/mxc_i2c_slave.c
+index 39e0673..af87567 100644
+--- a/drivers/i2c-slave/mxc_i2c_slave.c
++++ b/drivers/i2c-slave/mxc_i2c_slave.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2007-2008 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2007-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -212,17 +212,17 @@ static int mxc_i2c_slave_probe(struct platform_device *pdev)
+ 		dev_err(&pdev->dev, "%s: get resource error\n", __func__);
+ 		goto error2;
+ 	}
+-	mxc_dev->reg_base = IO_ADDRESS(res->start);
++	mxc_dev->reg_base = ioremap(res->start, res->end - res->start + 1);
+ 
+ 	mxc_dev->irq = platform_get_irq(pdev, 0);
+ 	if (mxc_dev->irq < 0) {
+ 		dev_err(&pdev->dev, "%s: get irq error\n", __func__);
+-		goto error2;
++		goto error3;
+ 	}
+ 	if (request_irq(mxc_dev->irq, interrupt_handler,
+ 			0, mxc_dev->dev->name, mxc_dev) < 0) {
+ 		dev_err(&pdev->dev, "%s: request_irq error\n", __func__);
+-		goto error2;
++		goto error3;
+ 	}
+ 
+ 	/*i2c id on soc */
+@@ -257,7 +257,7 @@ static int mxc_i2c_slave_probe(struct platform_device *pdev)
+ 	if (i2c_slave_device_register(mxc_dev->dev) < 0) {
+ 		dev_err(&pdev->dev, "%s: i2c_slave_device_register error\n",
+ 			__func__);
+-		goto error3;
++		goto error4;
+ 	}
+ 
+ 	platform_set_drvdata(pdev, (void *)mxc_dev);
+@@ -265,7 +265,10 @@ static int mxc_i2c_slave_probe(struct platform_device *pdev)
+ 	/*start(mxc_dev->dev); */
+ 	return 0;
+ 
++      error4:
++	free_irq(mxc_dev->irq, mxc_dev);
+       error3:
++	iounmap(mxc_dev->reg_base);
+       error2:
+ 	i2c_slave_device_free(mxc_dev->dev);
+       error1:
+@@ -280,6 +283,8 @@ static int mxc_i2c_slave_remove(struct platform_device *pdev)
+ 	mxc_dev = (struct mxc_i2c_slave_device *)platform_get_drvdata(pdev);
+ 
+ 	i2c_slave_device_unregister(mxc_dev->dev);
++	free_irq(mxc_dev->irq, mxc_dev);
++	iounmap(mxc_dev->reg_base);
+ 	kfree((void *)mxc_dev);
+ 
+ 	return 0;
+diff --git a/drivers/i2c/busses/mxc_i2c.c b/drivers/i2c/busses/mxc_i2c.c
+index 8bada57..2ecec62 100644
+--- a/drivers/i2c/busses/mxc_i2c.c
++++ b/drivers/i2c/busses/mxc_i2c.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2004-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2004-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -669,7 +669,7 @@ static int mxci2c_probe(struct platform_device *pdev)
+ 		ret = -ENODEV;
+ 		goto err1;
+ 	}
+-	mxc_i2c->membase = IO_ADDRESS(res->start);
++	mxc_i2c->membase = ioremap(res->start, res->end - res->start + 1);
+ 
+ 	/*
+ 	 * Request the I2C interrupt
+@@ -677,13 +677,13 @@ static int mxci2c_probe(struct platform_device *pdev)
+ 	mxc_i2c->irq = platform_get_irq(pdev, 0);
+ 	if (mxc_i2c->irq < 0) {
+ 		ret = mxc_i2c->irq;
+-		goto err1;
++		goto err2;
+ 	}
+ 
+ 	ret = request_irq(mxc_i2c->irq, mxc_i2c_handler,
+ 			  0, pdev->name, mxc_i2c);
+ 	if (ret < 0) {
+-		goto err1;
++		goto err2;
+ 	}
+ 
+ 	init_waitqueue_head(&mxc_i2c->wq);
+@@ -724,15 +724,17 @@ static int mxci2c_probe(struct platform_device *pdev)
+ 	platform_set_drvdata(pdev, mxc_i2c);
+ 	i2c_set_adapdata(&mxc_i2c->adap, mxc_i2c);
+ 	if ((ret = i2c_add_numbered_adapter(&mxc_i2c->adap)) < 0) {
+-		goto err2;
++		goto err3;
+ 	}
+ 
+ 	printk(KERN_INFO "MXC I2C driver\n");
+ 	return 0;
+ 
+-      err2:
++      err3:
+ 	free_irq(mxc_i2c->irq, mxc_i2c);
+ 	gpio_i2c_inactive(id);
++      err2:
++	iounmap(mxc_i2c->membase);
+       err1:
+ 	dev_err(&pdev->dev, "failed to probe i2c adapter\n");
+ 	kfree(mxc_i2c);
+@@ -757,6 +759,8 @@ static int mxci2c_remove(struct platform_device *pdev)
+ 	gpio_i2c_inactive(id);
+ 	clk_put(mxc_i2c->clk);
+ 	platform_set_drvdata(pdev, NULL);
++	iounmap(mxc_i2c->membase);
++	kfree(mxc_i2c);
+ 	return 0;
+ }
+ 
+diff --git a/drivers/i2c/busses/mxc_i2c_hs.c b/drivers/i2c/busses/mxc_i2c_hs.c
+index d31b575..16cf8a8 100644
+--- a/drivers/i2c/busses/mxc_i2c_hs.c
++++ b/drivers/i2c/busses/mxc_i2c_hs.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2008 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -425,7 +425,7 @@ static int mxci2c_hs_probe(struct platform_device *pdev)
+ 		ret = -ENODEV;
+ 		goto err1;
+ 	}
+-	i2c_hs->reg_base_virt = IO_ADDRESS(res->start);
++	i2c_hs->reg_base_virt = ioremap(res->start, res->end - res->start + 1);
+ 	i2c_hs->reg_base_phy = res->start;
+ 
+ 	i2c_hs->ipg_clk = clk_get(&pdev->dev, "hsi2c_clk");
+@@ -468,6 +468,7 @@ static int mxci2c_hs_probe(struct platform_device *pdev)
+ 	kfree(adap);
+       err1:
+ 	dev_err(&pdev->dev, "failed to probe high speed i2c adapter\n");
++	iounmap(i2c_hs->reg_base_virt);
+ 	kfree(i2c_hs);
+ 	return ret;
+ }
+@@ -508,6 +509,7 @@ static int mxci2c_hs_remove(struct platform_device *pdev)
+ 	i2c_del_adapter(adap);
+ 	gpio_i2c_hs_inactive();
+ 	platform_set_drvdata(pdev, NULL);
++	iounmap(i2c_hs->reg_base_virt);
+ 	kfree(i2c_hs);
+ 	return 0;
+ }
+diff --git a/drivers/mxc/security/scc2_driver.c b/drivers/mxc/security/scc2_driver.c
+index 5ebd602..03f1986 100644
+--- a/drivers/mxc/security/scc2_driver.c
++++ b/drivers/mxc/security/scc2_driver.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2004-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2004-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -543,7 +543,7 @@ static int scc_init(void)
+ 		}
+ 		/* Map the SCC (SCM and SMN) memory on the internal bus into
+ 		   kernel address space */
+-		scc_base = (void *)IO_ADDRESS(SCC_BASE);
++		scc_base = (void *)ioremap(SCC_BASE, SZ_4K);
+ 		if (scc_base == NULL) {
+ 			os_printk(KERN_ERR
+ 				  "SCC2: Register mapping failed.  Exiting.\n");
+diff --git a/drivers/spi/mxc_spi.c b/drivers/spi/mxc_spi.c
+index 0b622e9..e6d6bec 100644
+--- a/drivers/spi/mxc_spi.c
++++ b/drivers/spi/mxc_spi.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2004-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright (C) 2004-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -1031,7 +1031,8 @@ static int mxc_spi_probe(struct platform_device *pdev)
+ 		goto err;
+ 	}
+ 
+-	master_drv_data->base = (void *)IO_ADDRESS(master_drv_data->res->start);
++	master_drv_data->base = ioremap(master_drv_data->res->start,
++		master_drv_data->res->end - master_drv_data->res->start + 1);
+ 	if (!master_drv_data->base) {
+ 		dev_err(&pdev->dev, "invalid base address for CSPI%d\n",
+ 			master->bus_num);
+@@ -1123,6 +1124,7 @@ static int mxc_spi_probe(struct platform_device *pdev)
+ 	clk_put(master_drv_data->clk);
+ 	free_irq(master_drv_data->irq, master_drv_data);
+       err1:
++	iounmap(master_drv_data->base);
+ 	release_mem_region(pdev->resource[0].start,
+ 			   pdev->resource[0].end - pdev->resource[0].start + 1);
+       err:
+@@ -1160,6 +1162,7 @@ static int mxc_spi_remove(struct platform_device *pdev)
+ 
+ 		free_irq(master_drv_data->irq, master_drv_data);
+ 
++		iounmap(master_drv_data->base);
+ 		release_mem_region(master_drv_data->res->start,
+ 				   master_drv_data->res->end -
+ 				   master_drv_data->res->start + 1);
+diff --git a/drivers/watchdog/mxc_wdt.c b/drivers/watchdog/mxc_wdt.c
+index 234ddfc..30c21aa 100644
+--- a/drivers/watchdog/mxc_wdt.c
++++ b/drivers/watchdog/mxc_wdt.c
+@@ -3,8 +3,8 @@
+  *
+  * Watchdog driver for FSL MXC. It is based on omap1610_wdt.c
+  *
+- * Copyright 2004-2009 Freescale Semiconductor, Inc. All Rights Reserved.
+- * 2005 (c) MontaVista Software, Inc.  All Rights Reserved.
++ * Copyright (C) 2004-2010 Freescale Semiconductor, Inc.
++ * 2005 (c) MontaVista Software, Inc.
+ 
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+@@ -44,26 +44,19 @@
+ #include <linux/types.h>
+ #include <linux/kernel.h>
+ #include <linux/fs.h>
+-#include <linux/mm.h>
+ #include <linux/miscdevice.h>
+ #include <linux/watchdog.h>
+ #include <linux/reboot.h>
+-#include <linux/smp_lock.h>
+ #include <linux/init.h>
+ #include <linux/err.h>
+ #include <linux/platform_device.h>
+ #include <linux/interrupt.h>
+-#include <linux/moduleparam.h>
+ #include <linux/clk.h>
++#include <linux/io.h>
++#include <linux/uaccess.h>
+ 
+-#include <asm/io.h>
+-#include <asm/uaccess.h>
+-#include <mach/hardware.h>
+-#include <asm/irq.h>
+-#include <asm/bitops.h>
+-
+-#include <mach/hardware.h>
+ #include "mxc_wdt.h"
++
+ #define DVR_VER "2.0"
+ 
+ #define WDOG_SEC_TO_COUNT(s)  ((s * 2) << 8)
+@@ -268,7 +261,7 @@ static int __init mxc_wdt_probe(struct platform_device *pdev)
+ 
+ 	platform_set_drvdata(pdev, mem);
+ 
+-	wdt_base_reg = IO_ADDRESS(res->start);
++	wdt_base_reg = ioremap(res->start, res->end - res->start + 1);
+ 	mxc_wdt_disable(wdt_base_reg);
+ 	mxc_wdt_adjust_timeout(timer_margin);
+ 
+@@ -289,6 +282,7 @@ static int __init mxc_wdt_probe(struct platform_device *pdev)
+ 	return 0;
+ 
+       fail:
++	iounmap(wdt_base_reg);
+ 	release_resource(mem);
+ 	pr_info("MXC Watchdog Probe failed\n");
+ 	return ret;
+@@ -304,6 +298,7 @@ static int __exit mxc_wdt_remove(struct platform_device *pdev)
+ {
+ 	struct resource *mem = platform_get_drvdata(pdev);
+ 	misc_deregister(&mxc_wdt_miscdev);
++	iounmap(wdt_base_reg);
+ 	release_resource(mem);
+ 	pr_info("MXC Watchdog # %d removed\n", dev_num);
+ 	return 0;
+-- 
+1.5.4.4
+

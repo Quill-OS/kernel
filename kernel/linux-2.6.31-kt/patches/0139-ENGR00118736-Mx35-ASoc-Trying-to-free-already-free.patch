@@ -1,0 +1,36 @@
+From 7edea7fd67e43d7e17e4528f595604268d0ab0f4 Mon Sep 17 00:00:00 2001
+From: William Lai <b04597@freescale.com>
+Date: Wed, 25 Nov 2009 13:48:41 +0800
+Subject: [PATCH] ENGR00118736 Mx35 ASoc: Trying to free already-free IRQ 240
+
+Trying to free already-free IRQ 240 causes the warning dumped out
+when boot up the kernel.
+Return the error code in the probe function, which indicats the
+failure of the platform driver probing. Then the platform driver remove
+function will not be called, avoiding of freeing an already-free IRQ again.
+
+Signed-off-by: William Lai <b04597@freescale.com>
+---
+ sound/soc/imx/imx-3stack-ak4647.c |    6 +++---
+ 1 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/sound/soc/imx/imx-3stack-ak4647.c b/sound/soc/imx/imx-3stack-ak4647.c
+index fd595c1..e81a012 100644
+--- a/sound/soc/imx/imx-3stack-ak4647.c
++++ b/sound/soc/imx/imx-3stack-ak4647.c
+@@ -367,9 +367,9 @@ static int __init imx_3stack_ak4647_probe(struct platform_device *pdev)
+ 	gpio_activate_audio_ports();
+ 	imx_3stack_init_dam(dev_data->src_port, dev_data->ext_port);
+ 
+-	if (request_irq
+-	    (dev_data->intr_id_hp, imx_headphone_detect_handler, 0,
+-	     "headphone", NULL))
++	ret = request_irq(dev_data->intr_id_hp, imx_headphone_detect_handler, 0,
++			"headphone", NULL);
++	if (ret < 0)
+ 		goto err;
+ 
+ 	ret = driver_create_file(pdev->dev.driver, &driver_attr_headphone);
+-- 
+1.5.4.4
+

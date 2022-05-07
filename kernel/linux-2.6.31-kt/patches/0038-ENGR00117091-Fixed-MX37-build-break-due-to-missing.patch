@@ -1,0 +1,29 @@
+From 28a13bd72e90be562a4c73b2c342e6e35f641634 Mon Sep 17 00:00:00 2001
+From: Ranjani Vaidyanathan-RA5478 <Ranjani.Vaidyanathan@freescale.com>
+Date: Tue, 6 Oct 2009 11:52:36 -0500
+Subject: [PATCH] ENGR00117091: Fixed MX37 build break due to missing global variable.
+
+Added dvfs_core_is_active define to mach/mx37_3stack/devices.c
+
+Signed-off-by: Ranjani Vaidyanathan-RA5478 <Ranjani.Vaidyanathan@freescale.com>
+---
+ arch/arm/mach-mx37/devices.c |    3 +++
+ 1 files changed, 3 insertions(+), 0 deletions(-)
+
+diff --git a/arch/arm/mach-mx37/devices.c b/arch/arm/mach-mx37/devices.c
+index 300648d..41bff67 100644
+--- a/arch/arm/mach-mx37/devices.c
++++ b/arch/arm/mach-mx37/devices.c
+@@ -30,6 +30,9 @@
+ #include "sdma_script_code.h"
+ #include "crm_regs.h"
+ 
++/* Flag used to indicate if dvfs_core is active. */
++int dvfs_core_is_active;
++
+ extern struct dptc_wp dptc_gp_wp_allfreq[DPTC_GP_WP_SUPPORTED];
+ extern struct dptc_wp dptc_lp_wp_allfreq[DPTC_LP_WP_SUPPORTED];
+ 
+-- 
+1.5.4.4
+

@@ -1,0 +1,31 @@
+From 90fcfd8b9d1a0174edcd894cb772d7de126817b6 Mon Sep 17 00:00:00 2001
+From: Liu Ying <b17645@freescale.com>
+Date: Fri, 4 Jun 2010 13:21:41 -0400
+Subject: [PATCH] ENGR00124105 IPUv3 FB:Support 12-bpp pixel format correctly in sys-fs
+
+mxcfb_check_var() function will set framebuffer's bpp value to be 16,
+when the framebuffer's true bpp value is 12. This makes the bpp value in
+sys-fs wrong.
+
+Signed-off-by: Liu Ying <b17645@freescale.com>
+---
+ drivers/video/mxc/mxc_ipuv3_fb.c |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletions(-)
+
+diff --git a/drivers/video/mxc/mxc_ipuv3_fb.c b/drivers/video/mxc/mxc_ipuv3_fb.c
+index a33d96a..bb64440 100644
+--- a/drivers/video/mxc/mxc_ipuv3_fb.c
++++ b/drivers/video/mxc/mxc_ipuv3_fb.c
+@@ -555,7 +555,8 @@ static int mxcfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
+ 		var->yres_virtual = var->yres;
+ 
+ 	if ((var->bits_per_pixel != 32) && (var->bits_per_pixel != 24) &&
+-	    (var->bits_per_pixel != 16) && (var->bits_per_pixel != 8))
++	    (var->bits_per_pixel != 16) && (var->bits_per_pixel != 12) &&
++	    (var->bits_per_pixel != 8))
+ 		var->bits_per_pixel = 16;
+ 
+ 	switch (var->bits_per_pixel) {
+-- 
+1.5.4.4
+

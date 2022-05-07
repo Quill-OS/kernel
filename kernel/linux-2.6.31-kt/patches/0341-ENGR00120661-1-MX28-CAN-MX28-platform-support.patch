@@ -1,0 +1,65 @@
+From da383e705dfa7ffbf16e63f21b38d0f7ca3f7b61 Mon Sep 17 00:00:00 2001
+From: William Lai <b04597@freescale.com>
+Date: Tue, 2 Feb 2010 14:32:36 +0800
+Subject: [PATCH] ENGR00120661-1 MX28 CAN: MX28 platform support
+
+CAN supported on MX28 platform.
+
+Signed-off-by: William Lai <b04597@freescale.com>
+---
+ drivers/net/can/Kconfig       |    2 +-
+ drivers/net/can/flexcan/dev.c |    3 +++
+ drivers/net/can/flexcan/drv.c |    5 ++++-
+ 3 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/net/can/Kconfig b/drivers/net/can/Kconfig
+index b7b101e..a6bf9a7 100644
+--- a/drivers/net/can/Kconfig
++++ b/drivers/net/can/Kconfig
+@@ -86,7 +86,7 @@ config CAN_DEBUG_DEVICES
+ 
+ config CAN_FLEXCAN
+         tristate "Freescale FlexCAN"
+-        depends on CAN && (ARCH_MX25 || ARCH_MX35)
++        depends on CAN && (ARCH_MX25 || ARCH_MX35 || ARCH_MX28)
+         default m
+         ---help---
+           This select the support of Freescale CAN(FlexCAN).
+diff --git a/drivers/net/can/flexcan/dev.c b/drivers/net/can/flexcan/dev.c
+index 178a49a..389f85d 100644
+--- a/drivers/net/can/flexcan/dev.c
++++ b/drivers/net/can/flexcan/dev.c
+@@ -30,6 +30,9 @@
+ 
+ #include <linux/module.h>
+ #include <mach/hardware.h>
++#ifdef CONFIG_ARCH_MXS
++#include <mach/device.h>
++#endif
+ #include "flexcan.h"
+ 
+ enum {
+diff --git a/drivers/net/can/flexcan/drv.c b/drivers/net/can/flexcan/drv.c
+index 342b52a..baa0f99 100644
+--- a/drivers/net/can/flexcan/drv.c
++++ b/drivers/net/can/flexcan/drv.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -28,6 +28,9 @@
+ #include <linux/platform_device.h>
+ #include <linux/regulator/consumer.h>
+ #include <linux/clk.h>
++#ifdef CONFIG_ARCH_MXS
++#include <mach/device.h>
++#endif
+ 
+ #include <asm/io.h>
+ #include <asm/irq.h>
+-- 
+1.5.4.4
+

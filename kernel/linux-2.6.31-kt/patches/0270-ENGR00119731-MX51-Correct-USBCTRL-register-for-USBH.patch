@@ -1,0 +1,47 @@
+From e6331c7bc30a9f1ad1ebca601eaa95502a16f015 Mon Sep 17 00:00:00 2001
+From: Lily Zhang <r58066@freescale.com>
+Date: Sun, 21 Feb 2010 10:50:58 +0800
+Subject: [PATCH] ENGR00119731 MX51: Correct USBCTRL register for USBHOST2
+
+MX51 should use USBCTRL_HOST2 for USBHOST2 ULPI interface.
+This change was requested by the support team. MX51 3DS/EVK
+boards can not test USBHOST2
+
+Signed-off-by: Lily Zhang <r58066@freescale.com>
+---
+ arch/arm/plat-mxc/usb_common.c |   19 ++++++++++++++-----
+ 1 files changed, 14 insertions(+), 5 deletions(-)
+
+diff --git a/arch/arm/plat-mxc/usb_common.c b/arch/arm/plat-mxc/usb_common.c
+index d8674b8..7efd609 100644
+--- a/arch/arm/plat-mxc/usb_common.c
++++ b/arch/arm/plat-mxc/usb_common.c
+@@ -266,11 +266,20 @@ static void usbh2_set_ulpi_xcvr(void)
+ 	u32 tmp;
+ 
+ 	pr_debug("%s\n", __func__);
+-	USBCTRL &= ~(UCTRL_H2SIC_MASK | UCTRL_BPE);
+-	USBCTRL |= UCTRL_H2WIE |	/* wakeup intr enable */
+-		   UCTRL_H2UIE |	/* ULPI intr enable */
+-		   UCTRL_H2DT |		/* disable H2 TLL */
+-		   UCTRL_H2PM;		/* power mask */
++
++	if (cpu_is_mx51()) {
++		USBCTRL_HOST2 &= ~(UCTRL_H2SIC_MASK | UCTRL_BPE);
++		USBCTRL_HOST2 |= UCTRL_H2WIE |	/* wakeup intr enable */
++			UCTRL_H2UIE |	/* ULPI intr enable */
++			UCTRL_H2DT |	/* disable H2 TLL */
++			UCTRL_H2PM;	/* power mask */
++	} else {
++		USBCTRL &= ~(UCTRL_H2SIC_MASK | UCTRL_BPE);
++		USBCTRL |= UCTRL_H2WIE |	/* wakeup intr enable */
++			UCTRL_H2UIE |	/* ULPI intr enable */
++			UCTRL_H2DT |	/* disable H2 TLL */
++			UCTRL_H2PM;	/* power mask */
++	}
+ 
+ 	/* must set ULPI phy before turning off clock */
+ 	tmp = UH2_PORTSC1 & ~PORTSC_PTS_MASK;
+-- 
+1.5.4.4
+

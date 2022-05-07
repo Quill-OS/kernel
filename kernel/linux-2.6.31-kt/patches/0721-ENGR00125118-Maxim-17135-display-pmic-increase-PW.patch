@@ -1,0 +1,32 @@
+From a7f33d479f9f15f6e9e155fa61d98633cfb7b060 Mon Sep 17 00:00:00 2001
+From: Danny Nold <dannynold@freescale.com>
+Date: Tue, 13 Jul 2010 13:52:17 -0500
+Subject: [PATCH] ENGR00125118 - Maxim 17135 display pmic: increase PWR_GOOD wait timeout
+
+A number of Maxim 17135 parts were found to require longer than the
+computed max wait time to assert the PWR_GOOD signal, indicating that
+display power is up and valid.  This fix increases the timeout,
+preventing regulator_enable calls from prematurely bailing out
+and reporting errors.
+
+Signed-off-by: Danny Nold <dannynold@freescale.com>
+---
+ drivers/regulator/max17135-regulator.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/drivers/regulator/max17135-regulator.c b/drivers/regulator/max17135-regulator.c
+index d2be6c5..8bf1c4f 100644
+--- a/drivers/regulator/max17135-regulator.c
++++ b/drivers/regulator/max17135-regulator.c
+@@ -357,7 +357,7 @@ static int max17135_wait_power_good(struct max17135 *max17135)
+ {
+ 	int i;
+ 
+-	for (i = 0; i < max17135->max_wait; i++) {
++	for (i = 0; i < max17135->max_wait * 3; i++) {
+ 		if (gpio_get_value(max17135->gpio_pmic_pwrgood))
+ 			return 0;
+ 
+-- 
+1.5.4.4
+

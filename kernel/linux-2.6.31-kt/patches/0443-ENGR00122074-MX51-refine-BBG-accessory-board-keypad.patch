@@ -1,0 +1,44 @@
+From f46176d0525199b36f42b531e385ea4d15d5a50b Mon Sep 17 00:00:00 2001
+From: Xinyu Chen <xinyu.chen@freescale.com>
+Date: Mon, 29 Mar 2010 14:31:10 +0800
+Subject: [PATCH] ENGR00122074 MX51: refine BBG accessory board keypad mapping
+
+The BBG accessory board only has 4x4, 16 keys.
+And the current keypad mapping in BSP is copy from 3stack,
+which is not good for UI to use. Correct it more sensible.
+
+Signed-off-by: Xinyu Chen <xinyu.chen@freescale.com>
+---
+ arch/arm/mach-mx5/mx51_babbage.c |   12 ++++++------
+ 1 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/arch/arm/mach-mx5/mx51_babbage.c b/arch/arm/mach-mx5/mx51_babbage.c
+index f44489a..28f1d32 100644
+--- a/arch/arm/mach-mx5/mx51_babbage.c
++++ b/arch/arm/mach-mx5/mx51_babbage.c
+@@ -132,16 +132,16 @@ static struct mxc_w1_config mxc_w1_data = {
+ 	.search_rom_accelerator = 1,
+ };
+ 
+-static u16 keymapping[24] = {
+-	KEY_1, KEY_2, KEY_3, KEY_F1, KEY_UP, KEY_F2,
+-	KEY_4, KEY_5, KEY_6, KEY_LEFT, KEY_SELECT, KEY_RIGHT,
+-	KEY_7, KEY_8, KEY_9, KEY_F3, KEY_DOWN, KEY_F4,
+-	KEY_0, KEY_OK, KEY_ESC, KEY_ENTER, KEY_MENU, KEY_BACK,
++static u16 keymapping[16] = {
++	KEY_UP, KEY_DOWN, KEY_MENU, KEY_BACK,
++	KEY_RIGHT, KEY_LEFT, KEY_SELECT, KEY_ENTER,
++	KEY_F1, KEY_F3, KEY_1, KEY_3,
++	KEY_F2, KEY_F4, KEY_2, KEY_4,
+ };
+ 
+ static struct keypad_data keypad_plat_data = {
+ 	.rowmax = 4,
+-	.colmax = 6,
++	.colmax = 4,
+ 	.irq = MXC_INT_KPP,
+ 	.learning = 0,
+ 	.delay = 2,
+-- 
+1.5.4.4
+

@@ -1,0 +1,144 @@
+From 7d773829be9fd87001757c7d1b167ae288eb0c33 Mon Sep 17 00:00:00 2001
+From: Ranjani Vaidyanathan-RA5478 <Ranjani.Vaidyanathan@freescale.com>
+Date: Thu, 22 Apr 2010 15:06:01 -0500
+Subject: [PATCH] ENGR00122789: Fixed long-term video playback issue.
+
+Fixed long-term video playback issue due to incorrect increment of
+clock usecount.
+Fixed various bugs associated with system entering LP-APM mode.
+Fixed incorrect enabling of PLL3 that was not allowing system to enter
+LP-APM mode if TVE was built in.
+EMI_GARB clock needs to be enabled when certain clock dividers are changed.
+
+Signed-off-by: Ranjani Vaidyanathan-RA5478 <Ranjani.Vaidyanathan@freescale.com>
+---
+ arch/arm/mach-mx5/bus_freq.c |   20 +++++++++++++++-----
+ arch/arm/mach-mx5/clock.c    |    4 ++--
+ arch/arm/plat-mxc/clock.c    |    8 ++++----
+ drivers/video/mxc/tve.c      |    1 -
+ 4 files changed, 21 insertions(+), 12 deletions(-)
+
+diff --git a/arch/arm/mach-mx5/bus_freq.c b/arch/arm/mach-mx5/bus_freq.c
+index 1463ef4..cf957ea 100644
+--- a/arch/arm/mach-mx5/bus_freq.c
++++ b/arch/arm/mach-mx5/bus_freq.c
+@@ -65,7 +65,8 @@ static struct clk *periph_apm_clk;
+ static struct clk *lp_apm;
+ static struct clk *osc;
+ static struct clk *gpc_dvfs_clk;
+-static struct clk *mipi_hsp_clk;
++static struct clk *emi_garb_clk;
++
+ struct regulator *lp_regulator;
+ int low_bus_freq_mode;
+ int high_bus_freq_mode;
+@@ -135,8 +136,11 @@ int set_low_bus_freq(void)
+ 					| 3 << MXC_CCM_CBCDR_NFC_PODF_OFFSET);
+ 			__raw_writel(reg, MXC_CCM_CBCDR);
+ 
++			clk_enable(emi_garb_clk);
+ 			while (__raw_readl(MXC_CCM_CDHIPR) & 0x1F)
+ 				udelay(10);
++			clk_disable(emi_garb_clk);
++
+ 			/* Set the source of Periph_APM_Clock to be lp-apm. */
+ 			clk_set_parent(periph_apm_clk, lp_apm);
+ 
+@@ -176,8 +180,11 @@ int set_high_bus_freq(int high_bus_freq)
+ 					| 4 << MXC_CCM_CBCDR_EMI_PODF_OFFSET
+ 					| 3 << MXC_CCM_CBCDR_NFC_PODF_OFFSET);
+ 				__raw_writel(reg, MXC_CCM_CBCDR);
++
++				clk_enable(emi_garb_clk);
+ 				while (__raw_readl(MXC_CCM_CDHIPR) & 0x1F)
+ 					udelay(10);
++				clk_disable(emi_garb_clk);
+ 
+ 				low_bus_freq_mode = 0;
+ 				high_bus_freq_mode = 1;
+@@ -402,11 +409,14 @@ static int __devinit busfreq_probe(struct platform_device *pdev)
+ 		return PTR_ERR(ipu_clk);
+ 	}
+ 
+-	mipi_hsp_clk = clk_get(NULL, "mipi_hsp_clk");
+-	if (IS_ERR(mipi_hsp_clk)) {
+-		printk(KERN_DEBUG "%s: failed to get mipi_hsp_clk\n",
++	if (cpu_is_mx51())
++		emi_garb_clk = clk_get(NULL, "emi_garb_clk");
++	else
++		emi_garb_clk = clk_get(NULL, "emi_intr_clk.1");
++	if (IS_ERR(emi_garb_clk)) {
++		printk(KERN_DEBUG "%s: failed to get emi_garb_clk\n",
+ 		       __func__);
+-		return PTR_ERR(mipi_hsp_clk);
++		return PTR_ERR(emi_garb_clk);
+ 	}
+ 
+ 	vpu_clk = clk_get(NULL, "vpu_clk");
+diff --git a/arch/arm/mach-mx5/clock.c b/arch/arm/mach-mx5/clock.c
+index 66dac0f..a8b976d 100644
+--- a/arch/arm/mach-mx5/clock.c
++++ b/arch/arm/mach-mx5/clock.c
+@@ -1864,9 +1864,9 @@ static void _clk_tve_disable(struct clk *clk)
+ {
+ 	_clk_disable(clk);
+ 	if (clk_get_parent(&ipu_di_clk[1]) == clk) {
+-		clk_disable(&ipu_di_clk[1]);
+ 		ipu_di_clk[1].set_parent(&ipu_di_clk[1], &pll3_sw_clk);
+ 		ipu_di_clk[1].parent = &pll3_sw_clk;
++		clk_disable(&ipu_di_clk[1]);
+ 	}
+ }
+ 
+@@ -3802,7 +3802,7 @@ static struct clk emi_garb_clk = {
+ 	.enable = _clk_enable,
+ 	.enable_reg = MXC_CCM_CCGR6,
+ 	.enable_shift = MXC_CCM_CCGR6_CG4_OFFSET,
+-	.disable = _clk_disable,
++	.disable = _clk_disable_inwait,
+ };
+ 
+ static int _clk_gpu2d_set_parent(struct clk *clk, struct clk *parent)
+diff --git a/arch/arm/plat-mxc/clock.c b/arch/arm/plat-mxc/clock.c
+index cb197ad..27a5596 100644
+--- a/arch/arm/plat-mxc/clock.c
++++ b/arch/arm/plat-mxc/clock.c
+@@ -4,7 +4,7 @@
+  * Copyright (C) 2004 - 2005 Nokia corporation
+  * Written by Tuukka Tikkanen <tuukka.tikkanen@elektrobit.com>
+  * Modified for omap shared clock framework by Tony Lindgren <tony@atomide.com>
+- * Copyright 2007-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2007-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  * Copyright 2008 Juergen Beisert, kernel@pengutronix.de
+  *
+  * This program is free software; you can redistribute it and/or
+@@ -139,11 +139,11 @@ static void __clk_disable(struct clk *clk)
+ 		return;
+ 
+ 	if (!(--clk->usecount)) {
+-		if (clk->disable)
+-			clk->disable(clk);
+-
+ 		__clk_disable(clk->parent);
+ 		__clk_disable(clk->secondary);
++
++		if (clk->disable)
++			clk->disable(clk);
+ 	}
+ }
+ 
+diff --git a/drivers/video/mxc/tve.c b/drivers/video/mxc/tve.c
+index eccf5cc..2d2929c 100644
+--- a/drivers/video/mxc/tve.c
++++ b/drivers/video/mxc/tve.c
+@@ -252,7 +252,6 @@ static int tve_setup(int mode)
+ 
+ 	clk_disable(pll3_clk);
+ 	clk_set_rate(pll3_clk, pll3_clock_rate);
+-	clk_enable(pll3_clk);
+ 	clk_set_rate(ipu_di1_clk, di1_clock_rate);
+ 
+ 	clk_enable(tve.clk);
+-- 
+1.5.4.4
+

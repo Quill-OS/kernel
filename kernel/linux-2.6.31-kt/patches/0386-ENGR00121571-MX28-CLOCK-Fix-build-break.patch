@@ -1,0 +1,33 @@
+From 0efd56e02ed8d1c3cbc8de291c5452a54cb0866d Mon Sep 17 00:00:00 2001
+From: Nancy Chen <Nancy.Chen@freescale.com>
+Date: Sun, 14 Mar 2010 22:29:56 -0500
+Subject: [PATCH] ENGR00121571 MX28 CLOCK: Fix build break
+
+Fix build break
+
+Signed-off-by: Nancy Chen <Nancy.Chen@freescale.com>
+---
+ arch/arm/mach-mx28/emi_settings.h |    2 ++
+ 1 files changed, 2 insertions(+), 0 deletions(-)
+
+diff --git a/arch/arm/mach-mx28/emi_settings.h b/arch/arm/mach-mx28/emi_settings.h
+index 37e07f3..b7cb0e2 100644
+--- a/arch/arm/mach-mx28/emi_settings.h
++++ b/arch/arm/mach-mx28/emi_settings.h
+@@ -33,11 +33,13 @@ struct emi_change {
+ 	unsigned cur_freq;
+ 	unsigned new_freq;
+ };
++
+ int mxs_ram_freq_scale(struct emi_change *emi);
+ void mxs_ram_freq_scale_end();
+ void DDR2EmiController_EDE1116_133MHz();
+ void DDR2EmiController_EDE1116_166MHz();
+ void DDR2EmiController_EDE1116_200MHz();
++unsigned int *get_current_emidata();
+ #endif
+ 
+ #endif
+-- 
+1.5.4.4
+

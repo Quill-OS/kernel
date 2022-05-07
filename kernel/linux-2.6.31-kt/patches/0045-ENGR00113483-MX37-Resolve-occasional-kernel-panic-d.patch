@@ -1,0 +1,30 @@
+From 3374230c503424905b2c8075d1a19f05bd0b7dff Mon Sep 17 00:00:00 2001
+From: Lionel.Xu <r63889@freescale.com>
+Date: Fri, 9 Oct 2009 13:25:51 +0800
+Subject: [PATCH] ENGR00113483 MX37: Resolve occasional kernel panic during system reboot
+
+Mask WM8350 GPIO and RTC interrupt, to avoid heavy data traffic on I2C
+bus, which may incur kernel panic when system reboot.
+
+Signed-off-by: Lionel Xu <r63889@freescale.com>
+---
+ drivers/mfd/wm8350-core.c |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletions(-)
+
+diff --git a/drivers/mfd/wm8350-core.c b/drivers/mfd/wm8350-core.c
+index fe24079..66a1280 100644
+--- a/drivers/mfd/wm8350-core.c
++++ b/drivers/mfd/wm8350-core.c
+@@ -1466,7 +1466,8 @@ int wm8350_device_init(struct wm8350 *wm8350, int irq,
+ 		}
+ 	}
+ 
+-	wm8350_reg_write(wm8350, WM8350_SYSTEM_INTERRUPTS_MASK, 0x0);
++	/*mask gpio and rtc interrupt*/
++	wm8350_reg_write(wm8350, WM8350_SYSTEM_INTERRUPTS_MASK, 0x50);
+ 
+ 	wm8350_client_dev_register(wm8350, "wm8350-codec",
+ 				   &(wm8350->codec.pdev));
+-- 
+1.5.4.4
+

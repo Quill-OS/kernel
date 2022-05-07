@@ -1,0 +1,46 @@
+From ecef5c763b5dcf1b4fe70a6f68b91c4d4b6ea718 Mon Sep 17 00:00:00 2001
+From: Robert Lee <robert.lee@freescale.com>
+Date: Fri, 7 May 2010 15:26:59 -0500
+Subject: [PATCH] ENGR00123283 MX23: clock driver causes ssp_clk change timeout out of suspend
+
+If you boot up and then go into suspend mode, the clk_busy_wait()
+ function causes a timeout in the ssp_set_rate function because
+ the rate is being set while the clock is disable
+ resulting in the busy bit staying false.
+
+Signed-off-by: Robert Lee <robert.lee@freescale.com>
+---
+ arch/arm/mach-mx23/clock.c |   10 +++-------
+ 1 files changed, 3 insertions(+), 7 deletions(-)
+
+diff --git a/arch/arm/mach-mx23/clock.c b/arch/arm/mach-mx23/clock.c
+index ea23f37..333016c 100644
+--- a/arch/arm/mach-mx23/clock.c
++++ b/arch/arm/mach-mx23/clock.c
+@@ -1123,13 +1123,7 @@ static int ssp_set_rate(struct clk *clk, unsigned long rate)
+ 	int ret = -EINVAL;
+ 	u32 reg, div;
+ 
+-
+-	/* because SSP_CLK is used by more than one SSP peripheral,
+-	 * we only allow the clock to be changed if no driver is currently
+-	 * using the clock.
+-	 */
+-	if (clk->ref & CLK_EN_MASK)
+-		return -EBUSY;
++	local_clk_enable(clk);
+ 
+ 	/* if the desired clock can be sourced from ref_xtal,
+ 	 * use ref_xtal to save power
+@@ -1155,6 +1149,8 @@ static int ssp_set_rate(struct clk *clk, unsigned long rate)
+ 
+ 	ret = clk_busy_wait(clk);
+ out:
++	local_clk_disable(clk);
++
+ 	if (ret != 0)
+ 		printk(KERN_ERR "%s: error %d\n", __func__, ret);
+ 	return ret;
+-- 
+1.5.4.4
+

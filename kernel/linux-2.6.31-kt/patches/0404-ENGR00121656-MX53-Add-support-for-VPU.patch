@@ -1,0 +1,133 @@
+From 4c721f77d2d56d5564440461f366100197d5f9a8 Mon Sep 17 00:00:00 2001
+From: Dinh Nguyen <Dinh.Nguyen@freescale.com>
+Date: Thu, 18 Mar 2010 14:44:36 -0500
+Subject: [PATCH] ENGR00121656 MX53: Add support for VPU
+
+Add support for VPU on MX53 EVK board.
+
+Signed-off-by: Rob Herring <r.herring@freescale.com>
+Signed-off-by: Sammy He <r62914@freescale.com>
+---
+ arch/arm/mach-mx5/cpu.c          |    2 +-
+ arch/arm/mach-mx5/devices.c      |    2 ++
+ arch/arm/mach-mx5/mx51_3stack.c  |    4 ++--
+ arch/arm/mach-mx5/mx51_babbage.c |    4 ++--
+ arch/arm/mach-mx5/mx53_evk.c     |    7 ++++++-
+ drivers/mxc/vpu/mxc_vpu.c        |    4 +++-
+ 6 files changed, 16 insertions(+), 7 deletions(-)
+
+diff --git a/arch/arm/mach-mx5/cpu.c b/arch/arm/mach-mx5/cpu.c
+index b487d2d..b45f2e9 100644
+--- a/arch/arm/mach-mx5/cpu.c
++++ b/arch/arm/mach-mx5/cpu.c
+@@ -63,7 +63,7 @@ static void __init mipi_hsc_disable(void)
+ 	iounmap(reg_hsc_mcd);
+ }
+ 
+-void mx51_vpu_reset(void)
++void mx5_vpu_reset(void)
+ {
+ 	u32 reg;
+ 	void __iomem *src_base;
+diff --git a/arch/arm/mach-mx5/devices.c b/arch/arm/mach-mx5/devices.c
+index c83bdd9..567d5c8 100644
+--- a/arch/arm/mach-mx5/devices.c
++++ b/arch/arm/mach-mx5/devices.c
+@@ -1229,6 +1229,8 @@ int __init mxc_init_devices(void)
+ 		pwm2_resources[0].end -= MX53_OFFSET;
+ 		mxc_fec_resources[0].start -= MX53_OFFSET;
+ 		mxc_fec_resources[0].end -= MX53_OFFSET;
++		vpu_resources[0].start -= MX53_OFFSET;
++		vpu_resources[0].end -= MX53_OFFSET;
+ 		mxcspi1_resources[0].start -= MX53_OFFSET;
+ 		mxcspi1_resources[0].end -= MX53_OFFSET;
+ 		mxcspi2_resources[0].start -= MX53_OFFSET;
+diff --git a/arch/arm/mach-mx5/mx51_3stack.c b/arch/arm/mach-mx5/mx51_3stack.c
+index 7e992c5..61e1228 100644
+--- a/arch/arm/mach-mx5/mx51_3stack.c
++++ b/arch/arm/mach-mx5/mx51_3stack.c
+@@ -140,9 +140,9 @@ static struct mxc_ipu_config mxc_ipu_data = {
+ 	.rev = 2,
+ };
+ 
+-extern void mx51_vpu_reset(void);
++extern void mx5_vpu_reset(void);
+ static struct mxc_vpu_platform_data mxc_vpu_data = {
+-	.reset = mx51_vpu_reset,
++	.reset = mx5_vpu_reset,
+ };
+ 
+ extern void mx51_babbage_gpio_spi_chipselect_active(int cspi_mode, int status,
+diff --git a/arch/arm/mach-mx5/mx51_babbage.c b/arch/arm/mach-mx5/mx51_babbage.c
+index e346c2e..258e534 100644
+--- a/arch/arm/mach-mx5/mx51_babbage.c
++++ b/arch/arm/mach-mx5/mx51_babbage.c
+@@ -159,9 +159,9 @@ static struct mxc_ipu_config mxc_ipu_data = {
+ 	.rev = 2,
+ };
+ 
+-extern void mx51_vpu_reset(void);
++extern void mx5_vpu_reset(void);
+ static struct mxc_vpu_platform_data mxc_vpu_data = {
+-	.reset = mx51_vpu_reset,
++	.reset = mx5_vpu_reset,
+ };
+ 
+ extern void mx51_babbage_gpio_spi_chipselect_active(int cspi_mode, int status,
+diff --git a/arch/arm/mach-mx5/mx53_evk.c b/arch/arm/mach-mx5/mx53_evk.c
+index 4b828cd..30f8b3d 100644
+--- a/arch/arm/mach-mx5/mx53_evk.c
++++ b/arch/arm/mach-mx5/mx53_evk.c
+@@ -154,6 +154,11 @@ static struct mxc_ipu_config mxc_ipu_data = {
+ 	.rev = 3,
+ };
+ 
++extern void mx5_vpu_reset(void);
++static struct mxc_vpu_platform_data mxc_vpu_data = {
++	.reset = mx5_vpu_reset,
++};
++
+ extern void mx53_evk_gpio_spi_chipselect_active(int cspi_mode, int status,
+ 						    int chipselect);
+ extern void mx53_evk_gpio_spi_chipselect_inactive(int cspi_mode, int status,
+@@ -529,7 +534,7 @@ static void __init mxc_board_init(void)
+ 	mxc_register_device(&mxc_ipu_device, &mxc_ipu_data);
+ 	mxc_register_device(&lcd_wvga_device, &lcd_wvga_data);
+ 	mxc_register_device(&mxc_tve_device, &tve_data);
+-	mxc_register_device(&mxcvpu_device, NULL);
++	mxc_register_device(&mxcvpu_device, &mxc_vpu_data);
+ 	mxc_register_device(&gpu_device, NULL);
+ 	/*
+ 	mxc_register_device(&mx53_lpmode_device, NULL);
+diff --git a/drivers/mxc/vpu/mxc_vpu.c b/drivers/mxc/vpu/mxc_vpu.c
+index a9b0cb4..b9ae239 100644
+--- a/drivers/mxc/vpu/mxc_vpu.c
++++ b/drivers/mxc/vpu/mxc_vpu.c
+@@ -73,6 +73,7 @@ static struct vpu_mem_desc user_data_mem = { 0 };
+ static struct vpu_mem_desc share_mem = { 0 };
+ 
+ static void __iomem *vpu_base;
++static u32 phy_vpu_base_addr;
+ static struct mxc_vpu_platform_data *vpu_plat;
+ 
+ /* IRAM setting */
+@@ -517,7 +518,7 @@ static int vpu_map_hwregs(struct file *fp, struct vm_area_struct *vm)
+ 
+ 	vm->vm_flags |= VM_IO | VM_RESERVED;
+ 	vm->vm_page_prot = pgprot_noncached(vm->vm_page_prot);
+-	pfn = VPU_BASE_ADDR >> PAGE_SHIFT;
++	pfn = phy_vpu_base_addr >> PAGE_SHIFT;
+ 	pr_debug("size=0x%x,  page no.=0x%x\n",
+ 		 (int)(vm->vm_end - vm->vm_start), (int)pfn);
+ 	return remap_pfn_range(vm, vm->vm_start, pfn, vm->vm_end - vm->vm_start,
+@@ -599,6 +600,7 @@ static int vpu_dev_probe(struct platform_device *pdev)
+ 		printk(KERN_ERR "vpu: unable to get vpu base addr\n");
+ 		return -ENODEV;
+ 	}
++	phy_vpu_base_addr = res->start;
+ 	vpu_base = ioremap(res->start, res->end - res->start);
+ 
+ 	vpu_major = register_chrdev(vpu_major, "mxc_vpu", &vpu_fops);
+-- 
+1.5.4.4
+

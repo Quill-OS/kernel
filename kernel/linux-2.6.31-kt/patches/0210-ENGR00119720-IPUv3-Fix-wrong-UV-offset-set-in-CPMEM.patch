@@ -1,0 +1,42 @@
+From 36808bfcd0766355b2a9b4a5359716602025f6e9 Mon Sep 17 00:00:00 2001
+From: Liu Ying <b17645@freescale.com>
+Date: Mon, 4 Jan 2010 17:15:19 -0500
+Subject: [PATCH] ENGR00119720 IPUv3:Fix wrong UV offset set in CPMEM when idmac crops
+
+The UV offset is set wrongly when idmac does cropping.
+This patch changes to get the UV offset from user in this case now.
+
+Signed-off-by: Liu Ying <b17645@freescale.com>
+---
+ drivers/mxc/ipu3/ipu_param_mem.h |    8 ++++----
+ 1 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/mxc/ipu3/ipu_param_mem.h b/drivers/mxc/ipu3/ipu_param_mem.h
+index 9a56fd8..28358fd 100644
+--- a/drivers/mxc/ipu3/ipu_param_mem.h
++++ b/drivers/mxc/ipu3/ipu_param_mem.h
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2005-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2005-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -278,11 +278,11 @@ static inline void _ipu_ch_param_init(int ch,
+ 	if (uv_stride)
+ 		ipu_ch_param_set_field(&params, 1, 128, 14, uv_stride - 1);
+ 
+-	if (u > u_offset)
++	/* Get the uv offset from user when need cropping */
++	if (u || v) {
+ 		u_offset = u;
+-
+-	if (v > v_offset)
+ 		v_offset = v;
++	}
+ 
+ 	ipu_ch_param_set_field(&params, 0, 46, 22, u_offset / 8);
+ 	ipu_ch_param_set_field(&params, 0, 68, 22, v_offset / 8);
+-- 
+1.5.4.4
+

@@ -1,0 +1,1516 @@
+From 788a7797c6dddb7417a23642fb0022f108b4cf63 Mon Sep 17 00:00:00 2001
+From: Zhou Jingyu <b02241@freescale.com>
+Date: Mon, 22 Feb 2010 17:02:20 +0800
+Subject: [PATCH] ENGR00117756 mxs regulator driver, porting from imx23
+
+Porting mxs regulator driver from imx23
+
+Signed-off-by: Zhou Jingyu <Jingyu.Zhou@freescale.com>
+(cherry picked from commit 0d0573aad73c35989f685c71617114317906709d)
+---
+ arch/arm/configs/imx28evk_defconfig          |   15 +-
+ arch/arm/mach-mx28/Makefile                  |    2 +-
+ arch/arm/mach-mx28/include/mach/regs-power.h |  683 ++++++++++++++++++++++++++
+ arch/arm/mach-mx28/power.c                   |  118 ++---
+ arch/arm/plat-mxs/include/mach/power.h       |   38 +-
+ drivers/regulator/Kconfig                    |    6 +
+ drivers/regulator/Makefile                   |    1 +
+ drivers/regulator/mxs-regulator.c            |  162 +++---
+ 8 files changed, 855 insertions(+), 170 deletions(-)
+
+diff --git a/arch/arm/configs/imx28evk_defconfig b/arch/arm/configs/imx28evk_defconfig
+index c8d2fef..54e4ca9 100644
+--- a/arch/arm/configs/imx28evk_defconfig
++++ b/arch/arm/configs/imx28evk_defconfig
+@@ -1,7 +1,7 @@
+ #
+ # Automatically generated make config: don't edit
+ # Linux kernel version: 2.6.31
+-# Tue Feb  9 10:32:39 2010
++# Wed Feb 24 15:41:46 2010
+ #
+ CONFIG_ARM=y
+ CONFIG_SYS_SUPPORTS_APM_EMULATION=y
+@@ -198,7 +198,9 @@ CONFIG_DMA_ZONE_SIZE=16
+ # Freescale i.MXS implementations
+ #
+ CONFIG_ARCH_MX28=y
++# CONFIG_ARCH_MX23 is not set
+ CONFIG_MACH_MX28EVK=y
++CONFIG_MXS_TIMER_WITH_MACH=y
+ CONFIG_MXS_ICOLL=y
+ CONFIG_MXS_EARLY_CONSOLE=y
+ CONFIG_MXS_DMA_ENGINE=y
+@@ -1097,6 +1099,7 @@ CONFIG_USB_GADGET_SELECTED=y
+ # CONFIG_USB_GADGET_GOKU is not set
+ CONFIG_USB_GADGET_ARC=y
+ CONFIG_USB_ARC=m
++CONFIG_WORKAROUND_ARCUSB_REG_RW=y
+ # CONFIG_USB_GADGET_LANGWELL is not set
+ # CONFIG_USB_GADGET_DUMMY_HCD is not set
+ CONFIG_USB_GADGET_DUALSPEED=y
+@@ -1221,7 +1224,15 @@ CONFIG_DMADEVICES=y
+ # DMA Devices
+ #
+ # CONFIG_AUXDISPLAY is not set
+-# CONFIG_REGULATOR is not set
++CONFIG_REGULATOR=y
++# CONFIG_REGULATOR_DEBUG is not set
++# CONFIG_REGULATOR_FIXED_VOLTAGE is not set
++# CONFIG_REGULATOR_VIRTUAL_CONSUMER is not set
++# CONFIG_REGULATOR_USERSPACE_CONSUMER is not set
++# CONFIG_REGULATOR_BQ24022 is not set
++# CONFIG_REGULATOR_MAX1586 is not set
++# CONFIG_REGULATOR_LP3971 is not set
++CONFIG_REGULATOR_MXS=y
+ # CONFIG_UIO is not set
+ # CONFIG_STAGING is not set
+ 
+diff --git a/arch/arm/mach-mx28/Makefile b/arch/arm/mach-mx28/Makefile
+index 84b33d3..7b87f3e 100644
+--- a/arch/arm/mach-mx28/Makefile
++++ b/arch/arm/mach-mx28/Makefile
+@@ -1,7 +1,7 @@
+ #
+ # Makefile for the linux kernel.
+ #
+-obj-y += pinctrl.o clock.o device.o serial.o
++obj-y += pinctrl.o clock.o device.o serial.o power.o
+ 
+ # Board select
+ obj-$(CONFIG_MACH_MX28EVK) += mx28evk.o mx28evk_pins.o
+diff --git a/arch/arm/mach-mx28/include/mach/regs-power.h b/arch/arm/mach-mx28/include/mach/regs-power.h
+new file mode 100644
+index 0000000..8f6a8ee
+--- /dev/null
++++ b/arch/arm/mach-mx28/include/mach/regs-power.h
+@@ -0,0 +1,683 @@
++/*
++ * Freescale POWER Register Definitions
++ *
++ * Copyright (C) 2010 Freescale Semiconductor, Inc. All Rights Reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
++ *
++ * This file is created by xml file. Don't Edit it.
++ *
++ * Xml Revision: 1.0
++ * Template revision: 26195
++ */
++
++#ifndef __ARCH_ARM___POWER_H
++#define __ARCH_ARM___POWER_H
++
++
++#include <mach/mx28.h>
++
++#define REGS_POWER_BASE IO_ADDRESS(POWER_PHYS_ADDR)
++#define REGS_POWER_PHYS (0x80044000)
++#define REGS_POWER_SIZE 0x00002000
++
++#define HW_POWER_CTRL	(0x00000000)
++#define HW_POWER_CTRL_SET	(0x00000004)
++#define HW_POWER_CTRL_CLR	(0x00000008)
++#define HW_POWER_CTRL_TOG	(0x0000000c)
++
++#define BP_POWER_CTRL_RSRVD2	28
++#define BM_POWER_CTRL_RSRVD2	0xF0000000
++#define BF_POWER_CTRL_RSRVD2(v) \
++		(((v) << 28) & BM_POWER_CTRL_RSRVD2)
++#define BM_POWER_CTRL_PSWITCH_MID_TRAN	0x08000000
++#define BP_POWER_CTRL_RSRVD1	25
++#define BM_POWER_CTRL_RSRVD1	0x06000000
++#define BF_POWER_CTRL_RSRVD1(v)  \
++		(((v) << 25) & BM_POWER_CTRL_RSRVD1)
++#define BM_POWER_CTRL_DCDC4P2_BO_IRQ	0x01000000
++#define BM_POWER_CTRL_ENIRQ_DCDC4P2_BO	0x00800000
++#define BM_POWER_CTRL_VDD5V_DROOP_IRQ	0x00400000
++#define BM_POWER_CTRL_ENIRQ_VDD5V_DROOP	0x00200000
++#define BM_POWER_CTRL_PSWITCH_IRQ	0x00100000
++#define BM_POWER_CTRL_PSWITCH_IRQ_SRC	0x00080000
++#define BM_POWER_CTRL_POLARITY_PSWITCH	0x00040000
++#define BM_POWER_CTRL_ENIRQ_PSWITCH	0x00020000
++#define BM_POWER_CTRL_POLARITY_DC_OK	0x00010000
++#define BM_POWER_CTRL_DC_OK_IRQ	0x00008000
++#define BM_POWER_CTRL_ENIRQ_DC_OK	0x00004000
++#define BM_POWER_CTRL_BATT_BO_IRQ	0x00002000
++#define BM_POWER_CTRL_ENIRQBATT_BO	0x00001000
++#define BM_POWER_CTRL_VDDIO_BO_IRQ	0x00000800
++#define BM_POWER_CTRL_ENIRQ_VDDIO_BO	0x00000400
++#define BM_POWER_CTRL_VDDA_BO_IRQ	0x00000200
++#define BM_POWER_CTRL_ENIRQ_VDDA_BO	0x00000100
++#define BM_POWER_CTRL_VDDD_BO_IRQ	0x00000080
++#define BM_POWER_CTRL_ENIRQ_VDDD_BO	0x00000040
++#define BM_POWER_CTRL_POLARITY_VBUSVALID	0x00000020
++#define BM_POWER_CTRL_VBUSVALID_IRQ	0x00000010
++#define BM_POWER_CTRL_ENIRQ_VBUS_VALID	0x00000008
++#define BM_POWER_CTRL_POLARITY_VDD5V_GT_VDDIO	0x00000004
++#define BM_POWER_CTRL_VDD5V_GT_VDDIO_IRQ	0x00000002
++#define BM_POWER_CTRL_ENIRQ_VDD5V_GT_VDDIO	0x00000001
++
++#define HW_POWER_5VCTRL	(0x00000010)
++#define HW_POWER_5VCTRL_SET	(0x00000014)
++#define HW_POWER_5VCTRL_CLR	(0x00000018)
++#define HW_POWER_5VCTRL_TOG	(0x0000001c)
++
++#define BP_POWER_5VCTRL_RSRVD6	30
++#define BM_POWER_5VCTRL_RSRVD6	0xC0000000
++#define BF_POWER_5VCTRL_RSRVD6(v) \
++		(((v) << 30) & BM_POWER_5VCTRL_RSRVD6)
++#define BP_POWER_5VCTRL_VBUSDROOP_TRSH	28
++#define BM_POWER_5VCTRL_VBUSDROOP_TRSH	0x30000000
++#define BF_POWER_5VCTRL_VBUSDROOP_TRSH(v)  \
++		(((v) << 28) & BM_POWER_5VCTRL_VBUSDROOP_TRSH)
++#define BM_POWER_5VCTRL_RSRVD5	0x08000000
++#define BP_POWER_5VCTRL_HEADROOM_ADJ	24
++#define BM_POWER_5VCTRL_HEADROOM_ADJ	0x07000000
++#define BF_POWER_5VCTRL_HEADROOM_ADJ(v)  \
++		(((v) << 24) & BM_POWER_5VCTRL_HEADROOM_ADJ)
++#define BP_POWER_5VCTRL_RSRVD4	22
++#define BM_POWER_5VCTRL_RSRVD4	0x00C00000
++#define BF_POWER_5VCTRL_RSRVD4(v)  \
++		(((v) << 22) & BM_POWER_5VCTRL_RSRVD4)
++#define BP_POWER_5VCTRL_PWD_CHARGE_4P2	20
++#define BM_POWER_5VCTRL_PWD_CHARGE_4P2	0x00300000
++#define BF_POWER_5VCTRL_PWD_CHARGE_4P2(v)  \
++		(((v) << 20) & BM_POWER_5VCTRL_PWD_CHARGE_4P2)
++#define BP_POWER_5VCTRL_RSRVD3	18
++#define BM_POWER_5VCTRL_RSRVD3	0x000C0000
++#define BF_POWER_5VCTRL_RSRVD3(v)  \
++		(((v) << 18) & BM_POWER_5VCTRL_RSRVD3)
++#define BP_POWER_5VCTRL_CHARGE_4P2_ILIMIT	12
++#define BM_POWER_5VCTRL_CHARGE_4P2_ILIMIT	0x0003F000
++#define BF_POWER_5VCTRL_CHARGE_4P2_ILIMIT(v)  \
++		(((v) << 12) & BM_POWER_5VCTRL_CHARGE_4P2_ILIMIT)
++#define BM_POWER_5VCTRL_RSRVD2	0x00000800
++#define BP_POWER_5VCTRL_VBUSVALID_TRSH	8
++#define BM_POWER_5VCTRL_VBUSVALID_TRSH	0x00000700
++#define BF_POWER_5VCTRL_VBUSVALID_TRSH(v)  \
++		(((v) << 8) & BM_POWER_5VCTRL_VBUSVALID_TRSH)
++#define BM_POWER_5VCTRL_PWDN_5VBRNOUT	0x00000080
++#define BM_POWER_5VCTRL_ENABLE_LINREG_ILIMIT	0x00000040
++#define BM_POWER_5VCTRL_DCDC_XFER	0x00000020
++#define BM_POWER_5VCTRL_VBUSVALID_5VDETECT	0x00000010
++#define BM_POWER_5VCTRL_VBUSVALID_TO_B	0x00000008
++#define BM_POWER_5VCTRL_ILIMIT_EQ_ZERO	0x00000004
++#define BM_POWER_5VCTRL_PWRUP_VBUS_CMPS	0x00000002
++#define BM_POWER_5VCTRL_ENABLE_DCDC	0x00000001
++
++#define HW_POWER_MINPWR	(0x00000020)
++#define HW_POWER_MINPWR_SET	(0x00000024)
++#define HW_POWER_MINPWR_CLR	(0x00000028)
++#define HW_POWER_MINPWR_TOG	(0x0000002c)
++
++#define BP_POWER_MINPWR_RSRVD1	15
++#define BM_POWER_MINPWR_RSRVD1	0xFFFF8000
++#define BF_POWER_MINPWR_RSRVD1(v) \
++		(((v) << 15) & BM_POWER_MINPWR_RSRVD1)
++#define BM_POWER_MINPWR_LOWPWR_4P2	0x00004000
++#define BM_POWER_MINPWR_VDAC_DUMP_CTRL	0x00002000
++#define BM_POWER_MINPWR_PWD_BO	0x00001000
++#define BM_POWER_MINPWR_USE_VDDXTAL_VBG	0x00000800
++#define BM_POWER_MINPWR_PWD_ANA_CMPS	0x00000400
++#define BM_POWER_MINPWR_ENABLE_OSC	0x00000200
++#define BM_POWER_MINPWR_SELECT_OSC	0x00000100
++#define BM_POWER_MINPWR_VBG_OFF	0x00000080
++#define BM_POWER_MINPWR_DOUBLE_FETS	0x00000040
++#define BM_POWER_MINPWR_HALF_FETS	0x00000020
++#define BM_POWER_MINPWR_LESSANA_I	0x00000010
++#define BM_POWER_MINPWR_PWD_XTAL24	0x00000008
++#define BM_POWER_MINPWR_DC_STOPCLK	0x00000004
++#define BM_POWER_MINPWR_EN_DC_PFM	0x00000002
++#define BM_POWER_MINPWR_DC_HALFCLK	0x00000001
++
++#define HW_POWER_CHARGE	(0x00000030)
++#define HW_POWER_CHARGE_SET	(0x00000034)
++#define HW_POWER_CHARGE_CLR	(0x00000038)
++#define HW_POWER_CHARGE_TOG	(0x0000003c)
++
++#define BP_POWER_CHARGE_RSRVD6	27
++#define BM_POWER_CHARGE_RSRVD6	0xF8000000
++#define BF_POWER_CHARGE_RSRVD6(v) \
++		(((v) << 27) & BM_POWER_CHARGE_RSRVD6)
++#define BP_POWER_CHARGE_ADJ_VOLT	24
++#define BM_POWER_CHARGE_ADJ_VOLT	0x07000000
++#define BF_POWER_CHARGE_ADJ_VOLT(v)  \
++		(((v) << 24) & BM_POWER_CHARGE_ADJ_VOLT)
++#define BM_POWER_CHARGE_RSRVD5	0x00800000
++#define BM_POWER_CHARGE_ENABLE_LOAD	0x00400000
++#define BM_POWER_CHARGE_RSRVD4	0x00200000
++#define BM_POWER_CHARGE_ENABLE_FAULT_DETECT	0x00100000
++#define BM_POWER_CHARGE_CHRG_STS_OFF	0x00080000
++#define BM_POWER_CHARGE_LIION_4P1	0x00040000
++#define BM_POWER_CHARGE_RSRVD3	0x00020000
++#define BM_POWER_CHARGE_PWD_BATTCHRG	0x00010000
++#define BP_POWER_CHARGE_RSRVD2	14
++#define BM_POWER_CHARGE_RSRVD2	0x0000C000
++#define BF_POWER_CHARGE_RSRVD2(v)  \
++		(((v) << 14) & BM_POWER_CHARGE_RSRVD2)
++#define BM_POWER_CHARGE_ENABLE_CHARGER_USB1	0x00002000
++#define BM_POWER_CHARGE_ENABLE_CHARGER_USB0	0x00001000
++#define BP_POWER_CHARGE_STOP_ILIMIT	8
++#define BM_POWER_CHARGE_STOP_ILIMIT	0x00000F00
++#define BF_POWER_CHARGE_STOP_ILIMIT(v)  \
++		(((v) << 8) & BM_POWER_CHARGE_STOP_ILIMIT)
++#define BP_POWER_CHARGE_RSRVD1	6
++#define BM_POWER_CHARGE_RSRVD1	0x000000C0
++#define BF_POWER_CHARGE_RSRVD1(v)  \
++		(((v) << 6) & BM_POWER_CHARGE_RSRVD1)
++#define BP_POWER_CHARGE_BATTCHRG_I	0
++#define BM_POWER_CHARGE_BATTCHRG_I	0x0000003F
++#define BF_POWER_CHARGE_BATTCHRG_I(v)  \
++		(((v) << 0) & BM_POWER_CHARGE_BATTCHRG_I)
++
++#define HW_POWER_VDDDCTRL	(0x00000040)
++
++#define BP_POWER_VDDDCTRL_ADJTN	28
++#define BM_POWER_VDDDCTRL_ADJTN	0xF0000000
++#define BF_POWER_VDDDCTRL_ADJTN(v) \
++		(((v) << 28) & BM_POWER_VDDDCTRL_ADJTN)
++#define BP_POWER_VDDDCTRL_RSRVD4	24
++#define BM_POWER_VDDDCTRL_RSRVD4	0x0F000000
++#define BF_POWER_VDDDCTRL_RSRVD4(v)  \
++		(((v) << 24) & BM_POWER_VDDDCTRL_RSRVD4)
++#define BM_POWER_VDDDCTRL_PWDN_BRNOUT	0x00800000
++#define BM_POWER_VDDDCTRL_DISABLE_STEPPING	0x00400000
++#define BM_POWER_VDDDCTRL_ENABLE_LINREG	0x00200000
++#define BM_POWER_VDDDCTRL_DISABLE_FET	0x00100000
++#define BP_POWER_VDDDCTRL_RSRVD3	18
++#define BM_POWER_VDDDCTRL_RSRVD3	0x000C0000
++#define BF_POWER_VDDDCTRL_RSRVD3(v)  \
++		(((v) << 18) & BM_POWER_VDDDCTRL_RSRVD3)
++#define BP_POWER_VDDDCTRL_LINREG_OFFSET	16
++#define BM_POWER_VDDDCTRL_LINREG_OFFSET	0x00030000
++#define BF_POWER_VDDDCTRL_LINREG_OFFSET(v)  \
++		(((v) << 16) & BM_POWER_VDDDCTRL_LINREG_OFFSET)
++#define BP_POWER_VDDDCTRL_RSRVD2	11
++#define BM_POWER_VDDDCTRL_RSRVD2	0x0000F800
++#define BF_POWER_VDDDCTRL_RSRVD2(v)  \
++		(((v) << 11) & BM_POWER_VDDDCTRL_RSRVD2)
++#define BP_POWER_VDDDCTRL_BO_OFFSET	8
++#define BM_POWER_VDDDCTRL_BO_OFFSET	0x00000700
++#define BF_POWER_VDDDCTRL_BO_OFFSET(v)  \
++		(((v) << 8) & BM_POWER_VDDDCTRL_BO_OFFSET)
++#define BP_POWER_VDDDCTRL_RSRVD1	5
++#define BM_POWER_VDDDCTRL_RSRVD1	0x000000E0
++#define BF_POWER_VDDDCTRL_RSRVD1(v)  \
++		(((v) << 5) & BM_POWER_VDDDCTRL_RSRVD1)
++#define BP_POWER_VDDDCTRL_TRG	0
++#define BM_POWER_VDDDCTRL_TRG	0x0000001F
++#define BF_POWER_VDDDCTRL_TRG(v)  \
++		(((v) << 0) & BM_POWER_VDDDCTRL_TRG)
++
++#define HW_POWER_VDDACTRL	(0x00000050)
++
++#define BP_POWER_VDDACTRL_RSRVD4	20
++#define BM_POWER_VDDACTRL_RSRVD4	0xFFF00000
++#define BF_POWER_VDDACTRL_RSRVD4(v) \
++		(((v) << 20) & BM_POWER_VDDACTRL_RSRVD4)
++#define BM_POWER_VDDACTRL_PWDN_BRNOUT	0x00080000
++#define BM_POWER_VDDACTRL_DISABLE_STEPPING	0x00040000
++#define BM_POWER_VDDACTRL_ENABLE_LINREG	0x00020000
++#define BM_POWER_VDDACTRL_DISABLE_FET	0x00010000
++#define BP_POWER_VDDACTRL_RSRVD3	14
++#define BM_POWER_VDDACTRL_RSRVD3	0x0000C000
++#define BF_POWER_VDDACTRL_RSRVD3(v)  \
++		(((v) << 14) & BM_POWER_VDDACTRL_RSRVD3)
++#define BP_POWER_VDDACTRL_LINREG_OFFSET	12
++#define BM_POWER_VDDACTRL_LINREG_OFFSET	0x00003000
++#define BF_POWER_VDDACTRL_LINREG_OFFSET(v)  \
++		(((v) << 12) & BM_POWER_VDDACTRL_LINREG_OFFSET)
++#define BM_POWER_VDDACTRL_RSRVD2	0x00000800
++#define BP_POWER_VDDACTRL_BO_OFFSET	8
++#define BM_POWER_VDDACTRL_BO_OFFSET	0x00000700
++#define BF_POWER_VDDACTRL_BO_OFFSET(v)  \
++		(((v) << 8) & BM_POWER_VDDACTRL_BO_OFFSET)
++#define BP_POWER_VDDACTRL_RSRVD1	5
++#define BM_POWER_VDDACTRL_RSRVD1	0x000000E0
++#define BF_POWER_VDDACTRL_RSRVD1(v)  \
++		(((v) << 5) & BM_POWER_VDDACTRL_RSRVD1)
++#define BP_POWER_VDDACTRL_TRG	0
++#define BM_POWER_VDDACTRL_TRG	0x0000001F
++#define BF_POWER_VDDACTRL_TRG(v)  \
++		(((v) << 0) & BM_POWER_VDDACTRL_TRG)
++
++#define HW_POWER_VDDIOCTRL	(0x00000060)
++
++#define BP_POWER_VDDIOCTRL_RSRVD5	24
++#define BM_POWER_VDDIOCTRL_RSRVD5	0xFF000000
++#define BF_POWER_VDDIOCTRL_RSRVD5(v) \
++		(((v) << 24) & BM_POWER_VDDIOCTRL_RSRVD5)
++#define BP_POWER_VDDIOCTRL_ADJTN	20
++#define BM_POWER_VDDIOCTRL_ADJTN	0x00F00000
++#define BF_POWER_VDDIOCTRL_ADJTN(v)  \
++		(((v) << 20) & BM_POWER_VDDIOCTRL_ADJTN)
++#define BM_POWER_VDDIOCTRL_RSRVD4	0x00080000
++#define BM_POWER_VDDIOCTRL_PWDN_BRNOUT	0x00040000
++#define BM_POWER_VDDIOCTRL_DISABLE_STEPPING	0x00020000
++#define BM_POWER_VDDIOCTRL_DISABLE_FET	0x00010000
++#define BP_POWER_VDDIOCTRL_RSRVD3	14
++#define BM_POWER_VDDIOCTRL_RSRVD3	0x0000C000
++#define BF_POWER_VDDIOCTRL_RSRVD3(v)  \
++		(((v) << 14) & BM_POWER_VDDIOCTRL_RSRVD3)
++#define BP_POWER_VDDIOCTRL_LINREG_OFFSET	12
++#define BM_POWER_VDDIOCTRL_LINREG_OFFSET	0x00003000
++#define BF_POWER_VDDIOCTRL_LINREG_OFFSET(v)  \
++		(((v) << 12) & BM_POWER_VDDIOCTRL_LINREG_OFFSET)
++#define BM_POWER_VDDIOCTRL_RSRVD2	0x00000800
++#define BP_POWER_VDDIOCTRL_BO_OFFSET	8
++#define BM_POWER_VDDIOCTRL_BO_OFFSET	0x00000700
++#define BF_POWER_VDDIOCTRL_BO_OFFSET(v)  \
++		(((v) << 8) & BM_POWER_VDDIOCTRL_BO_OFFSET)
++#define BP_POWER_VDDIOCTRL_RSRVD1	5
++#define BM_POWER_VDDIOCTRL_RSRVD1	0x000000E0
++#define BF_POWER_VDDIOCTRL_RSRVD1(v)  \
++		(((v) << 5) & BM_POWER_VDDIOCTRL_RSRVD1)
++#define BP_POWER_VDDIOCTRL_TRG	0
++#define BM_POWER_VDDIOCTRL_TRG	0x0000001F
++#define BF_POWER_VDDIOCTRL_TRG(v)  \
++		(((v) << 0) & BM_POWER_VDDIOCTRL_TRG)
++
++#define HW_POWER_VDDMEMCTRL	(0x00000070)
++
++#define BP_POWER_VDDMEMCTRL_RSRVD2	11
++#define BM_POWER_VDDMEMCTRL_RSRVD2	0xFFFFF800
++#define BF_POWER_VDDMEMCTRL_RSRVD2(v) \
++		(((v) << 11) & BM_POWER_VDDMEMCTRL_RSRVD2)
++#define BM_POWER_VDDMEMCTRL_PULLDOWN_ACTIVE	0x00000400
++#define BM_POWER_VDDMEMCTRL_ENABLE_ILIMIT	0x00000200
++#define BM_POWER_VDDMEMCTRL_ENABLE_LINREG	0x00000100
++#define BP_POWER_VDDMEMCTRL_BO_OFFSET	5
++#define BM_POWER_VDDMEMCTRL_BO_OFFSET	0x000000E0
++#define BF_POWER_VDDMEMCTRL_BO_OFFSET(v)  \
++		(((v) << 5) & BM_POWER_VDDMEMCTRL_BO_OFFSET)
++#define BP_POWER_VDDMEMCTRL_TRG	0
++#define BM_POWER_VDDMEMCTRL_TRG	0x0000001F
++#define BF_POWER_VDDMEMCTRL_TRG(v)  \
++		(((v) << 0) & BM_POWER_VDDMEMCTRL_TRG)
++
++#define HW_POWER_DCDC4P2	(0x00000080)
++
++#define BP_POWER_DCDC4P2_DROPOUT_CTRL	28
++#define BM_POWER_DCDC4P2_DROPOUT_CTRL	0xF0000000
++#define BF_POWER_DCDC4P2_DROPOUT_CTRL(v) \
++		(((v) << 28) & BM_POWER_DCDC4P2_DROPOUT_CTRL)
++#define BP_POWER_DCDC4P2_RSRVD5	26
++#define BM_POWER_DCDC4P2_RSRVD5	0x0C000000
++#define BF_POWER_DCDC4P2_RSRVD5(v)  \
++		(((v) << 26) & BM_POWER_DCDC4P2_RSRVD5)
++#define BP_POWER_DCDC4P2_ISTEAL_THRESH	24
++#define BM_POWER_DCDC4P2_ISTEAL_THRESH	0x03000000
++#define BF_POWER_DCDC4P2_ISTEAL_THRESH(v)  \
++		(((v) << 24) & BM_POWER_DCDC4P2_ISTEAL_THRESH)
++#define BM_POWER_DCDC4P2_ENABLE_4P2	0x00800000
++#define BM_POWER_DCDC4P2_ENABLE_DCDC	0x00400000
++#define BM_POWER_DCDC4P2_HYST_DIR	0x00200000
++#define BM_POWER_DCDC4P2_HYST_THRESH	0x00100000
++#define BM_POWER_DCDC4P2_RSRVD3	0x00080000
++#define BP_POWER_DCDC4P2_TRG	16
++#define BM_POWER_DCDC4P2_TRG	0x00070000
++#define BF_POWER_DCDC4P2_TRG(v)  \
++		(((v) << 16) & BM_POWER_DCDC4P2_TRG)
++#define BP_POWER_DCDC4P2_RSRVD2	13
++#define BM_POWER_DCDC4P2_RSRVD2	0x0000E000
++#define BF_POWER_DCDC4P2_RSRVD2(v)  \
++		(((v) << 13) & BM_POWER_DCDC4P2_RSRVD2)
++#define BP_POWER_DCDC4P2_BO	8
++#define BM_POWER_DCDC4P2_BO	0x00001F00
++#define BF_POWER_DCDC4P2_BO(v)  \
++		(((v) << 8) & BM_POWER_DCDC4P2_BO)
++#define BP_POWER_DCDC4P2_RSRVD1	5
++#define BM_POWER_DCDC4P2_RSRVD1	0x000000E0
++#define BF_POWER_DCDC4P2_RSRVD1(v)  \
++		(((v) << 5) & BM_POWER_DCDC4P2_RSRVD1)
++#define BP_POWER_DCDC4P2_CMPTRIP	0
++#define BM_POWER_DCDC4P2_CMPTRIP	0x0000001F
++#define BF_POWER_DCDC4P2_CMPTRIP(v)  \
++		(((v) << 0) & BM_POWER_DCDC4P2_CMPTRIP)
++
++#define HW_POWER_MISC	(0x00000090)
++
++#define BP_POWER_MISC_RSRVD2	7
++#define BM_POWER_MISC_RSRVD2	0xFFFFFF80
++#define BF_POWER_MISC_RSRVD2(v) \
++		(((v) << 7) & BM_POWER_MISC_RSRVD2)
++#define BP_POWER_MISC_FREQSEL	4
++#define BM_POWER_MISC_FREQSEL	0x00000070
++#define BF_POWER_MISC_FREQSEL(v)  \
++		(((v) << 4) & BM_POWER_MISC_FREQSEL)
++#define BM_POWER_MISC_DISABLEFET_BO_LOGIC	0x00000008
++#define BM_POWER_MISC_DELAY_TIMING	0x00000004
++#define BM_POWER_MISC_TEST	0x00000002
++#define BM_POWER_MISC_SEL_PLLCLK	0x00000001
++
++#define HW_POWER_DCLIMITS	(0x000000a0)
++
++#define BP_POWER_DCLIMITS_RSRVD3	16
++#define BM_POWER_DCLIMITS_RSRVD3	0xFFFF0000
++#define BF_POWER_DCLIMITS_RSRVD3(v) \
++		(((v) << 16) & BM_POWER_DCLIMITS_RSRVD3)
++#define BM_POWER_DCLIMITS_RSRVD2	0x00008000
++#define BP_POWER_DCLIMITS_POSLIMIT_BUCK	8
++#define BM_POWER_DCLIMITS_POSLIMIT_BUCK	0x00007F00
++#define BF_POWER_DCLIMITS_POSLIMIT_BUCK(v)  \
++		(((v) << 8) & BM_POWER_DCLIMITS_POSLIMIT_BUCK)
++#define BM_POWER_DCLIMITS_RSRVD1	0x00000080
++#define BP_POWER_DCLIMITS_NEGLIMIT	0
++#define BM_POWER_DCLIMITS_NEGLIMIT	0x0000007F
++#define BF_POWER_DCLIMITS_NEGLIMIT(v)  \
++		(((v) << 0) & BM_POWER_DCLIMITS_NEGLIMIT)
++
++#define HW_POWER_LOOPCTRL	(0x000000b0)
++#define HW_POWER_LOOPCTRL_SET	(0x000000b4)
++#define HW_POWER_LOOPCTRL_CLR	(0x000000b8)
++#define HW_POWER_LOOPCTRL_TOG	(0x000000bc)
++
++#define BP_POWER_LOOPCTRL_RSRVD3	21
++#define BM_POWER_LOOPCTRL_RSRVD3	0xFFE00000
++#define BF_POWER_LOOPCTRL_RSRVD3(v) \
++		(((v) << 21) & BM_POWER_LOOPCTRL_RSRVD3)
++#define BM_POWER_LOOPCTRL_TOGGLE_DIF	0x00100000
++#define BM_POWER_LOOPCTRL_HYST_SIGN	0x00080000
++#define BM_POWER_LOOPCTRL_EN_CM_HYST	0x00040000
++#define BM_POWER_LOOPCTRL_EN_DF_HYST	0x00020000
++#define BM_POWER_LOOPCTRL_CM_HYST_THRESH	0x00010000
++#define BM_POWER_LOOPCTRL_DF_HYST_THRESH	0x00008000
++#define BM_POWER_LOOPCTRL_RCSCALE_THRESH	0x00004000
++#define BP_POWER_LOOPCTRL_EN_RCSCALE	12
++#define BM_POWER_LOOPCTRL_EN_RCSCALE	0x00003000
++#define BF_POWER_LOOPCTRL_EN_RCSCALE(v)  \
++		(((v) << 12) & BM_POWER_LOOPCTRL_EN_RCSCALE)
++#define BM_POWER_LOOPCTRL_RSRVD2	0x00000800
++#define BP_POWER_LOOPCTRL_DC_FF	8
++#define BM_POWER_LOOPCTRL_DC_FF	0x00000700
++#define BF_POWER_LOOPCTRL_DC_FF(v)  \
++		(((v) << 8) & BM_POWER_LOOPCTRL_DC_FF)
++#define BP_POWER_LOOPCTRL_DC_R	4
++#define BM_POWER_LOOPCTRL_DC_R	0x000000F0
++#define BF_POWER_LOOPCTRL_DC_R(v)  \
++		(((v) << 4) & BM_POWER_LOOPCTRL_DC_R)
++#define BP_POWER_LOOPCTRL_RSRVD1	2
++#define BM_POWER_LOOPCTRL_RSRVD1	0x0000000C
++#define BF_POWER_LOOPCTRL_RSRVD1(v)  \
++		(((v) << 2) & BM_POWER_LOOPCTRL_RSRVD1)
++#define BP_POWER_LOOPCTRL_DC_C	0
++#define BM_POWER_LOOPCTRL_DC_C	0x00000003
++#define BF_POWER_LOOPCTRL_DC_C(v)  \
++		(((v) << 0) & BM_POWER_LOOPCTRL_DC_C)
++
++#define HW_POWER_STS	(0x000000c0)
++
++#define BP_POWER_STS_RSRVD3	30
++#define BM_POWER_STS_RSRVD3	0xC0000000
++#define BF_POWER_STS_RSRVD3(v) \
++		(((v) << 30) & BM_POWER_STS_RSRVD3)
++#define BP_POWER_STS_PWRUP_SOURCE	24
++#define BM_POWER_STS_PWRUP_SOURCE	0x3F000000
++#define BF_POWER_STS_PWRUP_SOURCE(v)  \
++		(((v) << 24) & BM_POWER_STS_PWRUP_SOURCE)
++#define BP_POWER_STS_RSRVD2	22
++#define BM_POWER_STS_RSRVD2	0x00C00000
++#define BF_POWER_STS_RSRVD2(v)  \
++		(((v) << 22) & BM_POWER_STS_RSRVD2)
++#define BP_POWER_STS_PSWITCH	20
++#define BM_POWER_STS_PSWITCH	0x00300000
++#define BF_POWER_STS_PSWITCH(v)  \
++		(((v) << 20) & BM_POWER_STS_PSWITCH)
++#define BM_POWER_STS_THERMAL_WARNING	0x00080000
++#define BM_POWER_STS_VDDMEM_BO	0x00040000
++#define BM_POWER_STS_AVALID0_STATUS	0x00020000
++#define BM_POWER_STS_BVALID0_STATUS	0x00010000
++#define BM_POWER_STS_VBUSVALID0_STATUS	0x00008000
++#define BM_POWER_STS_SESSEND0_STATUS	0x00004000
++#define BM_POWER_STS_BATT_BO	0x00002000
++#define BM_POWER_STS_VDD5V_FAULT	0x00001000
++#define BM_POWER_STS_CHRGSTS	0x00000800
++#define BM_POWER_STS_DCDC_4P2_BO	0x00000400
++#define BM_POWER_STS_DC_OK	0x00000200
++#define BM_POWER_STS_VDDIO_BO	0x00000100
++#define BM_POWER_STS_VDDA_BO	0x00000080
++#define BM_POWER_STS_VDDD_BO	0x00000040
++#define BM_POWER_STS_VDD5V_GT_VDDIO	0x00000020
++#define BM_POWER_STS_VDD5V_DROOP	0x00000010
++#define BM_POWER_STS_AVALID0	0x00000008
++#define BM_POWER_STS_BVALID0	0x00000004
++#define BM_POWER_STS_VBUSVALID0	0x00000002
++#define BM_POWER_STS_SESSEND0	0x00000001
++
++#define HW_POWER_SPEED	(0x000000d0)
++#define HW_POWER_SPEED_SET	(0x000000d4)
++#define HW_POWER_SPEED_CLR	(0x000000d8)
++#define HW_POWER_SPEED_TOG	(0x000000dc)
++
++#define BP_POWER_SPEED_RSRVD1	24
++#define BM_POWER_SPEED_RSRVD1	0xFF000000
++#define BF_POWER_SPEED_RSRVD1(v) \
++		(((v) << 24) & BM_POWER_SPEED_RSRVD1)
++#define BP_POWER_SPEED_STATUS	8
++#define BM_POWER_SPEED_STATUS	0x00FFFF00
++#define BF_POWER_SPEED_STATUS(v)  \
++		(((v) << 8) & BM_POWER_SPEED_STATUS)
++#define BP_POWER_SPEED_STATUS_SEL	6
++#define BM_POWER_SPEED_STATUS_SEL	0x000000C0
++#define BF_POWER_SPEED_STATUS_SEL(v)  \
++		(((v) << 6) & BM_POWER_SPEED_STATUS_SEL)
++#define BV_POWER_SPEED_STATUS_SEL__DCDC_STAT 0x0
++#define BV_POWER_SPEED_STATUS_SEL__CORE_STAT 0x1
++#define BV_POWER_SPEED_STATUS_SEL__ARM_STAT  0x2
++#define BP_POWER_SPEED_RSRVD0	2
++#define BM_POWER_SPEED_RSRVD0	0x0000003C
++#define BF_POWER_SPEED_RSRVD0(v)  \
++		(((v) << 2) & BM_POWER_SPEED_RSRVD0)
++#define BP_POWER_SPEED_CTRL	0
++#define BM_POWER_SPEED_CTRL	0x00000003
++#define BF_POWER_SPEED_CTRL(v)  \
++		(((v) << 0) & BM_POWER_SPEED_CTRL)
++
++#define HW_POWER_BATTMONITOR	(0x000000e0)
++
++#define BP_POWER_BATTMONITOR_RSRVD3	26
++#define BM_POWER_BATTMONITOR_RSRVD3	0xFC000000
++#define BF_POWER_BATTMONITOR_RSRVD3(v) \
++		(((v) << 26) & BM_POWER_BATTMONITOR_RSRVD3)
++#define BP_POWER_BATTMONITOR_BATT_VAL	16
++#define BM_POWER_BATTMONITOR_BATT_VAL	0x03FF0000
++#define BF_POWER_BATTMONITOR_BATT_VAL(v)  \
++		(((v) << 16) & BM_POWER_BATTMONITOR_BATT_VAL)
++#define BP_POWER_BATTMONITOR_RSRVD2	12
++#define BM_POWER_BATTMONITOR_RSRVD2	0x0000F000
++#define BF_POWER_BATTMONITOR_RSRVD2(v)  \
++		(((v) << 12) & BM_POWER_BATTMONITOR_RSRVD2)
++#define BM_POWER_BATTMONITOR_PWDN_BATTBRNOUT_5VDETECT_ENABLE	0x00000800
++#define BM_POWER_BATTMONITOR_EN_BATADJ	0x00000400
++#define BM_POWER_BATTMONITOR_PWDN_BATTBRNOUT	0x00000200
++#define BM_POWER_BATTMONITOR_BRWNOUT_PWD	0x00000100
++#define BP_POWER_BATTMONITOR_RSRVD1	5
++#define BM_POWER_BATTMONITOR_RSRVD1	0x000000E0
++#define BF_POWER_BATTMONITOR_RSRVD1(v)  \
++		(((v) << 5) & BM_POWER_BATTMONITOR_RSRVD1)
++#define BP_POWER_BATTMONITOR_BRWNOUT_LVL	0
++#define BM_POWER_BATTMONITOR_BRWNOUT_LVL	0x0000001F
++#define BF_POWER_BATTMONITOR_BRWNOUT_LVL(v)  \
++		(((v) << 0) & BM_POWER_BATTMONITOR_BRWNOUT_LVL)
++
++#define HW_POWER_RESET	(0x00000100)
++#define HW_POWER_RESET_SET	(0x00000104)
++#define HW_POWER_RESET_CLR	(0x00000108)
++#define HW_POWER_RESET_TOG	(0x0000010c)
++
++#define BP_POWER_RESET_UNLOCK	16
++#define BM_POWER_RESET_UNLOCK	0xFFFF0000
++#define BF_POWER_RESET_UNLOCK(v) \
++		(((v) << 16) & BM_POWER_RESET_UNLOCK)
++#define BV_POWER_RESET_UNLOCK__KEY 0x3E77
++#define BP_POWER_RESET_RSRVD1	3
++#define BM_POWER_RESET_RSRVD1	0x0000FFF8
++#define BF_POWER_RESET_RSRVD1(v)  \
++		(((v) << 3) & BM_POWER_RESET_RSRVD1)
++#define BM_POWER_RESET_FASTFALLPSWITCH_OFF	0x00000004
++#define BM_POWER_RESET_PWD_OFF	0x00000002
++#define BM_POWER_RESET_PWD	0x00000001
++
++#define HW_POWER_DEBUG	(0x00000110)
++#define HW_POWER_DEBUG_SET	(0x00000114)
++#define HW_POWER_DEBUG_CLR	(0x00000118)
++#define HW_POWER_DEBUG_TOG	(0x0000011c)
++
++#define BP_POWER_DEBUG_RSRVD0	4
++#define BM_POWER_DEBUG_RSRVD0	0xFFFFFFF0
++#define BF_POWER_DEBUG_RSRVD0(v) \
++		(((v) << 4) & BM_POWER_DEBUG_RSRVD0)
++#define BM_POWER_DEBUG_VBUSVALIDPIOLOCK	0x00000008
++#define BM_POWER_DEBUG_AVALIDPIOLOCK	0x00000004
++#define BM_POWER_DEBUG_BVALIDPIOLOCK	0x00000002
++#define BM_POWER_DEBUG_SESSENDPIOLOCK	0x00000001
++
++#define HW_POWER_THERMAL	(0x00000120)
++#define HW_POWER_THERMAL_SET	(0x00000124)
++#define HW_POWER_THERMAL_CLR	(0x00000128)
++#define HW_POWER_THERMAL_TOG	(0x0000012c)
++
++#define BP_POWER_THERMAL_RSRVD0	9
++#define BM_POWER_THERMAL_RSRVD0	0xFFFFFE00
++#define BF_POWER_THERMAL_RSRVD0(v) \
++		(((v) << 9) & BM_POWER_THERMAL_RSRVD0)
++#define BM_POWER_THERMAL_TEST	0x00000100
++#define BM_POWER_THERMAL_PWD	0x00000080
++#define BM_POWER_THERMAL_LOW_POWER	0x00000040
++#define BP_POWER_THERMAL_OFFSET_ADJ	4
++#define BM_POWER_THERMAL_OFFSET_ADJ	0x00000030
++#define BF_POWER_THERMAL_OFFSET_ADJ(v)  \
++		(((v) << 4) & BM_POWER_THERMAL_OFFSET_ADJ)
++#define BM_POWER_THERMAL_OFFSET_ADJ_ENABLE	0x00000008
++#define BP_POWER_THERMAL_TEMP_THRESHOLD	0
++#define BM_POWER_THERMAL_TEMP_THRESHOLD	0x00000007
++#define BF_POWER_THERMAL_TEMP_THRESHOLD(v)  \
++		(((v) << 0) & BM_POWER_THERMAL_TEMP_THRESHOLD)
++
++#define HW_POWER_USB1CTRL	(0x00000130)
++#define HW_POWER_USB1CTRL_SET	(0x00000134)
++#define HW_POWER_USB1CTRL_CLR	(0x00000138)
++#define HW_POWER_USB1CTRL_TOG	(0x0000013c)
++
++#define BP_POWER_USB1CTRL_RSRVD0	4
++#define BM_POWER_USB1CTRL_RSRVD0	0xFFFFFFF0
++#define BF_POWER_USB1CTRL_RSRVD0(v) \
++		(((v) << 4) & BM_POWER_USB1CTRL_RSRVD0)
++#define BM_POWER_USB1CTRL_AVALID1	0x00000008
++#define BM_POWER_USB1CTRL_BVALID1	0x00000004
++#define BM_POWER_USB1CTRL_VBUSVALID1	0x00000002
++#define BM_POWER_USB1CTRL_SESSEND1	0x00000001
++
++#define HW_POWER_SPECIAL	(0x00000140)
++#define HW_POWER_SPECIAL_SET	(0x00000144)
++#define HW_POWER_SPECIAL_CLR	(0x00000148)
++#define HW_POWER_SPECIAL_TOG	(0x0000014c)
++
++#define BP_POWER_SPECIAL_TEST	0
++#define BM_POWER_SPECIAL_TEST	0xFFFFFFFF
++#define BF_POWER_SPECIAL_TEST(v)	(v)
++
++#define HW_POWER_VERSION	(0x00000150)
++
++#define BP_POWER_VERSION_MAJOR	24
++#define BM_POWER_VERSION_MAJOR	0xFF000000
++#define BF_POWER_VERSION_MAJOR(v) \
++		(((v) << 24) & BM_POWER_VERSION_MAJOR)
++#define BP_POWER_VERSION_MINOR	16
++#define BM_POWER_VERSION_MINOR	0x00FF0000
++#define BF_POWER_VERSION_MINOR(v)  \
++		(((v) << 16) & BM_POWER_VERSION_MINOR)
++#define BP_POWER_VERSION_STEP	0
++#define BM_POWER_VERSION_STEP	0x0000FFFF
++#define BF_POWER_VERSION_STEP(v)  \
++		(((v) << 0) & BM_POWER_VERSION_STEP)
++
++#define HW_POWER_ANACLKCTRL	(0x00000160)
++#define HW_POWER_ANACLKCTRL_SET	(0x00000164)
++#define HW_POWER_ANACLKCTRL_CLR	(0x00000168)
++#define HW_POWER_ANACLKCTRL_TOG	(0x0000016c)
++
++#define BM_POWER_ANACLKCTRL_CKGATE_O	0x80000000
++#define BP_POWER_ANACLKCTRL_OUTDIV	28
++#define BM_POWER_ANACLKCTRL_OUTDIV	0x70000000
++#define BF_POWER_ANACLKCTRL_OUTDIV(v)  \
++		(((v) << 28) & BM_POWER_ANACLKCTRL_OUTDIV)
++#define BM_POWER_ANACLKCTRL_INVERT_OUTCLK	0x08000000
++#define BM_POWER_ANACLKCTRL_CKGATE_I	0x04000000
++#define BP_POWER_ANACLKCTRL_RSRVD4	11
++#define BM_POWER_ANACLKCTRL_RSRVD4	0x03FFF800
++#define BF_POWER_ANACLKCTRL_RSRVD4(v)  \
++		(((v) << 11) & BM_POWER_ANACLKCTRL_RSRVD4)
++#define BM_POWER_ANACLKCTRL_DITHER_OFF	0x00000400
++#define BM_POWER_ANACLKCTRL_SLOW_DITHER	0x00000200
++#define BM_POWER_ANACLKCTRL_INVERT_INCLK	0x00000100
++#define BP_POWER_ANACLKCTRL_RSRVD3	6
++#define BM_POWER_ANACLKCTRL_RSRVD3	0x000000C0
++#define BF_POWER_ANACLKCTRL_RSRVD3(v)  \
++		(((v) << 6) & BM_POWER_ANACLKCTRL_RSRVD3)
++#define BP_POWER_ANACLKCTRL_INCLK_SHIFT	4
++#define BM_POWER_ANACLKCTRL_INCLK_SHIFT	0x00000030
++#define BF_POWER_ANACLKCTRL_INCLK_SHIFT(v)  \
++		(((v) << 4) & BM_POWER_ANACLKCTRL_INCLK_SHIFT)
++#define BM_POWER_ANACLKCTRL_RSRVD2	0x00000008
++#define BP_POWER_ANACLKCTRL_INDIV	0
++#define BM_POWER_ANACLKCTRL_INDIV	0x00000007
++#define BF_POWER_ANACLKCTRL_INDIV(v)  \
++		(((v) << 0) & BM_POWER_ANACLKCTRL_INDIV)
++
++#define HW_POWER_REFCTRL	(0x00000170)
++#define HW_POWER_REFCTRL_SET	(0x00000174)
++#define HW_POWER_REFCTRL_CLR	(0x00000178)
++#define HW_POWER_REFCTRL_TOG	(0x0000017c)
++
++#define BP_POWER_REFCTRL_RSRVD5	27
++#define BM_POWER_REFCTRL_RSRVD5	0xF8000000
++#define BF_POWER_REFCTRL_RSRVD5(v) \
++		(((v) << 27) & BM_POWER_REFCTRL_RSRVD5)
++#define BM_POWER_REFCTRL_FASTSETTLING	0x04000000
++#define BM_POWER_REFCTRL_RAISE_REF	0x02000000
++#define BM_POWER_REFCTRL_XTAL_BGR_BIAS	0x01000000
++#define BM_POWER_REFCTRL_RSRVD4	0x00800000
++#define BP_POWER_REFCTRL_VBG_ADJ	20
++#define BM_POWER_REFCTRL_VBG_ADJ	0x00700000
++#define BF_POWER_REFCTRL_VBG_ADJ(v)  \
++		(((v) << 20) & BM_POWER_REFCTRL_VBG_ADJ)
++#define BM_POWER_REFCTRL_LOW_PWR	0x00080000
++#define BM_POWER_REFCTRL_RSRVD3	0x00040000
++#define BP_POWER_REFCTRL_BIAS_CTRL	16
++#define BM_POWER_REFCTRL_BIAS_CTRL	0x00030000
++#define BF_POWER_REFCTRL_BIAS_CTRL(v)  \
++		(((v) << 16) & BM_POWER_REFCTRL_BIAS_CTRL)
++#define BM_POWER_REFCTRL_RSRVD2	0x00008000
++#define BM_POWER_REFCTRL_VDDXTAL_TO_VDDD	0x00004000
++#define BM_POWER_REFCTRL_ADJ_ANA	0x00002000
++#define BM_POWER_REFCTRL_ADJ_VAG	0x00001000
++#define BP_POWER_REFCTRL_ANA_REFVAL	8
++#define BM_POWER_REFCTRL_ANA_REFVAL	0x00000F00
++#define BF_POWER_REFCTRL_ANA_REFVAL(v)  \
++		(((v) << 8) & BM_POWER_REFCTRL_ANA_REFVAL)
++#define BP_POWER_REFCTRL_VAG_VAL	4
++#define BM_POWER_REFCTRL_VAG_VAL	0x000000F0
++#define BF_POWER_REFCTRL_VAG_VAL(v)  \
++		(((v) << 4) & BM_POWER_REFCTRL_VAG_VAL)
++#define BP_POWER_REFCTRL_RSRVD1	0
++#define BM_POWER_REFCTRL_RSRVD1	0x0000000F
++#define BF_POWER_REFCTRL_RSRVD1(v)  \
++		(((v) << 0) & BM_POWER_REFCTRL_RSRVD1)
++#endif /* __ARCH_ARM___POWER_H */
+diff --git a/arch/arm/mach-mx28/power.c b/arch/arm/mach-mx28/power.c
+index 5b5dae7..a7467fc 100644
+--- a/arch/arm/mach-mx28/power.c
++++ b/arch/arm/mach-mx28/power.c
+@@ -22,22 +22,21 @@
+ #include <linux/platform_device.h>
+ #include <linux/regulator/consumer.h>
+ #include <linux/regulator/machine.h>
+-#include <mach/platform.h>
++#include <linux/io.h>
+ #include <mach/power.h>
+ #include <mach/regulator.h>
+ #include <mach/regs-power.h>
+-#include <mach/stmp3xxx.h>
+ 
+-static int get_voltage(struct stmp3xxx_regulator *sreg)
++static int get_voltage(struct mxs_regulator *sreg)
+ {
+-	struct stmp3xxx_platform_regulator_data *rdata = sreg->rdata;
++	struct mxs_platform_regulator_data *rdata = sreg->rdata;
+ 	u32 val = __raw_readl(rdata->control_reg) & 0x1f;
+ 	int uv  = rdata->min_voltage + val *
+ 		  (rdata->max_voltage - rdata->min_voltage) / 0x1f;
+ 	return uv;
+ }
+ 
+-static int get_bo_voltage(struct stmp3xxx_regulator *sreg)
++static int get_bo_voltage(struct mxs_regulator *sreg)
+ {
+ 	int uv;
+ 	int offs;
+@@ -50,7 +49,7 @@ static int get_bo_voltage(struct stmp3xxx_regulator *sreg)
+ 	return uv - 25000*offs;
+ }
+ 
+-static int set_voltage(struct stmp3xxx_regulator *sreg, int uv)
++static int set_voltage(struct mxs_regulator *sreg, int uv)
+ {
+ 	u32 val, reg, i;
+ 
+@@ -94,7 +93,7 @@ out:
+ 	return !i;
+ }
+ 
+-static int set_bo_voltage(struct stmp3xxx_regulator *sreg, int bo_uv)
++static int set_bo_voltage(struct mxs_regulator *sreg, int bo_uv)
+ {
+ 	int uv;
+ 	int offs;
+@@ -132,25 +131,25 @@ out:
+ 	return !i;
+ }
+ 
+-static int enable(struct stmp3xxx_regulator *sreg)
++static int enable(struct mxs_regulator *sreg)
+ {
+ 	/* XXX: TODO */
+ 	return 0;
+ }
+ 
+-static int disable(struct stmp3xxx_regulator *sreg)
++static int disable(struct mxs_regulator *sreg)
+ {
+ 	/* XXX: TODO */
+ 	return 0;
+ }
+ 
+-static int is_enabled(struct stmp3xxx_regulator *sreg)
++static int is_enabled(struct mxs_regulator *sreg)
+ {
+ 	/* XXX: TODO */
+ 	return 1;
+ }
+ 
+-static int set_mode(struct stmp3xxx_regulator *sreg, int mode)
++static int set_mode(struct mxs_regulator *sreg, int mode)
+ {
+ 	int ret = 0;
+ 	u32 val;
+@@ -173,14 +172,14 @@ static int set_mode(struct stmp3xxx_regulator *sreg, int mode)
+ 	return ret;
+ }
+ 
+-static int get_mode(struct stmp3xxx_regulator *sreg)
++static int get_mode(struct mxs_regulator *sreg)
+ {
+ 	u32 val = __raw_readl(sreg->rdata->control_reg) & (1 << 17);
+ 
+ 	return val ? REGULATOR_MODE_FAST : REGULATOR_MODE_NORMAL;
+ }
+ 
+-static struct stmp3xxx_platform_regulator_data vddd_data = {
++static struct mxs_platform_regulator_data vddd_data = {
+ 	.name		= "vddd",
+ 	.set_voltage	= set_voltage,
+ 	.get_voltage	= get_voltage,
+@@ -194,7 +193,7 @@ static struct stmp3xxx_platform_regulator_data vddd_data = {
+ 	.max_voltage	= 1575000,
+ };
+ 
+-static struct stmp3xxx_platform_regulator_data vdddbo_data = {
++static struct mxs_platform_regulator_data vdddbo_data = {
+ 	.name		= "vddd_bo",
+ 	.parent_name	= "vddd",
+ 	.set_voltage	= set_bo_voltage,
+@@ -208,7 +207,7 @@ static struct stmp3xxx_platform_regulator_data vdddbo_data = {
+ 	.max_voltage	= 1575000,
+ };
+ 
+-static struct stmp3xxx_platform_regulator_data vdda_data = {
++static struct mxs_platform_regulator_data vdda_data = {
+ 	.name		= "vdda",
+ 	.set_voltage	= set_voltage,
+ 	.get_voltage	= get_voltage,
+@@ -222,7 +221,7 @@ static struct stmp3xxx_platform_regulator_data vdda_data = {
+ 	.max_voltage	= 2275000,
+ };
+ 
+-static struct stmp3xxx_platform_regulator_data vddio_data = {
++static struct mxs_platform_regulator_data vddio_data = {
+ 	.name		= "vddio",
+ 	.set_voltage	= set_voltage,
+ 	.get_voltage	= get_voltage,
+@@ -296,7 +295,7 @@ static struct regulator_init_data vddio_init = {
+ 
+ /* now the current regulators */
+ /* Restriction: .... no set_current call on root regulator */
+-static int main_add_current(struct stmp3xxx_regulator *sreg,
++static int main_add_current(struct mxs_regulator *sreg,
+ 			    int uA)
+ {
+ 
+@@ -309,7 +308,7 @@ static int main_add_current(struct stmp3xxx_regulator *sreg,
+ 	return 0;
+ }
+ 
+-static int cur_reg_set_current(struct stmp3xxx_regulator *sreg, int uA)
++static int cur_reg_set_current(struct mxs_regulator *sreg, int uA)
+ {
+ 	int ret = 0;
+ 	unsigned long flags;
+@@ -347,30 +346,30 @@ out:
+ 
+ }
+ 
+-static int cur_reg_get_current(struct stmp3xxx_regulator *sreg)
++static int cur_reg_get_current(struct mxs_regulator *sreg)
+ {
+ 	return sreg->cur_current;
+ }
+ 
+-static int enable_cur_reg(struct stmp3xxx_regulator *sreg)
++static int enable_cur_reg(struct mxs_regulator *sreg)
+ {
+ 	/* XXX: TODO */
+ 	return 0;
+ }
+ 
+-static int disable_cur_reg(struct stmp3xxx_regulator *sreg)
++static int disable_cur_reg(struct mxs_regulator *sreg)
+ {
+ 	/* XXX: TODO */
+ 	return 0;
+ }
+ 
+-static int cur_reg_is_enabled(struct stmp3xxx_regulator *sreg)
++static int cur_reg_is_enabled(struct mxs_regulator *sreg)
+ {
+ 	/* XXX: TODO */
+ 	return 1;
+ }
+ 
+-static int cur_reg_set_mode(struct stmp3xxx_regulator *sreg, int mode)
++static int cur_reg_set_mode(struct mxs_regulator *sreg, int mode)
+ {
+ 	int ret = 0;
+ 
+@@ -386,12 +385,12 @@ static int cur_reg_set_mode(struct stmp3xxx_regulator *sreg, int mode)
+ 	return ret;
+ }
+ 
+-static int cur_reg_get_mode(struct stmp3xxx_regulator *sreg)
++static int cur_reg_get_mode(struct mxs_regulator *sreg)
+ {
+ 	return sreg->mode;
+ }
+ 
+-static struct stmp3xxx_platform_regulator_data overall_cur_data = {
++static struct mxs_platform_regulator_data overall_cur_data = {
+ 	.name		= "overall_current",
+ 	.set_current	= cur_reg_set_current,
+ 	.get_current	= cur_reg_get_current,
+@@ -416,7 +415,7 @@ static struct regulator_init_data overall_cur_init = {
+ 	}
+ };
+ 
+-static struct stmp3xxx_platform_regulator_data sibling_cur_data = {
++static struct mxs_platform_regulator_data sibling_cur_data = {
+ 	.parent_name	= "overall_current",
+ 	.set_current	= cur_reg_set_current,
+ 	.get_current	= cur_reg_get_current,
+@@ -427,27 +426,14 @@ static struct stmp3xxx_platform_regulator_data sibling_cur_data = {
+ 	.get_mode	= cur_reg_get_mode,
+ };
+ 
+-static struct platform_device *devices[] = {
+-	&stmp3xxx_keyboard,
+-	&stmp3xxx_touchscreen,
+-	&stmp3xxx_appuart,
+-	&stmp3xxx_dbguart,
+-	&stmp3xxx_watchdog,
+-	&stmp3xxx_rtc,
+-	&stmp3xxx_framebuffer,
+-	&stmp3xxx_backlight,
+-	&stmp3xxx_rotdec,
+-	&stmp378x_i2c,
+-	&stmp3xxx_persistent,
+-	&stmp3xxx_dcp_bootstream,
+-	&stmp3xxx_dcp,
+-	&stmp3xxx_battery,
+-	&stmp378x_pxp,
++
++static const char *device_names[] = {
++	"mxs-duart", "mxs-bl", "mxs-i2c"
+ };
+ 
+ static int sibling_current_devices_num;
+ 
+-int stmp3xxx_platform_add_regulator(const char *name, int count)
++int mxs_platform_add_regulator(const char *name, int count)
+ {
+ 	int i;
+ 	pr_debug("%s: name %s, count %d\n", __func__, name, count);
+@@ -457,11 +443,11 @@ int stmp3xxx_platform_add_regulator(const char *name, int count)
+ 		struct regulator_init_data *sibling_init =
+ 			kzalloc(sizeof(struct regulator_init_data),
+ 			GFP_KERNEL);
+-		struct stmp3xxx_regulator *curr_reg =
+-			kzalloc(sizeof(struct stmp3xxx_regulator),
++		struct mxs_regulator *curr_reg =
++			kzalloc(sizeof(struct mxs_regulator),
+ 			GFP_KERNEL);
+-		struct stmp3xxx_platform_regulator_data *d =
+-			kzalloc(sizeof(struct stmp3xxx_platform_regulator_data),
++		struct mxs_platform_regulator_data *d =
++			kzalloc(sizeof(struct mxs_platform_regulator_data),
+ 			GFP_KERNEL);
+ 		if (!d || !curr_reg || !sibling_init)
+ 			return -ENOMEM;
+@@ -481,29 +467,29 @@ int stmp3xxx_platform_add_regulator(const char *name, int count)
+ 		sibling_init->constraints.name = kstrdup(d->name, GFP_KERNEL);
+ 		sibling_init->constraints.always_on = 1;
+ 		curr_reg->rdata = d;
+-		stmp3xxx_register_regulator(curr_reg, 101 + i, sibling_init);
++		mxs_register_regulator(curr_reg, 101 + i, sibling_init);
+ 	}
+ 	sibling_current_devices_num += count;
+ 	return 0;
+ }
+ 
+-static struct stmp3xxx_regulator vddd_reg = {
++static struct mxs_regulator vddd_reg = {
+ 		.rdata = &vddd_data,
+ };
+ 
+-static struct stmp3xxx_regulator vdda_reg = {
++static struct mxs_regulator vdda_reg = {
+ 		.rdata = &vdda_data,
+ };
+ 
+-static struct stmp3xxx_regulator vddio_reg = {
++static struct mxs_regulator vddio_reg = {
+ 		.rdata = &vddio_data,
+ };
+ 
+-static struct stmp3xxx_regulator vdddbo_reg = {
++static struct mxs_regulator vdddbo_reg = {
+ 		.rdata = &vdddbo_data,
+ };
+ 
+-static struct stmp3xxx_regulator overall_cur_reg = {
++static struct mxs_regulator overall_cur_reg = {
+ 		.rdata = &overall_cur_data,
+ };
+ 
+@@ -516,22 +502,22 @@ static int __init regulators_init(void)
+ 	pr_debug("regulators_init \n");
+ 	__raw_writel(vddio | 0x14, REGS_POWER_BASE + HW_POWER_VDDIOCTRL);
+ 	vdddbo_reg.parent = &vddd_reg;
+-	stmp3xxx_register_regulator(&vddd_reg, STMP3XXX_VDDD, &vddd_init);
+-	stmp3xxx_register_regulator(&vdddbo_reg, STMP3XXX_VDDDBO, &vdddbo_init);
+-	stmp3xxx_register_regulator(&vdda_reg, STMP3XXX_VDDA, &vdda_init);
+-	stmp3xxx_register_regulator(&vddio_reg, STMP3XXX_VDDIO, &vddio_init);
+-	stmp3xxx_register_regulator(&overall_cur_reg,
+-		STMP3XXX_OVERALL_CUR, &overall_cur_init);
+-
+-	for (i = 0; i < ARRAY_SIZE(devices); i++) {
+-		retval = stmp3xxx_platform_add_regulator(devices[i]->name, 1);
++	mxs_register_regulator(&vddd_reg, MXS_VDDD, &vddd_init);
++	mxs_register_regulator(&vdddbo_reg, MXS_VDDDBO, &vdddbo_init);
++	mxs_register_regulator(&vdda_reg, MXS_VDDA, &vdda_init);
++	mxs_register_regulator(&vddio_reg, MXS_VDDIO, &vddio_init);
++	mxs_register_regulator(&overall_cur_reg,
++		MXS_OVERALL_CUR, &overall_cur_init);
++
++	for (i = 0; i < ARRAY_SIZE(device_names); i++) {
++		retval = mxs_platform_add_regulator(device_names[i], 1);
+ 		if (retval)
+ 			return retval;
+ 	}
+-	stmp3xxx_platform_add_regulator("mmc_ssp", 2);
+-	stmp3xxx_platform_add_regulator("charger", 1);
+-	stmp3xxx_platform_add_regulator("power-test", 1);
+-	stmp3xxx_platform_add_regulator("cpufreq", 1);
++	mxs_platform_add_regulator("mmc_ssp", 2);
++	mxs_platform_add_regulator("charger", 1);
++	mxs_platform_add_regulator("power-test", 1);
++	mxs_platform_add_regulator("cpufreq", 1);
+ 	return 0;
+ }
+ postcore_initcall(regulators_init);
+diff --git a/arch/arm/plat-mxs/include/mach/power.h b/arch/arm/plat-mxs/include/mach/power.h
+index c396d32..28ee9fa 100644
+--- a/arch/arm/plat-mxs/include/mach/power.h
++++ b/arch/arm/plat-mxs/include/mach/power.h
+@@ -1,7 +1,5 @@
+ /*
+- * Freescale STMP37XX/STMP378X voltage regulator structure declarations
+- *
+- * Embedded Alley Solutions, Inc <sources@embeddedalley.com>
++ * Freescale MXS voltage regulator structure declarations
+  *
+  * Copyright (C) 2010 Freescale Semiconductor, Inc.
+  * Copyright 2008 Embedded Alley Solutions, Inc All Rights Reserved.
+@@ -20,10 +18,10 @@
+ #include <linux/completion.h>
+ #include <linux/regulator/driver.h>
+ 
+-struct stmp3xxx_regulator {
++struct mxs_regulator {
+ 	struct regulator_desc regulator;
+-	struct stmp3xxx_regulator *parent;
+-	struct stmp3xxx_platform_regulator_data *rdata;
++	struct mxs_regulator *parent;
++	struct mxs_platform_regulator_data *rdata;
+ 	struct completion done;
+ 
+ 	spinlock_t         lock;
+@@ -37,20 +35,20 @@ struct stmp3xxx_regulator {
+ };
+ 
+ 
+-struct stmp3xxx_platform_regulator_data {
++struct mxs_platform_regulator_data {
+ 	char name[80];
+ 	char *parent_name;
+-	int (*reg_register)(struct stmp3xxx_regulator *sreg);
+-	int (*set_voltage)(struct stmp3xxx_regulator *sreg, int uv);
+-	int (*get_voltage)(struct stmp3xxx_regulator *sreg);
+-	int (*set_current)(struct stmp3xxx_regulator *sreg, int uA);
+-	int (*get_current)(struct stmp3xxx_regulator *sreg);
+-	int (*enable)(struct stmp3xxx_regulator *sreg);
+-	int (*disable)(struct stmp3xxx_regulator *sreg);
+-	int (*is_enabled)(struct stmp3xxx_regulator *sreg);
+-	int (*set_mode)(struct stmp3xxx_regulator *sreg, int mode);
+-	int (*get_mode)(struct stmp3xxx_regulator *sreg);
+-	int (*get_optimum_mode)(struct stmp3xxx_regulator *sreg,
++	int (*reg_register)(struct mxs_regulator *sreg);
++	int (*set_voltage)(struct mxs_regulator *sreg, int uv);
++	int (*get_voltage)(struct mxs_regulator *sreg);
++	int (*set_current)(struct mxs_regulator *sreg, int uA);
++	int (*get_current)(struct mxs_regulator *sreg);
++	int (*enable)(struct mxs_regulator *sreg);
++	int (*disable)(struct mxs_regulator *sreg);
++	int (*is_enabled)(struct mxs_regulator *sreg);
++	int (*set_mode)(struct mxs_regulator *sreg, int mode);
++	int (*get_mode)(struct mxs_regulator *sreg);
++	int (*get_optimum_mode)(struct mxs_regulator *sreg,
+ 			int input_uV, int output_uV, int load_uA);
+ 	u32 control_reg;
+ 	int min_voltage;
+@@ -59,8 +57,8 @@ struct stmp3xxx_platform_regulator_data {
+ 	struct regulation_constraints *cnstraints;
+ };
+ 
+-int stmp3xxx_register_regulator(
+-		struct stmp3xxx_regulator *reg_data, int reg,
++int mxs_register_regulator(
++		struct mxs_regulator *reg_data, int reg,
+ 		      struct regulator_init_data *initdata);
+ 
+ #endif /* __VOLTAGE_H */
+diff --git a/drivers/regulator/Kconfig b/drivers/regulator/Kconfig
+index 095e741..fd3183e 100644
+--- a/drivers/regulator/Kconfig
++++ b/drivers/regulator/Kconfig
+@@ -141,6 +141,12 @@ config REGULATOR_STMP3XXX
+ 	depends on ARCH_STMP3XXX
+ 	default y
+ 
++config REGULATOR_MXS
++	tristate "MXS Regulator Support"
++	depends on REGULATOR
++	depends on ARCH_MXS
++	default y
++
+ config REGULATOR_MC9S08DZ60
+ 	tristate "mc9s08dz60 Regulator Support"
+ 	depends on REGULATOR
+diff --git a/drivers/regulator/Makefile b/drivers/regulator/Makefile
+index 9e958f2..a10178d 100644
+--- a/drivers/regulator/Makefile
++++ b/drivers/regulator/Makefile
+@@ -20,6 +20,7 @@ obj-$(CONFIG_REGULATOR_MC13892) += reg-mc13892.o
+ obj-$(CONFIG_REGULATOR_MC13783) += reg-mc13783.o
+ obj-$(CONFIG_REGULATOR_MC34704) += reg-mc34704.o
+ obj-$(CONFIG_REGULATOR_STMP3XXX) += stmp3xxx.o
++obj-$(CONFIG_REGULATOR_MXS) += mxs-regulator.o
+ 
+ obj-$(CONFIG_REGULATOR_MC9S08DZ60) += reg-mc9s08dz60.o
+ 
+diff --git a/drivers/regulator/mxs-regulator.c b/drivers/regulator/mxs-regulator.c
+index 1a41584..fd6f6a6 100644
+--- a/drivers/regulator/mxs-regulator.c
++++ b/drivers/regulator/mxs-regulator.c
+@@ -24,144 +24,144 @@
+ #include <mach/power.h>
+ #include <mach/regulator.h>
+ 
+-static int stmp3xxx_set_voltage(struct regulator_dev *reg, int MiniV, int uv)
++static int mxs_set_voltage(struct regulator_dev *reg, int MiniV, int uv)
+ {
+-	struct stmp3xxx_regulator *stmp_reg = rdev_get_drvdata(reg);
++	struct mxs_regulator *mxs_reg = rdev_get_drvdata(reg);
+ 
+-	if (stmp_reg->rdata->set_voltage)
+-		return stmp_reg->rdata->set_voltage(stmp_reg, uv);
++	if (mxs_reg->rdata->set_voltage)
++		return mxs_reg->rdata->set_voltage(mxs_reg, uv);
+ 	else
+ 		return -ENOTSUPP;
+ }
+ 
+ 
+-static int stmp3xxx_get_voltage(struct regulator_dev *reg)
++static int mxs_get_voltage(struct regulator_dev *reg)
+ {
+-	struct stmp3xxx_regulator *stmp_reg = rdev_get_drvdata(reg);
++	struct mxs_regulator *mxs_reg = rdev_get_drvdata(reg);
+ 
+-	if (stmp_reg->rdata->get_voltage)
+-		return stmp_reg->rdata->get_voltage(stmp_reg);
++	if (mxs_reg->rdata->get_voltage)
++		return mxs_reg->rdata->get_voltage(mxs_reg);
+ 	else
+ 		return -ENOTSUPP;
+ }
+ 
+-static int stmp3xxx_set_current(struct regulator_dev *reg, int min_uA, int uA)
++static int mxs_set_current(struct regulator_dev *reg, int min_uA, int uA)
+ {
+-	struct stmp3xxx_regulator *stmp_reg = rdev_get_drvdata(reg);
++	struct mxs_regulator *mxs_reg = rdev_get_drvdata(reg);
+ 
+-	if (stmp_reg->rdata->set_current)
+-		return stmp_reg->rdata->set_current(stmp_reg, uA);
++	if (mxs_reg->rdata->set_current)
++		return mxs_reg->rdata->set_current(mxs_reg, uA);
+ 	else
+ 		return -ENOTSUPP;
+ }
+ 
+-static int stmp3xxx_get_current(struct regulator_dev *reg)
++static int mxs_get_current(struct regulator_dev *reg)
+ {
+-	struct stmp3xxx_regulator *stmp_reg = rdev_get_drvdata(reg);
++	struct mxs_regulator *mxs_reg = rdev_get_drvdata(reg);
+ 
+-	if (stmp_reg->rdata->get_current)
+-		return stmp_reg->rdata->get_current(stmp_reg);
++	if (mxs_reg->rdata->get_current)
++		return mxs_reg->rdata->get_current(mxs_reg);
+ 	else
+ 		return -ENOTSUPP;
+ }
+ 
+-static int stmp3xxx_enable(struct regulator_dev *reg)
++static int mxs_enable(struct regulator_dev *reg)
+ {
+-	struct stmp3xxx_regulator *stmp_reg = rdev_get_drvdata(reg);
++	struct mxs_regulator *mxs_reg = rdev_get_drvdata(reg);
+ 
+-	return stmp_reg->rdata->enable(stmp_reg);
++	return mxs_reg->rdata->enable(mxs_reg);
+ }
+ 
+-static int stmp3xxx_disable(struct regulator_dev *reg)
++static int mxs_disable(struct regulator_dev *reg)
+ {
+-	struct stmp3xxx_regulator *stmp_reg = rdev_get_drvdata(reg);
++	struct mxs_regulator *mxs_reg = rdev_get_drvdata(reg);
+ 
+-	return stmp_reg->rdata->disable(stmp_reg);
++	return mxs_reg->rdata->disable(mxs_reg);
+ }
+ 
+-static int stmp3xxx_is_enabled(struct regulator_dev *reg)
++static int mxs_is_enabled(struct regulator_dev *reg)
+ {
+-	struct stmp3xxx_regulator *stmp_reg = rdev_get_drvdata(reg);
++	struct mxs_regulator *mxs_reg = rdev_get_drvdata(reg);
+ 
+-	return stmp_reg->rdata->is_enabled(stmp_reg);
++	return mxs_reg->rdata->is_enabled(mxs_reg);
+ }
+ 
+-static int stmp3xxx_set_mode(struct regulator_dev *reg, unsigned int mode)
++static int mxs_set_mode(struct regulator_dev *reg, unsigned int mode)
+ {
+-	struct stmp3xxx_regulator *stmp_reg = rdev_get_drvdata(reg);
++	struct mxs_regulator *mxs_reg = rdev_get_drvdata(reg);
+ 
+-	return stmp_reg->rdata->set_mode(stmp_reg, mode);
++	return mxs_reg->rdata->set_mode(mxs_reg, mode);
+ }
+ 
+-static unsigned int stmp3xxx_get_mode(struct regulator_dev *reg)
++static unsigned int mxs_get_mode(struct regulator_dev *reg)
+ {
+-	struct stmp3xxx_regulator *stmp_reg = rdev_get_drvdata(reg);
++	struct mxs_regulator *mxs_reg = rdev_get_drvdata(reg);
+ 
+-	return stmp_reg->rdata->get_mode(stmp_reg);
++	return mxs_reg->rdata->get_mode(mxs_reg);
+ }
+ 
+-static unsigned int stmp3xxx_get_optimum_mode(struct regulator_dev *reg,
++static unsigned int mxs_get_optimum_mode(struct regulator_dev *reg,
+ 				int input_uV, int output_uV, int load_uA)
+ {
+-	struct stmp3xxx_regulator *stmp_reg = rdev_get_drvdata(reg);
++	struct mxs_regulator *mxs_reg = rdev_get_drvdata(reg);
+ 
+-	if (stmp_reg->rdata->get_optimum_mode)
+-		return stmp_reg->rdata->get_optimum_mode(stmp_reg, input_uV,
++	if (mxs_reg->rdata->get_optimum_mode)
++		return mxs_reg->rdata->get_optimum_mode(mxs_reg, input_uV,
+ 							 output_uV, load_uA);
+ 	else
+ 		return -ENOTSUPP;
+ }
+ 
+-static struct regulator_ops stmp3xxx_rops = {
+-	.set_voltage	= stmp3xxx_set_voltage,
+-	.get_voltage	= stmp3xxx_get_voltage,
+-	.set_current_limit	= stmp3xxx_set_current,
+-	.get_current_limit	= stmp3xxx_get_current,
+-	.enable		= stmp3xxx_enable,
+-	.disable	= stmp3xxx_disable,
+-	.is_enabled	= stmp3xxx_is_enabled,
+-	.set_mode	= stmp3xxx_set_mode,
+-	.get_mode	= stmp3xxx_get_mode,
+-	.get_optimum_mode = stmp3xxx_get_optimum_mode,
++static struct regulator_ops mxs_rops = {
++	.set_voltage	= mxs_set_voltage,
++	.get_voltage	= mxs_get_voltage,
++	.set_current_limit	= mxs_set_current,
++	.get_current_limit	= mxs_get_current,
++	.enable		= mxs_enable,
++	.disable	= mxs_disable,
++	.is_enabled	= mxs_is_enabled,
++	.set_mode	= mxs_set_mode,
++	.get_mode	= mxs_get_mode,
++	.get_optimum_mode = mxs_get_optimum_mode,
+ };
+ 
+-static struct regulator_desc stmp3xxx_reg_desc[] = {
++static struct regulator_desc mxs_reg_desc[] = {
+ 	{
+ 		.name = "vddd",
+-		.id = STMP3XXX_VDDD,
+-		.ops = &stmp3xxx_rops,
++		.id = MXS_VDDD,
++		.ops = &mxs_rops,
+ 		.irq = 0,
+ 		.type = REGULATOR_VOLTAGE,
+ 		.owner = THIS_MODULE
+ 	},
+ 	{
+ 		.name = "vdda",
+-		.id = STMP3XXX_VDDA,
+-		.ops = &stmp3xxx_rops,
++		.id = MXS_VDDA,
++		.ops = &mxs_rops,
+ 		.irq = 0,
+ 		.type = REGULATOR_VOLTAGE,
+ 		.owner = THIS_MODULE
+ 	},
+ 	{
+ 		.name = "vddio",
+-		.id = STMP3XXX_VDDIO,
+-		.ops = &stmp3xxx_rops,
++		.id = MXS_VDDIO,
++		.ops = &mxs_rops,
+ 		.irq = 0,
+ 		.type = REGULATOR_VOLTAGE,
+ 		.owner = THIS_MODULE
+ 	},
+ 	{
+ 		.name = "vddd_bo",
+-		.id = STMP3XXX_VDDDBO,
+-		.ops = &stmp3xxx_rops,
++		.id = MXS_VDDDBO,
++		.ops = &mxs_rops,
+ 		.irq = 0,
+ 		.type = REGULATOR_VOLTAGE,
+ 		.owner = THIS_MODULE
+ 	},
+ 	{
+ 		.name = "overall_current",
+-		.id = STMP3XXX_OVERALL_CUR,
+-		.ops = &stmp3xxx_rops,
++		.id = MXS_OVERALL_CUR,
++		.ops = &mxs_rops,
+ 		.irq = 0,
+ 		.type = REGULATOR_CURRENT,
+ 		.owner = THIS_MODULE
+@@ -172,16 +172,16 @@ static int reg_callback(struct notifier_block *self,
+ 			unsigned long event, void *data)
+ {
+ 	unsigned long flags;
+-	struct stmp3xxx_regulator *sreg =
+-		container_of(self, struct stmp3xxx_regulator , nb);
++	struct mxs_regulator *sreg =
++		container_of(self, struct mxs_regulator , nb);
+ 
+ 	switch (event) {
+-	case STMP3XXX_REG5V_IS_USB:
++	case MXS_REG5V_IS_USB:
+ 		spin_lock_irqsave(&sreg->lock, flags);
+ 		sreg->rdata->max_current = 500000;
+ 		spin_unlock_irqrestore(&sreg->lock, flags);
+ 		break;
+-	case STMP3XXX_REG5V_NOT_USB:
++	case MXS_REG5V_NOT_USB:
+ 		spin_lock_irqsave(&sreg->lock, flags);
+ 		sreg->rdata->max_current = 0x7fffffff;
+ 		spin_unlock_irqrestore(&sreg->lock, flags);
+@@ -191,11 +191,11 @@ static int reg_callback(struct notifier_block *self,
+ 	return 0;
+ }
+ 
+-int stmp3xxx_regulator_probe(struct platform_device *pdev)
++int mxs_regulator_probe(struct platform_device *pdev)
+ {
+ 	struct regulator_desc *rdesc;
+ 	struct regulator_dev *rdev;
+-	struct stmp3xxx_regulator *sreg;
++	struct mxs_regulator *sreg;
+ 	struct regulator_init_data *initdata;
+ 
+ 	sreg = platform_get_drvdata(pdev);
+@@ -207,13 +207,13 @@ int stmp3xxx_regulator_probe(struct platform_device *pdev)
+ 	init_waitqueue_head(&sreg->wait_q);
+ 	spin_lock_init(&sreg->lock);
+ 
+-	if (pdev->id > STMP3XXX_OVERALL_CUR) {
++	if (pdev->id > MXS_OVERALL_CUR) {
+ 		rdesc = kzalloc(sizeof(struct regulator_desc), GFP_KERNEL);
+-		memcpy(rdesc, &stmp3xxx_reg_desc[STMP3XXX_OVERALL_CUR],
++		memcpy(rdesc, &mxs_reg_desc[MXS_OVERALL_CUR],
+ 			sizeof(struct regulator_desc));
+ 		rdesc->name = kstrdup(sreg->rdata->name, GFP_KERNEL);
+ 	} else
+-		rdesc = &stmp3xxx_reg_desc[pdev->id];
++		rdesc = &mxs_reg_desc[pdev->id];
+ 
+ 	pr_debug("probing regulator %s %s %d\n",
+ 			sreg->rdata->name,
+@@ -241,7 +241,7 @@ int stmp3xxx_regulator_probe(struct platform_device *pdev)
+ }
+ 
+ 
+-int stmp3xxx_regulator_remove(struct platform_device *pdev)
++int mxs_regulator_remove(struct platform_device *pdev)
+ {
+ 	struct regulator_dev *rdev = platform_get_drvdata(pdev);
+ 
+@@ -251,14 +251,14 @@ int stmp3xxx_regulator_remove(struct platform_device *pdev)
+ 
+ }
+ 
+-int stmp3xxx_register_regulator(
+-		struct stmp3xxx_regulator *reg_data, int reg,
++int mxs_register_regulator(
++		struct mxs_regulator *reg_data, int reg,
+ 			      struct regulator_init_data *initdata)
+ {
+ 	struct platform_device *pdev;
+ 	int ret;
+ 
+-	pdev = platform_device_alloc("stmp3xxx_reg", reg);
++	pdev = platform_device_alloc("mxs_reg", reg);
+ 	if (!pdev)
+ 		return -ENOMEM;
+ 
+@@ -277,25 +277,25 @@ int stmp3xxx_register_regulator(
+ 
+ 	return ret;
+ }
+-EXPORT_SYMBOL_GPL(stmp3xxx_register_regulator);
++EXPORT_SYMBOL_GPL(mxs_register_regulator);
+ 
+-struct platform_driver stmp3xxx_reg = {
++struct platform_driver mxs_reg = {
+ 	.driver = {
+-		.name	= "stmp3xxx_reg",
++		.name	= "mxs_reg",
+ 	},
+-	.probe	= stmp3xxx_regulator_probe,
+-	.remove	= stmp3xxx_regulator_remove,
++	.probe	= mxs_regulator_probe,
++	.remove	= mxs_regulator_remove,
+ };
+ 
+-int stmp3xxx_regulator_init(void)
++int mxs_regulator_init(void)
+ {
+-	return platform_driver_register(&stmp3xxx_reg);
++	return platform_driver_register(&mxs_reg);
+ }
+ 
+-void stmp3xxx_regulator_exit(void)
++void mxs_regulator_exit(void)
+ {
+-	platform_driver_unregister(&stmp3xxx_reg);
++	platform_driver_unregister(&mxs_reg);
+ }
+ 
+-postcore_initcall(stmp3xxx_regulator_init);
+-module_exit(stmp3xxx_regulator_exit);
++postcore_initcall(mxs_regulator_init);
++module_exit(mxs_regulator_exit);
+-- 
+1.5.4.4
+

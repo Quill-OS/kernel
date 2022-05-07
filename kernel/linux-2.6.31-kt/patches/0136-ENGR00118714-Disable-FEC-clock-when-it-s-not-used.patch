@@ -1,0 +1,67 @@
+From 425fe66680e26f99755a8e26622e84b63f167d3e Mon Sep 17 00:00:00 2001
+From: Lily Zhang <r58066@freescale.com>
+Date: Tue, 24 Nov 2009 18:14:31 +0800
+Subject: [PATCH] ENGR00118714 Disable FEC clock when it's not used
+
+Disable FEC clock when it's not used in 31 kernel
+
+Signed-off-by: Lily Zhang <r58066@freescale.com>
+---
+ drivers/net/fec.c |    8 ++++++++
+ 1 files changed, 8 insertions(+), 0 deletions(-)
+
+diff --git a/drivers/net/fec.c b/drivers/net/fec.c
+index 91d8e21..b3b2921 100644
+--- a/drivers/net/fec.c
++++ b/drivers/net/fec.c
+@@ -1530,6 +1530,7 @@ fec_enet_open(struct net_device *dev)
+ 	 * a simple way to do that.
+ 	 */
+ 
++	clk_enable(fep->clk);
+ 	ret = fec_enet_alloc_buffers(dev);
+ 	if (ret)
+ 		return ret;
+@@ -1579,6 +1580,7 @@ fec_enet_close(struct net_device *dev)
+ 	fec_stop(dev);
+ 
+         fec_enet_free_buffers(dev);
++	clk_disable(fep->clk);
+ 
+ 	return 0;
+ }
+@@ -1975,6 +1977,7 @@ fec_probe(struct platform_device *pdev)
+ 	if (ret)
+ 		goto failed_register;
+ 
++	clk_disable(fep->clk);
+ 	return 0;
+ 
+ failed_register:
+@@ -2023,8 +2026,10 @@ fec_suspend(struct platform_device *dev, pm_message_t state)
+ 		if (netif_running(ndev)) {
+ 			netif_device_detach(ndev);
+ 			fec_stop(ndev);
++			clk_disable(fep->clk);
+ 		}
+ 	}
++
+ 	return 0;
+ }
+ 
+@@ -2032,9 +2037,12 @@ static int
+ fec_resume(struct platform_device *dev)
+ {
+ 	struct net_device *ndev = platform_get_drvdata(dev);
++	struct fec_enet_private *fep;
+ 
+ 	if (ndev) {
++		fep = netdev_priv(ndev);
+ 		if (netif_running(ndev)) {
++			clk_enable(fep->clk);
+ 			fec_restart(ndev, 1);
+ 			netif_device_attach(ndev);
+ 		}
+-- 
+1.5.4.4
+

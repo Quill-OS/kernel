@@ -1,0 +1,58 @@
+From 73bbe2dd208a176d5227954572d6682cb28d123d Mon Sep 17 00:00:00 2001
+From: Shen Yong <b00984@freescale.com>
+Date: Tue, 23 Feb 2010 18:01:09 +0800
+Subject: [PATCH] ENGR00121057 switch low power mode only support in mc13892 2.0a
+
+switch low power mode will cause problems on previous version of
+mc13892, which may break mc13892 chip.
+This is a fix for ENGR00120510.
+
+Signed-off-by: Shen Yong <b00984@freescale.com>
+---
+ arch/arm/mach-mx51/mx51_babbage_pmic_mc13892.c |   30 +++++++++++++++--------
+ 1 files changed, 19 insertions(+), 11 deletions(-)
+
+diff --git a/arch/arm/mach-mx51/mx51_babbage_pmic_mc13892.c b/arch/arm/mach-mx51/mx51_babbage_pmic_mc13892.c
+index 558bb00..70be52f 100644
+--- a/arch/arm/mach-mx51/mx51_babbage_pmic_mc13892.c
++++ b/arch/arm/mach-mx51/mx51_babbage_pmic_mc13892.c
+@@ -342,17 +342,25 @@ static int mc13892_regulator_init(struct mc13892 *mc13892)
+ 	pmic_write_reg(REG_MODE_1, value, 0xffffff);
+ 
+ 	/* enable switch audo mode */
+-	pmic_read_reg(REG_SW_4, &value, 0xffffff);
+-	register_mask = (SWMODE_MASK << SW1MODE_LSB) | (SWMODE_MASK << SW2MODE_LSB);
+-	value &= ~register_mask;
+-	value |= (SWMODE_AUTO << SW1MODE_LSB) | (SWMODE_AUTO << SW2MODE_LSB);
+-	pmic_write_reg(REG_SW_4, value, 0xffffff);
+-
+-	pmic_read_reg(REG_SW_5, &value, 0xffffff);
+-	register_mask = (SWMODE_MASK << SW3MODE_LSB) | (SWMODE_MASK << SW4MODE_LSB);
+-	value &= ~register_mask;
+-	value |= (SWMODE_AUTO << SW3MODE_LSB) | (SWMODE_AUTO << SW4MODE_LSB);
+-	pmic_write_reg(REG_SW_5, value, 0xffffff);
++	pmic_read_reg(REG_IDENTIFICATION, &value, 0xffffff);
++	/* only for mc13892 2.0A */
++	if ((value & 0x0000FFFF) == 0x45d0) {
++		pmic_read_reg(REG_SW_4, &value, 0xffffff);
++		register_mask = (SWMODE_MASK << SW1MODE_LSB) |
++		       (SWMODE_MASK << SW2MODE_LSB);
++		value &= ~register_mask;
++		value |= (SWMODE_AUTO << SW1MODE_LSB) |
++			(SWMODE_AUTO << SW2MODE_LSB);
++		pmic_write_reg(REG_SW_4, value, 0xffffff);
++
++		pmic_read_reg(REG_SW_5, &value, 0xffffff);
++		register_mask = (SWMODE_MASK << SW3MODE_LSB) |
++			(SWMODE_MASK << SW4MODE_LSB);
++		value &= ~register_mask;
++		value |= (SWMODE_AUTO << SW3MODE_LSB) |
++			(SWMODE_AUTO << SW4MODE_LSB);
++		pmic_write_reg(REG_SW_5, value, 0xffffff);
++	}
+ 
+ 	/* Enable coin cell charger */
+ 	value = BITFVAL(CIONCHEN, 1) | BITFVAL(VCOIN, VCOIN_3_0V);
+-- 
+1.5.4.4
+

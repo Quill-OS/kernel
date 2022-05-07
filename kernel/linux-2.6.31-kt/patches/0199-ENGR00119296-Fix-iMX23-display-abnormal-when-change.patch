@@ -1,0 +1,51 @@
+From 683b152b669ce83990ee02141f81826171463a81 Mon Sep 17 00:00:00 2001
+From: Frank Li <Frank.Li@freescale.com>
+Date: Fri, 18 Dec 2009 15:34:12 +0800
+Subject: [PATCH] ENGR00119296 Fix iMX23 display abnormal when change frequency
+
+Miss clear BYPASS_CPU bit for CLKSEQ. CPU and HClk frequency will low than
+24Mhz, so there are not enough bandwidth to support LCD refresh
+
+Signed-off-by: Frank Li <Frank.Li@freescale.com>
+---
+ arch/arm/plat-stmp3xxx/clock.c |    3 +++
+ drivers/video/stmp37xxfb.c     |    4 ++--
+ 2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm/plat-stmp3xxx/clock.c b/arch/arm/plat-stmp3xxx/clock.c
+index ec28674..62823d0 100644
+--- a/arch/arm/plat-stmp3xxx/clock.c
++++ b/arch/arm/plat-stmp3xxx/clock.c
+@@ -578,6 +578,9 @@ static int clkseq_set_parent(struct clk *clk, struct clk *parent)
+ 					REGS_CLKCTRL_BASE + HW_CLKCTRL_CPU);
+ 				hclk.rate = 0;
+ 			}
++
++			__raw_writel(1 << clk->bypass_shift,
++					clk->bypass_reg + shift);
+ 		} else
+ 			__raw_writel(1 << clk->bypass_shift,
+ 					clk->bypass_reg + shift);
+diff --git a/drivers/video/stmp37xxfb.c b/drivers/video/stmp37xxfb.c
+index 07cbb27..ff9e2d0 100644
+--- a/drivers/video/stmp37xxfb.c
++++ b/drivers/video/stmp37xxfb.c
+@@ -654,13 +654,13 @@ static int stmp3xxxfb_notifier(struct notifier_block *self,
+ 	/* REVISIT */
+ 	switch (phase) {
+ 	case CPUFREQ_PRECHANGE:
+-		if (old_state == F_ENABLE)
++		if (old_state == F_ENABLE || old_state == F_STARTUP)
+ 			if (pentry->blank_panel)
+ 				pentry->blank_panel(FB_BLANK_POWERDOWN);
+ 		break;
+ 
+ 	case CPUFREQ_POSTCHANGE:
+-		if (old_state == F_ENABLE)
++		if (old_state == F_ENABLE || old_state == F_STARTUP)
+ 			if (pentry->blank_panel)
+ 				pentry->blank_panel(FB_BLANK_UNBLANK);
+ 		break;
+-- 
+1.5.4.4
+

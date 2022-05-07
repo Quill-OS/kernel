@@ -1,0 +1,439 @@
+From 4a985892224a60f7812627152787b015deab9acb Mon Sep 17 00:00:00 2001
+From: William Lai <b04597@freescale.com>
+Date: Mon, 19 Apr 2010 11:11:19 +0800
+Subject: [PATCH] ENGR00122399-1 MX53 CAN: Suppprt on i.MX53 platform
+
+CAN support on i.MX53 platform.
+
+Signed-off-by: William Lai <b04597@freescale.com>
+---
+ arch/arm/configs/imx5_defconfig   |   13 +++-
+ arch/arm/mach-mx5/clock.c         |   34 +++++----
+ arch/arm/mach-mx5/devices.c       |   44 ++++++++++++
+ arch/arm/mach-mx5/devices.h       |    2 +
+ arch/arm/mach-mx5/mx53_evk.c      |   40 +++++++++++
+ arch/arm/mach-mx5/mx53_evk_gpio.c |  138 ++++++++++++++++++++++++++++--------
+ 6 files changed, 225 insertions(+), 46 deletions(-)
+
+diff --git a/arch/arm/configs/imx5_defconfig b/arch/arm/configs/imx5_defconfig
+index 04a59dc..dcc6881 100644
+--- a/arch/arm/configs/imx5_defconfig
++++ b/arch/arm/configs/imx5_defconfig
+@@ -418,7 +418,18 @@ CONFIG_DEFAULT_TCP_CONG="cubic"
+ #
+ # CONFIG_NET_PKTGEN is not set
+ # CONFIG_HAMRADIO is not set
+-# CONFIG_CAN is not set
++CONFIG_CAN=y
++CONFIG_CAN_RAW=y
++CONFIG_CAN_BCM=y
++
++#
++# CAN Device Drivers
++#
++CONFIG_CAN_VCAN=y
++# CONFIG_CAN_DEV is not set
++CONFIG_CAN_DEBUG_DEVICES=y
++CONFIG_CAN_FLEXCAN=y
++CONFIG_FLEXCAN_MBM_WORD_ACCESS=y
+ # CONFIG_IRDA is not set
+ CONFIG_BT=y
+ CONFIG_BT_L2CAP=y
+diff --git a/arch/arm/mach-mx5/clock.c b/arch/arm/mach-mx5/clock.c
+index c71a7a3..66dac0f 100644
+--- a/arch/arm/mach-mx5/clock.c
++++ b/arch/arm/mach-mx5/clock.c
+@@ -3122,40 +3122,44 @@ static struct clk mlb_clk = {
+ 
+ static struct clk can1_clk[] = {
+ 	{
+-	.name = "can1_clk",
+-	.parent = &pll3_sw_clk,
+-	.secondary = &can1_clk[1],
++	.name = "can_clk",
++	.id = 0,
++	.parent = &ipg_clk,
+ 	.enable = _clk_enable,
++	.secondary = &can1_clk[1],
+ 	.enable_reg = MXC_CCM_CCGR6,
+-	.enable_shift = MXC_CCM_CCGR6_CG11_OFFSET,
++	.enable_shift = MXC_CCM_CCGR6_CG10_OFFSET,
+ 	.disable = _clk_disable,
+ 	 },
+ 	{
+-	.name = "can1_ipg_clk",
+-	.parent = &ipg_clk,
++	.name = "can_cpi_clk",
++	.id = 0,
++	.parent = &lp_apm_clk,
+ 	.enable = _clk_enable,
+ 	.enable_reg = MXC_CCM_CCGR6,
+-	.enable_shift = MXC_CCM_CCGR6_CG10_OFFSET,
++	.enable_shift = MXC_CCM_CCGR6_CG11_OFFSET,
+ 	.disable = _clk_disable,
+ 	 },
+ };
+ 
+ static struct clk can2_clk[] = {
+ 	{
+-	.name = "can2_clk",
+-	.parent = &pll3_sw_clk,
+-	.secondary = &can2_clk[1],
++	.name = "can_clk",
++	.id = 1,
++	.parent = &ipg_clk,
+ 	.enable = _clk_enable,
++	.secondary = &can2_clk[1],
+ 	.enable_reg = MXC_CCM_CCGR4,
+-	.enable_shift = MXC_CCM_CCGR4_CG4_OFFSET,
++	.enable_shift = MXC_CCM_CCGR4_CG3_OFFSET,
+ 	.disable = _clk_disable,
+ 	 },
+ 	{
+-	.name = "can2_ipg_clk",
+-	.parent = &ipg_clk,
++	.name = "can_cpi_clk",
++	.id = 1,
++	.parent = &lp_apm_clk,
+ 	.enable = _clk_enable,
+ 	.enable_reg = MXC_CCM_CCGR4,
+-	.enable_shift = MXC_CCM_CCGR4_CG3_OFFSET,
++	.enable_shift = MXC_CCM_CCGR4_CG4_OFFSET,
+ 	.disable = _clk_disable,
+ 	 },
+ };
+@@ -4522,6 +4526,8 @@ int __init mx53_clocks_init(unsigned long ckil, unsigned long osc, unsigned long
+ 	clk_register(&sata_clk);
+ 	clk_register(&ieee_1588_clk);
+ 	clk_register(&mlb_clk);
++	clk_register(&can1_clk[0]);
++	clk_register(&can2_clk[0]);
+ 
+ 	/* set DDR clock parent */
+ 	reg = __raw_readl(MXC_CCM_CBCMR) &
+diff --git a/arch/arm/mach-mx5/devices.c b/arch/arm/mach-mx5/devices.c
+index df433a8..db52d55 100644
+--- a/arch/arm/mach-mx5/devices.c
++++ b/arch/arm/mach-mx5/devices.c
+@@ -211,6 +211,46 @@ struct platform_device mxc_pwm_backlight_device = {
+ 	.id = -1,
+ };
+ 
++static struct resource flexcan0_resources[] = {
++	{
++	    .start = CAN1_BASE_ADDR,
++	    .end = CAN1_BASE_ADDR + 0x3FFF,
++	    .flags = IORESOURCE_MEM,
++	},
++	{
++	    .start = MXC_INT_CAN1,
++	    .end = MXC_INT_CAN1,
++	    .flags = IORESOURCE_IRQ,
++	},
++};
++
++struct platform_device mxc_flexcan0_device = {
++	.name = "FlexCAN",
++	.id = 0,
++	.num_resources = ARRAY_SIZE(flexcan0_resources),
++	.resource = flexcan0_resources,
++};
++
++static struct resource flexcan1_resources[] = {
++	{
++	    .start = CAN2_BASE_ADDR,
++	    .end = CAN2_BASE_ADDR + 0x3FFF,
++	    .flags = IORESOURCE_MEM,
++	},
++	{
++	    .start = MXC_INT_CAN2,
++	    .end = MXC_INT_CAN2,
++	    .flags = IORESOURCE_IRQ,
++	},
++};
++
++struct platform_device mxc_flexcan1_device = {
++	.name = "FlexCAN",
++	.id = 1,
++	.num_resources = ARRAY_SIZE(flexcan1_resources),
++	.resource = flexcan1_resources,
++};
++
+ static struct resource ipu_resources[] = {
+ 	{
+ 		.start = MX51_IPU_CTRL_BASE_ADDR,
+@@ -1278,6 +1318,10 @@ int __init mxc_init_devices(void)
+ 		pwm1_resources[0].end -= MX53_OFFSET;
+ 		pwm2_resources[0].start -= MX53_OFFSET;
+ 		pwm2_resources[0].end -= MX53_OFFSET;
++		flexcan0_resources[0].start -= MX53_OFFSET;
++		flexcan0_resources[0].end -= MX53_OFFSET;
++		flexcan1_resources[0].start -= MX53_OFFSET;
++		flexcan1_resources[0].end -= MX53_OFFSET;
+ 		mxc_fec_resources[0].start -= MX53_OFFSET;
+ 		mxc_fec_resources[0].end -= MX53_OFFSET;
+ 		vpu_resources[0].start -= MX53_OFFSET;
+diff --git a/arch/arm/mach-mx5/devices.h b/arch/arm/mach-mx5/devices.h
+index d3467fa..dfaf7df 100644
+--- a/arch/arm/mach-mx5/devices.h
++++ b/arch/arm/mach-mx5/devices.h
+@@ -27,6 +27,8 @@ extern struct platform_device mxc_wdt_device;
+ extern struct platform_device mxc_pwm1_device;
+ extern struct platform_device mxc_pwm2_device;
+ extern struct platform_device mxc_pwm_backlight_device;
++extern struct platform_device mxc_flexcan0_device;
++extern struct platform_device mxc_flexcan1_device;
+ extern struct platform_device mxc_ipu_device;
+ extern struct platform_device mxc_fb_devices[];
+ extern struct platform_device mxcvpu_device;
+diff --git a/arch/arm/mach-mx5/mx53_evk.c b/arch/arm/mach-mx5/mx53_evk.c
+index ba96549..842cec7 100644
+--- a/arch/arm/mach-mx5/mx53_evk.c
++++ b/arch/arm/mach-mx5/mx53_evk.c
+@@ -150,6 +150,43 @@ static struct platform_pwm_backlight_data mxc_pwm_backlight_data = {
+ 	.pwm_period_ns = 78770,
+ };
+ 
++extern void flexcan_xcvr_enable(int id, int en);
++
++static struct flexcan_platform_data flexcan0_data = {
++	.core_reg = NULL,
++	.io_reg = NULL,
++	.xcvr_enable = flexcan_xcvr_enable,
++	.br_clksrc = 1,
++	.br_rjw = 2,
++	.br_presdiv = 5,
++	.br_propseg = 5,
++	.br_pseg1 = 4,
++	.br_pseg2 = 7,
++	.bcc = 1,
++	.srx_dis = 1,
++	.smp = 1,
++	.boff_rec = 1,
++	.ext_msg = 1,
++	.std_msg = 1,
++};
++static struct flexcan_platform_data flexcan1_data = {
++	.core_reg = NULL,
++	.io_reg = NULL,
++	.xcvr_enable = flexcan_xcvr_enable,
++	.br_clksrc = 1,
++	.br_rjw = 2,
++	.br_presdiv = 5,
++	.br_propseg = 5,
++	.br_pseg1 = 4,
++	.br_pseg2 = 7,
++	.bcc = 1,
++	.srx_dis = 1,
++	.boff_rec = 1,
++	.ext_msg = 1,
++	.std_msg = 1,
++};
++
++
+ extern void mx5_ipu_reset(void);
+ static struct mxc_ipu_config mxc_ipu_data = {
+ 	.rev = 3,
+@@ -613,6 +650,9 @@ static void __init mxc_board_init(void)
+ 		mxc_register_device(&mxc_pwm2_device, NULL);
+ 		mxc_register_device(&mxc_pwm_backlight_device, &mxc_pwm_backlight_data);
+ 	}
++	mxc_register_device(&mxc_flexcan0_device, &flexcan0_data);
++	mxc_register_device(&mxc_flexcan1_device, &flexcan1_data);
++
+ /*	mxc_register_device(&mxc_keypad_device, &keypad_plat_data); */
+ 
+ 	mxc_register_device(&mxcsdhc1_device, &mmc1_data);
+diff --git a/arch/arm/mach-mx5/mx53_evk_gpio.c b/arch/arm/mach-mx5/mx53_evk_gpio.c
+index 450280e..da0b47d 100644
+--- a/arch/arm/mach-mx5/mx53_evk_gpio.c
++++ b/arch/arm/mach-mx5/mx53_evk_gpio.c
+@@ -166,27 +166,9 @@ static struct mxc_iomux_pin_cfg __initdata mxc_iomux_pins[] = {
+ 	 MX53_PIN_KEY_ROW1, IOMUX_CONFIG_ALT2,
+ 	 },
+ 	{
+-	 MX53_PIN_KEY_COL2, IOMUX_CONFIG_ALT2,
+-	 },
+-	{
+-	 MX53_PIN_KEY_ROW2, IOMUX_CONFIG_ALT2,
+-	 },
+-	{
+ 	 MX53_PIN_KEY_COL3, IOMUX_CONFIG_ALT4,
+ 	 },
+ 	{
+-	 MX53_PIN_KEY_COL4, IOMUX_CONFIG_ALT2,
+-	 },
+-	{
+-	 MX53_PIN_KEY_ROW4, IOMUX_CONFIG_ALT2,
+-	 },
+-	{
+-	 MX53_PIN_CSI0_D4, IOMUX_CONFIG_ALT5,
+-	 },
+-	{
+-	 MX53_PIN_CSI0_D6, IOMUX_CONFIG_ALT5,
+-	 },
+-	{
+ 	 MX53_PIN_CSI0_D7, IOMUX_CONFIG_ALT5,
+ 	 },
+ 	{
+@@ -214,9 +196,6 @@ static struct mxc_iomux_pin_cfg __initdata mxc_iomux_pins[] = {
+ 	 MX53_PIN_GPIO_4, IOMUX_CONFIG_GPIO,
+ 	 },
+ 	{
+-	 MX53_PIN_GPIO_5, IOMUX_CONFIG_GPIO,
+-	 },
+-	{
+ 	 MX53_PIN_GPIO_6, IOMUX_CONFIG_GPIO,
+ 	 },
+ 	{
+@@ -228,6 +207,62 @@ static struct mxc_iomux_pin_cfg __initdata mxc_iomux_pins[] = {
+ 	{
+ 	 MX53_PIN_GPIO_10, IOMUX_CONFIG_GPIO,
+ 	 },
++	{ /* CAN1-TX */
++	 MX53_PIN_KEY_COL2, IOMUX_CONFIG_ALT2,
++	 (PAD_CTL_DRV_HIGH | PAD_CTL_HYS_ENABLE | PAD_CTL_PKE_ENABLE |
++	  PAD_CTL_PUE_PULL | PAD_CTL_100K_PU | PAD_CTL_ODE_OPENDRAIN_NONE),
++	 },
++	{ /* CAN1-RX */
++	 MX53_PIN_KEY_ROW2, IOMUX_CONFIG_ALT2,
++	 (PAD_CTL_DRV_HIGH | PAD_CTL_HYS_ENABLE | PAD_CTL_PKE_ENABLE |
++	  PAD_CTL_PUE_PULL | PAD_CTL_360K_PD | PAD_CTL_ODE_OPENDRAIN_NONE),
++	 MUX_IN_CAN1_IPP_IND_CANRX_SELECT_INPUT,
++	 INPUT_CTL_PATH0,
++	 },
++	{ /* CAN1 -- EN */
++	 MX53_PIN_GPIO_18, IOMUX_CONFIG_ALT1,
++	 (PAD_CTL_DRV_HIGH | PAD_CTL_HYS_ENABLE | PAD_CTL_PKE_ENABLE |
++	  PAD_CTL_PUE_PULL | PAD_CTL_360K_PD | PAD_CTL_ODE_OPENDRAIN_NONE),
++	 },
++	{ /* CAN1 -- STBY */
++	 MX53_PIN_GPIO_17, IOMUX_CONFIG_ALT1,
++	 (PAD_CTL_DRV_HIGH | PAD_CTL_HYS_ENABLE | PAD_CTL_PKE_ENABLE |
++	  PAD_CTL_PUE_PULL | PAD_CTL_360K_PD | PAD_CTL_ODE_OPENDRAIN_NONE),
++	 },
++	{ /* CAN1 -- NERR */
++	 MX53_PIN_GPIO_5, IOMUX_CONFIG_ALT1,
++	 (PAD_CTL_DRV_HIGH | PAD_CTL_HYS_ENABLE | PAD_CTL_PKE_ENABLE |
++	  PAD_CTL_PUE_PULL | PAD_CTL_360K_PD | PAD_CTL_ODE_OPENDRAIN_NONE),
++	 MUX_IN_CAN2_IPP_IND_CANRX_SELECT_INPUT,
++	 INPUT_CTL_PATH1,
++	 },
++	{ /* CAN2-TX */
++	 MX53_PIN_KEY_COL4, IOMUX_CONFIG_ALT2,
++	 (PAD_CTL_DRV_HIGH | PAD_CTL_HYS_ENABLE | PAD_CTL_PKE_ENABLE |
++	  PAD_CTL_PUE_PULL | PAD_CTL_100K_PU | PAD_CTL_ODE_OPENDRAIN_NONE),
++	 },
++	{ /* CAN2-RX */
++	 MX53_PIN_KEY_ROW4, IOMUX_CONFIG_ALT2,
++	 (PAD_CTL_DRV_HIGH | PAD_CTL_HYS_ENABLE | PAD_CTL_PKE_ENABLE |
++	  PAD_CTL_PUE_PULL | PAD_CTL_360K_PD | PAD_CTL_ODE_OPENDRAIN_NONE),
++	 MUX_IN_CAN2_IPP_IND_CANRX_SELECT_INPUT,
++	 INPUT_CTL_PATH0,
++	 },
++	{ /* CAN2 -- EN */
++	 MX53_PIN_CSI0_D6, IOMUX_CONFIG_ALT1,
++	 (PAD_CTL_DRV_HIGH | PAD_CTL_HYS_ENABLE | PAD_CTL_PKE_ENABLE |
++	  PAD_CTL_PUE_PULL | PAD_CTL_100K_PU | PAD_CTL_ODE_OPENDRAIN_NONE),
++	 },
++	{ /* CAN2 -- STBY */
++	 MX53_PIN_GPIO_14, IOMUX_CONFIG_ALT0,
++	 (PAD_CTL_DRV_HIGH | PAD_CTL_HYS_ENABLE | PAD_CTL_PKE_ENABLE |
++	  PAD_CTL_PUE_PULL | PAD_CTL_100K_PU | PAD_CTL_ODE_OPENDRAIN_NONE),
++	 },
++	{ /* CAN2 -- NERR */
++	 MX53_PIN_CSI0_D4, IOMUX_CONFIG_ALT1,
++	 (PAD_CTL_DRV_HIGH | PAD_CTL_HYS_ENABLE | PAD_CTL_PKE_ENABLE |
++	  PAD_CTL_PUE_PULL | PAD_CTL_100K_PU | PAD_CTL_ODE_OPENDRAIN_NONE),
++	 },
+ 	{
+ 	 MX53_PIN_GPIO_11, IOMUX_CONFIG_GPIO,
+ 	 },
+@@ -238,19 +273,10 @@ static struct mxc_iomux_pin_cfg __initdata mxc_iomux_pins[] = {
+ 	 MX53_PIN_GPIO_13, IOMUX_CONFIG_GPIO,
+ 	 },
+ 	{
+-	 MX53_PIN_GPIO_14, IOMUX_CONFIG_GPIO,
+-	 },
+-	{
+ 	 MX53_PIN_GPIO_16, IOMUX_CONFIG_ALT1,
+ 	 },
+ 	{
+-	 MX53_PIN_GPIO_17, IOMUX_CONFIG_GPIO,
+-	 },
+-	{
+-	 MX53_PIN_GPIO_18, IOMUX_CONFIG_GPIO,
+-	 },
+-	{
+-	 MX53_PIN_GPIO_19, IOMUX_CONFIG_ALT3,
++	 MX53_PIN_GPIO_19, IOMUX_CONFIG_ALT1,
+ 	 },
+ 	{	/* DI0 display clock */
+ 	 MX53_PIN_DI0_DISP_CLK, IOMUX_CONFIG_ALT0,
+@@ -818,6 +844,23 @@ void __init mx53_evk_io_init(void)
+ 	gpio_request(IOMUX_TO_GPIO(MX53_PIN_CSI0_D5), "gpio5_23");
+ 	gpio_direction_output(IOMUX_TO_GPIO(MX53_PIN_CSI0_D5), 0);
+ 	gpio_set_value(IOMUX_TO_GPIO(MX53_PIN_CSI0_D5), 0);
++
++	/* CAN1 enable GPIO*/
++	gpio_direction_output(IOMUX_TO_GPIO(MX53_PIN_GPIO_18), 0);
++	gpio_set_value(IOMUX_TO_GPIO(MX53_PIN_GPIO_18), 0);
++	gpio_direction_output(IOMUX_TO_GPIO(MX53_PIN_GPIO_17), 0);
++	gpio_set_value(IOMUX_TO_GPIO(MX53_PIN_GPIO_17), 0);
++
++	/* CAN2 enable GPIO*/
++	gpio_direction_output(IOMUX_TO_GPIO(MX53_PIN_CSI0_D6), 0);
++	gpio_set_value(IOMUX_TO_GPIO(MX53_PIN_CSI0_D6), 0);
++	gpio_direction_output(IOMUX_TO_GPIO(MX53_PIN_GPIO_14), 0);
++	gpio_set_value(IOMUX_TO_GPIO(MX53_PIN_GPIO_14), 0);
++
++	/* GPIO for 12V */
++	gpio_direction_output(IOMUX_TO_GPIO(MX53_PIN_GPIO_19), 0);
++	gpio_set_value(IOMUX_TO_GPIO(MX53_PIN_GPIO_19), 0);
++
+ }
+ 
+ /* workaround for ecspi chipselect pin may not keep correct level when idle */
+@@ -888,6 +931,39 @@ void mx53_evk_gpio_spi_chipselect_inactive(int cspi_mode, int status,
+ }
+ EXPORT_SYMBOL(mx53_evk_gpio_spi_chipselect_inactive);
+ 
++void flexcan_xcvr_enable(int id, int en)
++{
++	static int pwdn;
++	if (id < 0 || id > 1)
++		return;
++
++	if (en) {
++		if (!(pwdn++))
++			gpio_set_value(IOMUX_TO_GPIO(MX53_PIN_GPIO_19), 1);
++
++		if (id == 0) {
++			gpio_set_value(IOMUX_TO_GPIO(MX53_PIN_GPIO_18), 1);
++			gpio_set_value(IOMUX_TO_GPIO(MX53_PIN_GPIO_17), 1);
++		} else {
++			gpio_set_value(IOMUX_TO_GPIO(MX53_PIN_CSI0_D6), 1);
++			gpio_set_value(IOMUX_TO_GPIO(MX53_PIN_GPIO_14), 1);
++		}
++
++	} else {
++		if (!(--pwdn))
++			gpio_set_value(IOMUX_TO_GPIO(MX53_PIN_GPIO_19), 0);
++
++		if (id == 0) {
++			gpio_set_value(IOMUX_TO_GPIO(MX53_PIN_GPIO_18), 0);
++			gpio_set_value(IOMUX_TO_GPIO(MX53_PIN_GPIO_17), 0);
++		} else {
++			gpio_set_value(IOMUX_TO_GPIO(MX53_PIN_CSI0_D6), 0);
++			gpio_set_value(IOMUX_TO_GPIO(MX53_PIN_GPIO_14), 0);
++		}
++	}
++}
++EXPORT_SYMBOL(flexcan_xcvr_enable);
++
+ void gpio_lcd_active(void)
+ {
+ /* TO DO */
+-- 
+1.5.4.4
+

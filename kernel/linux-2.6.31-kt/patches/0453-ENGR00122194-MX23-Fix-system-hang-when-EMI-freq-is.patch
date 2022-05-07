@@ -1,0 +1,94 @@
+From c850a5fa1f26898ed5aa4754bf427589298cab20 Mon Sep 17 00:00:00 2001
+From: Nancy Chen <Nancy.Chen@freescale.com>
+Date: Wed, 31 Mar 2010 16:27:29 -0500
+Subject: [PATCH] ENGR00122194 MX23: Fix system hang when EMI freq is changed
+
+Fix system hang when EMI frequency is changed.
+
+Signed-off-by: Nancy Chen <Nancy.Chen@freescale.com>
+---
+ arch/arm/mach-mx23/emi.S   |   24 ++++++++++++------------
+ arch/arm/mach-mx23/emi.inc |   10 +++-------
+ 2 files changed, 15 insertions(+), 19 deletions(-)
+
+diff --git a/arch/arm/mach-mx23/emi.S b/arch/arm/mach-mx23/emi.S
+index fd63a2a..5799ca2 100644
+--- a/arch/arm/mach-mx23/emi.S
++++ b/arch/arm/mach-mx23/emi.S
+@@ -39,9 +39,9 @@
+ #define REGS_CLKCTRL_BASE MX23_SOC_IO_ADDRESS(CLKCTRL_PHYS_ADDR)
+ #define HW_CLKCTRL_EMI_ADDR (REGS_CLKCTRL_BASE + HW_CLKCTRL_EMI)
+ #define HW_CLKCTRL_FRAC_ADDR (REGS_CLKCTRL_BASE + HW_CLKCTRL_FRAC)
+-#define HW_EMI_CTRL_ADDR MX23_SOC_IO_ADDRESS(REGS_EMI_PHYS + HW_CLKCTRL_FRAC)
+-#define HW_DRAM_CTL04_ADDR (REGS_CLKCTRL_BASE + HW_DRAM_CTL04)
+-
++#define HW_EMI_CTRL_ADDR MX23_SOC_IO_ADDRESS(REGS_EMI_PHYS + HW_EMI_CTRL)
++#define HW_DRAM_CTL04_ADDR MX23_SOC_IO_ADDRESS(REGS_DRAM_PHYS + HW_DRAM_CTL04)
++#define HW_CLKCTRL_CLKSEQ_ADDR (REGS_CLKCTRL_BASE + HW_CLKCTRL_CLKSEQ)
+ .global cpu_arm926_switch_mm
+ 
+ .align 8
+@@ -105,10 +105,10 @@ ENTRY(mxs_ram_freq_scale)
+ 
+ 100:
+ 	@ RAM to clk from xtal
+-	mov	r0, #(MX23_SOC_IO_ADDRESS(CLKCTRL_PHYS_ADDR) & 0x000000FF)
+-	orr	r0, r0, #(MX23_SOC_IO_ADDRESS(CLKCTRL_PHYS_ADDR) & 0x0000FF00)
+-	orr	r0, r0, #(MX23_SOC_IO_ADDRESS(CLKCTRL_PHYS_ADDR) & 0x00FF0000)
+-	orr	r0, r0, #(MX23_SOC_IO_ADDRESS(CLKCTRL_PHYS_ADDR) & 0xFF000000)
++	mov	r0, #(HW_CLKCTRL_CLKSEQ_ADDR & 0x000000FF)
++	orr	r0, r0, #(HW_CLKCTRL_CLKSEQ_ADDR & 0x0000FF00)
++	orr	r0, r0, #(HW_CLKCTRL_CLKSEQ_ADDR & 0x00FF0000)
++	orr	r0, r0, #(HW_CLKCTRL_CLKSEQ_ADDR & 0xFF000000)
+ 	mov	r1, #(1<<6)
+ 	str	r1, [r0, #4]
+ 	mov	r0, #(HW_CLKCTRL_EMI_ADDR & 0x000000FF)
+@@ -139,10 +139,10 @@ ENTRY(mxs_ram_freq_scale)
+ 	bl	__mx23_emi_set_values
+ 
+ 	@ EMI back to PLL
+-	mov	r0, #(MX23_SOC_IO_ADDRESS(CLKCTRL_PHYS_ADDR) & 0x000000FF)
+-	orr	r0, r0, #(MX23_SOC_IO_ADDRESS(CLKCTRL_PHYS_ADDR) & 0x0000FF00)
+-	orr	r0, r0, #(MX23_SOC_IO_ADDRESS(CLKCTRL_PHYS_ADDR) & 0x00FF0000)
+-	orr	r0, r0, #(MX23_SOC_IO_ADDRESS(CLKCTRL_PHYS_ADDR) & 0xFF000000)
++	mov	r0, #(HW_CLKCTRL_CLKSEQ_ADDR & 0x000000FF)
++	orr	r0, r0, #(HW_CLKCTRL_CLKSEQ_ADDR & 0x0000FF00)
++	orr	r0, r0, #(HW_CLKCTRL_CLKSEQ_ADDR & 0x00FF0000)
++	orr	r0, r0, #(HW_CLKCTRL_CLKSEQ_ADDR & 0xFF000000)
+ 	mov	r1, #(1<<6)
+ 	str	r1, [r0, #8]
+ 
+@@ -226,6 +226,6 @@ __mxs_temp_stack:
+ __mxs_flush_cache_addr:
+ 	.word	arm926_flush_kern_cache_all
+ 
+-ENTRY(mx23_ram_funcs_sz)
++ENTRY(mxs_ram_funcs_sz)
+ 	.word	. - mxs_ram_freq_scale
+ 
+diff --git a/arch/arm/mach-mx23/emi.inc b/arch/arm/mach-mx23/emi.inc
+index 7d55648..194181f 100644
+--- a/arch/arm/mach-mx23/emi.inc
++++ b/arch/arm/mach-mx23/emi.inc
+@@ -224,15 +224,11 @@ mx23_ram_150M_set_timings:
+ 	mov	pc, lr
+ 
+ __mx23_dram_ctl00:
+-@	.word	IO_ADDRESS(0x800E0000)
+-	.word	0xF00E0000
+-
++	.word 	MX23_SOC_IO_ADDRESS(REGS_DRAM_PHYS)
+ __mx23_dram_emi00:
+-@	.word	IO_ADDRESS(0x80020000)
+-	.word	0xF0020000
++	.word	MX23_SOC_IO_ADDRESS(REGS_EMI_PHYS)
+ __mx23_power_vdddctrl:
+-@	.word	IO_ADDRESS(0x80044040)
+-	.word	0xF0044040
++	.word	MX23_SOC_IO_ADDRESS(REGS_POWER_PHYS + HW_POWER_VDDDCTRL)
+ 
+ mx23_ram_save_timings:
+ 	ldr	r0, __mx23_dram_ctl00
+-- 
+1.5.4.4
+

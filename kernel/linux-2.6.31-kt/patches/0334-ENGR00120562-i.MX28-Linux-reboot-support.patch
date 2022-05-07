@@ -1,0 +1,59 @@
+From da7791854dfe4d142f2e9db893bc277ef7dfeae6 Mon Sep 17 00:00:00 2001
+From: Fred Fan <r01011@freescale.com>
+Date: Fri, 29 Jan 2010 20:23:32 +0800
+Subject: [PATCH] ENGR00120562 i.MX28 Linux reboot support
+
+Use watchdog to reset CPU.
+
+Signed-off-by: Fred.fan <r01011@freescale.com>
+---
+ arch/arm/plat-mxs/core.c                |   13 ++++++++++++-
+ arch/arm/plat-mxs/include/mach/system.h |    1 +
+ 2 files changed, 13 insertions(+), 1 deletions(-)
+
+diff --git a/arch/arm/plat-mxs/core.c b/arch/arm/plat-mxs/core.c
+index 7f91808..b804a57 100644
+--- a/arch/arm/plat-mxs/core.c
++++ b/arch/arm/plat-mxs/core.c
+@@ -23,7 +23,10 @@
+ 
+ #include <asm/proc-fns.h>
+ 
+-static void (*machine_arch_reset) (char mode, const char *cmd);
++#include <mach/hardware.h>
++#include <mach/regs-rtc.h>
++
++void (*machine_arch_reset) (char mode, const char *cmd);
+ 
+ void arch_idle(void)
+ {
+@@ -34,6 +37,14 @@ void arch_reset(char mode, const char *cmd)
+ {
+ 	if (machine_arch_reset)
+ 		machine_arch_reset(mode, cmd);
++	else {
++		void *base = IO_ADDRESS(RTC_PHYS_ADDR);
++
++		__raw_writel(1, base + HW_RTC_WATCHDOG);
++		__raw_writel(0x80000000, base + HW_RTC_PERSISTENT1_SET);
++		__raw_writel(BM_RTC_CTRL_WATCHDOGEN, base + HW_RTC_CTRL_SET);
++	}
++	cpu_reset(0);
+ }
+ 
+ static int __mxs_reset_block(void __iomem *hwreg, int just_enable)
+diff --git a/arch/arm/plat-mxs/include/mach/system.h b/arch/arm/plat-mxs/include/mach/system.h
+index d777723..63604de 100644
+--- a/arch/arm/plat-mxs/include/mach/system.h
++++ b/arch/arm/plat-mxs/include/mach/system.h
+@@ -23,6 +23,7 @@
+ extern void arch_idle(void);
+ 
+ void arch_reset(char mode, const char *cmd);
++extern void (*machine_arch_reset)(char mode, const char *cmd);
+ int mxs_reset_block(void __iomem *hwreg, int just_enable);
+ 
+ #endif /* __ASM_ARCH_SYSTEM_H__ */
+-- 
+1.5.4.4
+

@@ -1,0 +1,1051 @@
+From 904e14846b0da98d787c4ce810567ec13974e0fd Mon Sep 17 00:00:00 2001
+From: Frank Li <Frank.Li@freescale.com>
+Date: Fri, 5 Mar 2010 17:52:23 +0800
+Subject: [PATCH] ENGR00121350-1 MX28 Add emi frequency change
+
+Add emi frequency change. Support 133Mhz, 166Mhz and 200Mhz
+
+Signed-off-by: Frank Li <Frank.Li@freescale.com>
+---
+ arch/arm/mach-mx28/Makefile            |    1 +
+ arch/arm/mach-mx28/device.c            |    7 +
+ arch/arm/mach-mx28/emi.S               |  220 +++++++++++
+ arch/arm/mach-mx28/emi_settings.c      |  679 ++++++++++++++++++++++++++++++++
+ arch/arm/mach-mx28/emi_settings.h      |   43 ++
+ arch/arm/mach-mx28/include/mach/mx28.h |   10 +
+ arch/arm/plat-mxs/Kconfig              |    4 +
+ 7 files changed, 964 insertions(+), 0 deletions(-)
+
+diff --git a/arch/arm/mach-mx28/Makefile b/arch/arm/mach-mx28/Makefile
+index 7b87f3e..6124174 100644
+--- a/arch/arm/mach-mx28/Makefile
++++ b/arch/arm/mach-mx28/Makefile
+@@ -6,6 +6,7 @@ obj-y += pinctrl.o clock.o device.o serial.o power.o
+ # Board select
+ obj-$(CONFIG_MACH_MX28EVK) += mx28evk.o mx28evk_pins.o
+ obj-$(CONFIG_GENERIC_GPIO) += gpio.o
++obj-$(CONFIG_MXS_RAM_FREQ_SCALING) +=emi.o emi_settings.o
+ 
+ # USB support
+ ifneq ($(strip $(CONFIG_USB_GADGET_ARC) $(CONFIG_USB_EHCI_ARC_OTG)),)
+diff --git a/arch/arm/mach-mx28/device.c b/arch/arm/mach-mx28/device.c
+index 39012dc..e1e447e 100644
+--- a/arch/arm/mach-mx28/device.c
++++ b/arch/arm/mach-mx28/device.c
+@@ -1033,6 +1033,12 @@ static struct __initdata map_desc mx28_io_desc[] = {
+ 	 .length = MX28_SOC_IO_AREA_SIZE,
+ 	 .type = MT_DEVICE,
+ 	 },
++	 {
++	 .virtual = MX28_OCRAM_BASE,
++	 .pfn = __phys_to_pfn(MX28_OCRAM_PHBASE),
++	 .length = MX28_OCRAM_SIZE,
++	 .type	= MT_DEVICE,
++	 }
+ };
+ 
+ void __init mx28_map_io(void)
+@@ -1084,3 +1090,4 @@ struct mxs_sys_timer mx28_timer = {
+ 	.clk_sel = BV_TIMROT_TIMCTRLn_SELECT__32KHZ_XTAL,
+ 	.base = IO_ADDRESS(TIMROT_PHYS_ADDR),
+ };
++
+diff --git a/arch/arm/mach-mx28/emi.S b/arch/arm/mach-mx28/emi.S
+new file mode 100644
+index 0000000..ec25b4e
+--- /dev/null
++++ b/arch/arm/mach-mx28/emi.S
+@@ -0,0 +1,220 @@
++/*
++ * Freescale MX28 low level RAM frequency manipulation
++ *
++ * Author: Vitaly Wool <vital@embeddedalley.com>
++ *
++ * Copyright 2008-2010 Freescale Semiconductor, Inc.
++ * Copyright 2008 Embedded Alley Solutions, Inc All Rights Reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License along
++ * with this program; if not, write to the Free Software Foundation, Inc.,
++ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
++ */
++
++#include <linux/linkage.h>
++#include <asm/assembler.h>
++#include <asm/system.h>
++#include <asm/pgtable-hwdef.h>
++
++#include <mach/hardware.h>
++#include <mach/regs-power.h>
++#include "regs-clkctrl.h"
++#include "regs-dram.h"
++#include "regs-digctl.h"
++
++#include "emi_settings.h"
++
++.global cpu_arm926_switch_mm
++
++.align 8
++ENTRY(mxs_ram_freq_scale)
++	stmfd	sp!, {r1 - r10, lr}
++	ldr	r5, [r0, #SCALING_DATA_NEW_FREQ_OFFSET]
++	ldr	r6, [r0, #SCALING_DATA_CUR_FREQ_OFFSET]
++	ldr	r7, [r0, #SCALING_DATA_EMI_DIV_OFFSET]
++	mov	r7, r7,	LSL #BP_CLKCTRL_EMI_DIV_EMI
++	ldr	r8, [r0, #SCALING_DATA_FRAC_DIV_OFFSET]
++	mov	r8, r8,	LSL #BP_CLKCTRL_FRAC0_EMIFRAC
++
++	@copy memory setting to iram
++	mov	r2, #MX28_DRAMCTRLREGNUM
++	adr	r0, __mx28_emisetting
++1:	ldr	r3, [r1]
++	str 	r3, [r0]
++	add 	r0, r0, #4
++	add 	r1, r1, #4
++	subs 	r2, r2, #1
++	bne 1b
++
++	@set temp static to iram.
++	adr	r9, __mxs_temp_stack
++
++	@ clean cache
++	ldr	r1, __mxs_flush_cache_addr
++	mov	lr, pc
++	mov	pc, r1
++
++	mov r2, #MX28_SOC_IO_ADDRESS(CLKCTRL_PHYS_ADDR)&0xFF
++	orr r2, r2,  #MX28_SOC_IO_ADDRESS(CLKCTRL_PHYS_ADDR)&0xFF00
++	orr r2, r2,  #MX28_SOC_IO_ADDRESS(CLKCTRL_PHYS_ADDR)&0xFF0000
++	orr r2, r2,  #MX28_SOC_IO_ADDRESS(CLKCTRL_PHYS_ADDR)&0xFF000000
++
++	mov r0, r2
++	bl lock_vector_tlb
++
++	mov r0, #MX28_SOC_IO_ADDRESS(DRAM_PHYS_ADDR)&0xFF
++	orr r0, r0, #MX28_SOC_IO_ADDRESS(DRAM_PHYS_ADDR)&0xFF00
++	orr r0, r0, #MX28_SOC_IO_ADDRESS(DRAM_PHYS_ADDR)&0xFF0000
++	orr r0, r0, #MX28_SOC_IO_ADDRESS(DRAM_PHYS_ADDR)&0xFF000000
++
++	@ Make sure emi not busy
++2:
++	ldr r1, [r0, #HW_DRAM_CTL08]
++	tst r1, #BM_DRAM_CTL08_CONTROLLER_BUSY
++	bne 2b
++
++	@ put DRAM into self refresh
++	ldr r1, [r0, #HW_DRAM_CTL17]
++	orr r1, r1, #BM_DRAM_CTL17_SREFRESH
++	str	r1,  [r0, #HW_DRAM_CTL17]
++3:
++	ldr r1, [r0, #HW_DRAM_CTL172]
++	tst r1, #BM_DRAM_CTL172_CKE_STATUS
++	beq 3b
++
++	ldr r1, [r0, #HW_DRAM_CTL58]
++	orr r1, #BF_DRAM_CTL58_INT_MASK(0x100)
++	str r1, [r0, #HW_DRAM_CTL58]
++
++	@stop emi controller
++	ldr r1, [r0, #HW_DRAM_CTL16]
++	bic r1, r1, #BM_DRAM_CTL16_START
++	str r1, [r0, #HW_DRAM_CTL16]
++
++	@clear lock status HW_DRAM_CTL164_CLR(BF_DRAM_CTL164_INT_ACK(0x3ff));
++	ldr r1, [r0, #HW_DRAM_CTL164]
++	bic r1, r1, #BF_DRAM_CTL164_INT_ACK(0xff)
++	bic r1, r1, #BF_DRAM_CTL164_INT_ACK(0x300)
++	str r1, [r0, #HW_DRAM_CTL164]
++
++	ldr r1, [r2, #HW_CLKCTRL_FRAC0]
++	and r1, #BM_CLKCTRL_FRAC0_EMIFRAC
++	ldr r3, [r2, #HW_CLKCTRL_EMI]
++	and r3, #BM_CLKCTRL_EMI_DIV_EMI
++
++/*
++ *	The fractional divider and integer divider must be written in such
++ *	an order to guarantee that when going from a lower frequency to a
++ *	higher frequency that any intermediate frequencies do not exceed
++ *	the final frequency. For this reason, we must make sure to check
++ *	the current divider values with the new divider values and write
++ *	them in the correct order.
++ */
++
++	ldr r9, [r2, #HW_CLKCTRL_FRAC0]
++	bic r9, #BM_CLKCTRL_FRAC0_EMIFRAC
++	orr r9, r8
++
++	ldr r10, [r2, #HW_CLKCTRL_EMI]
++	bic r10, #BM_CLKCTRL_EMI_DIV_EMI
++	orr r10, r7
++
++	cmp r8, r1
++	strgt r9,   [r2, #HW_CLKCTRL_FRAC0]
++	cmp r7, r3
++	strgt r10,  [r2, #HW_CLKCTRL_EMI]
++
++	cmp r8, r1
++	strlt r9,   [r2, #HW_CLKCTRL_FRAC0]
++	cmp r7, r3
++	strlt r10,  [r2, #HW_CLKCTRL_EMI]
++
++	@copy memory setting to iram
++	mov     r3, r0
++	adr     r4, __mx28_emisetting
++	mov 	r6, #MX28_DRAMCTRLREGNUM
++8:	ldr     r5, [r4]
++	str     r5, [r3]
++	add     r3, r3, #4
++	add     r4, r4, #4
++	subs    r6, r6, #1
++	bne 8b
++
++7:      ldr     r1, [r2, #HW_CLKCTRL_EMI]
++        tst     r1, #BM_CLKCTRL_EMI_BUSY_REF_EMI
++	bne     7b
++
++	@Restart memory controller
++	ldr r1, [r0, #HW_DRAM_CTL16]
++	orr r1, #BM_DRAM_CTL16_START
++	str	r1, [r0, #HW_DRAM_CTL16]
++
++	/*Wait DLL is locked*/
++9:
++	ldr r1, [r0, #HW_DRAM_CTL21]
++	tst r1, #BM_DRAM_CTL21_DLLLOCKREG
++	beq 9b
++
++
++    	@11. Exit Memory self-refresh
++	ldr r1, [r0, #HW_DRAM_CTL17]
++	bic r1, r1, #BM_DRAM_CTL17_SREFRESH
++	str r1, [r0, #HW_DRAM_CTL17]
++
++	@Wait Memory device exit into self-refresh
++10:
++	ldr r1, [r0, #HW_DRAM_CTL172]
++	tst r1, #BM_DRAM_CTL172_CKE_STATUS
++	bne 10b
++
++	mov	r2, #MX28_SOC_IO_ADDRESS(DIGCTL_PHYS_ADDR)&0xFF
++	orr	r2, r2, #MX28_SOC_IO_ADDRESS(DIGCTL_PHYS_ADDR)&0xFF00
++	orr	r2, r2, #MX28_SOC_IO_ADDRESS(DIGCTL_PHYS_ADDR)&0xFF0000
++	orr	r2, r2, #MX28_SOC_IO_ADDRESS(DIGCTL_PHYS_ADDR)&0xFF000000
++
++	ldr 	r0, [r2, #HW_DIGCTL_MICROSECONDS];
++	add	r0, #100
++11:	ldr	r1, [r2, #HW_DIGCTL_MICROSECONDS];
++	cmp	r1, r0
++	blt	11b
++
++@ restore regs and return
++	ldmfd   sp!, {r1 - r10, lr}
++	mov	pc, lr
++
++	.space	0x100
++__mxs_temp_stack:
++	.word	0
++__mx28_emisetting:
++	.space MX28_DRAMCTRLREGNUM*4
++
++lock_vector_tlb:
++        mov r1, r0 @ set r1 to the value of the address to be locked down
++        mcr p15,0,r1,c8,c7,1    @ invalidate TLB single entry to ensure that
++                                @ LockAddr is not already in the TLB
++        mrc p15,0,r0,c10,c0,0   @ read the lockdown register
++        orr r0,r0,#1            @ set the preserve bit
++        mcr p15,0,r0,c10,c0,0   @ write to the lockdown register
++        ldr r1,[r1]             @ TLB will miss, and entry will be loaded
++        mrc p15,0,r0,c10,c0,0   @ read the lockdown register (victim will have
++                                @ incremented)
++        bic r0,r0,#1            @ clear preserve bit
++        mcr p15,0,r0,c10,c0,0   @ write to the lockdown registerADR r1,LockAddr
++        mov pc,lr
++
++__mxs_flush_cache_addr:
++	.word	arm926_flush_kern_cache_all
++
++ENTRY(mxs_ram_funcs_sz)
++	.word	. - mxs_ram_freq_scale
++ENTRY(mxs_ram_freq_scale_end)
+diff --git a/arch/arm/mach-mx28/emi_settings.c b/arch/arm/mach-mx28/emi_settings.c
+new file mode 100644
+index 0000000..c70687d
+--- /dev/null
++++ b/arch/arm/mach-mx28/emi_settings.c
+@@ -0,0 +1,679 @@
++/*
++ * Copyright (C) 2009-2010 Freescale Semiconductor, Inc. All Rights Reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License along
++ * with this program; if not, write to the Free Software Foundation, Inc.,
++ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
++ */
++
++#include <linux/kernel.h>
++#include <linux/init.h>
++#include <linux/irq.h>
++#include <linux/clk.h>
++#include <linux/err.h>
++#include <linux/io.h>
++#include <linux/delay.h>
++#include <linux/input.h>
++#include <linux/platform_device.h>
++#include <linux/mmc/host.h>
++#include <linux/phy.h>
++#include <linux/fec.h>
++
++#include <asm/mach/map.h>
++
++#include <mach/mx28.h>
++#include "emi_settings.h"
++
++static unsigned int DRAM_REG[MX28_DRAMCTRLREGNUM];
++unsigned int *get_current_emidata()
++{
++	return DRAM_REG;
++}
++
++void test_emi_change()
++{
++	struct emi_change emi;
++	void (*f) (struct emi_change *, unsigned int *);
++	f = (void *)MX28_OCRAM_BASE;
++	memcpy(f, mxs_ram_freq_scale,
++	       (unsigned int)mxs_ram_freq_scale_end -
++	       (unsigned int)mxs_ram_freq_scale);
++
++	pr_debug("start change emi frequency test\n");
++	pr_debug("begin change 133\n");
++	emi.emi_div = 3;	/* 130Mhz */
++	emi.frac_div = 22;	/* 392Mhz */
++	emi.new_freq = 133;
++	DDR2EmiController_EDE1116_133MHz();
++	f(&emi, get_current_emidata());
++	pr_debug("end change 133\n");
++
++	pr_debug("begin change 166\n");
++	emi.emi_div = 2;	/* 160Mhz */
++	emi.frac_div = 27;	/* 320Mhz */
++	emi.new_freq = 166;
++	DDR2EmiController_EDE1116_166MHz();
++	f(&emi, get_current_emidata());
++	pr_debug("end change 166\n");
++
++	pr_debug("begin change 200\n");
++	emi.emi_div = 2;	/* 192Mhz */
++	emi.frac_div = 22;	/* 392Mhz */
++	emi.new_freq = 200;
++	DDR2EmiController_EDE1116_200MHz();
++	f(&emi, get_current_emidata());
++	pr_debug("end change 200\n");
++
++	pr_debug("begin change 166\n");
++	emi.emi_div = 2;	/* 166Mhz */
++	emi.frac_div = 26;	/* 332Mhz */
++	emi.new_freq = 166;
++	DDR2EmiController_EDE1116_166MHz();
++	f(&emi, get_current_emidata());
++	pr_debug("end change 166\n");
++
++	pr_debug("begin change 133\n");
++	emi.emi_div = 3;	/* 130Mhz */
++	emi.frac_div = 22;	/* 392Mhz */
++	emi.new_freq = 133;
++	DDR2EmiController_EDE1116_133MHz();
++	f(&emi, get_current_emidata());
++	pr_debug("end change 133\n");
++	pr_debug("finish change emi frequency test\n");
++}
++
++void DDR2EmiController_EDE1116_133MHz(void)
++{
++	DRAM_REG[0] = 0x00000000;
++	DRAM_REG[1] = 0x00000000;
++	DRAM_REG[2] = 0x00000000;
++	DRAM_REG[3] = 0x00000000;
++	DRAM_REG[4] = 0x00000000;
++	DRAM_REG[5] = 0x00000000;
++	DRAM_REG[6] = 0x00000000;
++	DRAM_REG[7] = 0x00000000;
++	DRAM_REG[8] = 0x00000000;
++	DRAM_REG[9] = 0x00000000;
++	DRAM_REG[10] = 0x00000000;
++	DRAM_REG[11] = 0x00000000;
++	DRAM_REG[12] = 0x00000000;
++	DRAM_REG[13] = 0x00000000;
++	DRAM_REG[14] = 0x00000000;
++	DRAM_REG[15] = 0x00000000;
++	DRAM_REG[16] = 0x00000000;
++	DRAM_REG[17] = 0x00000100;
++	DRAM_REG[18] = 0x00000000;
++	DRAM_REG[19] = 0x00000000;
++	DRAM_REG[20] = 0x00000000;
++	DRAM_REG[21] = 0x00000000;
++	DRAM_REG[22] = 0x00000000;
++	DRAM_REG[23] = 0x00000000;
++	DRAM_REG[24] = 0x00000000;
++	DRAM_REG[25] = 0x00000000;
++	DRAM_REG[26] = 0x00010101;
++	DRAM_REG[27] = 0x01010101;
++	DRAM_REG[28] = 0x000f0f01;
++	DRAM_REG[29] = 0x0f02020a;
++	DRAM_REG[30] = 0x00000000;
++	DRAM_REG[31] = 0x00010101;
++	DRAM_REG[32] = 0x00000100;
++	DRAM_REG[33] = 0x00000100;
++	DRAM_REG[34] = 0x00000000;
++	DRAM_REG[35] = 0x00000002;
++	DRAM_REG[36] = 0x01010000;
++	DRAM_REG[37] = 0x07080403;
++	DRAM_REG[38] = 0x04003603;
++	DRAM_REG[39] = 0x070000c8;
++	DRAM_REG[40] = 0x0200682b;
++	DRAM_REG[41] = 0x00020208;
++	DRAM_REG[42] = 0x00246c06;
++	DRAM_REG[43] = 0x02110409;
++	DRAM_REG[44] = 0x01020202;
++	DRAM_REG[45] = 0x00c80013;
++	DRAM_REG[46] = 0x00000000;
++	DRAM_REG[47] = 0x00000000;
++	DRAM_REG[48] = 0x00012100;
++	DRAM_REG[49] = 0xffff0303;
++	DRAM_REG[50] = 0x00012100;
++	DRAM_REG[51] = 0xffff0303;
++	DRAM_REG[52] = 0x00012100;
++	DRAM_REG[53] = 0xffff0303;
++	DRAM_REG[54] = 0x00012100;
++	DRAM_REG[55] = 0xffff0303;
++	DRAM_REG[56] = 0x00000003;
++	DRAM_REG[57] = 0x00000000;
++	DRAM_REG[58] = 0x00000000;
++	DRAM_REG[59] = 0x00000000;
++	DRAM_REG[60] = 0x00000000;
++	DRAM_REG[61] = 0x00000000;
++	DRAM_REG[62] = 0x00000000;
++	DRAM_REG[63] = 0x00000000;
++	DRAM_REG[64] = 0x00000000;
++	DRAM_REG[65] = 0x00000000;
++	DRAM_REG[66] = 0x00000409;
++	DRAM_REG[67] = 0x01000f02;
++	DRAM_REG[68] = 0x04090409;
++	DRAM_REG[69] = 0x00000200;
++	DRAM_REG[70] = 0x00020006;
++	DRAM_REG[71] = 0xf4004a27;
++	DRAM_REG[72] = 0xf4004a27;
++	DRAM_REG[73] = 0xf4004a27;
++	DRAM_REG[74] = 0xf4004a27;
++	DRAM_REG[75] = 0x07400300;
++	DRAM_REG[76] = 0x07400300;
++	DRAM_REG[77] = 0x07400300;
++	DRAM_REG[78] = 0x07400300;
++	DRAM_REG[79] = 0x00000005;
++	DRAM_REG[80] = 0x00000000;
++	DRAM_REG[81] = 0x00000000;
++	DRAM_REG[82] = 0x01000000;
++	DRAM_REG[83] = 0x01020408;
++	DRAM_REG[84] = 0x08040201;
++	DRAM_REG[85] = 0x000f1133;
++	DRAM_REG[86] = 0x00000000;
++	DRAM_REG[87] = 0x00001f04;
++	DRAM_REG[88] = 0x00001f04;
++	DRAM_REG[89] = 0x00001f04;
++	DRAM_REG[90] = 0x00001f04;
++	DRAM_REG[91] = 0x00001f04;
++	DRAM_REG[92] = 0x00001f04;
++	DRAM_REG[93] = 0x00001f04;
++	DRAM_REG[94] = 0x00001f04;
++	DRAM_REG[95] = 0x00000000;
++	DRAM_REG[96] = 0x00000000;
++	DRAM_REG[97] = 0x00000000;
++	DRAM_REG[98] = 0x00000000;
++	DRAM_REG[99] = 0x00000000;
++	DRAM_REG[100] = 0x00000000;
++	DRAM_REG[101] = 0x00000000;
++	DRAM_REG[102] = 0x00000000;
++	DRAM_REG[103] = 0x00000000;
++	DRAM_REG[104] = 0x00000000;
++	DRAM_REG[105] = 0x00000000;
++	DRAM_REG[106] = 0x00000000;
++	DRAM_REG[107] = 0x00000000;
++	DRAM_REG[108] = 0x00000000;
++	DRAM_REG[109] = 0x00000000;
++	DRAM_REG[110] = 0x00000000;
++	DRAM_REG[111] = 0x00000000;
++	DRAM_REG[112] = 0x00000000;
++	DRAM_REG[113] = 0x00000000;
++	DRAM_REG[114] = 0x00000000;
++	DRAM_REG[115] = 0x00000000;
++	DRAM_REG[116] = 0x00000000;
++	DRAM_REG[117] = 0x00000000;
++	DRAM_REG[118] = 0x00000000;
++	DRAM_REG[119] = 0x00000000;
++	DRAM_REG[120] = 0x00000000;
++	DRAM_REG[121] = 0x00000000;
++	DRAM_REG[122] = 0x00000000;
++	DRAM_REG[123] = 0x00000000;
++	DRAM_REG[124] = 0x00000000;
++	DRAM_REG[125] = 0x00000000;
++	DRAM_REG[126] = 0x00000000;
++	DRAM_REG[127] = 0x00000000;
++	DRAM_REG[128] = 0x00000000;
++	DRAM_REG[129] = 0x00000000;
++	DRAM_REG[130] = 0x00000000;
++	DRAM_REG[131] = 0x00000000;
++	DRAM_REG[132] = 0x00000000;
++	DRAM_REG[133] = 0x00000000;
++	DRAM_REG[134] = 0x00000000;
++	DRAM_REG[135] = 0x00000000;
++	DRAM_REG[136] = 0x00000000;
++	DRAM_REG[137] = 0x00000000;
++	DRAM_REG[138] = 0x00000000;
++	DRAM_REG[139] = 0x00000000;
++	DRAM_REG[140] = 0x00000000;
++	DRAM_REG[141] = 0x00000000;
++	DRAM_REG[142] = 0x00000000;
++	DRAM_REG[143] = 0x00000000;
++	DRAM_REG[144] = 0x00000000;
++	DRAM_REG[145] = 0x00000000;
++	DRAM_REG[146] = 0x00000000;
++	DRAM_REG[147] = 0x00000000;
++	DRAM_REG[148] = 0x00000000;
++	DRAM_REG[149] = 0x00000000;
++	DRAM_REG[150] = 0x00000000;
++	DRAM_REG[151] = 0x00000000;
++	DRAM_REG[152] = 0x00000000;
++	DRAM_REG[153] = 0x00000000;
++	DRAM_REG[154] = 0x00000000;
++	DRAM_REG[155] = 0x00000000;
++	DRAM_REG[156] = 0x00000000;
++	DRAM_REG[157] = 0x00000000;
++	DRAM_REG[158] = 0x00000000;
++	DRAM_REG[159] = 0x00000000;
++	DRAM_REG[160] = 0x00000000;
++	DRAM_REG[161] = 0x00000000;
++	DRAM_REG[162] = 0x00010000;
++	DRAM_REG[163] = 0x00030404;
++	DRAM_REG[164] = 0x00000002;
++	DRAM_REG[165] = 0x00000000;
++	DRAM_REG[166] = 0x00000000;
++	DRAM_REG[167] = 0x00000000;
++	DRAM_REG[168] = 0x00000000;
++	DRAM_REG[169] = 0x00000000;
++	DRAM_REG[170] = 0x00000000;
++	DRAM_REG[171] = 0x01010000;
++	DRAM_REG[172] = 0x01000000;
++	DRAM_REG[173] = 0x03030000;
++	DRAM_REG[174] = 0x00010303;
++	DRAM_REG[175] = 0x01020202;
++	DRAM_REG[176] = 0x00000000;
++	DRAM_REG[177] = 0x02030303;
++	DRAM_REG[178] = 0x21002103;
++	DRAM_REG[179] = 0x00040900;
++	DRAM_REG[180] = 0x04090409;
++	DRAM_REG[181] = 0x02420242;
++	DRAM_REG[182] = 0x02420242;
++	DRAM_REG[183] = 0x00040004;
++	DRAM_REG[184] = 0x00040004;
++	DRAM_REG[185] = 0x00000000;
++	DRAM_REG[186] = 0x00000000;
++	DRAM_REG[187] = 0x00000000;
++	DRAM_REG[188] = 0x00000000;
++	DRAM_REG[189] = 0xffffffff;
++
++}
++
++void DDR2EmiController_EDE1116_166MHz(void)
++{
++
++	DRAM_REG[0] = 0x00000000;
++	DRAM_REG[1] = 0x00000000;
++	DRAM_REG[2] = 0x00000000;
++	DRAM_REG[3] = 0x00000000;
++	DRAM_REG[4] = 0x00000000;
++	DRAM_REG[5] = 0x00000000;
++	DRAM_REG[6] = 0x00000000;
++	DRAM_REG[7] = 0x00000000;
++	DRAM_REG[8] = 0x00000000;
++	DRAM_REG[9] = 0x00000000;
++	DRAM_REG[10] = 0x00000000;
++	DRAM_REG[11] = 0x00000000;
++	DRAM_REG[12] = 0x00000000;
++	DRAM_REG[13] = 0x00000000;
++	DRAM_REG[14] = 0x00000000;
++	DRAM_REG[15] = 0x00000000;
++	DRAM_REG[16] = 0x00000000;
++	DRAM_REG[17] = 0x00000100;
++	DRAM_REG[18] = 0x00000000;
++	DRAM_REG[19] = 0x00000000;
++	DRAM_REG[20] = 0x00000000;
++	DRAM_REG[21] = 0x00000000;
++	DRAM_REG[22] = 0x00000000;
++	DRAM_REG[23] = 0x00000000;
++	DRAM_REG[24] = 0x00000000;
++	DRAM_REG[25] = 0x00000000;
++	DRAM_REG[26] = 0x00010101;
++	DRAM_REG[27] = 0x01010101;
++	DRAM_REG[28] = 0x000f0f01;
++	DRAM_REG[29] = 0x0f02020a;
++	DRAM_REG[30] = 0x00000000;
++	DRAM_REG[31] = 0x00010101;
++	DRAM_REG[32] = 0x00000100;
++	DRAM_REG[33] = 0x00000100;
++	DRAM_REG[34] = 0x00000000;
++	DRAM_REG[35] = 0x00000002;
++	DRAM_REG[36] = 0x01010000;
++	DRAM_REG[37] = 0x07080403;
++	DRAM_REG[38] = 0x06004303;
++	DRAM_REG[39] = 0x090000c8;
++	DRAM_REG[40] = 0x02008236;
++	DRAM_REG[41] = 0x0002030a;
++	DRAM_REG[42] = 0x002d8908;
++	DRAM_REG[43] = 0x0316050e;
++	DRAM_REG[44] = 0x02030202;
++	DRAM_REG[45] = 0x00c80017;
++	DRAM_REG[46] = 0x00000000;
++	DRAM_REG[47] = 0x00000000;
++	DRAM_REG[48] = 0x00012100;
++	DRAM_REG[49] = 0xffff0303;
++	DRAM_REG[50] = 0x00012100;
++	DRAM_REG[51] = 0xff000303;
++	DRAM_REG[52] = 0x00012100;
++	DRAM_REG[53] = 0xffff0303;
++	DRAM_REG[54] = 0x00012100;
++	DRAM_REG[55] = 0xffff0303;
++	DRAM_REG[56] = 0x00000003;
++	DRAM_REG[57] = 0x00000000;
++	DRAM_REG[58] = 0x00000000;
++	DRAM_REG[59] = 0x00000000;
++	DRAM_REG[60] = 0x00000000;
++	DRAM_REG[61] = 0x00000000;
++	DRAM_REG[62] = 0x00000000;
++	DRAM_REG[63] = 0x00000000;
++	DRAM_REG[64] = 0x00000000;
++	DRAM_REG[65] = 0x00000000;
++	DRAM_REG[66] = 0x0000050e;
++	DRAM_REG[67] = 0x01000f02;
++	DRAM_REG[68] = 0x050e050e;
++	DRAM_REG[69] = 0x00000200;
++	DRAM_REG[70] = 0x00020007;
++	DRAM_REG[71] = 0xf5004a27;
++	DRAM_REG[72] = 0xf5004a27;
++	DRAM_REG[73] = 0xf5004a27;
++	DRAM_REG[74] = 0xf5004a27;
++	DRAM_REG[75] = 0x07400300;
++	DRAM_REG[76] = 0x07400300;
++	DRAM_REG[77] = 0x07400300;
++	DRAM_REG[78] = 0x07400300;
++	DRAM_REG[79] = 0x00000006;
++	DRAM_REG[80] = 0x00000000;
++	DRAM_REG[81] = 0x00000000;
++	DRAM_REG[82] = 0x01000000;
++	DRAM_REG[83] = 0x01020408;
++	DRAM_REG[84] = 0x08040201;
++	DRAM_REG[85] = 0x000f1133;
++	DRAM_REG[86] = 0x00000000;
++	DRAM_REG[87] = 0x00001f04;
++	DRAM_REG[88] = 0x00001f04;
++	DRAM_REG[89] = 0x00001f04;
++	DRAM_REG[90] = 0x00001f04;
++	DRAM_REG[91] = 0x00001f04;
++	DRAM_REG[92] = 0x00001f04;
++	DRAM_REG[93] = 0x00001f04;
++	DRAM_REG[94] = 0x00001f04;
++	DRAM_REG[95] = 0x00000000;
++	DRAM_REG[96] = 0x00000000;
++	DRAM_REG[97] = 0x00000000;
++	DRAM_REG[98] = 0x00000000;
++	DRAM_REG[99] = 0x00000000;
++	DRAM_REG[100] = 0x00000000;
++	DRAM_REG[101] = 0x00000000;
++	DRAM_REG[102] = 0x00000000;
++	DRAM_REG[103] = 0x00000000;
++	DRAM_REG[104] = 0x00000000;
++	DRAM_REG[105] = 0x00000000;
++	DRAM_REG[106] = 0x00000000;
++	DRAM_REG[107] = 0x00000000;
++	DRAM_REG[108] = 0x00000000;
++	DRAM_REG[109] = 0x00000000;
++	DRAM_REG[110] = 0x00000000;
++	DRAM_REG[111] = 0x00000000;
++	DRAM_REG[112] = 0x00000000;
++	DRAM_REG[113] = 0x00000000;
++	DRAM_REG[114] = 0x00000000;
++	DRAM_REG[115] = 0x00000000;
++	DRAM_REG[116] = 0x00000000;
++	DRAM_REG[117] = 0x00000000;
++	DRAM_REG[118] = 0x00000000;
++	DRAM_REG[119] = 0x00000000;
++	DRAM_REG[120] = 0x00000000;
++	DRAM_REG[121] = 0x00000000;
++	DRAM_REG[122] = 0x00000000;
++	DRAM_REG[123] = 0x00000000;
++	DRAM_REG[124] = 0x00000000;
++	DRAM_REG[125] = 0x00000000;
++	DRAM_REG[126] = 0x00000000;
++	DRAM_REG[127] = 0x00000000;
++	DRAM_REG[128] = 0x00000000;
++	DRAM_REG[129] = 0x00000000;
++	DRAM_REG[130] = 0x00000000;
++	DRAM_REG[131] = 0x00000000;
++	DRAM_REG[132] = 0x00000000;
++	DRAM_REG[133] = 0x00000000;
++	DRAM_REG[134] = 0x00000000;
++	DRAM_REG[135] = 0x00000000;
++	DRAM_REG[136] = 0x00000000;
++	DRAM_REG[137] = 0x00000000;
++	DRAM_REG[138] = 0x00000000;
++	DRAM_REG[139] = 0x00000000;
++	DRAM_REG[140] = 0x00000000;
++	DRAM_REG[141] = 0x00000000;
++	DRAM_REG[142] = 0x00000000;
++	DRAM_REG[143] = 0x00000000;
++	DRAM_REG[144] = 0x00000000;
++	DRAM_REG[145] = 0x00000000;
++	DRAM_REG[146] = 0x00000000;
++	DRAM_REG[147] = 0x00000000;
++	DRAM_REG[148] = 0x00000000;
++	DRAM_REG[149] = 0x00000000;
++	DRAM_REG[150] = 0x00000000;
++	DRAM_REG[151] = 0x00000000;
++	DRAM_REG[152] = 0x00000000;
++	DRAM_REG[153] = 0x00000000;
++	DRAM_REG[154] = 0x00000000;
++	DRAM_REG[155] = 0x00000000;
++	DRAM_REG[156] = 0x00000000;
++	DRAM_REG[157] = 0x00000000;
++	DRAM_REG[158] = 0x00000000;
++	DRAM_REG[159] = 0x00000000;
++	DRAM_REG[160] = 0x00000000;
++	DRAM_REG[161] = 0x00000000;
++	DRAM_REG[162] = 0x00010000;
++	DRAM_REG[163] = 0x00030404;
++	DRAM_REG[164] = 0x00000002;
++	DRAM_REG[165] = 0x00000000;
++	DRAM_REG[166] = 0x00000000;
++	DRAM_REG[167] = 0x00000000;
++	DRAM_REG[168] = 0x00000000;
++	DRAM_REG[169] = 0x00000000;
++	DRAM_REG[170] = 0x00000000;
++	DRAM_REG[171] = 0x01010000;
++	DRAM_REG[172] = 0x01000000;
++	DRAM_REG[173] = 0x03030000;
++	DRAM_REG[174] = 0x00010303;
++	DRAM_REG[175] = 0x01020202;
++	DRAM_REG[176] = 0x00000000;
++	DRAM_REG[177] = 0x02040303;
++	DRAM_REG[178] = 0x21002103;
++	DRAM_REG[179] = 0x00050e00;
++	DRAM_REG[180] = 0x050e050e;
++	DRAM_REG[181] = 0x04420442;
++	DRAM_REG[182] = 0x04420442;
++	DRAM_REG[183] = 0x00040004;
++	DRAM_REG[184] = 0x00040004;
++	DRAM_REG[185] = 0x00000000;
++	DRAM_REG[186] = 0x00000000;
++	DRAM_REG[187] = 0x00000000;
++	DRAM_REG[188] = 0x00000000;
++	DRAM_REG[189] = 0xffffffff;
++
++}
++
++void DDR2EmiController_EDE1116_200MHz(void)
++{
++	DRAM_REG[0] = 0x00000000;
++	DRAM_REG[1] = 0x00000000;
++	DRAM_REG[2] = 0x00000000;
++	DRAM_REG[3] = 0x00000000;
++	DRAM_REG[4] = 0x00000000;
++	DRAM_REG[5] = 0x00000000;
++	DRAM_REG[6] = 0x00000000;
++	DRAM_REG[7] = 0x00000000;
++	DRAM_REG[8] = 0x00000000;
++	DRAM_REG[9] = 0x00000000;
++	DRAM_REG[10] = 0x00000000;
++	DRAM_REG[11] = 0x00000000;
++	DRAM_REG[12] = 0x00000000;
++	DRAM_REG[13] = 0x00000000;
++	DRAM_REG[14] = 0x00000000;
++	DRAM_REG[15] = 0x00000000;
++	DRAM_REG[16] = 0x00000000;
++	DRAM_REG[17] = 0x00000100;
++	DRAM_REG[18] = 0x00000000;
++	DRAM_REG[19] = 0x00000000;
++	DRAM_REG[20] = 0x00000000;
++	DRAM_REG[21] = 0x00000000;
++	DRAM_REG[22] = 0x00000000;
++	DRAM_REG[23] = 0x00000000;
++	DRAM_REG[24] = 0x00000000;
++	DRAM_REG[25] = 0x00000000;
++	DRAM_REG[26] = 0x00010101;
++	DRAM_REG[27] = 0x01010101;
++	DRAM_REG[28] = 0x000f0f01;
++	DRAM_REG[29] = 0x0f02020a;
++	DRAM_REG[30] = 0x00000000;
++	DRAM_REG[31] = 0x00010101;
++	DRAM_REG[32] = 0x00000100;
++	DRAM_REG[33] = 0x00000100;
++	DRAM_REG[34] = 0x00000000;
++	DRAM_REG[35] = 0x00000002;
++	DRAM_REG[36] = 0x01010000;
++	DRAM_REG[37] = 0x07080403;
++	DRAM_REG[38] = 0x06005003;
++	DRAM_REG[39] = 0x0a0000c8;
++	DRAM_REG[40] = 0x02009c40;
++	DRAM_REG[41] = 0x0002030c;
++	DRAM_REG[42] = 0x0036a609;
++	DRAM_REG[43] = 0x031a0612;
++	DRAM_REG[44] = 0x02030202;
++	DRAM_REG[45] = 0x00c8001c;
++	DRAM_REG[46] = 0x00000000;
++	DRAM_REG[47] = 0x00000000;
++	DRAM_REG[48] = 0x00012100;
++	DRAM_REG[49] = 0xffff0303;
++	DRAM_REG[50] = 0x00012100;
++	DRAM_REG[51] = 0xffff0303;
++	DRAM_REG[52] = 0x00012100;
++	DRAM_REG[53] = 0xffff0303;
++	DRAM_REG[54] = 0x00012100;
++	DRAM_REG[55] = 0xffff0303;
++	DRAM_REG[56] = 0x00000003;
++	DRAM_REG[57] = 0x00000000;
++	DRAM_REG[58] = 0x00000000;
++	DRAM_REG[59] = 0x00000000;
++	DRAM_REG[60] = 0x00000000;
++	DRAM_REG[61] = 0x00000000;
++	DRAM_REG[62] = 0x00000000;
++	DRAM_REG[63] = 0x00000000;
++	DRAM_REG[64] = 0x00000000;
++	DRAM_REG[65] = 0x00000000;
++	DRAM_REG[66] = 0x00000612;
++	DRAM_REG[67] = 0x01000f02;
++	DRAM_REG[68] = 0x06120612;
++	DRAM_REG[69] = 0x00000200;
++	DRAM_REG[70] = 0x00020007;
++	DRAM_REG[71] = 0xf4004a27;
++	DRAM_REG[72] = 0xf4004a27;
++	DRAM_REG[73] = 0xf4004a27;
++	DRAM_REG[74] = 0xf4004a27;
++	DRAM_REG[75] = 0x07400300;
++	DRAM_REG[76] = 0x07400300;
++	DRAM_REG[77] = 0x07400300;
++	DRAM_REG[78] = 0x07400300;
++	DRAM_REG[79] = 0x00000005;
++	DRAM_REG[80] = 0x00000000;
++	DRAM_REG[81] = 0x00000000;
++	DRAM_REG[82] = 0x01000000;
++	DRAM_REG[83] = 0x01020408;
++	DRAM_REG[84] = 0x08040201;
++	DRAM_REG[85] = 0x000f1133;
++	DRAM_REG[86] = 0x00000000;
++	DRAM_REG[87] = 0x00001f04;
++	DRAM_REG[88] = 0x00001f04;
++	DRAM_REG[89] = 0x00001f04;
++	DRAM_REG[90] = 0x00001f04;
++	DRAM_REG[91] = 0x00001f04;
++	DRAM_REG[92] = 0x00001f04;
++	DRAM_REG[93] = 0x00001f04;
++	DRAM_REG[94] = 0x00001f04;
++	DRAM_REG[95] = 0x00000000;
++	DRAM_REG[96] = 0x00000000;
++	DRAM_REG[97] = 0x00000000;
++	DRAM_REG[98] = 0x00000000;
++	DRAM_REG[99] = 0x00000000;
++	DRAM_REG[100] = 0x00000000;
++	DRAM_REG[101] = 0x00000000;
++	DRAM_REG[102] = 0x00000000;
++	DRAM_REG[103] = 0x00000000;
++	DRAM_REG[104] = 0x00000000;
++	DRAM_REG[105] = 0x00000000;
++	DRAM_REG[106] = 0x00000000;
++	DRAM_REG[107] = 0x00000000;
++	DRAM_REG[108] = 0x00000000;
++	DRAM_REG[109] = 0x00000000;
++	DRAM_REG[110] = 0x00000000;
++	DRAM_REG[111] = 0x00000000;
++	DRAM_REG[112] = 0x00000000;
++	DRAM_REG[113] = 0x00000000;
++	DRAM_REG[114] = 0x00000000;
++	DRAM_REG[115] = 0x00000000;
++	DRAM_REG[116] = 0x00000000;
++	DRAM_REG[117] = 0x00000000;
++	DRAM_REG[118] = 0x00000000;
++	DRAM_REG[119] = 0x00000000;
++	DRAM_REG[120] = 0x00000000;
++	DRAM_REG[121] = 0x00000000;
++	DRAM_REG[122] = 0x00000000;
++	DRAM_REG[123] = 0x00000000;
++	DRAM_REG[124] = 0x00000000;
++	DRAM_REG[125] = 0x00000000;
++	DRAM_REG[126] = 0x00000000;
++	DRAM_REG[127] = 0x00000000;
++	DRAM_REG[128] = 0x00000000;
++	DRAM_REG[129] = 0x00000000;
++	DRAM_REG[130] = 0x00000000;
++	DRAM_REG[131] = 0x00000000;
++	DRAM_REG[132] = 0x00000000;
++	DRAM_REG[133] = 0x00000000;
++	DRAM_REG[134] = 0x00000000;
++	DRAM_REG[135] = 0x00000000;
++	DRAM_REG[136] = 0x00000000;
++	DRAM_REG[137] = 0x00000000;
++	DRAM_REG[138] = 0x00000000;
++	DRAM_REG[139] = 0x00000000;
++	DRAM_REG[140] = 0x00000000;
++	DRAM_REG[141] = 0x00000000;
++	DRAM_REG[142] = 0x00000000;
++	DRAM_REG[143] = 0x00000000;
++	DRAM_REG[144] = 0x00000000;
++	DRAM_REG[145] = 0x00000000;
++	DRAM_REG[146] = 0x00000000;
++	DRAM_REG[147] = 0x00000000;
++	DRAM_REG[148] = 0x00000000;
++	DRAM_REG[149] = 0x00000000;
++	DRAM_REG[150] = 0x00000000;
++	DRAM_REG[151] = 0x00000000;
++	DRAM_REG[152] = 0x00000000;
++	DRAM_REG[153] = 0x00000000;
++	DRAM_REG[154] = 0x00000000;
++	DRAM_REG[155] = 0x00000000;
++	DRAM_REG[156] = 0x00000000;
++	DRAM_REG[157] = 0x00000000;
++	DRAM_REG[158] = 0x00000000;
++	DRAM_REG[159] = 0x00000000;
++	DRAM_REG[160] = 0x00000000;
++	DRAM_REG[161] = 0x00000000;
++	DRAM_REG[162] = 0x00010000;
++	DRAM_REG[163] = 0x00030404;
++	DRAM_REG[164] = 0x00000003;
++	DRAM_REG[165] = 0x00000000;
++	DRAM_REG[166] = 0x00000000;
++	DRAM_REG[167] = 0x00000000;
++	DRAM_REG[168] = 0x00000000;
++	DRAM_REG[169] = 0x00000000;
++	DRAM_REG[170] = 0x00000000;
++	DRAM_REG[171] = 0x01010000;
++	DRAM_REG[172] = 0x01000000;
++	DRAM_REG[173] = 0x03030000;
++	DRAM_REG[174] = 0x00010303;
++	DRAM_REG[175] = 0x01020202;
++	DRAM_REG[176] = 0x00000000;
++	DRAM_REG[177] = 0x02040303;
++	DRAM_REG[178] = 0x21002103;
++	DRAM_REG[179] = 0x00061200;
++	DRAM_REG[180] = 0x06120612;
++	DRAM_REG[181] = 0x04420442;
++	DRAM_REG[182] = 0x04420442;
++	DRAM_REG[183] = 0x00040004;
++	DRAM_REG[184] = 0x00040004;
++	DRAM_REG[185] = 0x00000000;
++	DRAM_REG[186] = 0x00000000;
++	DRAM_REG[187] = 0x00000000;
++	DRAM_REG[188] = 0x00000000;
++	DRAM_REG[189] = 0xffffffff;
++
++}
+diff --git a/arch/arm/mach-mx28/emi_settings.h b/arch/arm/mach-mx28/emi_settings.h
+new file mode 100644
+index 0000000..37e07f3
+--- /dev/null
++++ b/arch/arm/mach-mx28/emi_settings.h
+@@ -0,0 +1,43 @@
++/*
++ * Copyright (C) 2009-2010 Freescale Semiconductor, Inc. All Rights Reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License along
++ * with this program; if not, write to the Free Software Foundation, Inc.,
++ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
++ */
++
++#ifndef _EMI_SETTINGS_H_
++#define _EMI_SETTINGS_H_
++
++#define MX28_DRAMCTRLREGNUM 190
++
++#define SCALING_DATA_EMI_DIV_OFFSET     0
++#define SCALING_DATA_FRAC_DIV_OFFSET    4
++#define SCALING_DATA_CUR_FREQ_OFFSET    8
++#define SCALING_DATA_NEW_FREQ_OFFSET    12
++
++#ifndef __ASSEMBLER__
++struct emi_change {
++	unsigned int emi_div;
++	unsigned int frac_div;
++	unsigned cur_freq;
++	unsigned new_freq;
++};
++int mxs_ram_freq_scale(struct emi_change *emi);
++void mxs_ram_freq_scale_end();
++void DDR2EmiController_EDE1116_133MHz();
++void DDR2EmiController_EDE1116_166MHz();
++void DDR2EmiController_EDE1116_200MHz();
++#endif
++
++#endif
+diff --git a/arch/arm/mach-mx28/include/mach/mx28.h b/arch/arm/mach-mx28/include/mach/mx28.h
+index 465336b..f74b894 100644
+--- a/arch/arm/mach-mx28/include/mach/mx28.h
++++ b/arch/arm/mach-mx28/include/mach/mx28.h
+@@ -25,6 +25,16 @@
+ #define MX28_SOC_IO_VIRT_BASE	0xF0000000
+ #define MX28_SOC_IO_AREA_SIZE	SZ_1M
+ 
++/* Virtual address where OCRAM is mapped */
++#define MX28_OCRAM_PHBASE   0x00000000
++#ifdef __ASSEMBLER__
++#define MX28_OCRAM_BASE     0xf1000000
++#else
++#define MX28_OCRAM_BASE     (void __iomem *)0xf1000000
++#endif
++#define MX28_OCRAM_SIZE     (128 * SZ_1K)
++
++
+ #define ICOLL_PHYS_ADDR		(MX28_SOC_IO_PHYS_BASE + 0x000000)
+ #define HSADC_PHYS_ADDR		(MX28_SOC_IO_PHYS_BASE + 0x002000)
+ #define APBH_DMA_PHYS_ADDR	(MX28_SOC_IO_PHYS_BASE + 0x004000)
+diff --git a/arch/arm/plat-mxs/Kconfig b/arch/arm/plat-mxs/Kconfig
+index 22ad702..897e185 100644
+--- a/arch/arm/plat-mxs/Kconfig
++++ b/arch/arm/plat-mxs/Kconfig
+@@ -149,6 +149,10 @@ config MXS_AUART4_DMA_ENABLE
+ 	help
+ 	  Set application uart 4 to dma mode
+ 
++config MXS_RAM_FREQ_SCALING
++        bool "RAM frequency scaling support"
++        depends on ARCH_MXS
++        default y
+ endmenu
+ 
+ endif
+-- 
+1.5.4.4
+

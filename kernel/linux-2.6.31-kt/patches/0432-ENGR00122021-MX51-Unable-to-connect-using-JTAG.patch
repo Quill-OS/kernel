@@ -1,0 +1,28 @@
+From 7574d44d5d2021fb09ce465c3dc43aad905660cf Mon Sep 17 00:00:00 2001
+From: Ranjani Vaidyanathan-RA5478 <Ranjani.Vaidyanathan@freescale.com>
+Date: Thu, 25 Mar 2010 14:57:13 -0500
+Subject: [PATCH] ENGR00122021: MX51: Unable to connect using JTAG
+
+Fix the clock code so that ARM_DEBUG clocks are ON when jtag=on is passed in
+the command line.
+
+Signed-off-by: Ranjani Vaidyanathan-RA5478 <Ranjani.Vaidyanathan@freescale.com>
+---
+ arch/arm/mach-mx5/clock.c |    1 +
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+
+diff --git a/arch/arm/mach-mx5/clock.c b/arch/arm/mach-mx5/clock.c
+index 3d81ff4..57d28f9 100644
+--- a/arch/arm/mach-mx5/clock.c
++++ b/arch/arm/mach-mx5/clock.c
+@@ -4118,6 +4118,7 @@ int __init mx51_clocks_init(unsigned long ckil, unsigned long osc, unsigned long
+ 	if (mxc_jtag_enabled) {
+ 		__raw_writel(1 << MXC_CCM_CCGR0_CG0_OFFSET |
+ 			      1 << MXC_CCM_CCGR0_CG1_OFFSET |
++			      1 << MXC_CCM_CCGR0_CG2_OFFSET |
+ 			      3 << MXC_CCM_CCGR0_CG3_OFFSET |
+ 			      3 << MXC_CCM_CCGR0_CG4_OFFSET |
+ 			      3 << MXC_CCM_CCGR0_CG8_OFFSET |
+-- 
+1.5.4.4
+

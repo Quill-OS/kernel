@@ -1,0 +1,281 @@
+From 41d36495e1614bbec3230468932433740485b99c Mon Sep 17 00:00:00 2001
+From: Frank Li <Frank.Li@freescale.com>
+Date: Tue, 23 Feb 2010 11:15:44 +0800
+Subject: [PATCH] ENGR00121050 Fix IMX233 Build Error after usb use iram alloc
+
+Fix imx233 build error when usb driver use iram alloc function
+
+Signed-off-by: Frank Li <Frank.Li@freescale.com>
+---
+ arch/arm/configs/imx233_defconfig              |   20 ++++----
+ arch/arm/mach-stmp378x/stmp378x_devb.c         |    4 +-
+ arch/arm/plat-stmp3xxx/Kconfig                 |    5 ++
+ arch/arm/plat-stmp3xxx/Makefile                |    1 +
+ arch/arm/plat-stmp3xxx/include/mach/arc_otg.h  |    9 +++-
+ arch/arm/plat-stmp3xxx/include/mach/stmp3xxx.h |    3 +-
+ arch/arm/plat-stmp3xxx/iram.c                  |   62 ++++++++++++++++++++++++
+ 7 files changed, 90 insertions(+), 14 deletions(-)
+
+diff --git a/arch/arm/configs/imx233_defconfig b/arch/arm/configs/imx233_defconfig
+index e055b80..de831a1 100644
+--- a/arch/arm/configs/imx233_defconfig
++++ b/arch/arm/configs/imx233_defconfig
+@@ -1,7 +1,7 @@
+ #
+ # Automatically generated make config: don't edit
+ # Linux kernel version: 2.6.31
+-# Tue Nov 17 16:37:19 2009
++# Tue Feb 23 11:04:35 2010
+ #
+ CONFIG_ARM=y
+ CONFIG_SYS_SUPPORTS_APM_EMULATION=y
+@@ -20,6 +20,7 @@ CONFIG_RWSEM_GENERIC_SPINLOCK=y
+ CONFIG_GENERIC_HWEIGHT=y
+ CONFIG_GENERIC_CALIBRATE_DELAY=y
+ CONFIG_ZONE_DMA=y
++CONFIG_FIQ=y
+ CONFIG_GENERIC_HARDIRQS_NO__DO_IRQ=y
+ CONFIG_VECTORS_BASE=0xffff0000
+ CONFIG_DEFCONFIG_LIST="/lib/modules/$UNAME_RELEASE/.config"
+@@ -184,6 +185,7 @@ CONFIG_ARCH_STMP3XXX=y
+ CONFIG_ARCH_STMP378X=y
+ # CONFIG_MACH_STMP37XX is not set
+ CONFIG_MACH_STMP378X=y
++CONFIG_IRAM_ALLOC=y
+ CONFIG_FB_STMP37XX_LMS350=y
+ CONFIG_FB_STMP37XX_LMS430=y
+ CONFIG_FB_STMP378X_TVENC=y
+@@ -193,7 +195,7 @@ CONFIG_STMP378X_RAM_FREQ_SCALING=y
+ # CONFIG_STMP378X_RAM_MDDR is not set
+ CONFIG_STMP378X_RAM_DDR=y
+ CONFIG_DMA_ZONE_SIZE=12
+-CONFIG_UTMI_MXC=y
++CONFIG_VECTORS_PHY_ADDR=0
+ 
+ #
+ # Processor Type
+@@ -515,6 +517,7 @@ CONFIG_MTD_CFI_I2=y
+ # Self-contained MTD device drivers
+ #
+ # CONFIG_MTD_DATAFLASH is not set
++# CONFIG_MTD_MXC_DATAFLASH is not set
+ # CONFIG_MTD_M25P80 is not set
+ # CONFIG_MTD_SLRAM is not set
+ # CONFIG_MTD_PHRAM is not set
+@@ -563,6 +566,7 @@ CONFIG_MTD_UBI_GLUEBI=y
+ # UBI debugging options
+ #
+ # CONFIG_MTD_UBI_DEBUG is not set
++# CONFIG_MTD_UBI_BLOCK is not set
+ # CONFIG_PARPORT is not set
+ CONFIG_BLK_DEV=y
+ # CONFIG_BLK_DEV_COW_COMMON is not set
+@@ -1214,10 +1218,6 @@ CONFIG_USB_EHCI_HCD=m
+ CONFIG_USB_EHCI_ARC=y
+ CONFIG_USB_EHCI_ARC_OTG=y
+ # CONFIG_USB_STATIC_IRAM is not set
+-# CONFIG_USB_EHCI_FSL_MC13783 is not set
+-# CONFIG_USB_EHCI_FSL_1301 is not set
+-# CONFIG_USB_EHCI_FSL_1504 is not set
+-CONFIG_USB_EHCI_FSL_UTMI=y
+ CONFIG_USB_EHCI_ROOT_HUB_TT=y
+ # CONFIG_USB_EHCI_TT_NEWSCHED is not set
+ # CONFIG_USB_OXU210HP_HCD is not set
+@@ -1319,11 +1319,6 @@ CONFIG_USB_ARC=m
+ # CONFIG_USB_GADGET_LANGWELL is not set
+ # CONFIG_USB_GADGET_DUMMY_HCD is not set
+ CONFIG_USB_GADGET_DUALSPEED=y
+-CONFIG_USB_GADGET_ARC_OTG=y
+-# CONFIG_USB_GADGET_FSL_MC13783 is not set
+-# CONFIG_USB_GADGET_FSL_1301 is not set
+-# CONFIG_USB_GADGET_FSL_1504 is not set
+-CONFIG_USB_GADGET_FSL_UTMI=y
+ # CONFIG_USB_ZERO is not set
+ # CONFIG_USB_AUDIO is not set
+ CONFIG_USB_ETH=m
+@@ -1340,8 +1335,10 @@ CONFIG_USB_G_SERIAL=m
+ #
+ # OTG and related infrastructure
+ #
++CONFIG_USB_OTG_UTILS=y
+ # CONFIG_USB_GPIO_VBUS is not set
+ # CONFIG_NOP_USB_XCEIV is not set
++# CONFIG_MXC_OTG is not set
+ CONFIG_MMC=y
+ # CONFIG_MMC_DEBUG is not set
+ CONFIG_MMC_UNSAFE_RESUME=y
+@@ -1783,6 +1780,7 @@ CONFIG_ZLIB_INFLATE=y
+ CONFIG_ZLIB_DEFLATE=y
+ CONFIG_LZO_COMPRESS=y
+ CONFIG_LZO_DECOMPRESS=y
++CONFIG_GENERIC_ALLOCATOR=y
+ CONFIG_HAS_IOMEM=y
+ CONFIG_HAS_IOPORT=y
+ CONFIG_HAS_DMA=y
+diff --git a/arch/arm/mach-stmp378x/stmp378x_devb.c b/arch/arm/mach-stmp378x/stmp378x_devb.c
+index 56a9743..c86a3d0 100644
+--- a/arch/arm/mach-stmp378x/stmp378x_devb.c
++++ b/arch/arm/mach-stmp378x/stmp378x_devb.c
+@@ -3,7 +3,7 @@
+  *
+  * Embedded Alley Solutions, Inc <source@embeddedalley.com>
+  *
+- * Copyright 2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2009-2010 Freescale Semiconductor, Inc.
+  * Copyright 2008 Embedded Alley Solutions, Inc All Rights Reserved.
+  */
+ 
+@@ -369,6 +369,8 @@ static void __init stmp378x_devb_init(void)
+ 
+ 	/* init stmp3xxx platform */
+ 	stmp3xxx_init();
++	/* Init iram allocate */
++	iram_init(STMP3XXX_OCRAM_PHBASE, STMP3XXX_OCRAM_SIZE);
+ 
+ 	stmp3xxx_dbguart.dev.platform_data = dbguart_pinmux;
+ 	stmp3xxx_appuart.dev.platform_data = appuart_pinmux;
+diff --git a/arch/arm/plat-stmp3xxx/Kconfig b/arch/arm/plat-stmp3xxx/Kconfig
+index e6253be..e8bb683 100644
+--- a/arch/arm/plat-stmp3xxx/Kconfig
++++ b/arch/arm/plat-stmp3xxx/Kconfig
+@@ -34,6 +34,11 @@ config MACH_STMP378X
+ 
+ endchoice
+ 
++config IRAM_ALLOC
++	bool
++	default y
++	select GENERIC_ALLOCATOR
++
+ source arch/arm/mach-stmp378x/Kconfig
+ 
+ endmenu
+diff --git a/arch/arm/plat-stmp3xxx/Makefile b/arch/arm/plat-stmp3xxx/Makefile
+index 2391d1f..c67013c 100644
+--- a/arch/arm/plat-stmp3xxx/Makefile
++++ b/arch/arm/plat-stmp3xxx/Makefile
+@@ -7,6 +7,7 @@ obj-y += core.o timer.o irq.o dma.o clock.o pinmux.o devices.o \
+ 	  power-test.o
+ 
+ obj-$(CONFIG_ARCH_STMP378X) += dcp-bootstream.o usb_common.o utmixc.o
++obj-$(CONFIG_IRAM_ALLOC) += iram.o
+ 
+ # Power Management
+ obj-$(CONFIG_CPU_FREQ) += cpufreq.o
+diff --git a/arch/arm/plat-stmp3xxx/include/mach/arc_otg.h b/arch/arm/plat-stmp3xxx/include/mach/arc_otg.h
+index e0213b2..5b2330b 100644
+--- a/arch/arm/plat-stmp3xxx/include/mach/arc_otg.h
++++ b/arch/arm/plat-stmp3xxx/include/mach/arc_otg.h
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2005-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2005-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  */
+ 
+ /*
+@@ -15,6 +15,13 @@
+ 
+ #include <mach/hardware.h>
+ 
++#if defined(CONFIG_USB_STATIC_IRAM) \
++    || defined(CONFIG_USB_STATIC_IRAM_PPH)
++#define USB_IRAM_SIZE   SZ_8K
++#else
++#define USB_IRAM_SIZE 0
++#endif
++
+ /*
+  * register bits
+  */
+diff --git a/arch/arm/plat-stmp3xxx/include/mach/stmp3xxx.h b/arch/arm/plat-stmp3xxx/include/mach/stmp3xxx.h
+index 3139914..0f42743 100644
+--- a/arch/arm/plat-stmp3xxx/include/mach/stmp3xxx.h
++++ b/arch/arm/plat-stmp3xxx/include/mach/stmp3xxx.h
+@@ -3,7 +3,7 @@
+  *
+  * Embedded Alley Solutions, Inc <source@embeddedalley.com>
+  *
+- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
++ * Copyright 2008-2010 Freescale Semiconductor, Inc.
+  * Copyright 2008 Embedded Alley Solutions, Inc All Rights Reserved.
+  */
+ 
+@@ -58,6 +58,7 @@ struct stmp3xxx_usb_platform_data {
+ 
+ void stmp3xxx_init_irq(struct irq_chip *chip);
+ void stmp3xxx_init(void);
++int iram_init(unsigned long base, unsigned long size);
+ int stmp3xxx_reset_block(void __iomem *hwreg, int just_enable);
+ extern struct platform_device stmp3xxx_dbguart,
+ 			      stmp3xxx_appuart,
+diff --git a/arch/arm/plat-stmp3xxx/iram.c b/arch/arm/plat-stmp3xxx/iram.c
+new file mode 100644
+index 0000000..3d2a391
+--- /dev/null
++++ b/arch/arm/plat-stmp3xxx/iram.c
+@@ -0,0 +1,62 @@
++/*
++ * Copyright (C) 2010 Freescale Semiconductor, Inc. All Rights Reserved.
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version 2
++ * of the License, or (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
++ * MA 02110-1301, USA.
++ */
++
++#include <linux/kernel.h>
++#include <linux/io.h>
++#include <linux/module.h>
++#include <linux/spinlock.h>
++#include <linux/genalloc.h>
++
++static unsigned long iram_phys_base;
++static __iomem void *iram_virt_base;
++static struct gen_pool *iram_pool;
++
++#define iram_phys_to_virt(p) (iram_virt_base + ((p) - iram_phys_base))
++
++void *iram_alloc(unsigned int size, unsigned long *dma_addr)
++{
++	if (!iram_pool)
++		return NULL;
++
++	*dma_addr = gen_pool_alloc(iram_pool, size);
++	pr_debug("iram alloc - %dB@0x%p\n", size, (void *)*dma_addr);
++	return iram_phys_to_virt(*dma_addr);
++}
++EXPORT_SYMBOL(iram_alloc);
++
++void iram_free(unsigned long addr, unsigned int size)
++{
++	if (!iram_pool)
++		return;
++
++	gen_pool_free(iram_pool, addr, size);
++}
++EXPORT_SYMBOL(iram_free);
++
++int __init iram_init(unsigned long base, unsigned long size)
++{
++	iram_phys_base = base;
++
++	iram_pool = gen_pool_create(12, -1);
++	gen_pool_add(iram_pool, base, size, -1);
++	iram_virt_base = ioremap(iram_phys_base, size);
++
++	pr_info("i.MX IRAM pool: %ld KB@0x%p\n", size / 1024, iram_virt_base);
++	return 0;
++}
+-- 
+1.5.4.4
+

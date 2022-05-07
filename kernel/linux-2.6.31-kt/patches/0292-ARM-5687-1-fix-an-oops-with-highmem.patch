@@ -1,0 +1,58 @@
+From fb18c10413d61e495716ff09e941e1d537fc6ae7 Mon Sep 17 00:00:00 2001
+From: Nicolas Pitre <nico@cam.org>
+Date: Tue, 1 Sep 2009 22:01:27 +0100
+Subject: [PATCH] ARM: 5687/1: fix an oops with highmem
+
+In xdr_partial_copy_from_skb() there is that sequence:
+
+		kaddr = kmap_atomic(*ppage, KM_SKB_SUNRPC_DATA);
+		[...]
+		flush_dcache_page(*ppage);
+		kunmap_atomic(kaddr, KM_SKB_SUNRPC_DATA);
+
+Mixing flush_dcache_page() and kmap_atomic() is a bit odd,
+especially since kunmap_atomic() must deal with cache issues
+already.  OTOH the non-highmem case must use flush_dcache_page()
+as kunmap_atomic() becomes a no op with no cache maintenance.
+
+Problem is that with highmem the implementation of kmap_atomic()
+doesn't set page->virtual, and page_address(page) returns 0 in
+that case. Here flush_dcache_page() calls __flush_dcache_page()
+which calls __cpuc_flush_dcache_page(page_address(page)) resulting
+in a kernel oops.
+
+None of the kmap_atomic() implementations uses set_page_address().
+Hence we can assume page_address() is always expected to return 0 in
+that case. Let's conditionally call __cpuc_flush_dcache_page() only
+when the page address is non zero, and perform that test only when
+highmem is configured.
+
+Signed-off-by: Nicolas Pitre <nico@marvell.com>
+Signed-off-by: Russell King <rmk+kernel@arm.linux.org.uk>
+---
+ arch/arm/mm/flush.c |    9 ++++++++-
+ 1 files changed, 8 insertions(+), 1 deletions(-)
+
+diff --git a/arch/arm/mm/flush.c b/arch/arm/mm/flush.c
+index c07222e..575f3ad 100644
+--- a/arch/arm/mm/flush.c
++++ b/arch/arm/mm/flush.c
+@@ -144,7 +144,14 @@ void __flush_dcache_page(struct address_space *mapping, struct page *page)
+ 	 * page.  This ensures that data in the physical page is mutually
+ 	 * coherent with the kernels mapping.
+ 	 */
+-	__cpuc_flush_dcache_page(page_address(page));
++#ifdef CONFIG_HIGHMEM
++	/*
++	 * kmap_atomic() doesn't set the page virtual address, and
++	 * kunmap_atomic() takes care of cache flushing already.
++	 */
++	if (page_address(page))
++#endif
++		__cpuc_flush_dcache_page(page_address(page));
+ 
+ 	/*
+ 	 * If this is a page cache page, and we have an aliasing VIPT cache,
+-- 
+1.5.4.4
+

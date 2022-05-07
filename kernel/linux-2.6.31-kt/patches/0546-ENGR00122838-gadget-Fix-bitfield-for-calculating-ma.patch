@@ -1,0 +1,30 @@
+From c7f7ab0cf9285b04d1509627e19e085e0bcda34e Mon Sep 17 00:00:00 2001
+From: Dinh Nguyen <Dinh.Nguyen@freescale.com>
+Date: Thu, 29 Apr 2010 14:08:33 -0500
+Subject: [PATCH] ENGR00122838 gadget: Fix bitfield for calculating maximum packet size
+
+The max packet length bit mask used for isochronous endpoints should
+be 0x7FF instead of 0x8FF. 0x8FF will actually clear higher-order bits
+in the max packet length field.
+
+Signed-off-by: Dinh Nguyen <Dinh.Nguyen@freescale.com>
+---
+ drivers/usb/gadget/arcotg_udc.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/drivers/usb/gadget/arcotg_udc.c b/drivers/usb/gadget/arcotg_udc.c
+index b4ccc3b..047e04a 100644
+--- a/drivers/usb/gadget/arcotg_udc.c
++++ b/drivers/usb/gadget/arcotg_udc.c
+@@ -680,7 +680,7 @@ static int fsl_ep_enable(struct usb_ep *_ep,
+ 	case USB_ENDPOINT_XFER_ISOC:
+ 		/* Calculate transactions needed for high bandwidth iso */
+ 		mult = (unsigned char)(1 + ((max >> 11) & 0x03));
+-		max = max & 0x8ff;	/* bit 0~10 */
++		max = max & 0x7ff;	/* bit 0~10 */
+ 		/* 3 transactions at most */
+ 		if (mult > 3)
+ 			goto en_done;
+-- 
+1.5.4.4
+

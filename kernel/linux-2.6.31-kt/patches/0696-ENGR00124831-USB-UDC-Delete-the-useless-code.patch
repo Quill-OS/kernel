@@ -1,0 +1,32 @@
+From a8657983b8644518f9f864846220cd386fd9d604 Mon Sep 17 00:00:00 2001
+From: Peter Chen <peter.chen@freescale.com>
+Date: Fri, 2 Jul 2010 15:27:29 +0800
+Subject: [PATCH] ENGR00124831 USB-UDC: Delete the useless code
+
+The probe is called only pdev->name is the same with driver_name,
+So the statement for name judgement is useless.
+
+Signed-off-by: Peter Chen <peter.chen@freescale.com>
+---
+ drivers/usb/gadget/arcotg_udc.c |    5 -----
+ 1 files changed, 0 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/usb/gadget/arcotg_udc.c b/drivers/usb/gadget/arcotg_udc.c
+index 047e04a..212351d 100644
+--- a/drivers/usb/gadget/arcotg_udc.c
++++ b/drivers/usb/gadget/arcotg_udc.c
+@@ -2704,11 +2704,6 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
+ 	unsigned int i;
+ 	u32 dccparams, portsc;
+ 
+-	if (strcmp(pdev->name, driver_name)) {
+-		VDBG("Wrong device\n");
+-		return -ENODEV;
+-	}
+-
+ 	udc_controller = kzalloc(sizeof(struct fsl_udc), GFP_KERNEL);
+ 	if (udc_controller == NULL) {
+ 		ERR("malloc udc failed\n");
+-- 
+1.5.4.4
+
