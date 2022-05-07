@@ -35,19 +35,27 @@ mount_alpine_udev() {
 }
 
 export TERM="linux"
+DEVICE="$(cat /opt/device)"
 
 mount -t proc proc /proc
 mount -t sysfs sysfs /sys
 sleep 1
 mount -t devtmpfs devtmpfs /dev
 mount -t tmpfs tmpfs -o size=16M /tmp
+
+# Framebuffer
+if [ "${DEVICE}" == "kt" ]; then
+	mount /opt/modules.sqsh /lib/modules
+	modprobe eink_fb_waveform
+	modprobe mxc_epdc_fb default_panel_hw_init=1 default_update_mode=1
+fi
+
 hostname inkbox
 ifconfig lo up
 
 KERNEL_VERSION=`uname -a`
 KERNEL_BUILD_ID=`cat /opt/build_id`
 KERNEL_GIT_COMMIT=`cat /opt/commit`
-DEVICE=`cat /opt/device`
 
 main() {
 	echo "$KERNEL_VERSION"
