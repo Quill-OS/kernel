@@ -343,7 +343,8 @@ mount -t proc proc /mnt/opt/X11/vnc-touch/proc
 mount -t devpts devpts /mnt/opt/X11/vnc-touch/dev/pts
 mount --bind /tmp/resolv.conf /mnt/opt/X11/vnc-touch/etc/resolv.conf
 # Touch input broken on some devices with newer Qt5 platform plugin
-if [ "${DEVICE}" != "n437" ]; then
+# KT: FBInk backend implemented in second platform plugin only
+if [ "${DEVICE}" != "n437" ] && [ "${DEVICE}" != "kt" ]; then
 	mount --bind /mnt/lib/qt5-plugins/libkobo.so.1 /mnt/opt/X11/vnc-touch/opt/qt5/plugins/platforms/libkobo.so
 else
 	mount --bind /mnt/opt/inkbox_device /mnt/opt/X11/vnc-touch/opt/inkbox_device
