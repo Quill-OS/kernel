@@ -126,7 +126,14 @@ mount -t tmpfs tmpfs -o size=16M /tmp
 if [ "${DEVICE}" == "kt" ]; then
 	unsquashfs -d /lib/modules /opt/modules.sqsh &>/dev/null
 	modprobe eink_fb_waveform
-	modprobe mxc_epdc_fb default_panel_hw_init=1 default_update_mode=1
+	mount /dev/mmcblk0p1 /mnt
+	mkdir -p /mnt/waveform
+	if [ -f "/mnt/waveform/waveform.wbf" ] && [ -f "/mnt/waveform/waveform.wrf" ]; then
+		modprobe mxc_epdc_fb default_panel_hw_init=1 default_update_mode=1 waveform_to_use=/mnt/waveform/waveform.wbf
+	else
+		modprobe mxc_epdc_fb default_panel_hw_init=1 default_update_mode=1 waveform_to_use=built-in
+	fi
+	umount /mnt
 	fbink -k -f -w -q && fbink -k -f -w -q
 fi
 
