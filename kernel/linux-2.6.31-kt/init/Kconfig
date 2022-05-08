@@ -112,13 +112,13 @@ config KERNEL_NONE
           you can use an uncompressed kernel.
 
 config HAVE_KERNEL_GZIP
-	bool
+	bool "GZIP kernel compression mode"
 
 config HAVE_KERNEL_BZIP2
-	bool
+	bool "BZIP2 kernel compression mode"
 
 config HAVE_KERNEL_LZMA
-	bool
+	bool "LZMA kernel compression mode"
 
 choice
 	prompt "Kernel compression mode"

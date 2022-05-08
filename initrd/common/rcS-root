@@ -64,7 +64,7 @@ setup_usbnet() {
 		mkdir -p /modules
 		mount /opt/modules.sqsh /modules
 	fi
-	if [ "${DEVICE}" != "n873" ] && [ "${DEVICE}" != "n236" ] && [ "${DEVICE}" != "n437" ] && [ "${DEVICE}" != "n306" ] && [ "${DEVICE}" != "emu" ] && [ "${DEVICE}" != "bpi" ]; then
+	if [ "${DEVICE}" != "n873" ] && [ "${DEVICE}" != "n236" ] && [ "${DEVICE}" != "n437" ] && [ "${DEVICE}" != "n306" ] && [ "${DEVICE}" != "kt" ] && [ "${DEVICE}" != "emu" ] && [ "${DEVICE}" != "bpi" ]; then
 		insmod "/modules/arcotg_udc.ko"
 	fi
 	if [ "${DEVICE}" == "n705" ] || [ "${DEVICE}" == "n905b" ] || [ "${DEVICE}" == "n905c" ] || [ "${DEVICE}" == "n613" ] || [ "${DEVICE}" == "n236" ] || [ "${DEVICE}" == "n437" ]; then
@@ -230,7 +230,11 @@ main() {
 		cp /mnt/boot/uImage /
 		sync
 		echo "Flashing new kernel..."
-		dd if=/uImage of=/dev/mmcblk0 bs=512 seek=81920
+		if [ "${DEVICE}" != "kt" ]; then
+			dd if=/uImage of=/dev/mmcblk0 bs=512 seek=81920
+		else
+			dd if=/uImage of=/dev/mmcblk0 bs=512 seek=520
+		fi
 		sync
 		echo "false" > /mnt/flags/KERNEL_FLASH
 		rm /mnt/boot/uImage
