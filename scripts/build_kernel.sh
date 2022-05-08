@@ -168,7 +168,11 @@ elif [ "$1" == "n249" ]; then
 elif [ "$1" == "kt" ]; then
 	cd "${GITDIR}/kernel/linux-2.6.31-kt"
 	make ARCH=arm CROSS_COMPILE=$TARGET- mrproper
-	cp "${GITDIR}/kernel/config/config-kt" "${GITDIR}/kernel/linux-2.6.31-kt/.config"
+	if [ "$2" == "diags" ]; then
+		cp "${GITDIR}/kernel/config/config-kt-diags" "${GITDIR}/kernel/linux-2.6.31-kt/.config"
+	else
+		cp "${GITDIR}/kernel/config/config-kt" "${GITDIR}/kernel/linux-2.6.31-kt/.config"
+	fi
 fi
 
 mkdir -p $GITDIR/kernel/out/$1
