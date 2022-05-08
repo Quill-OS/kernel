@@ -339,47 +339,47 @@ typedef enum _AR6K_BIN_FILE {
 
 /* AR6003 2.0 definitions */
 #define AR6003_REV2_VERSION                 0x30000384
-#define AR6003_REV2_OTP_FILE                "/opt/ar6k/target/AR6003/hw2.0/bin/otp.bin"
-#define AR6003_REV2_FIRMWARE_FILE           "/opt/ar6k/target/AR6003/hw2.0/bin/athwlan.bin.z77"
-#define AR6003_REV2_TCMD_FIRMWARE_FILE      "/opt/ar6k/target/AR6003/hw2.0/bin/athtcmd_ram.bin"
-#define	AR6003_REV2_TESTSCRIPT_FILE         "/opt/ar6k/target/AR6003/hw2.0/bin/testflow.bin"
-#define AR6003_REV2_UTF_FIRMWARE_FILE       "/opt/ar6k/target/AR6003/hw2.0/bin/utf.bin"
-#define AR6003_REV2_ART_FIRMWARE_FILE       "/opt/ar6k/target/AR6003/hw2.0/bin/device.bin"
-#define AR6003_REV2_PATCH_FILE              "/opt/ar6k/target/AR6003/hw2.0/bin/data.patch.hw2_0.bin"
-#define AR6003_REV2_EPPING_FIRMWARE_FILE    "/opt/ar6k/target/AR6003/hw2.0/bin/endpointping.bin"
+#define AR6003_REV2_OTP_FILE                "/mnt/lib/firmware/ar6k/target/AR6003/hw2.0/bin/otp.bin"
+#define AR6003_REV2_FIRMWARE_FILE           "/mnt/lib/firmware/ar6k/target/AR6003/hw2.0/bin/athwlan.bin.z77"
+#define AR6003_REV2_TCMD_FIRMWARE_FILE      "/mnt/lib/firmware/ar6k/target/AR6003/hw2.0/bin/athtcmd_ram.bin"
+#define	AR6003_REV2_TESTSCRIPT_FILE         "/mnt/lib/firmware/ar6k/target/AR6003/hw2.0/bin/testflow.bin"
+#define AR6003_REV2_UTF_FIRMWARE_FILE       "/mnt/lib/firmware/ar6k/target/AR6003/hw2.0/bin/utf.bin"
+#define AR6003_REV2_ART_FIRMWARE_FILE       "/mnt/lib/firmware/target/AR6003/hw2.0/bin/device.bin"
+#define AR6003_REV2_PATCH_FILE              "/mnt/lib/firmware/ar6k/target/AR6003/hw2.0/bin/data.patch.hw2_0.bin"
+#define AR6003_REV2_EPPING_FIRMWARE_FILE    "/mnt/lib/firmware/ar6k/target/AR6003/hw2.0/bin/endpointping.bin"
 #ifdef AR600x_SD31_XXX
-#define AR6003_REV2_BOARD_DATA_FILE         "/opt/ar6k/target/AR6003/hw2.0/bin/AR6103_v2.1_ext_fixedswitch_11dBm_10112010.bin"
+#define AR6003_REV2_BOARD_DATA_FILE         "/mnt/lib/firmware/ar6k/target/AR6003/hw2.0/bin/AR6103_v2.1_ext_fixedswitch_11dBm_10112010.bin"
 #elif defined(AR600x_SD32_XXX)
-#define AR6003_REV2_BOARD_DATA_FILE         "/opt/ar6k/target/AR6003/hw2.0/bin/AR6103_v2.1_ext_fixedswitch_11dBm_10112010.bin"
+#define AR6003_REV2_BOARD_DATA_FILE         "/mnt/lib/firmware/ar6k/target/AR6003/hw2.0/bin/AR6103_v2.1_ext_fixedswitch_11dBm_10112010.bin"
 #elif defined(AR600x_WB31_XXX)
-#define AR6003_REV2_BOARD_DATA_FILE         "/opt/ar6k/target/AR6003/hw2.0/bin/AR6103_v2.1_ext_fixedswitch_11dBm_10112010.bin"
+#define AR6003_REV2_BOARD_DATA_FILE         "/mnt/lib/firmware/ar6k/target/AR6003/hw2.0/bin/AR6103_v2.1_ext_fixedswitch_11dBm_10112010.bin"
 #else
-#define AR6003_REV2_BOARD_DATA_FILE         "/opt/ar6k/target/AR6003/hw2.0/bin/AR6103_v2.1_ext_fixedswitch_11dBm_10112010.bin"
+#define AR6003_REV2_BOARD_DATA_FILE         "/mnt/lib/firmware/ar6k/target/AR6003/hw2.0/bin/AR6103_v2.1_ext_fixedswitch_11dBm_10112010.bin"
 #endif /* Board Data File */
 
 /* AR6003 3.0 definitions */
 #define AR6003_REV3_VERSION                 0x30000582
-#define AR6003_REV3_OTP_FILE                "/opt/ar6k/target/AR6003/hw2.1.1/bin/otp.bin"
-#define AR6003_REV3_DEFAULT_FIRMWARE_FILE   "/opt/ar6k/target/AR6003/hw2.1.1/bin/athwlan.bin"
-#define AR6003_REV3_ROUTER_FIRMWARE_FILE    "/opt/ar6k/target/AR6003/hw2.1.1/bin/athwlan_router.bin"
-#define AR6003_REV3_MOBILE_FIRMWARE_FILE    "/opt/ar6k/target/AR6003/hw2.1.1/bin/athwlan_mobile.bin"
-#define AR6003_REV3_TABLET_FIRMWARE_FILE    "/opt/ar6k/target/AR6003/hw2.1.1/bin/athwlan_tablet.bin"
-#define AR6003_REV3_TCMD_FIRMWARE_FILE      "/opt/ar6k/target/AR6003/hw2.1.1/bin/athtcmd_ram.bin"
-#define	AR6003_REV3_TESTSCRIPT_FILE         "/opt/ar6k/target/AR6003/hw2.1.1/bin/testflow.bin"
-#define AR6003_REV3_UTF_FIRMWARE_FILE       "/opt/ar6k/target/AR6003/hw2.1.1/bin/utf.bin"
-#define AR6003_REV3_ART_FIRMWARE_FILE       "/opt/ar6k/target/AR6003/hw2.1.1/bin/device.bin"
-#define AR6003_REV3_PATCH_FILE              "/opt/ar6k/target/AR6003/hw2.1.1/bin/data.patch.hw3_0.bin"
-#define AR6003_REV3_EPPING_FIRMWARE_FILE    "/opt/ar6k/target/AR6003/hw2.1.1/bin/endpointping.bin"
+#define AR6003_REV3_OTP_FILE                "/mnt/lib/firmware/ar6k/target/AR6003/hw2.1.1/bin/otp.bin"
+#define AR6003_REV3_DEFAULT_FIRMWARE_FILE   "/mnt/lib/firmware/ar6k/target/AR6003/hw2.1.1/bin/athwlan.bin"
+#define AR6003_REV3_ROUTER_FIRMWARE_FILE    "/mnt/lib/firmware/ar6k/target/AR6003/hw2.1.1/bin/athwlan_router.bin"
+#define AR6003_REV3_MOBILE_FIRMWARE_FILE    "/mnt/lib/firmware/ar6k/target/AR6003/hw2.1.1/bin/athwlan_mobile.bin"
+#define AR6003_REV3_TABLET_FIRMWARE_FILE    "/mnt/lib/firmware/ar6k/target/AR6003/hw2.1.1/bin/athwlan_tablet.bin"
+#define AR6003_REV3_TCMD_FIRMWARE_FILE      "/mnt/lib/firmware/ar6k/target/AR6003/hw2.1.1/bin/athtcmd_ram.bin"
+#define	AR6003_REV3_TESTSCRIPT_FILE         "/mnt/lib/firmware/ar6k/target/AR6003/hw2.1.1/bin/testflow.bin"
+#define AR6003_REV3_UTF_FIRMWARE_FILE       "/mnt/lib/firmware/ar6k/target/AR6003/hw2.1.1/bin/utf.bin"
+#define AR6003_REV3_ART_FIRMWARE_FILE       "/mnt/lib/firmware/ar6k/target/AR6003/hw2.1.1/bin/device.bin"
+#define AR6003_REV3_PATCH_FILE              "/mnt/lib/firmware/ar6k/target/AR6003/hw2.1.1/bin/data.patch.hw3_0.bin"
+#define AR6003_REV3_EPPING_FIRMWARE_FILE    "/mnt/lib/firmware/ar6k/target/AR6003/hw2.1.1/bin/endpointping.bin"
 #ifdef AR600x_SD31_XXX
-#define AR6003_REV3_BOARD_DATA_FILE         "/opt/ar6k/target/AR6003/hw2.1.1/bin/active_calibration"
-#define AR6003_REV3_BOARD_DATA_FILE_WAN     "/opt/ar6k/target/AR6003/hw2.1.1/bin/active_calibration_wan"
+#define AR6003_REV3_BOARD_DATA_FILE         "/mnt/lib/firmware/ar6k/target/AR6003/hw2.1.1/bin/active_calibration"
+#define AR6003_REV3_BOARD_DATA_FILE_WAN     "/mnt/lib/firmware/ar6k/target/AR6003/hw2.1.1/bin/active_calibration_wan"
 #elif defined(AR600x_SD32_XXX)
-#define AR6003_REV3_BOARD_DATA_FILE         "/opt/ar6k/target/AR6003/hw2.1.1/bin/active_calibration"
-#define AR6003_REV3_BOARD_DATA_FILE_WAN     "/opt/ar6k/target/AR6003/hw2.1.1/bin/active_calibration_wan"
+#define AR6003_REV3_BOARD_DATA_FILE         "/mnt/lib/firmware/ar6k/target/AR6003/hw2.1.1/bin/active_calibration"
+#define AR6003_REV3_BOARD_DATA_FILE_WAN     "/mnt/lib/firmware/ar6k/target/AR6003/hw2.1.1/bin/active_calibration_wan"
 #elif defined(AR600x_WB31_XXX)
 #else
-#define AR6003_REV3_BOARD_DATA_FILE         "/opt/ar6k/target/AR6003/hw2.1.1/bin/active_calibration"
-#define AR6003_REV3_BOARD_DATA_FILE_WAN     "/opt/ar6k/target/AR6003/hw2.1.1/bin/active_calibration_wan"
+#define AR6003_REV3_BOARD_DATA_FILE         "/mnt/lib/firmware/ar6k/target/AR6003/hw2.1.1/bin/active_calibration"
+#define AR6003_REV3_BOARD_DATA_FILE_WAN     "/mnt/lib/firmware/ar6k/target/AR6003/hw2.1.1/bin/active_calibration_wan"
 #endif /* Board Data File */
 
 /* AP-STA Concurrency */

@@ -3,7 +3,7 @@
 set_hostname() {
 	if [ "${DEVICE}" == "n705" ] || [ "${DEVICE}" == "n905b" ] || [ "${DEVICE}" == "n905c" ] || [ "${DEVICE}" == "n613" ] || [ "${DEVICE}" == "n873" ] || [ "${DEVICE}" == "n236" ] || [ "${DEVICE}" == "n437" ] || [ "${DEVICE}" == "n306" ]; then
 		HOSTNAME="kobo"
-	if [ "${DEVICE}" == "kt" ]; then
+	elif [ "${DEVICE}" == "kt" ]; then
 		HOSTNAME="kindle"
 	elif [ "${DEVICE}" == "emu" ] || [ "${DEVICE}" == "bpi" ]; then
 		HOSTNAME="inkbox"

@@ -132,7 +132,11 @@ main() {
 		cp /mnt/boot/uImage /
 		sync
 		echo "Flashing new kernel..."
-		dd if=/uImage of=/dev/mmcblk0 bs=512 seek=81920
+		if [ "${DEVICE}" != "kt" ]; then
+			dd if=/uImage of=/dev/mmcblk0 bs=512 seek=81920
+		else
+			dd if=/uImage of=/dev/mmcblk0 bs=512 seek=520
+		fi
 		sync
 		echo "false" > /mnt/flags/KERNEL_FLASH
 		rm /mnt/boot/uImage
