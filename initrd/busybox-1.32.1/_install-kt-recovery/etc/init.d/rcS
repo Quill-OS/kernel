@@ -1,0 +1,35 @@
+#!/bin/sh
+
+mount -t devtmpfs devtmpfs /dev
+mount -t sysfs sysfs /sys
+mount -t proc proc /proc
+
+mount /opt/modules.sqsh /lib/modules
+modprobe eink_fb_waveform
+mount /dev/mmcblk0p1 /mnt
+mkdir -p /mnt/waveform
+if [ -f "/mnt/waveform/waveform.wbf" ] && [ -f "/mnt/waveform/waveform.wrf" ]; then
+	modprobe mxc_epdc_fb default_panel_hw_init=1 default_update_mode=1 waveform_to_use=/mnt/waveform/waveform.wbf
+else
+	modprobe mxc_epdc_fb default_panel_hw_init=1 default_update_mode=1 waveform_to_use=built-in
+fi
+umount /mnt
+
+mkdir -p /splash && cd splash
+tar -xf /opt/diagnostics.tar.xz
+
+mount -t devtmpfs devtmpfs dev
+mount -t sysfs sysfs sys
+mount -t proc proc proc
+
+cp /opt/device /splash/opt/device
+
+mount -t ext4 /dev/mmcblk0p4 /mnt &>/dev/null
+FWVERSION=$(cat /mnt/update/version 2>/dev/null)
+if [ "${FWVERSION}" != "" ]; then
+	echo "${FWVERSION}" > /splash/opt/inkbox-version
+else
+	echo "Not available" > /splash/opt/inkbox-version
+fi
+
+busybox chroot /splash /opt/diagnostics
