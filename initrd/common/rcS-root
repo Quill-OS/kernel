@@ -261,7 +261,11 @@ main() {
 
 			# Device should have been wiped and restored to a factory state
 			# Checking if there is still a "noroot" flag in the unpartitioned space
-			export ROOT_FLAG=`dd if=/dev/mmcblk0 bs=512 skip=79872 count=1 status=none | head -c6`
+			if [ "$DEVICE" != "kt" ]; then
+				export ROOT_FLAG=$(dd if=/dev/mmcblk0 bs=512 skip=79872 count=1 status=none | head -c6)
+			else
+				export ROOT_FLAG=$(dd if=/dev/mmcblk0 bs=512 skip=98304 count=1 status=none | head -c6)
+			fi
 			if [ "$ROOT_FLAG" == "rooted" ]; then
 				echo "Security policy not enforced; root access permitted."
 			else
