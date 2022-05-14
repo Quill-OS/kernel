@@ -403,7 +403,7 @@ main() {
 					losetup /dev/loop6 /opt/key.sqsh
 					mount /dev/loop6 /mnt/opt/key -o ro,nodev,nosuid,noexec
 					losetup /dev/loop5 /opt/modules.sqsh
-					mount /dev/loop5 /mnt/modules -o ro,nodev,nosuid,noexec
+					mount /dev/loop5 /mnt/lib/modules -o ro,nodev,nosuid,noexec
 
 					mount --rbind /proc /mnt/proc
 					mount --rbind /sys /mnt/sys
@@ -452,7 +452,11 @@ main() {
 						exit 1
 					else
 						busybox chroot /mnt "/bin/squashfuse" "/opt/storage/gui_rootfs.isa" "/opt/gui_rootfs/read"
-						busybox chroot /mnt "/bin/fuse-overlayfs" "-o" "lowerdir=/opt/gui_rootfs/read,upperdir=/opt/gui_rootfs/write,workdir=/opt/gui_rootfs/work" "/kobo"
+						if [ "${DEVICE}" != "kt" ]; then
+							busybox chroot /mnt "/bin/fuse-overlayfs" "-o" "lowerdir=/opt/gui_rootfs/read,upperdir=/opt/gui_rootfs/write,workdir=/opt/gui_rootfs/work" "/kobo"
+						else
+							busybox chroot /mnt "/usr/local/bin/unionfs" "-o" "cow,nonempty" "/opt/gui_rootfs/write=RW:/opt/gui_rootfs/read=RO" "/kobo"
+						fi
 
 						echo true > /mnt/kobo/inkbox/remount
 						echo false > /mnt/boot/flags/X11_STARTED
@@ -491,7 +495,7 @@ main() {
 					losetup /dev/loop6 /opt/key.sqsh
 					mount /dev/loop6 /mnt/opt/key -o ro,nodev,nosuid,noexec
 					losetup /dev/loop5 /opt/modules.sqsh
-					mount /dev/loop5 /mnt/modules -o ro,nodev,nosuid,noexec
+					mount /dev/loop5 /mnt/lib/modules -o ro,nodev,nosuid,noexec
 
 					mount /mnt/opt/recovery/restore/alpine-udev.sqsh /alpine
 					mount --rbind /proc /mnt/proc
@@ -525,7 +529,7 @@ main() {
 				losetup /dev/loop6 /opt/key.sqsh
 				mount /dev/loop6 /mnt/opt/key -o ro,nodev,nosuid,noexec
 				losetup /dev/loop5 /opt/modules.sqsh
-				mount /dev/loop5 /mnt/modules -o ro,nodev,nosuid,noexec
+				mount /dev/loop5 /mnt/lib/modules -o ro,nodev,nosuid,noexec
 
 				mount /mnt/opt/recovery/restore/alpine-udev.sqsh /alpine
 				mount --rbind /proc /mnt/proc
