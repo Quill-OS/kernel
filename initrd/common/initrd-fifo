@@ -101,6 +101,8 @@ while true; do
 				else
 					echo "initrd-fifo: fake-openssl: Permission denied."
 				fi
+			elif [[ "$line" == "inkbox_splash" ]]; then
+				/etc/init.d/inkbox-splash
 			elif [[ "$line" == "alert_splash" ]]; then
 				echo "true" > /mnt/boot/flags/BOOT_USB_DEBUG
 				SPLASH_ERROR_CODE=$(cat /mnt/run/alert_splash_error_code 2>/dev/null)
