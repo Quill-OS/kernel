@@ -310,7 +310,7 @@ busybox chroot /mnt "/usr/local/bin/unionfs" "$UNIONFS_FOLDERS" "/opt/X11/extens
 busybox chroot /mnt "/usr/local/bin/unionfs" "/opt/X11/base/rootfs:/opt/X11/extensions-merged" "/opt/X11/merged"
 
 # Making the union mount read/write and mounting the final overlay to /xorg
-busybox chroot /mnt "/bin/fuse-overlayfs" "-o" "cow" "/opt/X11/rootfs/write=RW:/opt/X11/merged=RO" "/xorg"
+busybox chroot /mnt "/usr/local/bin/unionfs" "-o" "cow,nonempty" "/opt/X11/rootfs/write=RW:/opt/X11/merged=RO" "/xorg"
 
 rm /mnt/xorg/var/log -rf
 mkdir -p /mnt/xorg/var/log

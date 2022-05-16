@@ -397,7 +397,6 @@ main() {
 					mkdir -p /mnt/opt/root
 					mkdir -p /mnt/opt/key
 					mkdir -p /mnt/selinux
-					mkdir -p /mnt/modules
 					losetup /dev/loop7 /opt/root.sqsh
 					mount /dev/loop7 /mnt/opt/root -o ro,nodev,nosuid,noexec
 					losetup /dev/loop6 /opt/key.sqsh
