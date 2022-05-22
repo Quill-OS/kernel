@@ -236,7 +236,7 @@ main() {
 	if [ "$KERNEL_FLASH" == "true" ]; then
 		cp /mnt/boot/uImage /
 		sync
-		echo "Flashing new kernel..."
+		echo "Flashing new kernel ..."
 		if [ "${DEVICE}" != "kt" ]; then
 			dd if=/uImage of=/dev/mmcblk0 bs=512 seek=81920
 		else
@@ -245,7 +245,7 @@ main() {
 		sync
 		echo "false" > /mnt/flags/KERNEL_FLASH
 		rm /mnt/boot/uImage
-		echo "Done, rebooting..."
+		echo "Done, rebooting ..."
 		reboot
 	else
 		umount /mnt
@@ -272,15 +272,15 @@ main() {
 				/etc/init.d/overlay-mount recovery
 				mount -t ext4 /dev/mmcblk0p1 /mnt/boot
 
-				echo "WARNING: User violated security policy!"
-				echo "Flashing a new kernel that does not allow root access..."
+				echo "FATAL: User violated security policy!"
+				echo "Flashing a new kernel that does not allow root access ..."
 				dd if=/mnt/opt/recovery/restore/uImage-std of=/dev/mmcblk0 bs=512 seek=81920
 				sync
 				# We set the ALERT flag to show a GUI warning about what happened
 				echo "true" > /mnt/boot/flags/ALERT
 				sync
 				umount -l -f /mnt/boot
-				echo "Done, rebooting..."
+				echo "Done, rebooting ..."
 				reboot
 				exit 0
 			fi
@@ -446,7 +446,7 @@ main() {
 						echo "FATAL: InkBox GUI root filesystem's signature is invalid!"
 						echo "Aborting boot and powering off ..."
 						killall -q inkbox-splash
-						/etc/init.d/inkbox-splash alert_splash 2
+						/etc/init.d/inkbox-splash alert_splash 2 flag
 						busybox poweroff
 						exit 1
 					else
@@ -479,7 +479,7 @@ main() {
 						exit 0
 					fi
 				else
-					echo "DIAGS_BOOT is set to 'true', booting into diagnostics..."
+					echo "DIAGS_BOOT is set to 'true', booting into diagnostics ..."
 					rotate_screen
 					mkdir -p /alpine
 					/etc/init.d/overlay-mount recovery
@@ -513,7 +513,7 @@ main() {
 					exit 0
 				fi
 			else
-				echo "Input event caught, booting into recovery partition..."
+				echo "Input event caught, booting into recovery partition ..."
 				rotate_screen
 				mkdir -p /alpine
 				/etc/init.d/overlay-mount recovery

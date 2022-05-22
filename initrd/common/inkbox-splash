@@ -177,6 +177,13 @@ elif [ "${1}" == "display_debug" ]; then
 	mount --bind /tmp/serial-fifo "${CHROOT_DIR}/run/serial-fifo"
 	chroot "${CHROOT_DIR}" /usr/bin/inkvt.armhf --no-timeout -f tewi -c "/usr/bin/serial-debug"
 elif [ "${1}" == "alert_splash" ]; then
+	if [ "${3}" == "flag" ]; then
+		mkdir -p /boot-part
+		mount -t ext4 /dev/mmcblk0p1 /boot-part
+		echo "true" > /boot-part/flags/BOOT_USB_DEBUG && sync
+		umount -l -f /boot-part
+		rm -rf /boot-part
+	fi
 	ln -s /bin/busybox /splash/bin/sh
 	ln -s /bin/busybox /splash/bin/cat
 	/opt/bin/alert-ascii.sh /splash/alert.ascii "${2}"

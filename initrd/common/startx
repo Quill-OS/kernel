@@ -50,7 +50,7 @@ mount -t ext4 -o ro /dev/loop2 /mnt/opt/X11/base
 if [ "$?" != 0 ]; then
 	busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/kobox-graphic-public.pem" "-signature" "/opt/X11/base/xorg.img.dgst" "/opt/X11/base/xorg.img" &>/dev/null
 	if [ $? != 0 ]; then
-		echo "KoBox base rootfs package's signature is invalid! Aborting launch..."
+		echo "KoBox base rootfs package's signature is invalid! Aborting launch ..."
 		echo "false" > /mnt/boot/flags/X11_STARTED
 		exit 1
 	else
@@ -70,7 +70,7 @@ set_progress 55
 if [ $? != 0 ]; then
 	busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/kobox-graphic-public.pem" "-signature" "/opt/X11/base/vnc-touch.img.dgst" "/opt/X11/base/vnc-touch.img" &>/dev/null
 	if [ $? != 0 ]; then
-		echo "VNC/touch input rootfs package's signature is invalid! Aborting launch..."
+		echo "VNC/touch input rootfs package's signature is invalid! Aborting launch ..."
 		echo "false" > /mnt/boot/flags/X11_STARTED
 		exit 1
 	else
@@ -137,7 +137,7 @@ for f in /mnt/opt/X11/extensions-base/*.isa /mnt/opt/X11/extensions-base/*.img ;
 		if [ $? != 0 ]; then
 			busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/kobox-nographic-public.pem" "-signature" "$FILE_DGST" "$FILE" &>/dev/null
 			if [ $? != 0 ]; then
-				echo "Digital signature of KoBox package '$EXTENSION_NAME' invalid! Aborting launch..."
+				echo "Digital signature of KoBox package '$EXTENSION_NAME' invalid! Aborting launch ..."
 				echo "false" > /mnt/boot/flags/X11_STARTED
 				exit 1
 			else
@@ -150,7 +150,7 @@ for f in /mnt/opt/X11/extensions-base/*.isa /mnt/opt/X11/extensions-base/*.img ;
 					losetup /dev/loop$loop_number "$FILE_RAW"
 					mount -t ext4 -o ro "/dev/loop$loop_number" "$EXTENSION_FOLDER_RAW"
 					if [ $? != 0 ]; then
-						echo "Extension $EXTENSION_NAME is not valid! Aborting launch..."
+						echo "Extension $EXTENSION_NAME is not valid! Aborting launch ..."
 						echo "false" > /mnt/boot/flags/X11_STARTED
 						exit 1
 					fi
@@ -170,7 +170,7 @@ for f in /mnt/opt/X11/extensions-base/*.isa /mnt/opt/X11/extensions-base/*.img ;
 				losetup /dev/loop$loop_number "$FILE_RAW"
 				mount -t ext4 -o ro "/dev/loop$loop_number" "$EXTENSION_FOLDER_RAW"
 				if [ $? != 0 ]; then
-					echo "Extension $EXTENSION_NAME is not valid! Aborting launch..."
+					echo "Extension $EXTENSION_NAME is not valid! Aborting launch ..."
 					echo "false" > /mnt/boot/flags/X11_STARTED
 					exit 1
 				fi
@@ -190,7 +190,7 @@ for f in /mnt/opt/X11/extensions-base/*.isa /mnt/opt/X11/extensions-base/*.img ;
 			losetup /dev/loop$loop_number "$FILE_RAW"
 			mount -t ext4 -o ro "/dev/loop$loop_number" "$EXTENSION_FOLDER_RAW"
 			if [ $? != 0 ]; then
-				echo "Extension $EXTENSION_NAME is not valid! Aborting launch..."
+				echo "Extension $EXTENSION_NAME is not valid! Aborting launch ..."
 				echo "false" > /mnt/boot/flags/X11_STARTED
 				exit 1
 			fi
@@ -232,7 +232,7 @@ for f in /mnt/opt/X11/extensions-user/*.isa /mnt/opt/X11/extensions-user/*.img ;
 		if [ $? != 0 ]; then
 			busybox chroot /mnt "/usr/bin/openssl" "dgst" "-sha256" "-verify" "/opt/key/kobox-nographic-public.pem" "-signature" "$FILE_DGST" "$FILE" &>/dev/null
 			if [ $? != 0 ]; then
-				echo "Digital signature of KoBox package '$EXTENSION_NAME' invalid! Aborting launch..."
+				echo "Digital signature of KoBox package '$EXTENSION_NAME' invalid! Aborting launch ..."
 				echo "false" > /mnt/boot/flags/X11_STARTED
 				exit 1
 			else
@@ -245,7 +245,7 @@ for f in /mnt/opt/X11/extensions-user/*.isa /mnt/opt/X11/extensions-user/*.img ;
 					losetup /dev/loop$loop_number "$FILE_RAW"
 					mount -t ext4 -o ro "/dev/loop$loop_number" "$EXTENSION_FOLDER_RAW"
 					if [ $? != 0 ]; then
-						echo "Extension $EXTENSION_NAME is not valid! Aborting launch..."
+						echo "Extension $EXTENSION_NAME is not valid! Aborting launch ..."
 						echo "false" > /mnt/boot/flags/X11_STARTED
 						exit 1
 					fi
@@ -265,7 +265,7 @@ for f in /mnt/opt/X11/extensions-user/*.isa /mnt/opt/X11/extensions-user/*.img ;
 				losetup /dev/loop$loop_number "$FILE_RAW"
 				mount -t ext4 -o ro "/dev/loop$loop_number" "$EXTENSION_FOLDER_RAW"
 				if [ $? != 0 ]; then
-					echo "Extension $EXTENSION_NAME is not valid! Aborting launch..."
+					echo "Extension $EXTENSION_NAME is not valid! Aborting launch ..."
 					echo "false" > /mnt/boot/flags/X11_STARTED
 					exit 1
 				fi
@@ -285,7 +285,7 @@ for f in /mnt/opt/X11/extensions-user/*.isa /mnt/opt/X11/extensions-user/*.img ;
 			losetup /dev/loop$loop_number "$FILE_RAW"
 			mount -t ext4 -o ro "/dev/loop$loop_number" "$EXTENSION_FOLDER_RAW"
 			if [ $? != 0 ]; then
-				echo "Extension $EXTENSION_NAME is not valid! Aborting launch..."
+				echo "Extension $EXTENSION_NAME is not valid! Aborting launch ..."
 				echo "false" > /mnt/boot/flags/X11_STARTED
 				exit 1
 			fi
@@ -310,7 +310,11 @@ busybox chroot /mnt "/usr/local/bin/unionfs" "$UNIONFS_FOLDERS" "/opt/X11/extens
 busybox chroot /mnt "/usr/local/bin/unionfs" "/opt/X11/base/rootfs:/opt/X11/extensions-merged" "/opt/X11/merged"
 
 # Making the union mount read/write and mounting the final overlay to /xorg
-busybox chroot /mnt "/usr/local/bin/unionfs" "-o" "cow,nonempty" "/opt/X11/rootfs/write=RW:/opt/X11/merged=RO" "/xorg"
+if [ "${DEVICE}" != "kt" ]; then
+	busybox chroot /mnt "/bin/fuse-overlayfs" "-o" "lowerdir=/opt/X11/merged,upperdir=/opt/X11/rootfs/write,workdir=/opt/X11/rootfs/work" "/xorg"
+else
+	busybox chroot /mnt "/usr/local/bin/unionfs" "-o" "cow,nonempty" "/opt/X11/rootfs/write=RW:/opt/X11/merged=RO" "/xorg"
+fi
 
 rm /mnt/xorg/var/log -rf
 mkdir -p /mnt/xorg/var/log
@@ -357,7 +361,7 @@ echo "true" > /mnt/boot/flags/X11_STARTED
 # Race condition
 if [ "${DEVICE}" != "emu" ]; then
 	sleep 8
-	echo "Done."
+	echo "X11 windowing system was successfully initialized."
 else
 	sleep 15
 fi
