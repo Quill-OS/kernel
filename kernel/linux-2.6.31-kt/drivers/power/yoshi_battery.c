@@ -19,6 +19,7 @@
 #include <mach/boardid.h>
 #include <mach/mwan.h>
 #include <battery_id.h>
+#include <linux/pmic_external.h>
 
 /*
  * I2C registers that need to be read
@@ -236,6 +237,20 @@ battery_capacity_show(struct sys_device *dev, struct sysdev_attribute *attr, cha
 	return sprintf(buf, "%d\n", yoshi_battery_capacity);
 }
 static SYSDEV_ATTR(battery_capacity, 0644, battery_capacity_show, NULL);
+
+static ssize_t
+battery_status_show(struct sys_device * dev, struct sysdev_attribute * attr, char * buf) {
+        int sense_0 = 0;
+        int ret = 0; /* Default: no charger */
+
+        pmic_read_reg(REG_INT_SENSE0, &sense_0, 0xffffff);
+        if (sense_0 & 0x40) {
+                ret = 1;
+	}
+	return sprintf(buf, "%d\n", ret);
+}
+
+static SYSDEV_ATTR(battery_status, 0644, battery_status_show, NULL);
 
 static ssize_t
 battery_mAH_show(struct sys_device *dev, struct sysdev_attribute *attr, char *buf)
@@ -533,6 +548,7 @@ static int yoshi_battery_sysdev_ctrl_init(void)
 		sysdev_create_file(&yoshi_battery_device, &attr_battery_temp_errthresh);
 		sysdev_create_file(&yoshi_battery_device, &attr_battery_send_uevent);
 		sysdev_create_file(&yoshi_battery_device, &attr_battery_overheat);
+		sysdev_create_file(&yoshi_battery_device, &attr_battery_status);
 #ifdef CONFIG_MACH_MX50_YOSHIME
 #ifdef DEVELOPMENT_MODE
 		sysdev_create_file(&yoshi_battery_device, &attr_battery_send_state_uevent);
@@ -570,6 +586,7 @@ static void yoshi_battery_sysdev_ctrl_exit(void)
 	sysdev_remove_file(&yoshi_battery_device, &attr_battery_temp_errthresh);
 	sysdev_remove_file(&yoshi_battery_device, &attr_battery_send_uevent);
 	sysdev_remove_file(&yoshi_battery_device, &attr_battery_overheat);
+	sysdev_remove_file(&yoshi_battery_device, &attr_battery_status);
 #ifdef CONFIG_MACH_MX50_YOSHIME
 #ifdef DEVELOPMENT_MODE
 	sysdev_remove_file(&yoshi_battery_device, &attr_battery_send_state_uevent);
