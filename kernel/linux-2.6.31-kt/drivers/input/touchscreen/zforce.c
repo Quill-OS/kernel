@@ -849,7 +849,7 @@ static void sendTouchUpdate(TouchData *tData)
       input_report_abs(tdev, ABS_MT_TRACKING_ID, coord->id - 1);
 
       input_report_abs(tdev, ABS_MT_POSITION_X, (int)(coord->X * 600 / 4095));
-      input_report_abs(tdev, ABS_MT_POSITION_Y, (int)(coord->Y * 800 / 4095));
+      input_report_abs(tdev, ABS_MT_POSITION_Y, (int)(800 - (coord->Y * 800 / 4095)));
       contacts_left++;
     }
     else if (tState == TOUCH_UP)
