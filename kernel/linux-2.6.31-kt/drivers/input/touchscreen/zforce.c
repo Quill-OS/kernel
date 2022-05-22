@@ -848,17 +848,8 @@ static void sendTouchUpdate(TouchData *tData)
       // Specify ID of touch the update applies to
       input_report_abs(tdev, ABS_MT_TRACKING_ID, coord->id - 1);
 
-      if(mx50_board_is(BOARD_ID_YOSHI))
-      {
-        // Flip the coordinates on Yoshi
-        input_report_abs(tdev, ABS_MT_POSITION_X, X_RESOLUTION - coord->X);
-        input_report_abs(tdev, ABS_MT_POSITION_Y, Y_RESOLUTION - coord->Y);
-      }
-      else
-      {
-        input_report_abs(tdev, ABS_MT_POSITION_X, coord->X);
-        input_report_abs(tdev, ABS_MT_POSITION_Y, coord->Y);
-      }
+      input_report_abs(tdev, ABS_MT_POSITION_X, (int)(coord->X * 600 / 4095));
+      input_report_abs(tdev, ABS_MT_POSITION_Y, (int)(coord->Y * 800 / 4095));
       contacts_left++;
     }
     else if (tState == TOUCH_UP)
