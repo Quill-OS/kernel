@@ -233,7 +233,7 @@ static SYSDEV_ATTR(battery_temperature, 0644, battery_temperature_show, NULL);
 static ssize_t
 battery_capacity_show(struct sys_device *dev, struct sysdev_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d%%\n", yoshi_battery_capacity);
+	return sprintf(buf, "%d\n", yoshi_battery_capacity);
 }
 static SYSDEV_ATTR(battery_capacity, 0644, battery_capacity_show, NULL);
 

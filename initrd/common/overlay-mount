@@ -46,7 +46,7 @@ if [ "${1}" != "recovery" ]; then
 		echo "Root filesystem's digital signature is invalid! Shutting down ..."
 		sync
 		umount /rootfs-part -l -f
-		/etc/init.d/inkbox-splash alert_splash 3
+		/etc/init.d/inkbox-splash alert_splash 3 flag
 		busybox poweroff
 		exit 1
 	else
@@ -62,7 +62,7 @@ if [ "${1}" != "recovery" ]; then
 			echo "Utility root filesystem's signature is invalid! Shutting down ..."
 			sync
 			umount /rootfs-part -l -f
-			/etc/init.d/inkbox-splash alert_splash 5
+			/etc/init.d/inkbox-splash alert_splash 5 flag
 			busybox poweroff
 			exit 1
 		else
@@ -131,7 +131,7 @@ else
 			echo "Utility root filesystem's signature is invalid! Shutting down ..."
 			sync
 			umount -l -f /recoveryfs-part
-			/etc/init.d/inkbox-splash alert_splash 5
+			/etc/init.d/inkbox-splash alert_splash 5 flag
 			busybox poweroff
 			exit 1
 		else
@@ -169,7 +169,7 @@ else
 			echo "Recovery filesystem's digital signature is invalid! Shutting down ..."
 			sync
 			umount /recoveryfs-part -l -f
-			/etc/init.d/inkbox-splash alert_splash 4
+			/etc/init.d/inkbox-splash alert_splash 4 flag
 			busybox poweroff
 			exit 1
 		else

@@ -138,7 +138,7 @@ main() {
 	if [ "$KERNEL_FLASH" == "true" ]; then
 		cp /mnt/boot/uImage /
 		sync
-		echo "Flashing new kernel..."
+		echo "Flashing new kernel ..."
 		if [ "${DEVICE}" != "kt" ]; then
 			dd if=/uImage of=/dev/mmcblk0 bs=512 seek=81920
 		else
@@ -147,7 +147,7 @@ main() {
 		sync
 		echo "false" > /mnt/flags/KERNEL_FLASH
 		rm /mnt/boot/uImage
-		echo "Done, rebooting..."
+		echo "Done, rebooting ..."
 		reboot
 	else
 		umount /mnt
@@ -233,7 +233,7 @@ main() {
 					set_progress 40
 					progress_sleep
 
-					echo "Enforcing security policy..."
+					echo "Enforcing security policy ..."
 
 					mkdir -p /mnt/opt/root
 					mkdir -p /mnt/opt/key
@@ -253,7 +253,7 @@ main() {
 						:
 					else
 						# passwd file was modified; restoring it to prevent shell access
-						echo "WARNING! passwd file was modified; restoring it to its default state..."
+						echo "WARNING! passwd file was modified; restoring it to its default state ..."
 						rm -f /mnt/etc/passwd
 						sync
 						mount -o remount,rw /mnt
@@ -338,7 +338,7 @@ main() {
 						exit 0
 					fi
 				else
-					echo "DIAGS_BOOT is set to 'true', booting into diagnostics..."
+					echo "DIAGS_BOOT is set to 'true', booting into diagnostics ..."
 					rotate_screen
 					mkdir -p /alpine
 					/etc/init.d/overlay-mount recovery
@@ -372,7 +372,7 @@ main() {
 					chroot /mnt /opt/recovery/launch.sh &
 				fi
 			else
-				echo "Input event caught, booting into recovery partition..."
+				echo "Input event caught, booting into recovery partition ..."
 				rotate_screen
 				mkdir -p /alpine
 				/etc/init.d/overlay-mount recovery
