@@ -361,9 +361,13 @@ echo "true" > /mnt/boot/flags/X11_STARTED
 # Race condition
 if [ "${DEVICE}" != "emu" ]; then
 	sleep 8
-	echo "X11 windowing system was successfully initialized."
 else
 	sleep 15
+fi
+echo "X11 windowing system was successfully initialized."
+
+if [ "${DEVICE}" == "kt" ]; then
+	chroot /mnt /opt/bin/fbink/fbdepth -d 8
 fi
 
 if [ $DISABLE_SIGNATURE_VERIFICATION == 1 ]; then
