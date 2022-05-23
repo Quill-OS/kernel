@@ -4,13 +4,16 @@
 DEVICE=$(cat /opt/device)
 PROGRESS_BAR=0
 DISPLAY_DEBUG=0
+DEVELOPER_SPLASH=0
 [ "${1}" == "progress_bar_init" ] && PROGRESS_BAR=1
 [ "${1}" == "display_debug" ] && DISPLAY_DEBUG=1
+[ "${1}" == "developer_splash" ] && DEVELOPER_SPLASH=1
 
 setup() {
 	CHROOT_DIR="/splash"
 	[ ${PROGRESS_BAR} == 1 ] && CHROOT_DIR="/splash_progress_bar"
 	[ ${DISPLAY_DEBUG} == 1 ] && CHROOT_DIR="/splash_display_debug"
+	[ ${DEVELOPER_SPLASH} == 1 ] && CHROOT_DIR="/splash_developer"
 	mkdir -p "${CHROOT_DIR}"
 	cd "${CHROOT_DIR}"
 	tar -xf /opt/splash-rootfs.tar.xz
@@ -192,7 +195,7 @@ elif [ "${1}" == "alert_splash" ]; then
 	print_qr "https://inkbox.ddns.net/wiki/index.php?title=Boot_error_codes#${2}"
 elif [ "${1}" == "developer_splash" ]; then
 	while true; do
-		LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink "-m" "█ █ █ █ Developer mode █ █ █ █" "-y" "2" "-q"
+		LD_LIBRARY_PATH=/opt/fbink busybox chroot "${CHROOT_DIR}" /opt/fbink/fbink "-m" "█ █ █ █ Developer mode █ █ █ █" "-y" "2" "-q"
 		sleep 30
 	done
 elif [ "${1}" == "dfl" ]; then
