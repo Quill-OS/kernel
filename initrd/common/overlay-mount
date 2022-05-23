@@ -112,8 +112,10 @@ if [ "${1}" != "recovery" ]; then
 		mount --bind /tmp/device /mnt/opt/inkbox_device
 		if [ "${DEVICE}" != "kt" ]; then
 			mount --bind /mnt/opt/bin/fbink/fbink-kobo /mnt/opt/bin/fbink/fbink
+			mount --bind /mnt/opt/bin/fbink/fbdepth-kobo /mnt/opt/bin/fbink/fbdepth
 		else
 			mount --bind /mnt/opt/bin/fbink/fbink-kindle /mnt/opt/bin/fbink/fbink
+			mount --bind /mnt/opt/bin/fbink/fbdepth-kindle /mnt/opt/bin/fbink/fbdepth
 		fi
 		set_hostname
 	fi
