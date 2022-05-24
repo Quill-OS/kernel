@@ -353,7 +353,11 @@ if [ "${DEVICE}" != "n437" ] && [ "${DEVICE}" != "kt" ]; then
 else
 	mount --bind /mnt/opt/inkbox_device /mnt/opt/X11/vnc-touch/opt/inkbox_device
 	mount --bind /mnt/bin/kobo_config.sh /mnt/opt/X11/vnc-touch/bin/kobo_config.sh
-	mount --bind /mnt/lib/qt5-plugins/libkobo.so.2 /mnt/opt/X11/vnc-touch/opt/qt5/plugins/platforms/libkobo.so
+	if [ "${DEVICE}" == "kt" ]; then
+		mount --bind /mnt/lib/qt5-plugins/libkobo.so.3 /mnt/opt/X11/vnc-touch/opt/qt5/plugins/platforms/libkobo.so
+	else
+		mount --bind /mnt/lib/qt5-plugins/libkobo.so.2 /mnt/opt/X11/vnc-touch/opt/qt5/plugins/platforms/libkobo.so
+	fi
 fi
 
 echo "true" > /mnt/boot/flags/X11_STARTED
