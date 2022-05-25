@@ -370,7 +370,7 @@ else
 fi
 echo "X11 windowing system was successfully initialized."
 
-if [ "${DEVICE}" == "kt" ]; then
+if [ "${DEVICE}" == "kt" ] || [ "${DEVICE}" == "n437" ]; then
 	chroot /mnt /opt/bin/fbink/fbdepth -d 8
 fi
 
