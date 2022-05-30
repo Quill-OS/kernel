@@ -1,0 +1,6 @@
+config WWAN_CTRL
+	bool "WWAN Control Driver"
+	default y
+	---help---
+	 WWAN control driver.
+

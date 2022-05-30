@@ -1,0 +1,1 @@
+cmd_networking/lib.a := rm -f networking/lib.a; armv7l-linux-musleabihf-ar  rcs networking/lib.a networking/ifconfig.o networking/ifenslave.o networking/ifplugd.o networking/ifupdown.o networking/interface.o networking/nc.o networking/ping.o networking/route.o

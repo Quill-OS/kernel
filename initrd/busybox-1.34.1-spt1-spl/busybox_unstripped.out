@@ -1,0 +1,1192 @@
+Output of:
+armv7l-linux-musleabihf-gcc -Wall -Wshadow -Wwrite-strings -Wundef -Wstrict-prototypes -Wunused -Wunused-parameter -Wunused-function -Wunused-value -Wmissing-prototypes -Wmissing-declarations -Wno-format-security -Wdeclaration-after-statement -Wold-style-definition -finline-limit=0 -fno-builtin-strlen -fomit-frame-pointer -ffunction-sections -fdata-sections -fno-guess-branch-probability -funsigned-char -static-libgcc -falign-functions=1 -falign-jumps=1 -falign-labels=1 -falign-loops=1 -fno-unwind-tables -fno-asynchronous-unwind-tables -fno-builtin-printf -Os -static -o busybox_unstripped -Wl,--sort-common -Wl,--sort-section,alignment -Wl,--gc-sections -Wl,--start-group applets/built-in.o archival/lib.a archival/libarchive/lib.a console-tools/lib.a coreutils/lib.a coreutils/libcoreutils/lib.a debianutils/lib.a klibc-utils/lib.a e2fsprogs/lib.a editors/lib.a findutils/lib.a init/lib.a libbb/lib.a libpwdgrp/lib.a loginutils/lib.a mailutils/lib.a miscutils/lib.a modutils/lib.a networking/lib.a networking/libiproute/lib.a networking/udhcp/lib.a printutils/lib.a procps/lib.a runit/lib.a selinux/lib.a shell/lib.a sysklogd/lib.a util-linux/lib.a util-linux/volume_id/lib.a archival/built-in.o archival/libarchive/built-in.o console-tools/built-in.o coreutils/built-in.o coreutils/libcoreutils/built-in.o debianutils/built-in.o klibc-utils/built-in.o e2fsprogs/built-in.o editors/built-in.o findutils/built-in.o init/built-in.o libbb/built-in.o libpwdgrp/built-in.o loginutils/built-in.o mailutils/built-in.o miscutils/built-in.o modutils/built-in.o networking/built-in.o networking/libiproute/built-in.o networking/udhcp/built-in.o printutils/built-in.o procps/built-in.o runit/built-in.o selinux/built-in.o shell/built-in.o sysklogd/built-in.o util-linux/built-in.o util-linux/volume_id/built-in.o -Wl,--end-group -Wl,--warn-common -Wl,-Map,busybox_unstripped.map -Wl,--verbose
+==========
+GNU ld (GNU Binutils) 2.36.1
+  Supported emulations:
+   armelf_linux_eabi
+   armelfb_linux_eabi
+using internal linker script:
+==================================================
+/* Script for -z combreloc */
+/* Copyright (C) 2014-2021 Free Software Foundation, Inc.
+   Copying and distribution of this script, with or without modification,
+   are permitted in any medium without royalty provided the copyright
+   notice and this notice are preserved.  */
+OUTPUT_FORMAT("elf32-littlearm", "elf32-bigarm",
+	      "elf32-littlearm")
+OUTPUT_ARCH(arm)
+ENTRY(_start)
+SEARCH_DIR("=/armv7l-linux-musleabihf/lib"); SEARCH_DIR("=/usr/local/lib"); SEARCH_DIR("=/lib"); SEARCH_DIR("=/usr/lib");
+SECTIONS
+{
+  /* Read-only sections, merged into text segment: */
+  PROVIDE (__executable_start = SEGMENT_START("text-segment", 0x00010000)); . = SEGMENT_START("text-segment", 0x00010000) + SIZEOF_HEADERS;
+  .interp         : { *(.interp) }
+  .note.gnu.build-id  : { *(.note.gnu.build-id) }
+  .hash           : { *(.hash) }
+  .gnu.hash       : { *(.gnu.hash) }
+  .dynsym         : { *(.dynsym) }
+  .dynstr         : { *(.dynstr) }
+  .gnu.version    : { *(.gnu.version) }
+  .gnu.version_d  : { *(.gnu.version_d) }
+  .gnu.version_r  : { *(.gnu.version_r) }
+  .rel.dyn        :
+    {
+      *(.rel.init)
+      *(.rel.text .rel.text.* .rel.gnu.linkonce.t.*)
+      *(.rel.fini)
+      *(.rel.rodata .rel.rodata.* .rel.gnu.linkonce.r.*)
+      *(.rel.data.rel.ro .rel.data.rel.ro.* .rel.gnu.linkonce.d.rel.ro.*)
+      *(.rel.data .rel.data.* .rel.gnu.linkonce.d.*)
+      *(.rel.tdata .rel.tdata.* .rel.gnu.linkonce.td.*)
+      *(.rel.tbss .rel.tbss.* .rel.gnu.linkonce.tb.*)
+      *(.rel.ctors)
+      *(.rel.dtors)
+      *(.rel.got)
+      *(.rel.bss .rel.bss.* .rel.gnu.linkonce.b.*)
+      PROVIDE_HIDDEN (__rel_iplt_start = .);
+      *(.rel.iplt)
+      PROVIDE_HIDDEN (__rel_iplt_end = .);
+    }
+  .rela.dyn       :
+    {
+      *(.rela.init)
+      *(.rela.text .rela.text.* .rela.gnu.linkonce.t.*)
+      *(.rela.fini)
+      *(.rela.rodata .rela.rodata.* .rela.gnu.linkonce.r.*)
+      *(.rela.data .rela.data.* .rela.gnu.linkonce.d.*)
+      *(.rela.tdata .rela.tdata.* .rela.gnu.linkonce.td.*)
+      *(.rela.tbss .rela.tbss.* .rela.gnu.linkonce.tb.*)
+      *(.rela.ctors)
+      *(.rela.dtors)
+      *(.rela.got)
+      *(.rela.bss .rela.bss.* .rela.gnu.linkonce.b.*)
+      PROVIDE_HIDDEN (__rela_iplt_start = .);
+      *(.rela.iplt)
+      PROVIDE_HIDDEN (__rela_iplt_end = .);
+    }
+  .rel.plt        :
+    {
+      *(.rel.plt)
+    }
+  .rela.plt       :
+    {
+      *(.rela.plt)
+    }
+  .init           :
+  {
+    KEEP (*(SORT_NONE(.init)))
+  }
+  .plt            : { *(.plt) }
+  .iplt           : { *(.iplt) }
+  .text           :
+  {
+    *(.text.unlikely .text.*_unlikely .text.unlikely.*)
+    *(.text.exit .text.exit.*)
+    *(.text.startup .text.startup.*)
+    *(.text.hot .text.hot.*)
+    *(SORT(.text.sorted.*))
+    *(.text .stub .text.* .gnu.linkonce.t.*)
+    /* .gnu.warning sections are handled specially by elf.em.  */
+    *(.gnu.warning)
+    *(.glue_7t) *(.glue_7) *(.vfp11_veneer) *(.v4_bx)
+  }
+  .fini           :
+  {
+    KEEP (*(SORT_NONE(.fini)))
+  }
+  PROVIDE (__etext = .);
+  PROVIDE (_etext = .);
+  PROVIDE (etext = .);
+  .rodata         : { *(.rodata .rodata.* .gnu.linkonce.r.*) }
+  .rodata1        : { *(.rodata1) }
+  .ARM.extab   : { *(.ARM.extab* .gnu.linkonce.armextab.*) }
+  .ARM.exidx   :
+    {
+      PROVIDE_HIDDEN (__exidx_start = .);
+      *(.ARM.exidx* .gnu.linkonce.armexidx.*)
+      PROVIDE_HIDDEN (__exidx_end = .);
+    }
+  .eh_frame_hdr   : { *(.eh_frame_hdr) *(.eh_frame_entry .eh_frame_entry.*) }
+  .eh_frame       : ONLY_IF_RO { KEEP (*(.eh_frame)) *(.eh_frame.*) }
+  .gcc_except_table   : ONLY_IF_RO { *(.gcc_except_table .gcc_except_table.*) }
+  .gnu_extab   : ONLY_IF_RO { *(.gnu_extab*) }
+  /* These sections are generated by the Sun/Oracle C++ compiler.  */
+  .exception_ranges   : ONLY_IF_RO { *(.exception_ranges*) }
+  /* Adjust the address for the data segment.  We want to adjust up to
+     the same address within the page on the next page up.  */
+  . = DATA_SEGMENT_ALIGN (CONSTANT (MAXPAGESIZE), CONSTANT (COMMONPAGESIZE));
+  /* Exception handling  */
+  .eh_frame       : ONLY_IF_RW { KEEP (*(.eh_frame)) *(.eh_frame.*) }
+  .gnu_extab      : ONLY_IF_RW { *(.gnu_extab) }
+  .gcc_except_table   : ONLY_IF_RW { *(.gcc_except_table .gcc_except_table.*) }
+  .exception_ranges   : ONLY_IF_RW { *(.exception_ranges*) }
+  /* Thread Local Storage sections  */
+  .tdata	  :
+   {
+     PROVIDE_HIDDEN (__tdata_start = .);
+     *(.tdata .tdata.* .gnu.linkonce.td.*)
+   }
+  .tbss		  : { *(.tbss .tbss.* .gnu.linkonce.tb.*) *(.tcommon) }
+  .preinit_array    :
+  {
+    PROVIDE_HIDDEN (__preinit_array_start = .);
+    KEEP (*(.preinit_array))
+    PROVIDE_HIDDEN (__preinit_array_end = .);
+  }
+  .init_array    :
+  {
+    PROVIDE_HIDDEN (__init_array_start = .);
+    KEEP (*(SORT_BY_INIT_PRIORITY(.init_array.*) SORT_BY_INIT_PRIORITY(.ctors.*)))
+    KEEP (*(.init_array EXCLUDE_FILE (*crtbegin.o *crtbegin?.o *crtend.o *crtend?.o ) .ctors))
+    PROVIDE_HIDDEN (__init_array_end = .);
+  }
+  .fini_array    :
+  {
+    PROVIDE_HIDDEN (__fini_array_start = .);
+    KEEP (*(SORT_BY_INIT_PRIORITY(.fini_array.*) SORT_BY_INIT_PRIORITY(.dtors.*)))
+    KEEP (*(.fini_array EXCLUDE_FILE (*crtbegin.o *crtbegin?.o *crtend.o *crtend?.o ) .dtors))
+    PROVIDE_HIDDEN (__fini_array_end = .);
+  }
+  .ctors          :
+  {
+    /* gcc uses crtbegin.o to find the start of
+       the constructors, so we make sure it is
+       first.  Because this is a wildcard, it
+       doesn't matter if the user does not
+       actually link against crtbegin.o; the
+       linker won't look for a file to match a
+       wildcard.  The wildcard also means that it
+       doesn't matter which directory crtbegin.o
+       is in.  */
+    KEEP (*crtbegin.o(.ctors))
+    KEEP (*crtbegin?.o(.ctors))
+    /* We don't want to include the .ctor section from
+       the crtend.o file until after the sorted ctors.
+       The .ctor section from the crtend file contains the
+       end of ctors marker and it must be last */
+    KEEP (*(EXCLUDE_FILE (*crtend.o *crtend?.o ) .ctors))
+    KEEP (*(SORT(.ctors.*)))
+    KEEP (*(.ctors))
+  }
+  .dtors          :
+  {
+    KEEP (*crtbegin.o(.dtors))
+    KEEP (*crtbegin?.o(.dtors))
+    KEEP (*(EXCLUDE_FILE (*crtend.o *crtend?.o ) .dtors))
+    KEEP (*(SORT(.dtors.*)))
+    KEEP (*(.dtors))
+  }
+  .jcr            : { KEEP (*(.jcr)) }
+  .data.rel.ro : { *(.data.rel.ro.local* .gnu.linkonce.d.rel.ro.local.*) *(.data.rel.ro .data.rel.ro.* .gnu.linkonce.d.rel.ro.*) }
+  .dynamic        : { *(.dynamic) }
+  . = DATA_SEGMENT_RELRO_END (0, .);
+  .got            : { *(.got.plt) *(.igot.plt) *(.got) *(.igot) }
+  .data           :
+  {
+    PROVIDE (__data_start = .);
+    *(.data .data.* .gnu.linkonce.d.*)
+    SORT(CONSTRUCTORS)
+  }
+  .data1          : { *(.data1) }
+  _edata = .; PROVIDE (edata = .);
+  . = .;
+  __bss_start = .;
+  __bss_start__ = .;
+  .bss            :
+  {
+   *(.dynbss)
+   *(.bss .bss.* .gnu.linkonce.b.*)
+   *(COMMON)
+   /* Align here to ensure that the .bss section occupies space up to
+      _end.  Align after .bss to ensure correct alignment even if the
+      .bss section disappears because there are no input sections.
+      FIXME: Why do we need it? When there is no .bss section, we do not
+      pad the .data section.  */
+   . = ALIGN(. != 0 ? 32 / 8 : 1);
+  }
+  _bss_end__ = .; __bss_end__ = .;
+  . = ALIGN(32 / 8);
+  . = SEGMENT_START("ldata-segment", .);
+  . = ALIGN(32 / 8);
+  __end__ = .;
+  _end = .; PROVIDE (end = .);
+  . = DATA_SEGMENT_END (.);
+  /* Stabs debugging sections.  */
+  .stab          0 : { *(.stab) }
+  .stabstr       0 : { *(.stabstr) }
+  .stab.excl     0 : { *(.stab.excl) }
+  .stab.exclstr  0 : { *(.stab.exclstr) }
+  .stab.index    0 : { *(.stab.index) }
+  .stab.indexstr 0 : { *(.stab.indexstr) }
+  .comment       0 : { *(.comment) }
+  .gnu.build.attributes : { *(.gnu.build.attributes .gnu.build.attributes.*) }
+  /* DWARF debug sections.
+     Symbols in the DWARF debugging sections are relative to the beginning
+     of the section so we begin them at 0.  */
+  /* DWARF 1.  */
+  .debug          0 : { *(.debug) }
+  .line           0 : { *(.line) }
+  /* GNU DWARF 1 extensions.  */
+  .debug_srcinfo  0 : { *(.debug_srcinfo) }
+  .debug_sfnames  0 : { *(.debug_sfnames) }
+  /* DWARF 1.1 and DWARF 2.  */
+  .debug_aranges  0 : { *(.debug_aranges) }
+  .debug_pubnames 0 : { *(.debug_pubnames) }
+  /* DWARF 2.  */
+  .debug_info     0 : { *(.debug_info .gnu.linkonce.wi.*) }
+  .debug_abbrev   0 : { *(.debug_abbrev) }
+  .debug_line     0 : { *(.debug_line .debug_line.* .debug_line_end) }
+  .debug_frame    0 : { *(.debug_frame) }
+  .debug_str      0 : { *(.debug_str) }
+  .debug_loc      0 : { *(.debug_loc) }
+  .debug_macinfo  0 : { *(.debug_macinfo) }
+  /* SGI/MIPS DWARF 2 extensions.  */
+  .debug_weaknames 0 : { *(.debug_weaknames) }
+  .debug_funcnames 0 : { *(.debug_funcnames) }
+  .debug_typenames 0 : { *(.debug_typenames) }
+  .debug_varnames  0 : { *(.debug_varnames) }
+  /* DWARF 3.  */
+  .debug_pubtypes 0 : { *(.debug_pubtypes) }
+  .debug_ranges   0 : { *(.debug_ranges) }
+  /* DWARF 5.  */
+  .debug_addr     0 : { *(.debug_addr) }
+  .debug_line_str 0 : { *(.debug_line_str) }
+  .debug_loclists 0 : { *(.debug_loclists) }
+  .debug_macro    0 : { *(.debug_macro) }
+  .debug_names    0 : { *(.debug_names) }
+  .debug_rnglists 0 : { *(.debug_rnglists) }
+  .debug_str_offsets 0 : { *(.debug_str_offsets) }
+  .debug_sup      0 : { *(.debug_sup) }
+  .gnu.attributes 0 : { KEEP (*(.gnu.attributes)) }
+  .note.gnu.arm.ident 0 : { KEEP (*(.note.gnu.arm.ident)) }
+  /DISCARD/ : { *(.note.GNU-stack) *(.gnu_debuglink) *(.gnu.lto_*) }
+}
+
+
+==================================================
+/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/bin/ld: mode armelf_linux_eabi
+attempt to open /home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/crt1.o succeeded
+/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/crt1.o
+attempt to open /home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/crti.o succeeded
+/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/crti.o
+attempt to open /home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/crtbeginT.o succeeded
+/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/crtbeginT.o
+attempt to open applets/built-in.o succeeded
+applets/built-in.o
+attempt to open archival/lib.a succeeded
+archival/lib.a
+attempt to open archival/libarchive/lib.a succeeded
+archival/libarchive/lib.a
+attempt to open console-tools/lib.a succeeded
+console-tools/lib.a
+attempt to open coreutils/lib.a succeeded
+coreutils/lib.a
+attempt to open coreutils/libcoreutils/lib.a succeeded
+coreutils/libcoreutils/lib.a
+attempt to open debianutils/lib.a succeeded
+debianutils/lib.a
+attempt to open klibc-utils/lib.a succeeded
+klibc-utils/lib.a
+attempt to open e2fsprogs/lib.a succeeded
+e2fsprogs/lib.a
+attempt to open editors/lib.a succeeded
+editors/lib.a
+attempt to open findutils/lib.a succeeded
+findutils/lib.a
+attempt to open init/lib.a succeeded
+init/lib.a
+attempt to open libbb/lib.a succeeded
+libbb/lib.a
+(libbb/lib.a)appletlib.o
+(libbb/lib.a)compare_string_array.o
+(libbb/lib.a)concat_path_file.o
+(libbb/lib.a)default_error_retval.o
+(libbb/lib.a)get_last_path_component.o
+(libbb/lib.a)last_char_is.o
+(libbb/lib.a)llist.o
+(libbb/lib.a)messages.o
+(libbb/lib.a)perror_msg.o
+(libbb/lib.a)ptr_to_globals.o
+(libbb/lib.a)skip_whitespace.o
+(libbb/lib.a)verror_msg.o
+(libbb/lib.a)wfopen.o
+(libbb/lib.a)xfunc_die.o
+(libbb/lib.a)xfuncs.o
+(libbb/lib.a)xfuncs_printf.o
+(libbb/lib.a)xreadlink.o
+(libbb/lib.a)copyfd.o
+(libbb/lib.a)full_write.o
+(libbb/lib.a)read.o
+(libbb/lib.a)safe_write.o
+(libbb/lib.a)signals.o
+(libbb/lib.a)time.o
+(libbb/lib.a)xgetcwd.o
+(libbb/lib.a)bb_strtonum.o
+attempt to open libpwdgrp/lib.a succeeded
+libpwdgrp/lib.a
+(libpwdgrp/lib.a)pwd_grp.o
+(libpwdgrp/lib.a)uidgid_get.o
+attempt to open loginutils/lib.a succeeded
+loginutils/lib.a
+(loginutils/lib.a)getty.o
+(loginutils/lib.a)login.o
+attempt to open mailutils/lib.a succeeded
+mailutils/lib.a
+attempt to open miscutils/lib.a succeeded
+miscutils/lib.a
+(miscutils/lib.a)devmem.o
+(miscutils/lib.a)i2c_tools.o
+(miscutils/lib.a)rx.o
+(miscutils/lib.a)watchdog.o
+attempt to open modutils/lib.a succeeded
+modutils/lib.a
+(modutils/lib.a)modprobe-small.o
+attempt to open networking/lib.a succeeded
+networking/lib.a
+(networking/lib.a)ifconfig.o
+(networking/lib.a)ifenslave.o
+(networking/lib.a)ifplugd.o
+(networking/lib.a)ifupdown.o
+(networking/lib.a)interface.o
+(networking/lib.a)nc.o
+(networking/lib.a)ping.o
+(networking/lib.a)route.o
+attempt to open networking/libiproute/lib.a succeeded
+networking/libiproute/lib.a
+attempt to open networking/udhcp/lib.a succeeded
+networking/udhcp/lib.a
+attempt to open printutils/lib.a succeeded
+printutils/lib.a
+attempt to open procps/lib.a succeeded
+procps/lib.a
+(procps/lib.a)free.o
+(procps/lib.a)fuser.o
+(procps/lib.a)kill.o
+(procps/lib.a)lsof.o
+(procps/lib.a)pidof.o
+(procps/lib.a)ps.o
+attempt to open runit/lib.a succeeded
+runit/lib.a
+attempt to open selinux/lib.a succeeded
+selinux/lib.a
+attempt to open shell/lib.a succeeded
+shell/lib.a
+(shell/lib.a)ash.o
+(shell/lib.a)ash_ptr_hack.o
+(shell/lib.a)cttyhack.o
+(shell/lib.a)math.o
+(shell/lib.a)random.o
+(shell/lib.a)shell_common.o
+attempt to open sysklogd/lib.a succeeded
+sysklogd/lib.a
+attempt to open util-linux/lib.a succeeded
+util-linux/lib.a
+(util-linux/lib.a)dmesg.o
+(util-linux/lib.a)fbset.o
+(util-linux/lib.a)fdformat.o
+(util-linux/lib.a)hexdump_xxd.o
+(util-linux/lib.a)losetup.o
+(util-linux/lib.a)mount.o
+(util-linux/lib.a)switch_root.o
+(util-linux/lib.a)umount.o
+attempt to open util-linux/volume_id/lib.a succeeded
+util-linux/volume_id/lib.a
+(util-linux/volume_id/lib.a)get_devname.o
+(util-linux/volume_id/lib.a)volume_id.o
+(util-linux/volume_id/lib.a)xfs.o
+(util-linux/volume_id/lib.a)bcache.o
+(util-linux/volume_id/lib.a)btrfs.o
+(util-linux/volume_id/lib.a)cramfs.o
+(util-linux/volume_id/lib.a)erofs.o
+(util-linux/volume_id/lib.a)exfat.o
+(util-linux/volume_id/lib.a)ext.o
+(util-linux/volume_id/lib.a)f2fs.o
+(util-linux/volume_id/lib.a)fat.o
+(util-linux/volume_id/lib.a)hfs.o
+(util-linux/volume_id/lib.a)iso9660.o
+(util-linux/volume_id/lib.a)jfs.o
+(util-linux/volume_id/lib.a)linux_raid.o
+(util-linux/volume_id/lib.a)linux_swap.o
+(util-linux/volume_id/lib.a)luks.o
+(util-linux/volume_id/lib.a)minix.o
+(util-linux/volume_id/lib.a)nilfs.o
+(util-linux/volume_id/lib.a)ntfs.o
+(util-linux/volume_id/lib.a)ocfs2.o
+(util-linux/volume_id/lib.a)reiserfs.o
+(util-linux/volume_id/lib.a)romfs.o
+(util-linux/volume_id/lib.a)sysv.o
+(util-linux/volume_id/lib.a)ubifs.o
+(util-linux/volume_id/lib.a)udf.o
+(util-linux/volume_id/lib.a)util.o
+attempt to open archival/built-in.o succeeded
+archival/built-in.o
+attempt to open archival/libarchive/built-in.o succeeded
+archival/libarchive/built-in.o
+attempt to open console-tools/built-in.o succeeded
+console-tools/built-in.o
+attempt to open coreutils/built-in.o succeeded
+coreutils/built-in.o
+attempt to open coreutils/libcoreutils/built-in.o succeeded
+coreutils/libcoreutils/built-in.o
+attempt to open debianutils/built-in.o succeeded
+debianutils/built-in.o
+attempt to open klibc-utils/built-in.o succeeded
+klibc-utils/built-in.o
+attempt to open e2fsprogs/built-in.o succeeded
+e2fsprogs/built-in.o
+attempt to open editors/built-in.o succeeded
+editors/built-in.o
+attempt to open findutils/built-in.o succeeded
+findutils/built-in.o
+attempt to open init/built-in.o succeeded
+init/built-in.o
+attempt to open libbb/built-in.o succeeded
+libbb/built-in.o
+attempt to open libpwdgrp/built-in.o succeeded
+libpwdgrp/built-in.o
+attempt to open loginutils/built-in.o succeeded
+loginutils/built-in.o
+attempt to open mailutils/built-in.o succeeded
+mailutils/built-in.o
+attempt to open miscutils/built-in.o succeeded
+miscutils/built-in.o
+attempt to open modutils/built-in.o succeeded
+modutils/built-in.o
+attempt to open networking/built-in.o succeeded
+networking/built-in.o
+attempt to open networking/libiproute/built-in.o succeeded
+networking/libiproute/built-in.o
+attempt to open networking/udhcp/built-in.o succeeded
+networking/udhcp/built-in.o
+attempt to open printutils/built-in.o succeeded
+printutils/built-in.o
+attempt to open procps/built-in.o succeeded
+procps/built-in.o
+attempt to open runit/built-in.o succeeded
+runit/built-in.o
+attempt to open selinux/built-in.o succeeded
+selinux/built-in.o
+attempt to open shell/built-in.o succeeded
+shell/built-in.o
+attempt to open sysklogd/built-in.o succeeded
+sysklogd/built-in.o
+attempt to open util-linux/built-in.o succeeded
+util-linux/built-in.o
+attempt to open util-linux/volume_id/built-in.o succeeded
+util-linux/volume_id/built-in.o
+archival/lib.a
+archival/libarchive/lib.a
+(archival/libarchive/lib.a)decompress_bunzip2.o
+(archival/libarchive/lib.a)open_transformer.o
+(archival/libarchive/lib.a)decompress_gunzip.o
+(archival/libarchive/lib.a)decompress_unxz.o
+console-tools/lib.a
+(console-tools/lib.a)reset.o
+coreutils/lib.a
+(coreutils/lib.a)cat.o
+(coreutils/lib.a)chgrp.o
+(coreutils/lib.a)chmod.o
+(coreutils/lib.a)chown.o
+(coreutils/lib.a)chroot.o
+(coreutils/lib.a)cp.o
+(coreutils/lib.a)cut.o
+(coreutils/lib.a)date.o
+(coreutils/lib.a)dd.o
+(coreutils/lib.a)echo.o
+(coreutils/lib.a)env.o
+(coreutils/lib.a)false.o
+(coreutils/lib.a)fold.o
+(coreutils/lib.a)ln.o
+(coreutils/lib.a)ls.o
+(coreutils/lib.a)md5_sha1_sum.o
+(coreutils/lib.a)mkdir.o
+(coreutils/lib.a)mkfifo.o
+(coreutils/lib.a)mknod.o
+(coreutils/lib.a)mv.o
+(coreutils/lib.a)nohup.o
+(coreutils/lib.a)nproc.o
+(coreutils/lib.a)printf.o
+(coreutils/lib.a)pwd.o
+(coreutils/lib.a)rm.o
+(coreutils/lib.a)sleep.o
+(coreutils/lib.a)sort.o
+(coreutils/lib.a)split.o
+(coreutils/lib.a)stat.o
+(coreutils/lib.a)sync.o
+(coreutils/lib.a)test.o
+(coreutils/lib.a)test_ptr_hack.o
+(coreutils/lib.a)timeout.o
+(coreutils/lib.a)touch.o
+(coreutils/lib.a)tr.o
+(coreutils/lib.a)true.o
+(coreutils/lib.a)uname.o
+(coreutils/lib.a)unlink.o
+(coreutils/lib.a)uudecode.o
+(coreutils/lib.a)yes.o
+coreutils/libcoreutils/lib.a
+(coreutils/libcoreutils/lib.a)cp_mv_stat.o
+(coreutils/libcoreutils/lib.a)getopt_mk_fifo_nod.o
+debianutils/lib.a
+klibc-utils/lib.a
+e2fsprogs/lib.a
+(e2fsprogs/lib.a)chattr.o
+(e2fsprogs/lib.a)e2fs_lib.o
+(e2fsprogs/lib.a)fsck.o
+(e2fsprogs/lib.a)lsattr.o
+editors/lib.a
+(editors/lib.a)awk.o
+(editors/lib.a)sed.o
+(editors/lib.a)vi.o
+findutils/lib.a
+(findutils/lib.a)grep.o
+init/lib.a
+(init/lib.a)halt.o
+(init/lib.a)init.o
+libbb/lib.a
+(libbb/lib.a)ask_confirmation.o
+(libbb/lib.a)auto_string.o
+(libbb/lib.a)bb_cat.o
+(libbb/lib.a)bb_do_delay.o
+(libbb/lib.a)bb_getgroups.o
+(libbb/lib.a)bb_pwd.o
+(libbb/lib.a)capability.o
+(libbb/lib.a)change_identity.o
+(libbb/lib.a)common_bufsiz.o
+(libbb/lib.a)concat_subpath_file.o
+(libbb/lib.a)copy_file.o
+(libbb/lib.a)correct_password.o
+(libbb/lib.a)crc32.o
+(libbb/lib.a)device_open.o
+(libbb/lib.a)dump.o
+(libbb/lib.a)duration.o
+(libbb/lib.a)endofname.o
+(libbb/lib.a)executable.o
+(libbb/lib.a)fclose_nonstdin.o
+(libbb/lib.a)fflush_stdout_and_exit.o
+(libbb/lib.a)find_mount_point.o
+(libbb/lib.a)find_pid_by_name.o
+(libbb/lib.a)get_line_from_file.o
+(libbb/lib.a)get_shell_name.o
+(libbb/lib.a)getopt32.o
+(libbb/lib.a)getopt_allopts.o
+(libbb/lib.a)hash_md5_sha.o
+(libbb/lib.a)human_readable.o
+(libbb/lib.a)in_ether.o
+(libbb/lib.a)inet_cksum.o
+(libbb/lib.a)inet_common.o
+(libbb/lib.a)inode_hash.o
+(libbb/lib.a)isdirectory.o
+(libbb/lib.a)iterate_on_dir.o
+(libbb/lib.a)lineedit.o
+(libbb/lib.a)lineedit_ptr_hack.o
+(libbb/lib.a)login.o
+(libbb/lib.a)loop.o
+(libbb/lib.a)make_directory.o
+(libbb/lib.a)match_fstype.o
+(libbb/lib.a)mode_string.o
+(libbb/lib.a)nuke_str.o
+(libbb/lib.a)parse_config.o
+(libbb/lib.a)parse_mode.o
+(libbb/lib.a)perror_nomsg_and_die.o
+(libbb/lib.a)pidfile.o
+(libbb/lib.a)print_numbered_lines.o
+(libbb/lib.a)printable.o
+(libbb/lib.a)printable_string.o
+(libbb/lib.a)process_escape_sequence.o
+(libbb/lib.a)procps.o
+(libbb/lib.a)pw_encrypt.o
+(libbb/lib.a)read_key.o
+(libbb/lib.a)read_printf.o
+(libbb/lib.a)recursive_action.o
+(libbb/lib.a)remove_file.o
+(libbb/lib.a)run_shell.o
+(libbb/lib.a)safe_gethostname.o
+(libbb/lib.a)safe_poll.o
+(libbb/lib.a)safe_strncpy.o
+(libbb/lib.a)securetty.o
+(libbb/lib.a)setup_environment.o
+(libbb/lib.a)simplify_path.o
+(libbb/lib.a)single_argv.o
+(libbb/lib.a)speed_table.o
+(libbb/lib.a)strrstr.o
+(libbb/lib.a)sysconf.o
+(libbb/lib.a)u_signal_names.o
+(libbb/lib.a)udp_io.o
+(libbb/lib.a)unicode.o
+(libbb/lib.a)utmp.o
+(libbb/lib.a)uuencode.o
+(libbb/lib.a)vfork_daemon_rexec.o
+(libbb/lib.a)wfopen_input.o
+(libbb/lib.a)xatonum.o
+(libbb/lib.a)xconnect.o
+(libbb/lib.a)xrealloc_vector.o
+(libbb/lib.a)xregcomp.o
+(libbb/lib.a)bb_askpass.o
+(libbb/lib.a)bb_bswap_64.o
+(libbb/lib.a)bb_qsort.o
+libpwdgrp/lib.a
+loginutils/lib.a
+mailutils/lib.a
+miscutils/lib.a
+modutils/lib.a
+networking/lib.a
+networking/libiproute/lib.a
+networking/udhcp/lib.a
+printutils/lib.a
+procps/lib.a
+runit/lib.a
+selinux/lib.a
+shell/lib.a
+sysklogd/lib.a
+util-linux/lib.a
+util-linux/volume_id/lib.a
+archival/built-in.o
+archival/libarchive/built-in.o
+console-tools/built-in.o
+coreutils/built-in.o
+coreutils/libcoreutils/built-in.o
+debianutils/built-in.o
+klibc-utils/built-in.o
+e2fsprogs/built-in.o
+editors/built-in.o
+findutils/built-in.o
+init/built-in.o
+libbb/built-in.o
+libpwdgrp/built-in.o
+loginutils/built-in.o
+mailutils/built-in.o
+miscutils/built-in.o
+modutils/built-in.o
+networking/built-in.o
+networking/libiproute/built-in.o
+networking/udhcp/built-in.o
+printutils/built-in.o
+procps/built-in.o
+runit/built-in.o
+selinux/built-in.o
+shell/built-in.o
+sysklogd/built-in.o
+util-linux/built-in.o
+util-linux/volume_id/built-in.o
+archival/lib.a
+archival/libarchive/lib.a
+console-tools/lib.a
+coreutils/lib.a
+coreutils/libcoreutils/lib.a
+debianutils/lib.a
+klibc-utils/lib.a
+e2fsprogs/lib.a
+editors/lib.a
+findutils/lib.a
+init/lib.a
+libbb/lib.a
+libpwdgrp/lib.a
+loginutils/lib.a
+mailutils/lib.a
+miscutils/lib.a
+modutils/lib.a
+networking/lib.a
+networking/libiproute/lib.a
+networking/udhcp/lib.a
+printutils/lib.a
+procps/lib.a
+runit/lib.a
+selinux/lib.a
+shell/lib.a
+sysklogd/lib.a
+util-linux/lib.a
+util-linux/volume_id/lib.a
+archival/built-in.o
+archival/libarchive/built-in.o
+console-tools/built-in.o
+coreutils/built-in.o
+coreutils/libcoreutils/built-in.o
+debianutils/built-in.o
+klibc-utils/built-in.o
+e2fsprogs/built-in.o
+editors/built-in.o
+findutils/built-in.o
+init/built-in.o
+libbb/built-in.o
+libpwdgrp/built-in.o
+loginutils/built-in.o
+mailutils/built-in.o
+miscutils/built-in.o
+modutils/built-in.o
+networking/built-in.o
+networking/libiproute/built-in.o
+networking/udhcp/built-in.o
+printutils/built-in.o
+procps/built-in.o
+runit/built-in.o
+selinux/built-in.o
+shell/built-in.o
+sysklogd/built-in.o
+util-linux/built-in.o
+util-linux/volume_id/built-in.o
+attempt to open /home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/libgcc.a succeeded
+/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/libgcc.a
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/libgcc.a)_udivsi3.o
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/libgcc.a)_divsi3.o
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/libgcc.a)_arm_addsubdf3.o
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/libgcc.a)_aeabi_ldivmod.o
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/libgcc.a)_aeabi_uldivmod.o
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/libgcc.a)_dvmd_lnx.o
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/libgcc.a)_bswapsi2.o
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/libgcc.a)_bswapdi2.o
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/libgcc.a)_fixdfdi.o
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/libgcc.a)_fixunsdfdi.o
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/libgcc.a)_udivmoddi4.o
+attempt to open /home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/libgcc_eh.a succeeded
+/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/libgcc_eh.a
+attempt to open /home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/libc.a failed
+attempt to open /home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/libc.a failed
+attempt to open /home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a succeeded
+/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)sysconf.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)closedir.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)opendir.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)readdir.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)__environ.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)__libc_start_main.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)clearenv.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)getenv.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)putenv.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)setenv.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)unsetenv.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)__errno_location.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)strerror.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)exit.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)fcntl.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)open.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)defsysinfo.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)libc.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)syscall_ret.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)utmpx.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)cap.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)chroot.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)klogctl.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)mount.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)prctl.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)reboot.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)sendfile.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)setgroups.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)settimeofday.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)sysinfo.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)utimes.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)__lctrans.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)calloc.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)free.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)lite_malloc.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)free.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)malloc.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)realloc.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)replaced.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)sqrt.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)atan2.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)cos.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)exp.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)exp_data.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)log.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)log_data.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)pow.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)pow_data.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)sin.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)dirname.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)getopt.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)getopt_long.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)getrlimit.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)ioctl.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)mntent.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)realpath.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)setrlimit.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)syscall.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)syslog.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)uname.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)madvise.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)mmap.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)mprotect.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)munmap.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)mblen.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)mbtowc.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)accept.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)bind.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)connect.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)freeaddrinfo.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)getaddrinfo.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)gethostbyname.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)gethostbyname2.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)gethostbyname2_r.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)getnameinfo.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)getpeername.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)getservbyname.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)getservbyname_r.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)getsockname.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)getsockopt.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)h_errno.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)htons.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)if_indextoname.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)if_nametoindex.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)inet_aton.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)inet_ntoa.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)inet_ntop.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)listen.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)lookup_ipliteral.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)lookup_name.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)lookup_serv.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)ntohs.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)recv.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)recvfrom.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)recvmsg.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)res_mkquery.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)res_msend.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)res_send.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)resolvconf.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)send.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)sendmsg.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)sendto.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)setsockopt.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)shutdown.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)socket.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)rand.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)vfork.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)execle.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)execlp.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)execv.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)execve.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)execvp.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)fork.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)system.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)wait.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)waitpid.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)fnmatch.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)regcomp.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)regerror.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)regexec.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)tre-mem.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)affinity.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)poll.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)longjmp.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)setjmp.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)sigsetjmp.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)block.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)kill.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)killpg.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)raise.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)setitimer.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)sigaction.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)sigaddset.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)sigdelset.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)sigemptyset.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)sigfillset.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)siglongjmp.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)signal.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)sigprocmask.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)sigrtmax.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)sigrtmin.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)sigsetjmp_tail.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)sigsuspend.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)sigtimedwait.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)chmod.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)fchmod.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)fstat.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)fstatat.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)futimens.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)futimesat.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)lstat.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)mkdir.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)mkfifo.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)mknod.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)stat.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)statvfs.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)umask.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)utimensat.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)__fclose_ca.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)__fdopen.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)__fopen_rb_ca.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)__lockfile.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)__stdio_close.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)__stdio_read.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)__stdio_seek.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)__stdio_write.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)clearerr.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)dprintf.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)fclose.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)feof.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)ferror.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)fflush.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)fgets.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)fileno.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)fopen.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)fprintf.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)fputs.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)fread.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)freopen.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)fscanf.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)fseek.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)fwrite.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)getc.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)getc_unlocked.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)getchar_unlocked.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)getline.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)ofl.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)ofl_add.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)pclose.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)popen.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)printf.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)putc.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)putc_unlocked.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)putchar_unlocked.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)puts.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)rename.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)rewind.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)setbuf.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)setvbuf.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)snprintf.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)sprintf.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)sscanf.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)stderr.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)stdin.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)stdout.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)ungetc.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)vasprintf.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)vdprintf.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)vfprintf.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)vfscanf.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)vprintf.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)vsnprintf.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)vsprintf.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)vsscanf.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)atof.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)atoi.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)bsearch.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)qsort.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)strtod.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)strtol.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)memcpy.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)memchr.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)memcmp.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)memmove.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)memrchr.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)memset.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)stpcpy.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)stpncpy.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)strcasecmp.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)strcasestr.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)strcat.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)strchr.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)strchrnul.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)strcmp.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)strcpy.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)strcspn.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)strdup.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)strlen.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)strncasecmp.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)strncmp.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)strncpy.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)strndup.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)strnlen.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)strpbrk.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)strrchr.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)strsep.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)strsignal.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)strspn.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)strstr.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)strtok_r.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)strverscmp.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)mkstemp.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)cfmakeraw.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)cfsetospeed.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)tcdrain.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)tcflush.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)tcgetattr.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)tcgetsid.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)tcsetattr.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)__lock.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)__syscall_cp.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)atomics.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)lock_ptc.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)pthread_cleanup_push.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)pthread_rwlock_rdlock.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)pthread_rwlock_timedrdlock.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)pthread_rwlock_tryrdlock.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)pthread_rwlock_unlock.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)pthread_rwlock_wrlock.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)pthread_setcancelstate.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)pthread_sigmask.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)pthread_testcancel.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)synccall.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)clock_gettime.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)clock_settime.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)ctime.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)gettimeofday.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)gmtime_r.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)localtime.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)localtime_r.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)mktime.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)nanosleep.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)strftime.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)strptime.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)time.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)times.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)_exit.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)access.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)alarm.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)chdir.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)chown.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)close.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)dup.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)dup2.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)dup3.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)fchdir.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)fchown.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)fsync.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)ftruncate.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)getcwd.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)getegid.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)geteuid.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)getgid.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)getgroups.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)getpgrp.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)getpid.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)getppid.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)getsid.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)getuid.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)isatty.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)lchown.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)link.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)lseek.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)pipe.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)pipe2.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)read.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)readlink.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)rmdir.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)setegid.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)seteuid.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)setgid.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)setpgid.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)setresgid.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)setresuid.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)setsid.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)setuid.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)setxid.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)sleep.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)symlink.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)sync.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)tcgetpgrp.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)tcsetpgrp.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)ttyname_r.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)unlink.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)usleep.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)write.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)isalnum.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)iswalnum.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)iswalpha.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)iswctype.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)iswgraph.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)iswlower.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)iswprint.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)iswpunct.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)iswspace.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)iswupper.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)iswxdigit.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)tolower.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)towctrans.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)__init_tls.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)_Exit.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)abort_lock.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)floatscan.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)intscan.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)procfdname.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)shgetc.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)langinfo.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)realloc.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)__cos.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)__math_divzero.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)__math_invalid.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)__math_oflow.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)__math_uflow.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)__math_xflow.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)__rem_pio2.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)__rem_pio2_large.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)__sin.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)fabs.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)atan.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)copysignl.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)fabsl.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)floor.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)fmodl.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)frexpl.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)scalbn.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)scalbnl.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)mremap.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)internal.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)mbrtowc.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)mbsinit.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)mbstowcs.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)wctomb.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)dn_expand.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)dns_parse.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)inet_pton.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)_Fork.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)posix_spawn.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)posix_spawn_file_actions_adddup2.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)posix_spawn_file_actions_destroy.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)posix_spawn_file_actions_init.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)posix_spawnattr_destroy.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)posix_spawnattr_init.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)posix_spawnattr_setflags.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)posix_spawnattr_setsigdefault.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)posix_spawnattr_setsigmask.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)restore.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)sigismember.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)__fmodeflags.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)__overflow.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)__stdout_write.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)__toread.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)__towrite.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)__uflow.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)getdelim.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)wcschr.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)wcslen.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)mkostemps.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)__timedwait.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)__set_thread_area.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)clone.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)default_attr.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)pthread_rwlock_timedwrlock.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)pthread_rwlock_trywrlock.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)sem_destroy.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)sem_init.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)sem_post.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)sem_wait.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)__secs_to_tm.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)__tm_to_secs.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)__tz.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)__year_to_secs.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)asctime.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)asctime_r.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)clock_nanosleep.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)iswblank.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)iswcntrl.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)c_locale.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)copysign.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)fmod.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)frexp.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)mbsrtowcs.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)wcrtomb.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)__stdio_exit.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)__randname.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)sem_timedwait.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)sem_trywait.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)__map_file.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)__month_to_secs.lo
+(/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a)isblank.lo
+/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/libgcc.a
+/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/libgcc_eh.a
+/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/libc.a
+attempt to open /home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/crtend.o succeeded
+/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/crtend.o
+attempt to open /home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/crtn.o succeeded
+/home/build/inkbox/kernel/toolchain/armv7l-linux-musleabihf-cross/bin/../lib/gcc/armv7l-linux-musleabihf/10.2.1/../../../../armv7l-linux-musleabihf/lib/crtn.o

@@ -1,0 +1,87 @@
+#####################################################################
+# E_BOOK
+#  File addition
+#####################################################################
+menu "Reader Support"
+
+config READER_WIFI
+	bool "WiFi Support"
+	default y
+	select WIRELESS_EXT
+	select WEXT_SPY
+	select WEXT_PRIV
+	help
+		Reader WiFi support.
+
+config RAWDATATABLE
+	bool "Raw Data Table Support"
+	default y
+	help
+		Raw Data Table Support
+
+config KERNEL_LOGGER
+	depends on ANDROID_LOGGER
+	bool "Kernel logger support"
+	default y
+	help
+		Kernel logger support
+
+config MIX_LOGGER
+	depends on ANDROID_LOGGER
+	bool "Mix logger support"
+	default y
+	help
+		Mix logger support
+
+config MIX_LOGGER_STATIC
+	depends on MIX_LOGGER
+	bool "Mix logger static memory support"
+	default y
+	help
+		Mix logger static memory support
+
+config MIX_LOGGER_LEVEL_KERNEL
+	depends on MIX_LOGGER && KERNEL_LOGGER
+	int
+	default "7"
+	help
+		A log level of Kernel to output to Mix logger.
+		Appoint 0-7 values.
+		Output log equal to or less than price that you appointed to Mix logger.
+
+config MIX_LOGGER_LEVEL_ANDROID
+	depends on MIX_LOGGER
+	int
+	default "0"
+	help
+		A log level of Android to output to Mix logger.
+		Appoint 0-8 values.
+		Output log more than the price that you appointed to Mix logger.
+
+config PAST_LOG
+	depends on MIX_LOGGER
+	bool "Past log support"
+	default y
+	help
+		Past log support
+
+config PAST_LOG_DEBUG
+	depends on PAST_LOG
+	bool "Past log debug support"
+	default n
+	help
+		Past log debug support
+
+config EPD_STATIC_MEM_WAVEFORM
+	bool "Static memory support for waveform of EPD."
+	default y
+	help
+		Static memory support for waveform of EPD.
+
+config EPD_STATIC_MEM_WORKBUFF
+	bool "Static memory support for work buffers of EPD."
+	default y
+	help
+		Static memory support for work buffers of EPD.
+
+endmenu

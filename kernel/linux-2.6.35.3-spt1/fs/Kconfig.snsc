@@ -1,0 +1,24 @@
+comment "SNSC related options"
+	depends on SNSC
+
+config SNSC_FS_FAT_BATCH_SYNC
+	bool "Enable 'batch_sync' option for FAT"
+	depends on SNSC && (MSDOS_FS || VFAT_FS)
+	default y
+	help
+	  This option introduces an new option "batch_sync".
+
+config SNSC_FS_FAT_BATCH_SYNC_DEFAULT_OPT
+	bool "Do FAT of batch_sync option appointment in mounting it with a default."
+	depends on SNSC_FS_FAT_BATCH_SYNC
+	default y
+	help
+	  Do FAT of batch_sync option appointment in mounting it with a default.
+
+config SNSC_FS_FAT_BATCH_DIRSYNC_DEFAULT_OPT
+	bool "Do FAT of batch_dirsync option appointment in mounting it with a default."
+	depends on SNSC_FS_FAT_BATCH_SYNC
+	default n
+	help
+	  Do FAT of batch_dirsync option appointment in mounting it with a default.
+
