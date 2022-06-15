@@ -962,7 +962,7 @@ error:
  */
 int cap_syslog(int type)
 {
-	if ((type != 3 && type != 10) && !capable(CAP_SYS_ADMIN))
+	if(!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 	return 0;
 }

@@ -902,10 +902,7 @@ error:
  */
 int cap_syslog(int type, bool from_file)
 {
-	if (type != SYSLOG_ACTION_OPEN && from_file)
-		return 0;
-	if ((type != SYSLOG_ACTION_READ_ALL &&
-	     type != SYSLOG_ACTION_SIZE_BUFFER) && !capable(CAP_SYS_ADMIN))
+	if(!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 	return 0;
 }
