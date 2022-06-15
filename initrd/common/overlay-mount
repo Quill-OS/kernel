@@ -82,26 +82,26 @@ if [ "${1}" != "recovery" ]; then
 		rm -r /mnt
 		ln -s /overlaymount-rootfs/mnt/rootfs/overlay /mnt
 
-		busybox chroot /overlaymount-rootfs "/bin/squashfuse" "/mnt/rootfs-part/rootfs.squashfs" "/mnt/rootfs/read"
+		busybox chroot /overlaymount-rootfs "/bin/squashfuse" "-o" "allow_other" "/mnt/rootfs-part/rootfs.squashfs" "/mnt/rootfs/read"
 		if [ "${1}" == "ro" ]; then
 			if [ "${DEVICE}" != "kt" ]; then
 				if [ "${2}" == "std" ]; then
-					busybox chroot /overlaymount-rootfs "/bin/fuse-overlayfs" "-o" "ro,nosuid,lowerdir=/mnt/rootfs/read,upperdir=/mnt/rootfs/write,workdir=/mnt/rootfs/work" "/mnt/rootfs/overlay"
+					busybox chroot /overlaymount-rootfs "/bin/fuse-overlayfs" "-o" "ro,nosuid,allow_other,lowerdir=/mnt/rootfs/read,upperdir=/mnt/rootfs/write,workdir=/mnt/rootfs/work" "/mnt/rootfs/overlay"
 				else
-					busybox chroot /overlaymount-rootfs "/bin/fuse-overlayfs" "-o" "ro,lowerdir=/mnt/rootfs/read,upperdir=/mnt/rootfs/write,workdir=/mnt/rootfs/work" "/mnt/rootfs/overlay"
+					busybox chroot /overlaymount-rootfs "/bin/fuse-overlayfs" "-o" "ro,allow_other,lowerdir=/mnt/rootfs/read,upperdir=/mnt/rootfs/write,workdir=/mnt/rootfs/work" "/mnt/rootfs/overlay"
 				fi
 			else
 				if [ "${2}" == "std" ]; then
-					busybox chroot /overlaymount-rootfs "/usr/local/bin/unionfs" "-o" "ro,nosuid,cow" "/mnt/rootfs/write=RW:/mnt/rootfs/read=RO" "/mnt/rootfs/overlay"
+					busybox chroot /overlaymount-rootfs "/usr/local/bin/unionfs" "-o" "ro,nosuid,cow,allow_other" "/mnt/rootfs/write=RW:/mnt/rootfs/read=RO" "/mnt/rootfs/overlay"
 				else
-					busybox chroot /overlaymount-rootfs "/usr/local/bin/unionfs" "-o" "ro,cow" "/mnt/rootfs/write=RW:/mnt/rootfs/read=RO" "/mnt/rootfs/overlay"
+					busybox chroot /overlaymount-rootfs "/usr/local/bin/unionfs" "-o" "ro,cow,allow_other" "/mnt/rootfs/write=RW:/mnt/rootfs/read=RO" "/mnt/rootfs/overlay"
 				fi
 			fi
 		elif [ "${1}" == "rw" ]; then
 			if [ "${DEVICE}" != "kt" ]; then
-				busybox chroot /overlaymount-rootfs "/bin/fuse-overlayfs" "-o" "lowerdir=/mnt/rootfs/read,upperdir=/mnt/rootfs/write,workdir=/mnt/rootfs/work" "/mnt/rootfs/overlay"
+				busybox chroot /overlaymount-rootfs "/bin/fuse-overlayfs" "-o" "allow_other,lowerdir=/mnt/rootfs/read,upperdir=/mnt/rootfs/write,workdir=/mnt/rootfs/work" "/mnt/rootfs/overlay"
 			else
-				busybox chroot /overlaymount-rootfs "/usr/local/bin/unionfs" "-o" "cow" "/mnt/rootfs/write=RW:/mnt/rootfs/read=RO" "/mnt/rootfs/overlay"
+				busybox chroot /overlaymount-rootfs "/usr/local/bin/unionfs" "-o" "cow,allow_other" "/mnt/rootfs/write=RW:/mnt/rootfs/read=RO" "/mnt/rootfs/overlay"
 			fi
 		else
 			echo "Invalid argument"
@@ -176,7 +176,7 @@ else
 			exit 1
 		else
 			echo "Done."
-			busybox chroot /overlaymount-rootfs "/bin/squashfuse" "/mnt/recoveryfs-part/recoveryfs.squashfs" "/mnt/recoveryfs"
+			busybox chroot /overlaymount-rootfs "/bin/squashfuse" "-o" "allow_other" "/mnt/recoveryfs-part/recoveryfs.squashfs" "/mnt/recoveryfs"
 		fi
 
 		cp /opt/device /tmp/device
@@ -188,7 +188,7 @@ else
 			echo "EXPRESS_VERIFICATION: recoveryfs.squashfs: checksum invalid!"
 			exit 1
 		else
-			busybox chroot /overlaymount-rootfs "/bin/squashfuse" "/mnt/recoveryfs-part/recoveryfs.squashfs" "/mnt/recoveryfs"
+			busybox chroot /overlaymount-rootfs "/bin/squashfuse" "-o" "allow_other" "/mnt/recoveryfs-part/recoveryfs.squashfs" "/mnt/recoveryfs"
 		fi
 
 		cp /opt/device /tmp/device
