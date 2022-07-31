@@ -250,7 +250,6 @@ main() {
 	else
 		umount /mnt
 		evtest /dev/input/event0 > /tmp/input-log &
-		EVTEST_PID=$!
 
 		read -t 5 -n 1 -s -r -p "(initrd) Hit any key to stop auto-boot ... " KEY
 		echo
@@ -559,8 +558,6 @@ main() {
 			exit 0
 		fi
 	fi
-
-	kill -9 $EVTEST_PID
 }
 
 mount -t ext4 /dev/mmcblk0p1 /mnt
