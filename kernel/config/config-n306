@@ -127,7 +127,7 @@ CONFIG_NET_NS=y
 # CONFIG_SYSFS_DEPRECATED is not set
 CONFIG_RELAY=y
 CONFIG_BLK_DEV_INITRD=y
-CONFIG_INITRAMFS_SOURCE="/home/build/inkbox/kernel/initrd/busybox-1.32.1/_install-n306"
+CONFIG_INITRAMFS_SOURCE="/home/build/inkbox/kernel/initrd/devnodes-imx.txt /home/build/inkbox/kernel/initrd/busybox-1.32.1/_install-n306"
 CONFIG_INITRAMFS_ROOT_UID=0
 CONFIG_INITRAMFS_ROOT_GID=0
 # CONFIG_RD_GZIP is not set
