@@ -88,7 +88,7 @@ elif [ "${DEVICE}" == "n613" ] || [ "${DEVICE}" == "n236" ] || [ "${DEVICE}" == 
 elif [ "${DEVICE}" == "n873" ]; then
         ROW=30
 	ALERT_ROW=18
-	HEIGHT_FACTOR=3
+	HEIGHT_FACTOR=5
 elif [ "${DEVICE}" == "n437" ]; then
 	ROW=35
 	ALERT_ROW=23
