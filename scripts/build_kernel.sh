@@ -183,170 +183,21 @@ mkdir -p $GITDIR/kernel/out/$1
 
 # Build kernel
 if [ "$2" == "std" ]; then
-	if [ "$1" == "n705" ]; then
-		sudo mkdir -p $GITDIR/initrd/n705/etc/init.d
-		sudo mkdir -p $GITDIR/initrd/n705/opt/bin
-		sudo cp $GITDIR/initrd/common/rcS-std $GITDIR/initrd/n705/etc/init.d/rcS
-		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/n705/etc/init.d/startx
-		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/n705/etc/init.d/inkbox-splash
-		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/n705/etc/init.d/developer-key
-		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n705/etc/init.d/overlay-mount
-		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n705/etc/init.d/initrd-fifo
-		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n705/opt/bin/uidgen
-		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n705/bin/checksum-verify
-		build_id_gen $GITDIR/initrd/n705/opt/
-		mkdir -p $GITDIR/kernel/out/n705
-	elif [ "$1" == "n905c" ]; then
-		sudo mkdir -p $GITDIR/initrd/n905c/etc/init.d
-		sudo mkdir -p $GITDIR/initrd/n905c/opt/bin
-		sudo cp $GITDIR/initrd/common/rcS-std $GITDIR/initrd/n905c/etc/init.d/rcS
-		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/n905c/etc/init.d/startx
-		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/n905c/etc/init.d/inkbox-splash
-		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/n905c/etc/init.d/developer-key
-		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n905c/etc/init.d/overlay-mount
-		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n905c/etc/init.d/initrd-fifo
-		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n905c/opt/bin/uidgen
-		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n905c/bin/checksum-verify
-		mkdir -p $GITDIR/kernel/out/n905c
-		build_id_gen $GITDIR/initrd/n905c/opt/
-	elif [ "$1" == "n613" ]; then
-		sudo mkdir -p $GITDIR/initrd/n613/etc/init.d
-		sudo mkdir -p $GITDIR/initrd/n613/opt/bin
-		sudo cp $GITDIR/initrd/common/rcS-std $GITDIR/initrd/n613/etc/init.d/rcS
-		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/n613/etc/init.d/startx
-		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/n613/etc/init.d/inkbox-splash
-		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/n613/etc/init.d/developer-key
-		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n613/etc/init.d/overlay-mount
-		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n613/etc/init.d/initrd-fifo
-		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n613/opt/bin/uidgen
-		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n613/bin/checksum-verify
-		mkdir -p $GITDIR/kernel/out/n613
-		build_id_gen $GITDIR/initrd/n613/opt/
-	elif [ "$1" == "n873" ]; then
-		sudo mkdir -p $GITDIR/initrd/n873/etc/init.d
-		sudo mkdir -p $GITDIR/initrd/n873/opt/bin
-		sudo cp $GITDIR/initrd/common/rcS-std $GITDIR/initrd/n873/etc/init.d/rcS
-		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/n873/etc/init.d/startx
-		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/n873/etc/init.d/inkbox-splash
-		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/n873/etc/init.d/developer-key
-		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n873/etc/init.d/overlay-mount
-		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n873/etc/init.d/initrd-fifo
-		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n873/opt/bin/uidgen
-		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n873/bin/checksum-verify
-		sudo cp $GITDIR/initrd/common/setup-wifi $GITDIR/initrd/n873/sbin/setup-wifi
-		mkdir -p $GITDIR/kernel/out/n873
-		build_id_gen $GITDIR/initrd/n873/opt/
-	elif [ "$1" == "n905b" ]; then
-		sudo mkdir -p $GITDIR/initrd/n905b/etc/init.d
-		sudo mkdir -p $GITDIR/initrd/n905b/opt/bin
-		sudo cp $GITDIR/initrd/common/rcS-std $GITDIR/initrd/n905b/etc/init.d/rcS
-		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/n905b/etc/init.d/startx
-		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/n905b/etc/init.d/inkbox-splash
-		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/n905b/etc/init.d/developer-key
-		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n905b/etc/init.d/overlay-mount
-		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n905b/etc/init.d/initrd-fifo
-		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n905b/opt/bin/uidgen
-		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n905b/bin/checksum-verify
-		sudo cp $GITDIR/initrd/common/setup-wifi $GITDIR/initrd/n905b/sbin/setup-wifi
-		mkdir -p $GITDIR/kernel/out/n905b
-		build_id_gen $GITDIR/initrd/n905b/opt/
-	elif [ "$1" == "n236" ]; then
-		sudo mkdir -p "${GITDIR}/initrd/n236/etc/init.d"
-		sudo mkdir -p "${GITDIR}/initrd/n236/opt/bin"
-		sudo cp $GITDIR/initrd/common/rcS-std $GITDIR/initrd/n236/etc/init.d/rcS
-		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/n236/etc/init.d/startx
-		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/n236/etc/init.d/inkbox-splash
-		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/n236/etc/init.d/developer-key
-		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n236/etc/init.d/overlay-mount
-		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n236/etc/init.d/initrd-fifo
-		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n236/opt/bin/uidgen
-		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n236/bin/checksum-verify
-		sudo cp $GITDIR/initrd/common/setup-wifi $GITDIR/initrd/n236/sbin/setup-wifi
-		mkdir -p $GITDIR/kernel/out/n236
-		build_id_gen $GITDIR/initrd/n236/opt/
-	elif [ "$1" == "n437" ]; then
-		sudo mkdir -p "${GITDIR}/initrd/n437/etc/init.d"
-		sudo mkdir -p "${GITDIR}/initrd/n437/opt/bin"
-		sudo cp $GITDIR/initrd/common/rcS-std $GITDIR/initrd/n437/etc/init.d/rcS
-		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/n437/etc/init.d/startx
-		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/n437/etc/init.d/inkbox-splash
-		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/n437/etc/init.d/developer-key
-		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n437/etc/init.d/overlay-mount
-		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n437/etc/init.d/initrd-fifo
-		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n437/opt/bin/uidgen
-		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n437/bin/checksum-verify
-		sudo cp $GITDIR/initrd/common/setup-wifi $GITDIR/initrd/n437/sbin/setup-wifi
-		mkdir -p $GITDIR/kernel/out/n437
-		build_id_gen $GITDIR/initrd/n437/opt/
-	elif [ "$1" == "n306" ]; then
-		sudo mkdir -p "${GITDIR}/initrd/n306/etc/init.d"
-		sudo mkdir -p "${GITDIR}/initrd/n306/opt/bin"
-		sudo cp $GITDIR/initrd/common/rcS-std $GITDIR/initrd/n306/etc/init.d/rcS
-		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/n306/etc/init.d/startx
-		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/n306/etc/init.d/inkbox-splash
-		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/n306/etc/init.d/developer-key
-		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n306/etc/init.d/overlay-mount
-		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n306/etc/init.d/initrd-fifo
-		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n306/opt/bin/uidgen
-		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n306/bin/checksum-verify
-		sudo cp $GITDIR/initrd/common/setup-wifi $GITDIR/initrd/n306/sbin/setup-wifi
-		mkdir -p $GITDIR/kernel/out/n306
-		build_id_gen $GITDIR/initrd/n306/opt/
-	elif [ "$1" == "n249" ]; then
-		sudo mkdir -p "${GITDIR}/initrd/n249/etc/init.d"
-		sudo mkdir -p "${GITDIR}/initrd/n249/opt/bin"
-		sudo cp $GITDIR/initrd/common/rcS-std $GITDIR/initrd/n249/etc/init.d/rcS
-		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/n249/etc/init.d/startx
-		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/n249/etc/init.d/inkbox-splash
-		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/n249/etc/init.d/developer-key
-		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n249/etc/init.d/overlay-mount
-		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n249/etc/init.d/initrd-fifo
-		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n249/opt/bin/uidgen
-		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n249/bin/checksum-verify
-		sudo cp $GITDIR/initrd/common/setup-wifi $GITDIR/initrd/n249/sbin/setup-wifi
-		mkdir -p $GITDIR/kernel/out/n249
-		build_id_gen $GITDIR/initrd/n249/opt/
-	elif [ "$1" == "kt" ]; then
-		sudo mkdir -p "${GITDIR}/initrd/kt/etc/init.d"
-		sudo mkdir -p "${GITDIR}/initrd/kt/opt/bin"
-		sudo cp $GITDIR/initrd/common/rcS-std $GITDIR/initrd/kt/etc/init.d/rcS
-		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/kt/etc/init.d/startx
-		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/kt/etc/init.d/inkbox-splash
-		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/kt/etc/init.d/developer-key
-		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/kt/etc/init.d/overlay-mount
-		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/kt/etc/init.d/initrd-fifo
-		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/kt/opt/bin/uidgen
-		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/kt/bin/checksum-verify
-		sudo cp $GITDIR/initrd/common/setup-wifi $GITDIR/initrd/kt/sbin/setup-wifi
-		mkdir -p $GITDIR/kernel/out/kt
-		build_id_gen $GITDIR/initrd/kt/opt/
-	elif [ "$1" == "emu" ]; then
-		sudo mkdir -p $GITDIR/initrd/emu/etc/init.d
-		sudo mkdir -p $GITDIR/initrd/emu/opt/bin
-		sudo cp $GITDIR/initrd/common/rcS-std $GITDIR/initrd/emu/etc/init.d/rcS
-		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/emu/etc/init.d/startx
-		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/emu/etc/init.d/inkbox-splash
-		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/emu/etc/init.d/developer-key
-		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/emu/etc/init.d/overlay-mount
-		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/emu/etc/init.d/initrd-fifo
-		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/emu/opt/bin/uidgen
-		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/emu/bin/checksum-verify
-		build_id_gen $GITDIR/initrd/emu/opt/
-		mkdir -p $GITDIR/kernel/out/emu
-	elif [ "$1" == "bpi" ]; then
-		sudo mkdir -p $GITDIR/initrd/bpi/etc/init.d
-		sudo mkdir -p $GITDIR/initrd/bpi/opt/bin
-		sudo cp $GITDIR/initrd/common/rcS-std $GITDIR/initrd/bpi/etc/init.d/rcS
-		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/bpi/etc/init.d/startx
-		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/bpi/etc/init.d/inkbox-splash
-		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/bpi/etc/init.d/developer-key
-		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/bpi/etc/init.d/overlay-mount
-		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/bpi/etc/init.d/initrd-fifo
-		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/bpi/opt/bin/uidgen
-		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/bpi/bin/checksum-verify
-		build_id_gen $GITDIR/initrd/bpi/opt/
-		mkdir -p $GITDIR/kernel/out/bpi
-	fi
+	sudo mkdir -p "${GITDIR}/initrd/${1}/etc/init.d"
+	sudo mkdir -p "${GITDIR}/initrd/${1}/opt/bin"
+	sudo su -c "echo 'noroot' > $GITDIR/initrd/$1/opt/root"
+	sudo cp $GITDIR/initrd/common/rcS-std $GITDIR/initrd/$1/etc/init.d/rcS
+	sudo cp $GITDIR/initrd/common/init $GITDIR/initrd/$1/etc/init.d/init
+	sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/$1/etc/init.d/startx
+	sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/$1/etc/init.d/inkbox-splash
+	sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/$1/etc/init.d/developer-key
+	sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/$1/etc/init.d/overlay-mount
+	sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/$1/etc/init.d/initrd-fifo
+	sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/$1/opt/bin/uidgen
+	sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/$1/bin/checksum-verify
+	sudo cp $GITDIR/initrd/common/setup-wifi $GITDIR/initrd/$1/sbin/setup-wifi
+	mkdir -p $GITDIR/kernel/out/$1
+	build_id_gen $GITDIR/initrd/$1/opt/
 
 	if [ "$1" == "n705" ] || [ "$1" == "n905c" ] || [ "$1" == "n613" ]; then
 		cd $GITDIR/kernel/linux-2.6.35.3
@@ -402,170 +253,21 @@ if [ "$2" == "std" ]; then
 	fi
 
 elif [ "$2" == "root" ]; then
-	if [ "$1" == "n705" ]; then
-		sudo mkdir -p $GITDIR/initrd/n705/etc/init.d
-		sudo mkdir -p $GITDIR/initrd/n705/opt/bin
-		sudo cp $GITDIR/initrd/common/rcS-root $GITDIR/initrd/n705/etc/init.d/rcS
-		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/n705/etc/init.d/startx
-		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/n705/etc/init.d/inkbox-splash
-		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/n705/etc/init.d/developer-key
-		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n705/etc/init.d/overlay-mount
-		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n705/etc/init.d/initrd-fifo
-		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n705/opt/bin/uidgen
-		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n705/bin/checksum-verify
-		mkdir -p $GITDIR/kernel/out/n705
-		build_id_gen $GITDIR/initrd/n705/opt/
-	elif [ "$1" == "n905c" ]; then
-		sudo mkdir -p $GITDIR/initrd/n905c/etc/init.d
-		sudo mkdir -p $GITDIR/initrd/n905c/opt/bin
-		sudo cp $GITDIR/initrd/common/rcS-root $GITDIR/initrd/n905c/etc/init.d/rcS
-		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/n905c/etc/init.d/startx
-		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/n905c/etc/init.d/inkbox-splash
-		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/n905c/etc/init.d/developer-key
-		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n905c/etc/init.d/overlay-mount
-		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n905c/etc/init.d/initrd-fifo
-		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n905c/opt/bin/uidgen
-		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n905c/bin/checksum-verify
-		mkdir -p $GITDIR/kernel/out/n905c
-		build_id_gen $GITDIR/initrd/n905c/opt/
-	elif [ "$1" == "n613" ]; then
-		sudo mkdir -p $GITDIR/initrd/n613/etc/init.d
-		sudo mkdir -p $GITDIR/initrd/n613/opt/bin
-		sudo cp $GITDIR/initrd/common/rcS-root $GITDIR/initrd/n613/etc/init.d/rcS
-		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/n613/etc/init.d/startx
-		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/n613/etc/init.d/inkbox-splash
-		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/n613/etc/init.d/developer-key
-		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n613/etc/init.d/overlay-mount
-		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n613/etc/init.d/initrd-fifo
-		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n613/opt/bin/uidgen
-		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n613/bin/checksum-verify
-		mkdir -p $GITDIR/kernel/out/n613
-		build_id_gen $GITDIR/initrd/n613/opt/
-	elif [ "$1" == "n873" ]; then
-		sudo mkdir -p $GITDIR/initrd/n873/etc/init.d
-		sudo mkdir -p $GITDIR/initrd/n873/opt/bin
-		sudo cp $GITDIR/initrd/common/rcS-root $GITDIR/initrd/n873/etc/init.d/rcS
-		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/n873/etc/init.d/startx
-		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/n873/etc/init.d/inkbox-splash
-		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/n873/etc/init.d/developer-key
-		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n873/etc/init.d/overlay-mount
-		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n873/etc/init.d/initrd-fifo
-		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n873/opt/bin/uidgen
-		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n873/bin/checksum-verify
-		sudo cp $GITDIR/initrd/common/setup-wifi $GITDIR/initrd/n873/sbin/setup-wifi
-		mkdir -p $GITDIR/kernel/out/n873
-		build_id_gen $GITDIR/initrd/n873/opt/
-	elif [ "$1" == "n905b" ]; then
-		sudo mkdir -p $GITDIR/initrd/n905b/etc/init.d
-		sudo mkdir -p $GITDIR/initrd/n905b/opt/bin
-		sudo cp $GITDIR/initrd/common/rcS-root $GITDIR/initrd/n905b/etc/init.d/rcS
-		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/n905b/etc/init.d/startx
-		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/n905b/etc/init.d/inkbox-splash
-		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/n905b/etc/init.d/developer-key
-		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n905b/etc/init.d/overlay-mount
-		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n905b/etc/init.d/initrd-fifo
-		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n905b/opt/bin/uidgen
-		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n905b/bin/checksum-verify
-		sudo cp $GITDIR/initrd/common/setup-wifi $GITDIR/initrd/n905b/sbin/setup-wifi
-		mkdir -p $GITDIR/kernel/out/n905b
-		build_id_gen $GITDIR/initrd/n905b/opt/
-	elif [ "$1" == "n236" ]; then
-		sudo mkdir -p "${GITDIR}/initrd/n236/etc/init.d"
-		sudo mkdir -p "${GITDIR}/initrd/n236/opt/bin"
-		sudo cp $GITDIR/initrd/common/rcS-root $GITDIR/initrd/n236/etc/init.d/rcS
-		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/n236/etc/init.d/startx
-		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/n236/etc/init.d/inkbox-splash
-		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/n236/etc/init.d/developer-key
-		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n236/etc/init.d/overlay-mount
-		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n236/etc/init.d/initrd-fifo
-		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n236/opt/bin/uidgen
-		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n236/bin/checksum-verify
-		sudo cp $GITDIR/initrd/common/setup-wifi $GITDIR/initrd/n236/sbin/setup-wifi
-		mkdir -p $GITDIR/kernel/out/n236
-		build_id_gen $GITDIR/initrd/n236/opt/
-	elif [ "$1" == "n437" ]; then
-		sudo mkdir -p "${GITDIR}/initrd/n437/etc/init.d"
-		sudo mkdir -p "${GITDIR}/initrd/n437/opt/bin"
-		sudo cp $GITDIR/initrd/common/rcS-root $GITDIR/initrd/n437/etc/init.d/rcS
-		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/n437/etc/init.d/startx
-		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/n437/etc/init.d/inkbox-splash
-		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/n437/etc/init.d/developer-key
-		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n437/etc/init.d/overlay-mount
-		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n437/etc/init.d/initrd-fifo
-		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n437/opt/bin/uidgen
-		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n437/bin/checksum-verify
-		sudo cp $GITDIR/initrd/common/setup-wifi $GITDIR/initrd/n437/sbin/setup-wifi
-		mkdir -p $GITDIR/kernel/out/n437
-		build_id_gen $GITDIR/initrd/n437/opt/
-	elif [ "$1" == "n306" ]; then
-		sudo mkdir -p "${GITDIR}/initrd/n306/etc/init.d"
-		sudo mkdir -p "${GITDIR}/initrd/n306/opt/bin"
-		sudo cp $GITDIR/initrd/common/rcS-root $GITDIR/initrd/n306/etc/init.d/rcS
-		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/n306/etc/init.d/startx
-		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/n306/etc/init.d/inkbox-splash
-		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/n306/etc/init.d/developer-key
-		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n306/etc/init.d/overlay-mount
-		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n306/etc/init.d/initrd-fifo
-		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n306/opt/bin/uidgen
-		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n306/bin/checksum-verify
-		sudo cp $GITDIR/initrd/common/setup-wifi $GITDIR/initrd/n306/sbin/setup-wifi
-		mkdir -p $GITDIR/kernel/out/n306
-		build_id_gen $GITDIR/initrd/n306/opt/
-	elif [ "$1" == "n249" ]; then
-		sudo mkdir -p "${GITDIR}/initrd/n249/etc/init.d"
-		sudo mkdir -p "${GITDIR}/initrd/n249/opt/bin"
-		sudo cp $GITDIR/initrd/common/rcS-root $GITDIR/initrd/n249/etc/init.d/rcS
-		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/n249/etc/init.d/startx
-		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/n249/etc/init.d/inkbox-splash
-		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/n249/etc/init.d/developer-key
-		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/n249/etc/init.d/overlay-mount
-		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/n249/etc/init.d/initrd-fifo
-		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/n249/opt/bin/uidgen
-		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/n249/bin/checksum-verify
-		sudo cp $GITDIR/initrd/common/setup-wifi $GITDIR/initrd/n249/sbin/setup-wifi
-		mkdir -p $GITDIR/kernel/out/n249
-		build_id_gen $GITDIR/initrd/n249/opt/
-	elif [ "$1" == "kt" ]; then
-		sudo mkdir -p "${GITDIR}/initrd/kt/etc/init.d"
-		sudo mkdir -p "${GITDIR}/initrd/kt/opt/bin"
-		sudo cp $GITDIR/initrd/common/rcS-root $GITDIR/initrd/kt/etc/init.d/rcS
-		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/kt/etc/init.d/startx
-		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/kt/etc/init.d/inkbox-splash
-		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/kt/etc/init.d/developer-key
-		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/kt/etc/init.d/overlay-mount
-		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/kt/etc/init.d/initrd-fifo
-		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/kt/opt/bin/uidgen
-		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/kt/bin/checksum-verify
-		sudo cp $GITDIR/initrd/common/setup-wifi $GITDIR/initrd/kt/sbin/setup-wifi
-		mkdir -p $GITDIR/kernel/out/kt
-		build_id_gen $GITDIR/initrd/kt/opt/
-	elif [ "$1" == "emu" ]; then
-		sudo mkdir -p $GITDIR/initrd/emu/etc/init.d
-		sudo mkdir -p $GITDIR/initrd/emu/opt/bin
-		sudo cp $GITDIR/initrd/common/rcS-root $GITDIR/initrd/emu/etc/init.d/rcS
-		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/emu/etc/init.d/startx
-		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/emu/etc/init.d/inkbox-splash
-		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/emu/etc/init.d/developer-key
-		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/emu/etc/init.d/overlay-mount
-		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/emu/etc/init.d/initrd-fifo
-		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/emu/opt/bin/uidgen
-		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/emu/bin/checksum-verify
-		mkdir -p $GITDIR/kernel/out/emu
-		build_id_gen $GITDIR/initrd/emu/opt/
-	elif [ "$1" == "bpi" ]; then
-		sudo mkdir -p $GITDIR/initrd/bpi/etc/init.d
-		sudo mkdir -p $GITDIR/initrd/bpi/opt/bin
-		sudo cp $GITDIR/initrd/common/rcS-root $GITDIR/initrd/bpi/etc/init.d/rcS
-		sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/bpi/etc/init.d/startx
-		sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/bpi/etc/init.d/inkbox-splash
-		sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/bpi/etc/init.d/developer-key
-		sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/bpi/etc/init.d/overlay-mount
-		sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/bpi/etc/init.d/initrd-fifo
-		sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/bpi/opt/bin/uidgen
-		sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/bpi/bin/checksum-verify
-		mkdir -p $GITDIR/kernel/out/bpi
-		build_id_gen $GITDIR/initrd/bpi/opt/
-	fi
+	sudo mkdir -p "${GITDIR}/initrd/${1}/etc/init.d"
+	sudo mkdir -p "${GITDIR}/initrd/${1}/opt/bin"
+	sudo su -c "echo 'rooted' > $GITDIR/initrd/$1/opt/root"
+	sudo cp $GITDIR/initrd/common/rcS-root $GITDIR/initrd/$1/etc/init.d/rcS
+	sudo cp $GITDIR/initrd/common/init $GITDIR/initrd/$1/etc/init.d/init
+	sudo cp $GITDIR/initrd/common/startx $GITDIR/initrd/$1/etc/init.d/startx
+	sudo cp $GITDIR/initrd/common/inkbox-splash $GITDIR/initrd/$1/etc/init.d/inkbox-splash
+	sudo cp $GITDIR/initrd/common/developer-key $GITDIR/initrd/$1/etc/init.d/developer-key
+	sudo cp $GITDIR/initrd/common/overlay-mount $GITDIR/initrd/$1/etc/init.d/overlay-mount
+	sudo cp $GITDIR/initrd/common/initrd-fifo $GITDIR/initrd/$1/etc/init.d/initrd-fifo
+	sudo cp $GITDIR/initrd/common/uidgen $GITDIR/initrd/$1/opt/bin/uidgen
+	sudo cp $GITDIR/initrd/common/checksum-verify $GITDIR/initrd/$1/bin/checksum-verify
+	sudo cp $GITDIR/initrd/common/setup-wifi $GITDIR/initrd/$1/sbin/setup-wifi
+	mkdir -p $GITDIR/kernel/out/$1
+	build_id_gen $GITDIR/initrd/$1/opt/
 
 	if [ "$1" == "n705" ] || [ "$1" == "n905c" ] || [ "$1" == "n613" ]; then
 		cd $GITDIR/kernel/linux-2.6.35.3
