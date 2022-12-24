@@ -1,15 +1,12 @@
 #!/bin/sh
 
-echo "Generating device UID ..."
-UID=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 256)
-echo "Done. UID:"
-echo "$UID"
+UID="$(tr -dc A-Za-z0-9 </dev/urandom | head -c 256)"
 
-if [ "$1" == "write-mmc" ]; then
-	echo "Flashing UID to MMC ..."
-	echo -n "$UID" | dd of=/dev/mmcblk0 bs=512 seek=1
-	echo "Done."
+UID_FLAG="$(dd if=/dev/mmcblk0 bs=256 skip=3 count=1 status=none)"
+UID_FLAG=${UID_FLAG:0:1}
+if [ "${UID_FLAG}" != "1" ]; then
+	echo -n "${UID}" | dd of=/dev/mmcblk0 bs=512 seek=1
 	exit 0
 fi
 
-exit $?
+exit ${?}

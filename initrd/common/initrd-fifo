@@ -21,6 +21,9 @@ omega() {
 	umount /overlaymount-rootfs/sys -l -f &>/dev/null
 	umount /overlaymount-rootfs -l -f &>/dev/null
 	umount /rootfs-part -l -f &>/dev/null
+	# Kill inkbox-os-init
+	kill -9 "$(pidof 'rcS')"
+	kill -9 "$(pidof '/etc/init.d/init')"
 }
 
 update_rootfs() {

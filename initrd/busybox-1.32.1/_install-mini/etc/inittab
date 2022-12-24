@@ -1,2 +1,1 @@
 ::sysinit:/etc/init.d/rcS
-ttymxc0::respawn:/usr/sbin/chroot /mnt /sbin/getty "-L" "ttymxc0" "115200" "linux"
