@@ -92,8 +92,6 @@ else
 fi
 
 cd "${GITDIR}"
-echo "---- Making device nodes ----"
-env "GITDIR=${PWD}" scripts/make_devicenodes.sh
 
 if [ "$1" == "n705" ]; then
 	cd $GITDIR/kernel/linux-2.6.35.3
