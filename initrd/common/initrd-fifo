@@ -27,18 +27,16 @@ omega() {
 }
 
 update_rootfs() {
-	mount -o remount,size=50% /tmp
-	mv /overlaymount-rootfs/mnt/rootfs/overlay/tmp/update/rootfs/rootfs.squashfs /tmp
-	mv /overlaymount-rootfs/mnt/rootfs/overlay/tmp/update/rootfs/rootfs.squashfs.dgst /tmp
-	sync
-	omega
+	mkdir -p /update
 	mkdir -p /rootfs-part
-	mount -t "${ROOTFS_FMT}" -o nosuid,noexec,nodev /dev/mmcblk0p3 /rootfs-part
+	mount --move "/mnt$(cat /mnt/run/update_package_mountpoint)" /update
+
+	cp /update/rootfs.squashfs /overlaymount-rootfs/mnt/rootfs-part/rootfs.squashfs
+	cp /update/rootfs.squashfs.dgst /overlaymount-rootfs/mnt/rootfs-part/rootfs.squashfs.dgst
 	sync
-	mv /tmp/rootfs.squashfs /rootfs-part/rootfs.squashfs
-	mv /tmp/rootfs.squashfs.dgst /rootfs-part/rootfs.squashfs.dgst
-	sync
-	umount -l -f /rootfs-part
+	umount -l -f /update
+
+	omega
 }
 reset_kobox() {
 	sync
