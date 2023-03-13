@@ -68,11 +68,11 @@ print_qr() {
 	while true; do if ${command}; then break; fi; done &>/dev/null
 
 	if [ "${2}" == "invert" ]; then
-		LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink -q -h -g file=/tmp/out.png,halign=CENTER,valign=TOP,y=60
-		LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink -q -h -g file=/tmp/out.png,halign=CENTER,valign=BOTTOM,y=-50
+		LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink -qhb -g file=/tmp/out.png,halign=CENTER,valign=TOP,y=60
+		LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink -qhb -g file=/tmp/out.png,halign=CENTER,valign=BOTTOM,y=-50
 	else
-		LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink -q -g file=/tmp/out.png,halign=CENTER,valign=TOP,y=60
-		LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink -q -g file=/tmp/out.png,halign=CENTER,valign=BOTTOM,y=-50
+		LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink -qb -g file=/tmp/out.png,halign=CENTER,valign=TOP,y=60
+		LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink -qb -g file=/tmp/out.png,halign=CENTER,valign=BOTTOM,y=-50
 	fi
 	rm -f /splash/tmp/out.png &>/dev/null
 }
@@ -189,26 +189,26 @@ elif [ "${1}" == "alert_splash" ]; then
 	fi
 	ln -s /bin/busybox /splash/bin/sh
 	ln -s /bin/busybox /splash/bin/cat
+	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink -bqk
 	/opt/bin/alert-ascii.sh /splash/alert.ascii "${2}"
-	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink "-k" "-f" "-q"
-	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /bin/sh "-c" "cat /alert.ascii | /opt/fbink/fbink -q -w -m -y ${ALERT_ROW}"
+	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /bin/sh "-c" "cat /alert.ascii | /opt/fbink/fbink -qbm -y ${ALERT_ROW}"
 	print_qr "https://inkbox.ddns.net/wiki/index.php?title=Boot_error_codes#${2}"
+	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink -qs
 elif [ "${1}" == "developer_splash" ]; then
 	while true; do
-		LD_LIBRARY_PATH=/opt/fbink busybox chroot "${CHROOT_DIR}" /opt/fbink/fbink "-m" "█ █ █ █ Developer mode █ █ █ █" "-y" "2" "-q"
+		LD_LIBRARY_PATH=/opt/fbink busybox chroot "${CHROOT_DIR}" /opt/fbink/fbink -qmy 2 "█ █ █ █ Developer mode █ █ █ █"
 		sleep 30
 	done
 elif [ "${1}" == "dfl" ]; then
-	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink "-k" "-f" "-h" "-q"
-	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink "-t" "regular=/opt/fbink/inter-b.ttf,size=40" "DFL" "-w" "-m" "-M" "-h" "-q"
+	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink "-t" "regular=/opt/fbink/inter-b.ttf,size=40" "DFL" -qbmMhc
 	print_qr "https://inkbox.ddns.net/wiki/index.php?title=Direct_Firmware_Loader_mode" invert
+	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink -qs
 elif [ "${1}" == "usb_debug" ]; then
-	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink "-k" "-f" "-h" "-q"
-	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink "-t" "regular=/opt/fbink/inter-b.ttf,size=30" "USB Debug" "-w" "-m" "-M" "-h" "-q"
+	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink "-t" "regular=/opt/fbink/inter-b.ttf,size=30" "USB Debug" -qbmhMc
 	print_qr "https://inkbox.ddns.net/wiki/index.php?title=Boot-time_USB_debug_mode" invert
+	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink -qs
 else
-	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink "-k" "-f" "-q"
-	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink "-M" "-m" "-q" "-t" "regular=/opt/fbink/fraunces.ttf,size=${SIZE}" "InkBox"
+	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink "-cMmq" "-t" "regular=/opt/fbink/fraunces.ttf,size=${SIZE}" "InkBox"
 fi
 
 if [ "${1}" != "update_splash" ] && [ "${1}" != "progress_bar_init" ] && [ "${1}" != "display_debug" ]; then
