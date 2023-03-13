@@ -207,7 +207,6 @@ elif [ "${1}" == "usb_debug" ]; then
 	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink "-t" "regular=/opt/fbink/inter-b.ttf,size=30" "USB Debug" -qbmhMc
 	print_qr "https://inkbox.ddns.net/wiki/index.php?title=Boot-time_USB_debug_mode" invert
 	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink -qs
-
 else
 	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink "-cMmq" "-t" "regular=/opt/fbink/fraunces.ttf,size=${SIZE}" "InkBox"
 fi
