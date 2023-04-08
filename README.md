@@ -14,3 +14,10 @@ To compile a kernel for each and all devices, use:<br>
 ```
 GITDIR=/home/build/kobo TOOLCHAINDIR=$GITDIR/toolchain/gcc-4.8 TARGET=arm-linux-gnueabihf THREADS=4 scripts/build_all.sh
 ```
+## Additional notes:
+- Don't forget to symlink the kernel repository to `/home/build/inkbox/kernel` or create the repository in that location. The path is fixed.
+
+- If anything goes wrong, consider using a Debian container. You will need to install the following packages:
+```
+sudo apt install u-boot-tools make gcc xz-utils
+```
