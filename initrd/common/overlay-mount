@@ -35,7 +35,7 @@ elif [ "${DEVICE}" == "n873" ]; then
 fi
 
 if [ "${1}" != "recovery" ]; then
-	## Mounting root filesystem with squashfuse and fuse-overlayfs (read-only by default)
+	## Mounting root filesystem with squashfuse and unionfs (read-only by default)
 	mkdir -p /rootfs-part
 	mkdir -p /overlaymount-rootfs
 	mount -t "${ROOTFS_FMT}" -o nosuid /dev/mmcblk0p3 /rootfs-part
@@ -84,23 +84,13 @@ if [ "${1}" != "recovery" ]; then
 
 		busybox chroot /overlaymount-rootfs "/bin/squashfuse" "-o" "allow_other" "/mnt/rootfs-part/rootfs.squashfs" "/mnt/rootfs/read"
 		if [ "${1}" == "ro" ]; then
-			if [ "${DEVICE}" != "kt" ]; then
-				if [ "${2}" == "std" ]; then
-					busybox chroot /overlaymount-rootfs "/bin/fuse-overlayfs" "-o" "ro,nosuid,allow_other,lowerdir=/mnt/rootfs/read,upperdir=/mnt/rootfs/write,workdir=/mnt/rootfs/work" "/mnt/rootfs/overlay"
-				else
-					busybox chroot /overlaymount-rootfs "/bin/fuse-overlayfs" "-o" "ro,allow_other,lowerdir=/mnt/rootfs/read,upperdir=/mnt/rootfs/write,workdir=/mnt/rootfs/work" "/mnt/rootfs/overlay"
-				fi
+			if [ "${2}" == "std" ]; then
+				busybox chroot /overlaymount-rootfs "/usr/local/bin/unionfs" "-o" "ro,nosuid,cow,allow_other" "/mnt/rootfs/write=RW:/mnt/rootfs/read=RO" "/mnt/rootfs/overlay"
 			else
-				if [ "${2}" == "std" ]; then
-					busybox chroot /overlaymount-rootfs "/usr/local/bin/unionfs" "-o" "ro,nosuid,cow,allow_other" "/mnt/rootfs/write=RW:/mnt/rootfs/read=RO" "/mnt/rootfs/overlay"
-				else
-					busybox chroot /overlaymount-rootfs "/usr/local/bin/unionfs" "-o" "ro,cow,allow_other" "/mnt/rootfs/write=RW:/mnt/rootfs/read=RO" "/mnt/rootfs/overlay"
-				fi
+				busybox chroot /overlaymount-rootfs "/usr/local/bin/unionfs" "-o" "ro,cow,allow_other" "/mnt/rootfs/write=RW:/mnt/rootfs/read=RO" "/mnt/rootfs/overlay"
 			fi
 		elif [ "${1}" == "rw" ]; then
 			if [ "${DEVICE}" != "kt" ]; then
-				busybox chroot /overlaymount-rootfs "/bin/fuse-overlayfs" "-o" "allow_other,lowerdir=/mnt/rootfs/read,upperdir=/mnt/rootfs/write,workdir=/mnt/rootfs/work" "/mnt/rootfs/overlay"
-			else
 				busybox chroot /overlaymount-rootfs "/usr/local/bin/unionfs" "-o" "cow,allow_other" "/mnt/rootfs/write=RW:/mnt/rootfs/read=RO" "/mnt/rootfs/overlay"
 			fi
 		else
