@@ -310,11 +310,7 @@ busybox chroot /mnt "/usr/local/bin/unionfs" "$UNIONFS_FOLDERS" "/opt/X11/extens
 busybox chroot /mnt "/usr/local/bin/unionfs" "/opt/X11/base/rootfs:/opt/X11/extensions-merged" "/opt/X11/merged"
 
 # Making the union mount read/write and mounting the final overlay to /xorg
-if [ "${DEVICE}" != "kt" ]; then
-	busybox chroot /mnt "/bin/fuse-overlayfs" "-o" "lowerdir=/opt/X11/merged,upperdir=/opt/X11/rootfs/write,workdir=/opt/X11/rootfs/work" "/xorg"
-else
-	busybox chroot /mnt "/usr/local/bin/unionfs" "-o" "cow,nonempty" "/opt/X11/rootfs/write=RW:/opt/X11/merged=RO" "/xorg"
-fi
+busybox chroot /mnt "/usr/local/bin/unionfs" "-o" "cow,nonempty" "/opt/X11/rootfs/write=RW:/opt/X11/merged=RO" "/xorg"
 
 rm /mnt/xorg/var/log -rf
 mkdir -p /mnt/xorg/var/log
@@ -333,7 +329,7 @@ touch /mnt/xorg/etc/resolv.conf
 mount --bind /tmp/resolv.conf /mnt/xorg/etc/resolv.conf
 
 # Launching X
-busybox chroot /mnt/xorg "X" &
+busybox chroot /mnt/xorg "X" "-nocursor" "-v" &
 
 # Mounting miscellanous filesystems for VNC/touch input rootfs
 mount -t devtmpfs devtmpfs /mnt/opt/X11/vnc-touch/dev
