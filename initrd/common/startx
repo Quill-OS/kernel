@@ -329,7 +329,7 @@ touch /mnt/xorg/etc/resolv.conf
 mount --bind /tmp/resolv.conf /mnt/xorg/etc/resolv.conf
 
 # Launching X
-busybox chroot /mnt/xorg "X" "-nocursor" "-v" &
+busybox chroot /mnt/xorg "X" "-nocursor" &
 
 # Mounting miscellanous filesystems for VNC/touch input rootfs
 mount -t devtmpfs devtmpfs /mnt/opt/X11/vnc-touch/dev
