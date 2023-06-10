@@ -45,7 +45,7 @@ elif [ "${DEVICE}" == "n236" ]; then
 
 	popd
 elif [ "${DEVICE}" == "n437" ]; then
-	pushd "${GITDIR}/bootloader/mx6sl-n236"
+	pushd "${GITDIR}/bootloader/mx6sl-n437"
 
 	make ARCH=arm CROSS_COMPILE="${TARGET}-" -j${THREADS} distclean
 	make ARCH=arm CROSS_COMPILE="${TARGET}-" -j${THREADS} mx6sl_ntx_lpddr2_config
