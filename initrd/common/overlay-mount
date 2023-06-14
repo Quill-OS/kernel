@@ -185,12 +185,12 @@ else
 
 		cp /opt/device /tmp/device
 		mount --bind /tmp/device /overlaymount-rootfs/mnt/recoveryfs/opt/device
-		if [ "${DEVICE}" != "kt" ]; then
-			mount --bind /mnt/opt/bin/fbink/fbink-kobo /mnt/opt/bin/fbink/fbink
-		else
-			mount --bind /mnt/opt/bin/fbink/fbink-kindle /mnt/opt/bin/fbink/fbink
-		fi
-		set_hostname
 	fi
+	if [ "${DEVICE}" != "kt" ]; then
+		mount --bind /mnt/opt/bin/fbink/fbink-kobo /mnt/opt/bin/fbink/fbink
+	else
+		mount --bind /mnt/opt/bin/fbink/fbink-kindle /mnt/opt/bin/fbink/fbink
+	fi
+	set_hostname
 fi
 
