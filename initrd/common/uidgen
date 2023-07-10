@@ -6,6 +6,7 @@ UID_FLAG="$(dd if=/dev/mmcblk0 bs=256 skip=3 count=1 status=none)"
 UID_FLAG=${UID_FLAG:0:1}
 if [ "${UID_FLAG}" != "1" ]; then
 	echo -n "${UID}" | dd of=/dev/mmcblk0 bs=512 seek=1
+	echo -n 1 | dd of=/dev/mmcblk0 bs=256 seek=3
 	exit 0
 fi
 
