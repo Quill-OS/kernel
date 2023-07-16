@@ -63,6 +63,8 @@ elif [ "$1" == "n437" ]; then
 	echo "---- Building Kobo Glo HD (N437) kernel ----"
 elif [ "$1" == "n306" ]; then
 	echo "---- Building Kobo Nia (N306) kernel ----"
+elif [ "$1" == "n306a" ]; then
+	echo "---- Building Kobo Nia (N306A) kernel ----"
 elif [ "$1" == "n249" ]; then
 	echo "---- Building Kobo Clara HD (N249) kernel ----"
 elif [ "$1" == "kt" ]; then
@@ -73,7 +75,7 @@ elif [ "$1" == "bpi" ]; then
 	echo "---- Building Banana Pi M2 Zero (BPI) kernel ----"
 else
 	echo "You must specify a target to build for."
-	echo "Available targets are: n705, n905c, n905b, n613, n236, n437, n306, n249, kt, n873, emu, bpi"
+	echo "Available targets are: n705, n905c, n905b, n613, n236, n437, n306, n306a, n249, kt, n873, emu, bpi"
 	exit 1
 fi
 
@@ -163,6 +165,10 @@ elif [ "$1" == "n306" ]; then
 	cd "${GITDIR}/kernel/linux-4.1.15-n306"
 	make ARCH=arm CROSS_COMPILE=$TARGET- mrproper
 	cp "${GITDIR}/kernel/config/config-n306" "${GITDIR}/kernel/linux-4.1.15-n306/.config"
+elif [ "$1" == "n306a" ]; then
+	cd "${GITDIR}/kernel/linux-4.1.15-n306a"
+	make ARCH=arm CROSS_COMPILE=$TARGET- mrproper
+	cp "${GITDIR}/kernel/config/config-n306a" "${GITDIR}/kernel/linux-4.1.15-n306a/.config"
 elif [ "$1" == "n249" ]; then
 	cd "${GITDIR}/kernel/linux-5.16-n249"
 	make ARCH=arm CROSS_COMPILE=$TARGET- mrproper
@@ -221,6 +227,9 @@ if [ "$2" == "std" ]; then
 	elif [ "$1" == "n306" ]; then
 		cd "${GITDIR}/kernel/linux-4.1.15-n306"
 		make ARCH=arm CROSS_COMPILE=$TARGET- zImage -j$THREADS
+	elif [ "$1" == "n306a" ]; then
+		cd "${GITDIR}/kernel/linux-4.1.15-n306a"
+		make ARCH=arm CROSS_COMPILE=$TARGET- zImage -j$THREADS
 	elif [ "$1" == "n249" ]; then
 		cd "${GITDIR}/kernel/linux-5.16-n249"
 		make ARCH=arm CROSS_COMPILE=$TARGET- zImage dtbs -j$THREADS
@@ -237,7 +246,7 @@ if [ "$2" == "std" ]; then
 		if [ "$1" == "n705" ] || [ "$1" == "n905c" ] || [ "$1" == "n613" ] || [ "$1" == "n905b" ] || [ "$1" == "n236" ] || [ "$1" == "n437" ] || [ "$1" == "kt" ]; then
 			cp "arch/arm/boot/uImage" "$GITDIR/kernel/out/$1/uImage-std"
 			echo "---- Output was saved in $GITDIR/kernel/out/$1/uImage-std ----"
-		elif [ "$1" == "n873" ] || [ "$1" == "n306" ] || [ "$1" == "n249" ] || [ "$1" == "emu" ] || [ "$1" == "bpi" ]; then
+		elif [ "$1" == "n873" ] || [ "$1" == "n306" ] || [ "$1" == "n306a" ] || [ "$1" == "n249" ] || [ "$1" == "emu" ] || [ "$1" == "bpi" ]; then
 			cp "arch/arm/boot/zImage" "$GITDIR/kernel/out/$1/zImage-std"
 			echo "---- Output was saved in $GITDIR/kernel/out/$1/zImage-std ----"
 		else
@@ -291,6 +300,9 @@ elif [ "$2" == "root" ]; then
 	elif [ "$1" == "n306" ]; then
 		cd "${GITDIR}/kernel/linux-4.1.15-n306"
 		make ARCH=arm CROSS_COMPILE=$TARGET- zImage -j$THREADS
+	elif [ "$1" == "n306a" ]; then
+		cd "${GITDIR}/kernel/linux-4.1.15-n306a"
+		make ARCH=arm CROSS_COMPILE=$TARGET- zImage -j$THREADS
 	elif [ "$1" == "n249" ]; then
 		cd "${GITDIR}/kernel/linux-5.16-n249"
 		make ARCH=arm CROSS_COMPILE=$TARGET- zImage dtbs -j$THREADS
@@ -307,7 +319,7 @@ elif [ "$2" == "root" ]; then
 		if [ "$1" == "n705" ] || [ "$1" == "n905c" ] || [ "$1" == "n613" ] || [ "$1" == "n905b" ] || [ "$1" == "n236" ] || [ "$1" == "n437" ] || [ "$1" == "kt" ]; then
 			cp "arch/arm/boot/uImage" "$GITDIR/kernel/out/$1/uImage-root"
 			echo "---- Output was saved in $GITDIR/kernel/out/$1/uImage-root ----"
-		elif [ "$1" == "n873" ] || [ "$1" == "n306" ] || [ "$1" == "n249" ] || [ "$1" == "emu" ] || [ "$1" == "bpi" ]; then
+		elif [ "$1" == "n873" ] || [ "$1" == "n306" ] || [ "$1" == "n306a" ] || [ "$1" == "n249" ] || [ "$1" == "emu" ] || [ "$1" == "bpi" ]; then
 			cp "arch/arm/boot/zImage" "$GITDIR/kernel/out/$1/zImage-root"
 			echo "---- Output was saved in $GITDIR/kernel/out/$1/zImage-root ----"
 		else
