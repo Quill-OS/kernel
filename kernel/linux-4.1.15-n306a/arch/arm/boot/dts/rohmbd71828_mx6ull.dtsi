@@ -1,0 +1,159 @@
+/*
+ * Copyright (C) 2014 Ricoh Electronic Devices Co., Ltd. - http://www.rioch.com/LSI
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/*
+ * Integrated Power Management Chip
+ * https://elixir.bootlin.com/linux/v5.13-rc2/source/drivers/mfd/rohm-bd71828.c
+ */
+
+#include <dt-bindings/leds/common.h>
+
+&bd71828
+{
+    #address-cells = <1>;
+    #size-cells = <0>;
+
+	pmic: pmic@4b {
+		compatible = "rohm,bd71828";
+		reg = <0x4b>;
+
+		#interrupt-parent = <&gpio1>;
+		#interrupts = <29 IRQ_TYPE_LEVEL_LOW>;
+
+		#clocks = <&osc 0>;
+		#clock-cells = <0>;
+		#clock-output-names = "bd71828-32k-out";
+
+		#gpio-controller;
+		#gpio-cells = <2>;
+		#gpio-reserved-ranges = <0 1>, <2 1>;
+
+		#rohm,dvs-vsel-gpios = <&gpio1 12 0>, <&gpio1 13 0>;
+		rohm,charger-sense-resistor-ohms = <10000000>;
+
+		leds {
+			compatible = "rohm,bd71828-leds";
+
+			led-1 {
+				rohm,led-compatible = "bd71828-grnled";
+				function = LED_FUNCTION_INDICATOR;
+				color = <LED_COLOR_ID_GREEN>;
+			};
+			led-2 {
+				rohm,led-compatible = "bd71828-ambled";
+				function = LED_FUNCTION_CHARGING;
+				color = <LED_COLOR_ID_AMBER>;
+			};
+		};
+	};
+	regulators {
+		/* Core2 1V4 SOC */
+		buck1: BUCK1 {
+			regulator-name = "buck1";
+			regulator-min-microvolt = <500000>;
+			regulator-max-microvolt = <1400000>;
+			regulator-boot-on;
+			regulator-always-on;
+		};
+		/* Core2 1V3 ARM */
+		buck2: BUCK2 {
+			regulator-name = "buck2";
+			regulator-min-microvolt = <500000>;
+			regulator-max-microvolt = <2000000>;
+			regulator-boot-on;
+			regulator-always-on;
+		};
+		/* Core4 1V8 */
+		buck3: BUCK3 {
+			regulator-name = "buck3";
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <1800000>;
+			regulator-boot-on;
+			regulator-always-on;
+		};
+		/* Core4 1V2 */
+		buck4: BUCK4 {
+			regulator-name = "buck4";
+			regulator-min-microvolt = <1000000>;
+			regulator-max-microvolt = <1200000>;
+			regulator-boot-on;
+			regulator-always-on;
+		};
+		/* Core4 3V3 */
+		buck5: BUCK5 {
+			regulator-name = "buck5";
+			regulator-min-microvolt = <2500000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-boot-on;
+			regulator-always-on;
+		};
+		buck6: BUCK6 {
+			regulator-name = "buck6";
+			regulator-min-microvolt = <500000>;
+			regulator-max-microvolt = <2000000>;
+			regulator-boot-off;
+			regulator-always-on;
+		};
+		buck7: BUCK7 {
+			regulator-name = "buck7";
+			regulator-min-microvolt = <500000>;
+			regulator-max-microvolt = <2000000>;
+			regulator-boot-off;
+			regulator-always-on;
+		};
+		ldo1: LDO1 {
+			regulator-name = "ldo1";
+			regulator-min-microvolt = <800000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-boot-on;
+			regulator-always-on;
+		};
+		ldo2: LDO2 {
+			regulator-name = "ldo2";
+			regulator-min-microvolt = <800000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-boot-off;
+			regulator-always-on;
+		};
+		ldo3: LDO3 {
+			regulator-name = "ldo3";
+			regulator-min-microvolt = <800000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-boot-on;
+			regulator-always-on;
+		};
+		ldo4: LDO4 {
+			regulator-name = "ldo4";
+			regulator-min-microvolt = <800000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-boot-off;
+			regulator-always-on;
+		};
+		ldo5: LDO5 {
+			regulator-name = "ldo5";
+			regulator-min-microvolt = <800000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-boot-off;
+			regulator-always-on;
+		};
+		ldo6: LDO6 {
+			regulator-name = "ldo6";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			regulator-boot-off;
+			regulator-always-on;
+		};
+		ldo7: LDO7 {
+			regulator-name = "ldo7";
+			regulator-min-microvolt = <800000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-boot-on;
+			regulator-always-on;
+		};
+	};
+};
