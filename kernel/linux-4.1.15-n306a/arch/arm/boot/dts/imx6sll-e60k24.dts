@@ -1,0 +1,182 @@
+
+#include "imx6sll-e60k24-base.dts"
+
+&i2c2 {
+	tps6518x@68 {
+		compatible = "ti,tps6518x";
+		reg = <0x68>;
+		/*
+		 * power sequencing for TPS65180/65181
+		 */
+		pwr_seq0 = <0xe1>; /* [Vddh-seq=3 | Vpos-seq=2 | Vee-seq=0 | Vneg-seq=1] */
+		pwr_seq1 = <0x30>; /* [Vneg-dly1=3 |Vee-dly0=0]  mSec */
+		pwr_seq2 = <0x33>; /* [Vddh-dly3=3 | Vpos-dly2=3] mSec */
+		/*
+		 * power sequencing for TPS65185/65186
+		 */
+		upseq0 = <0xe1>;
+		upseq1 = <0x00>;
+		dwnseq0 = <0x1e>;
+		dwnseq1 = <0xe0>;
+
+		gpio_pmic_pwrgood = <&gpio2 13 0>;
+		gpio_pmic_vcom_ctrl = <&gpio2 3 GPIO_ACTIVE_HIGH>;
+		gpio_pmic_wakeup = <&gpio2 7 0>;
+		gpio_pmic_powerup = <&gpio2 8 GPIO_ACTIVE_HIGH>;
+		gpio_pmic_intr = <&gpio2 9 0>;
+
+		/* gpio_pmic_v3p3 = <&gpio2 14 GPIO_ACTIVE_HIGH>; */
+		gpio_pmic_pwrall = <&gpio2 14 GPIO_ACTIVE_HIGH>;
+
+		regulators {
+			DISPLAY_reg: DISPLAY {
+				regulator-name = "DISPLAY";
+			};
+
+			VCOM_reg: VCOM {
+				regulator-name = "VCOM";
+				/* 2's-compliment, -4325000 */
+				regulator-min-microvolt = <0xffbe0178>;
+				/* 2's-compliment, -500000 */
+				regulator-max-microvolt = <0xfff85ee0>;
+			};
+
+			V3P3_reg: V3P3 {
+				regulator-name = "V3P3";
+			};
+
+			TMST_reg: TMST {
+				regulator-name = "TMST";
+			};
+
+		};
+	};
+};
+&i2c2 {
+	sy7636@62 {
+		compatible = "Silergy,sy7636";
+		reg = <0x62>;
+		/*
+		 * power on delay for SY7636
+		 * 0x0 : 0ms
+		 * 0x1 : 1ms
+		 * 0x2 : 2ms
+		 * 0x3 : 4ms
+		 * chip default is 2ms .
+		 */
+		on_delay1 = <0x2>;
+		on_delay2 = <0x2>;
+		on_delay3 = <0x2>;
+		on_delay4 = <0x2>;
+
+
+		/*
+		 * VLDO Voltage Adjustment Control 
+		 * 0x0 = reserved
+		 * 0x1 = +/-18V
+		 * 0x2 = +/-15.25V
+		 * 0x3 = +/-15V (default)
+		 * 0x4 = +/-14.75V
+		 * 0x5 = +/-14.5V
+		 * 0x6 = +/-14.25V
+		 * 0x7 = reserved
+		 */
+		VLDO = <0x3>;
+
+		/*
+		 * VPDD : vpdd voltaget setting at lightness mode .
+		 * 0x00 = 2V
+		 * 0x01 = 2.5V
+		 * 0x02 = 3V
+		 * 0x03 = 3.5V
+		 * ...
+		 * 0x06 = 5V (default)
+		 * ...
+		 * 0x10 = 10V
+		*/
+		VPDD = <0x2>;
+
+		/*
+		 * VDDH EXT Control : delay setting at lightness mode .
+		 * 0x0 = 0ms 
+		 * 0x1 = 125ms
+		 * 0x2 = 250ms
+		 * 0x3 = 375ms
+		 * 0x4 = 500ms
+		 * 0x5 = 625ms
+		 * 0x6 = 750ms
+		 * 0x7 = 825ms
+		 * 0x8 = 1000ms
+		 */
+		vddh_ext = <0x0>;
+
+		/*
+		 * VPDD_LEN Control : delay setting at lightness mode .
+		 * 0x0 = 0 s 
+		 * 0x1 = 0.350 s
+		 * 0x2 = 0.700 s
+		 * ...
+		 * 0x7 = 2.45 s
+		 * ...
+		 * 0x11 = 5.95 s
+		 * 0x12 = 6.3 s
+		 */
+		vpdd_len = <0x5>;
+		/*
+		 * VPOS delay times 
+		 * VP_EXT Control : delay setting at lightness mode .
+		 * 0x0 = 0 s 
+		 * 0x1 = 250ms
+		 * 0x2 = 500ms
+		 */
+		vp_ext = <0x1>;
+		/*
+		 * VEE_EXT Control : delay setting at lightness mode .
+		 * 0x0 = 0 s 
+		 * 0x1 = 0.35 s
+		 * 0x2 = 0.70 s
+		 * ...
+		 * 0x6 = 2.10 s
+		 * ...
+		 * 0x11 = 5.95 s
+		 * 0x12 = 6.30 s
+		 */
+		vee_ext = <0x1>;
+
+		
+	
+		
+		gpio_pmic_pwrgood = <&gpio2 13 0>;
+		gpio_pmic_vcom_ctrl = <&gpio2 3 GPIO_ACTIVE_HIGH>;
+		gpio_pmic_powerup = <&gpio2 8 GPIO_ACTIVE_HIGH>;
+
+		/* gpio_pmic_v3p3 = <&gpio2 14 GPIO_ACTIVE_HIGH>; */
+		gpio_pmic_pwrall = <&gpio2 14 GPIO_ACTIVE_HIGH>;
+
+		regulators {
+			DISPLAY_SY7636_reg: DISPLAY_SY7636 {
+				regulator-name = "DISPLAY_SY7636";
+			};
+
+			VCOM_SY7636_reg: VCOM_SY7636 {
+				regulator-name = "VCOM_SY7636";
+				/* 2's-compliment, -4325000 */
+				regulator-min-microvolt = <0xffbe0178>;
+				/* 2's-compliment, -500000 */
+				regulator-max-microvolt = <0xfff85ee0>;
+			};
+
+			V3P3_SY7636_reg: V3P3_SY7636 {
+				regulator-name = "V3P3_SY7636";
+			};
+
+			TMST_SY7636_reg: TMST_SY7636 {
+				regulator-name = "TMST_SY7636";
+			};
+
+		};
+	};
+};
+
+
+
