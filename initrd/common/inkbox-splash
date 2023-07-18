@@ -208,9 +208,6 @@ elif [ "${1}" == "usb_debug" ]; then
 	print_qr "https://inkbox.ddns.net/wiki/index.php?title=Boot-time_USB_debug_mode" invert
 	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink -qs
 elif [ "${1}" == "refresh" ]; then
-	if [ "${DEVICE}" == "n249" ]; then
-		# Do something here to make it work
-	fi
 	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink -k -f
 else
 	LD_LIBRARY_PATH=/opt/fbink busybox chroot /splash /opt/fbink/fbink "-cMmq" "-t" "regular=/opt/fbink/fraunces.ttf,size=${SIZE}" "InkBox"
