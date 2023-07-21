@@ -111,7 +111,7 @@
 			led-sources = <0>;
 			label = "backlight_warm";
 			default-brightness = <0>;
-			max-brightness = <255>;
+			max-brightness = <100>;
 		};
 
 		led@1 {
@@ -119,7 +119,7 @@
 			led-sources = <1>;
 			label = "backlight_cold";
 			default-brightness = <0>;
-			max-brightness = <255>;
+			max-brightness = <100>;
 		};
 	};
 };
