@@ -189,6 +189,7 @@ static int lm3630a_bank_a_update_status(struct backlight_device *bl)
 	int ret;
 	struct lm3630a_chip *pchip = bl_get_data(bl);
 	enum lm3630a_pwm_ctrl pwm_ctrl = pchip->pdata->pwm_ctrl;
+	bl->props.brightness = bl->props.brightness * 255 / 100;
 
 	/* pwm control */
 	if ((pwm_ctrl & LM3630A_PWM_BANK_A) != 0)
@@ -239,7 +240,7 @@ static int lm3630a_bank_a_get_brightness(struct backlight_device *bl)
 	if (rval < 0)
 		goto out_i2c_err;
 	usleep_range(1000, 2000);
-	rval = lm3630a_read(pchip, REG_BRT_A);
+	rval = lm3630a_read(pchip, REG_BRT_A) * 100 / 255;
 	if (rval < 0)
 		goto out_i2c_err;
 	brightness = rval;
@@ -264,6 +265,7 @@ static int lm3630a_bank_b_update_status(struct backlight_device *bl)
 	int ret;
 	struct lm3630a_chip *pchip = bl_get_data(bl);
 	enum lm3630a_pwm_ctrl pwm_ctrl = pchip->pdata->pwm_ctrl;
+	bl->props.brightness = bl->props.brightness * 255 / 100;
 
 	/* pwm control */
 	if ((pwm_ctrl & LM3630A_PWM_BANK_B) != 0)
@@ -314,7 +316,7 @@ static int lm3630a_bank_b_get_brightness(struct backlight_device *bl)
 	if (rval < 0)
 		goto out_i2c_err;
 	usleep_range(1000, 2000);
-	rval = lm3630a_read(pchip, REG_BRT_B);
+	rval = (lm3630a_read(pchip, REG_BRT_B) * 100 / 255);
 	if (rval < 0)
 		goto out_i2c_err;
 	brightness = rval;
