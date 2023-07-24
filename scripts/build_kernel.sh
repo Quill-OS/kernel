@@ -203,6 +203,11 @@ if [ "$2" == "std" ]; then
 	mkdir -p $GITDIR/kernel/out/$1
 	build_id_gen $GITDIR/initrd/$1/opt/
 
+	# Only modules change for this model of the Nia
+	if [ "$1" == "n306c" ]; then
+		sudo cp $GITDIR/initrd/model-specific/$1/modules.sqsh $GITDIR/initrd/$1/opt/
+	fi
+
 	if [ "$1" == "n705" ] || [ "$1" == "n905c" ] || [ "$1" == "n613" ]; then
 		cd $GITDIR/kernel/linux-2.6.35.3
 		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
@@ -275,6 +280,11 @@ elif [ "$2" == "root" ]; then
 	sudo cp $GITDIR/initrd/common/setup-wifi $GITDIR/initrd/$1/sbin/setup-wifi
 	mkdir -p $GITDIR/kernel/out/$1
 	build_id_gen $GITDIR/initrd/$1/opt/
+
+	# Only modules change for this model of the Nia
+	if [ "$1" == "n306c" ]; then
+		sudo cp $GITDIR/initrd/model-specific/$1/modules.sqsh $GITDIR/initrd/$1/opt/
+	fi
 
 	if [ "$1" == "n705" ] || [ "$1" == "n905c" ] || [ "$1" == "n613" ]; then
 		cd $GITDIR/kernel/linux-2.6.35.3
