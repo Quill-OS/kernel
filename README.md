@@ -21,3 +21,7 @@ GITDIR=/home/build/kobo TOOLCHAINDIR=$GITDIR/toolchain/gcc-4.8 TARGET=arm-linux-
 ```
 sudo apt install u-boot-tools make gcc xz-utils
 ```
+
+Notes:
+- If a device has variants, remember to `git reset --hard` before building.
+- To create the `modules.sqsh` sqashfs archive: `mksquashfs dir new_modules.sqsh -b 1048576 -comp gzip -always-use-fragments`
