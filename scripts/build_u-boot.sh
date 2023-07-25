@@ -53,7 +53,7 @@ elif [ "${DEVICE}" == "n437" ]; then
 	cp "u-boot.bin" "${GITDIR}/bootloader/out/u-boot_inkbox.${DEVICE}.bin"
 
 	popd
-elif [ "${DEVICE}" == "n306" ]; then
+elif [ "${DEVICE}" == "n306" ] || [ "${DEVICE}" == "n306c" ]; then
 	pushd "${GITDIR}/bootloader/mx6ull-n306"
 
 	make ARCH=arm CROSS_COMPILE="${TARGET}-" -j${THREADS} distclean
