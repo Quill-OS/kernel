@@ -1,3 +1,6 @@
 [submodule "kernel/modules/mxc_epdc_fb_damage"]
 	path = kernel/modules/mxc_epdc_fb_damage
 	url = git@github.com:/Kobo-InkBox/mxc_epdc_fb_damage
+[submodule "inkbox-os-init"]
+	path = inkbox-os-init
+	url = https://github.com/Kobo-InkBox/inkbox-os-init
