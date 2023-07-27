@@ -42,6 +42,17 @@ elif [ "$THREADS" == "" ]; then
 	THREADS=1
 fi
 
+rm -f "${GITDIR}/initrd/common/init"
+if [ -z "${INIT_GCC}" ] || [ -z "${INIT_STRIP}" ]; then
+	echo "You must specify the 'INIT_GCC' and 'INIT_STRIP' variables."
+	exit 1
+else
+	pushd "${GITDIR}/inkbox-os-init"
+	"${INIT_GCC}" init.c -o init -static && "${INIT_STRIP}" init
+	cp init "${GITDIR}/initrd/common/init"
+	popd
+fi
+
 # Environment
 cd $TOOLCHAINDIR/bin
 export PATH=$PATH:$PWD
