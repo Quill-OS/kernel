@@ -1398,6 +1398,7 @@ static int elan_touch_remove(struct i2c_client *client)
 	} else {
 		hrtimer_cancel(&elan_touch_data.timer);
 	}
+	gpio_set_value(elan_touch_data.rst_gpio, 0);
 	return 0;
 }
 
