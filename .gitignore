@@ -17,3 +17,4 @@ bootloader/*/u-boot.*
 *.rsa
 initrd/busybox-1.32.1/_install-n306/opt/root
 initrd/busybox-1.32.1/_install-n306/opt/modules.sqsh
+initrd/common/init
