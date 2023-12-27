@@ -54,6 +54,10 @@ if [ "${1}" != "recovery" ]; then
 		# Some mountpoints
 		mkdir -p /rootfs-part/rootfs/read
 		mkdir -p /rootfs-part/rootfs/work
+		if [ "${2}" == "std" ]; then
+			# Prevent arbitrary code execution
+			rm -rf /rootfs-part/rootfs/write
+		fi
 		mkdir -p /rootfs-part/rootfs/write
 		mkdir -p /rootfs-part/rootfs/overlay
 
@@ -90,7 +94,9 @@ if [ "${1}" != "recovery" ]; then
 				busybox chroot /overlaymount-rootfs "/usr/local/bin/unionfs" "-o" "ro,cow,allow_other" "/mnt/rootfs/write=RW:/mnt/rootfs/read=RO" "/mnt/rootfs/overlay"
 			fi
 		elif [ "${1}" == "rw" ]; then
-			if [ "${DEVICE}" != "kt" ]; then
+			if [ "${2}" == "std" ]; then
+				busybox chroot /overlaymount-rootfs "/usr/local/bin/unionfs" "-o" "ro,nosuid,cow,allow_other" "/mnt/rootfs/write=RW:/mnt/rootfs/read=RO" "/mnt/rootfs/overlay"
+			else
 				busybox chroot /overlaymount-rootfs "/usr/local/bin/unionfs" "-o" "cow,allow_other" "/mnt/rootfs/write=RW:/mnt/rootfs/read=RO" "/mnt/rootfs/overlay"
 			fi
 		else
