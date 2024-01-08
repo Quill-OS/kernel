@@ -42,16 +42,17 @@ elif [ "$THREADS" == "" ]; then
 	THREADS=1
 fi
 
+# Build inkbox-os-init binary
 rm -f "${GITDIR}/initrd/common/init"
 if [ -z "${INIT_GCC}" ] || [ -z "${INIT_STRIP}" ]; then
-	echo "You must specify the 'INIT_GCC' and 'INIT_STRIP' variables."
-	exit 1
-else
-	pushd "${GITDIR}/inkbox-os-init"
-	"${INIT_GCC}" init.c -o init -static && "${INIT_STRIP}" init
-	cp init "${GITDIR}/initrd/common/init"
-	popd
+	INIT_GCC="${GITDIR}/toolchain/armv7l-linux-musleabihf-cross/bin/armv7l-linux-musleabihf-gcc"
+	INIT_STRIP="${GITDIR}/toolchain/armv7l-linux-musleabihf-cross/bin/armv7l-linux-musleabihf-strip"
 fi
+
+pushd "${GITDIR}/inkbox-os-init"
+"${INIT_GCC}" init.c -o init -static && "${INIT_STRIP}" init
+cp init "${GITDIR}/initrd/common/init"
+popd
 
 # Environment
 cd $TOOLCHAINDIR/bin
