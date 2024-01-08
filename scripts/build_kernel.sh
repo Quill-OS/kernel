@@ -78,6 +78,7 @@ elif [ "$1" == "n306c" ]; then
 	echo "---- Building Kobo Nia model C (N306C) kernel ----"
 elif [ "$1" == "n249" ]; then
 	echo "---- Building Kobo Clara HD (N249) kernel ----"
+	BOOTSCRIPT="JwUZVr96qXxksAGVAAAA2wAAAAAAAAAA+gCOswUCBgFJbmtCb3ggT1MAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAANMAAAAAbGVkIGU2MGswMjp3aGl0ZTpvbiBvbgpzZXRlbnYgYm9vdGFyZ3MgY29uc29sZT10dHlteGMwLDExNTIwMAoKZWNobyBMb2FkaW5nIGtlcm5lbApsb2FkIG1tYyAwOjEgMHg4MDgwMDAwMCB6SW1hZ2UKCmVjaG8gTG9hZGluZyBEVEIKbG9hZCBtbWMgMDoxIDB4ODMwMDAwMDAgRFRCCgplY2hvIEJvb3Rpbmcga2VybmVsCmJvb3R6IDB4ODA4MDAwMDAgLSAweDgzMDAwMDAwCg=="
 elif [ "$1" == "kt" ]; then
 	echo "---- Building Kindle Touch (KT) kernel ----"
 elif [ "$1" == "emu" ]; then
@@ -342,6 +343,10 @@ elif [ "$2" == "root" ]; then
 			echo "---- Output was saved in $GITDIR/kernel/out/$1/uImage-root ----"
 		elif [ "$1" == "n873" ] || [ "$1" == "n306" ] || [ "$1" == "n306c" ] || [ "$1" == "n249" ] || [ "$1" == "emu" ] || [ "$1" == "bpi" ]; then
 			cp "arch/arm/boot/zImage" "$GITDIR/kernel/out/$1/zImage-root"
+			if [ "$1" == "n249" ]; then
+				cp "arch/arm/boot/dts/imx6sll-kobo-clarahd.dtb" "$GITDIR/kernel/out/$1/DTB"
+				printf "${BOOTSCRIPT}" | base64 -d > "$GITDIR/kernel/out/$1/boot.scr"
+			fi
 			echo "---- Output was saved in $GITDIR/kernel/out/$1/zImage-root ----"
 		else
 			cp "arch/arm/boot/uImage" "$GITDIR/kernel/out/$1/uImage-root"
