@@ -226,7 +226,7 @@ if [ "$2" == "std" ]; then
 		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
 	elif [ "$1" == "n873" ]; then
 		cd $GITDIR/kernel/linux-4.1.15-libra
-		make ARCH=arm CROSS_COMPILE=$TARGET- zImage -j$THREADS
+		make ARCH=arm CROSS_COMPILE=$TARGET- zImage dtbs -j$THREADS
 	elif [ "$1" == "n905b" ]; then
 		cd $GITDIR/kernel/linux-2.6.35.3-n905b
 		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
@@ -304,7 +304,7 @@ elif [ "$2" == "root" ]; then
 		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
 	elif [ "$1" == "n873" ]; then
 		cd $GITDIR/kernel/linux-4.1.15-libra
-		make ARCH=arm CROSS_COMPILE=$TARGET- zImage -j$THREADS
+		make ARCH=arm CROSS_COMPILE=$TARGET- zImage dtbs -j$THREADS
 	elif [ "$1" == "n905b" ]; then
 		cd $GITDIR/kernel/linux-2.6.35.3-n905b
 		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
