@@ -26,6 +26,20 @@ if [ "${DEVICE}" == "n705" ] || [ "${DEVICE}" == "n905c" ] || [ "${DEVICE}" == "
 	cp "u-boot.bin" "${GITDIR}/bootloader/out/u-boot_inkbox.${DEVICE}.bin"
 
 	popd
+elif [ "${DEVICE}" == "n250" ]; then
+	pushd "${GITDIR}/bootloader/imx507-n250"
+	
+	pushd "board/freescale/mx50_rdp"
+	rm flash_header.S && sync
+	ln -s flash_header-20120622_FSL_RAM_PARMS_DSadd2.S flash_header.S && sync
+	popd
+	
+	make ARCH=arm CROSS_COMPILE="${TARGET}-" -j${THREADS} distclean
+	make ARCH=arm CROSS_COMPILE="${TARGET}-" -j${THREADS} mx50_rdp_config
+	make ARCH=arm CROSS_COMPILE="${TARGET}-" -j${THREADS}
+	cp "u-boot.bin" "${GITDIR}/bootloader/out/u-boot_inkbox.${DEVICE}.bin"
+
+	popd
 elif [ "${DEVICE}" == "n905b" ]; then
 	pushd "${GITDIR}/bootloader/imx508"
 

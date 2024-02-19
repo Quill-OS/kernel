@@ -67,6 +67,8 @@ elif [ "$1" == "n613" ]; then
 	echo "---- Building Kobo Glo (N613) kernel ----"
 elif [ "$1" == "n873" ]; then
 	echo "---- Building Kobo Libra (N873) kernel ----"
+elif [ "$1" == "n250" ]; then
+	echo "---- Building Kobo Aura H2O (N250) kernel ----"
 elif [ "$1" == "n905b" ]; then
 	echo "---- Building Kobo Touch model B (N905B) kernel ----"
 elif [ "$1" == "n236" ]; then
@@ -150,6 +152,14 @@ elif [ "$1" == "n905b" ]; then
 	else
 		cp $GITDIR/kernel/config/config-n905b $GITDIR/kernel/linux-2.6.35.3-n905b/.config
 	fi
+elif [ "$1" == "n250" ]; then
+	cd $GITDIR/kernel/linux-2.6.35.3-n250
+	make ARCH=arm CROSS_COMPILE=$TARGET- mrproper
+	if [ "$2" == "diags" ]; then
+		cp $GITDIR/kernel/config/config-n250-diags $GITDIR/kernel/linux-2.6.35.3-n250/.config
+	else
+		cp $GITDIR/kernel/config/config-n250 $GITDIR/kernel/linux-2.6.35.3-n250/.config
+	fi
 elif [ "$1" == "emu" ]; then
 	cd $GITDIR/kernel/linux-5.15.10
 	make ARCH=arm CROSS_COMPILE=$TARGET- mrproper
@@ -227,6 +237,9 @@ if [ "$2" == "std" ]; then
 	elif [ "$1" == "n873" ]; then
 		cd $GITDIR/kernel/linux-4.1.15-libra
 		make ARCH=arm CROSS_COMPILE=$TARGET- zImage dtbs -j$THREADS
+	elif [ "$1" == "n250" ]; then
+		cd $GITDIR/kernel/linux-2.6.35.3-n250
+		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
 	elif [ "$1" == "n905b" ]; then
 		cd $GITDIR/kernel/linux-2.6.35.3-n905b
 		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
@@ -305,6 +318,9 @@ elif [ "$2" == "root" ]; then
 	elif [ "$1" == "n873" ]; then
 		cd $GITDIR/kernel/linux-4.1.15-libra
 		make ARCH=arm CROSS_COMPILE=$TARGET- zImage dtbs -j$THREADS
+	elif [ "$1" == "n250" ]; then
+		cd $GITDIR/kernel/linux-2.6.35.3-n250
+		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
 	elif [ "$1" == "n905b" ]; then
 		cd $GITDIR/kernel/linux-2.6.35.3-n905b
 		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
@@ -384,6 +400,9 @@ elif [ "$2" == "diags" ]; then
 	elif [ "$1" == "n873" ]; then
 		cd $GITDIR/kernel/linux-4.1.15-libra
 		make ARCH=arm CROSS_COMPILE=$TARGET- zImage -j$THREADS
+	elif [ "$1" == "n250" ]; then
+		cd $GITDIR/kernel/linux-2.6.35.3-n250
+		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
 	elif [ "$1" == "n905b" ]; then
 		cd $GITDIR/kernel/linux-2.6.35.3-n905b
 		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
