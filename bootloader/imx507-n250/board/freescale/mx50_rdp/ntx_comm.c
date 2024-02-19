@@ -11,7 +11,7 @@
 
 
 // binaries sector number of sd card .
-#define SD_OFFSET_SECS_KERNEL		2048
+int SD_OFFSET_SECS_KERNEL = 81920;
 #define SD_OFFSET_SECS_INITRD		12288
 #define SD_OFFSET_SECS_INITRD2		8192
 #define SD_OFFSET_SECS_HWCFG		1024
