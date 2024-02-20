@@ -35,7 +35,7 @@ elif [ "${DEVICE}" == "n250" ]; then
 	popd
 	
 	make ARCH=arm CROSS_COMPILE="${TARGET}-" -j${THREADS} distclean
-	make ARCH=arm CROSS_COMPILE="${TARGET}-" -j${THREADS} mx50_rdp_mddr_512_config
+	make ARCH=arm CROSS_COMPILE="${TARGET}-" -j${THREADS} mx50_rdp_lpddr2_512_config
 	make ARCH=arm CROSS_COMPILE="${TARGET}-" -j${THREADS}
 	cp "u-boot.bin" "${GITDIR}/bootloader/out/u-boot_inkbox.${DEVICE}.bin"
 
