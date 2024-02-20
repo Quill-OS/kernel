@@ -1,0 +1,20 @@
+name: CI Build
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build
+      run: |
+        GITDIR=${{ github.workspace }} TOOLCHAINDIR=${{ github.workspace }}/toolchain/gcc-4.4.1 TARGET=arm-none-linux-gnueabi ./scripts/build_kernel.sh n250 std
+        TOOLCHAINDIR=${{ github.workspace }}/toolchain/gcc-4.4.1/ TARGET=arm-none-linux-gnueabi ./scripts/build_u-boot.sh n250
+    - name: Archive artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: u-boot-and-kernel
+        path: |
+          bootloader/imx507-n250/u-boot.bin
+          kernel/linux-2.6.35.3-n250/arch/arm/boot/uImage
