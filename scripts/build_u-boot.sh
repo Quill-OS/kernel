@@ -31,7 +31,7 @@ elif [ "${DEVICE}" == "n250" ]; then
 	
 	pushd "board/freescale/mx50_rdp"
 	rm flash_header.S && sync
-	ln -s flash_header-20120622_FSL_RAM_PARMS_DSadd2.S flash_header.S && sync
+        ln -s flash_header-LPDDR2.S flash_header.S
 	popd
 	
 	make ARCH=arm CROSS_COMPILE="${TARGET}-" -j${THREADS} distclean

@@ -1,1 +1,1 @@
-flash_header-20120622_FSL_RAM_PARMS_DSadd2.S
+flash_header-LPDDR2.S
