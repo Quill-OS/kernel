@@ -7,6 +7,10 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v2
+    - name: Install extra tools
+      run: |
+        sudo apt update
+        sudo apt install -y u-boot-tools
     - name: Build
       run: |
         GITDIR=${{ github.workspace }} TOOLCHAINDIR=${{ github.workspace }}/toolchain/gcc-4.4.1 TARGET=arm-none-linux-gnueabi ./scripts/build_kernel.sh n250 std
