@@ -6,7 +6,7 @@ GITDIR="${PWD}"
 [ -z "${TOOLCHAINDIR}" ] && printf "You must specify the 'TOOLCHAINDIR' environment variable.\n" && exit 1
 [ -z "${TARGET}" ] && printf "You must specify the 'TARGET' environment variable. Example: 'arm-linux-gnueabihf'\n" && exit 1
 [ -z "${THREADS}" ] && THREADS=1
-[ -z "${1}" ] && printf "You must specify the 'device' argument. Available options are: n705, n905b, n905c, n613, n236, n437, n306, n249, kt\n" && exit 1
+[ -z "${1}" ] && printf "You must specify the 'device' argument. Available options are: n705, n905b, n905c, n613, n236, n437, n306, n249, n250, kt\n" && exit 1
 DEVICE="${1}"
 
 mkdir -p "${GITDIR}/bootloader/out/"
