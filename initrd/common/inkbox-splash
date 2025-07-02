@@ -219,7 +219,7 @@ elif [ "${1}" == "netboot" ]; then
 	echo -n "${EARTH}" | base64 -d > /splash/tmp/earth.png
 	if [ "${DEVICE}" == "n437" ] || [ "${DEVICE}" == "n249" ]; then
 		NSIZE=70
-		DFACTOR=3
+		DFACTOR=4
 	elif [ "${DEVICE}" == "n418" ]; then
 		NSIZE=60
 		DFACTOR=4.5
