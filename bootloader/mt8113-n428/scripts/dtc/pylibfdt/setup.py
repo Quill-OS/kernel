@@ -81,8 +81,7 @@ def GetEnvFromMakefiles():
     basedir = os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0])))
     swig_opts = ['-I%s' % basedir]
     makevars = ParseMakefile(os.path.join(basedir, 'Makefile'))
-    version = '%s.%s.%s' % (makevars['VERSION'], makevars['PATCHLEVEL'],
-                            makevars['SUBLEVEL'])
+    version = "2019.04"
     makevars = ParseMakefile(os.path.join(basedir, 'libfdt', 'Makefile.libfdt'))
     files = makevars['LIBFDT_SRCS'].split()
     files = [os.path.join(basedir, 'libfdt', fname) for fname in files]
@@ -96,7 +95,7 @@ progname = sys.argv[0]
 files = os.environ.get('SOURCES', '').split()
 cflags = os.environ.get('CPPFLAGS', '').split()
 objdir = os.environ.get('OBJDIR')
-version = os.environ.get('VERSION')
+version = "2019.04"
 swig_opts = os.environ.get('SWIG_OPTS', '').split()
 
 # If we were called directly rather than through our Makefile (which is often

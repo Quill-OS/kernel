@@ -15,8 +15,41 @@
 #include <asm/sections.h>
 #include <dm/uclass.h>
 #include <dt-bindings/clock/mt8512-clk.h>
+#include "../../../board/mediatek/mt8113_tp1/mt8113_tp1_data.h"
 
 DECLARE_GLOBAL_DATA_PTR;
+void hex_dump(const char *prefix, unsigned char *buf, int len)
+{
+   int i;
+
+   if (!buf || !len)
+		return;
+
+	debug("%s:\n", prefix);
+	for (i = 0; i < len; i++) {
+		if (i != 0 && !(i % 16))
+			debug("\n");
+		debug("%02x", *(buf + i));
+	}
+	debug("\n");
+}
+
+unsigned int get_dramsize_from_boot_args(void)
+{
+        unsigned int dram_size = 0;
+        debug("BOOT_ARGUMENT_LOCATION = 0x%x\n", BOOT_ARGUMENT_LOCATION);
+        hex_dump("BOOT_ARGUMENT_LOCATION hex:", (unsigned char *)BOOT_ARGUMENT_LOCATION, sizeof(BOOT_ARGUMENT_T));
+        BOOT_ARGUMENT_T *g_boot_args = (BOOT_ARGUMENT_T *)BOOT_ARGUMENT_LOCATION;
+        if (g_boot_args->magic_number_begin != BOOT_ARGUMENT_MAGIC
+           || g_boot_args->magic_number_end != BOOT_ARGUMENT_MAGIC) {
+                printf("%s:boot arg magic error, please check the flow.\n", __func__);
+                return 0;
+        }
+
+        dram_size = g_boot_args->dram_size;
+        debug("g_boot_args->dram_size is 0x%x\n", g_boot_args->dram_size);
+        return dram_size;
+}
 
 int dram_init(void)
 {
