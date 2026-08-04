@@ -13,7 +13,7 @@
 
 #include <linux/platform_device.h>
 
-#include <mt_emi.h>
+#include "../mt8512/mt_emi.h"
 #include "pasr_api_v1.h"
 
 /* acquire DRAM Setting for PASR/DPD */

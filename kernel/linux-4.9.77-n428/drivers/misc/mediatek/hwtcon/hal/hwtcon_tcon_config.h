@@ -28,7 +28,7 @@
 #define __HWTCON_TCON_CONFIG_H__
 #include <linux/types.h>
 #include <linux/mailbox/mtk-cmdq-mailbox.h>
-#include "hwtcon_epd.h"
+#include "../hwtcon_epd.h"
 #include "cmdq_record.h"
 #include "hwtcon_hal.h"
 

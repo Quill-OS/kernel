@@ -31,7 +31,7 @@
 #include "cmdq_record.h"
 #include <linux/soc/mediatek/mtk-cmdq.h>
 #include "hwtcon_reg.h"
-#include "hwtcon_def.h"
+#include "../hwtcon_def.h"
 
 u32 *hwtcon_hal_convert_pa_2_va(u32 pa);
 u32 pp_read(void *va);

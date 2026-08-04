@@ -27,8 +27,8 @@
 #ifndef __HWTCON_PIPELINE_CONFIG_H__
 #define __HWTCON_PIPELINE_CONFIG_H__
 #include "cmdq_record.h"
-#include "hwtcon_def.h"
-#include "hwtcon_rect.h"
+#include "../hwtcon_def.h"
+#include "../hwtcon_rect.h"
 
 struct hwtcon_task;
 enum PITCH_SELECT {

@@ -27,7 +27,7 @@
 #ifndef __HWTCON_REG_H__
 #define __HWTCON_REG_H__
 
-#include "hwtcon_driver.h"
+#include "../hwtcon_driver.h"
 
 /* mmsys top */
 #define MMSYS_SW1_RST_B            (hwtcon_device_info()->mmsys_reg_pa + 0x0144)

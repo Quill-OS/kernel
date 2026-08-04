@@ -25,9 +25,9 @@
  *****************************************************************************/
 
 #include "hwtcon_regal_config.h"
-#include "hwtcon_driver.h"
+#include "../hwtcon_driver.h"
 #include "hwtcon_hal.h"
-#include "hwtcon_fb.h"
+#include "../hwtcon_fb.h"
 
 #define		DUMP_FSDB_FILE	/* if define, dump waveform as fsdb file */
 //`define		LOAD_SDF_FILE

@@ -3,8 +3,8 @@
  * Copyright (c) 2019 MediaTek Inc.
  */
 
-#include <helio-dvfsrc.h>
-#include <helio-dvfsrc-opp.h>
+#include "helio-dvfsrc.h"
+#include "helio-dvfsrc-opp.h"
 
 static struct opp_profile opp_table[VCORE_DVFS_OPP_NUM];
 static int vcore_dvfs_to_vcore_opp[VCORE_DVFS_OPP_NUM];

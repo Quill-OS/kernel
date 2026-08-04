@@ -29,9 +29,9 @@
 #include <mt-plat/aee.h>
 #endif
 
-#include <mt_emi.h>
+#include "../mt8512/mt_emi.h"
 #include "mpu_v1.h"
-#include "mpu_platform.h"
+#include "../mt8512/mpu_platform.h"
 
 
 #ifdef CONFIG_MTK_DEVMPU

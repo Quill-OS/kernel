@@ -19,15 +19,15 @@
 #include <linux/io.h>
 
 #if defined(CONFIG_MACH_MT6765)
-#include <helio-dvfsrc-mt6765.h>
+#include "helio-dvfsrc-mt6765.h"
 #elif defined(CONFIG_MACH_MT8518)
-#include <helio-dvfsrc-mt8518.h>
+#include "helio-dvfsrc-mt8518.h"
 #elif defined(CONFIG_MACH_MT6761)
-#include <helio-dvfsrc-mt6761.h>
+#include "helio-dvfsrc-mt6761.h"
 #elif defined(CONFIG_MACH_MT8512)
-#include <helio-dvfsrc-mt8512.h>
+#include "helio-dvfsrc-mt8512.h"
 #else
-#include <helio-dvfsrc-mt67xx.h>
+#include "helio-dvfsrc-mt67xx.h"
 #endif
 
 #include "helio-dvfsrc-opp.h"

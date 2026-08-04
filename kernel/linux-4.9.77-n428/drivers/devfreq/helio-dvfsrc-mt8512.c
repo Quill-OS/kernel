@@ -12,9 +12,9 @@
 #include <mtk_dramc.h>
 #include <mt-plat/upmu_common.h>
 
-#include <helio-dvfsrc.h>
-#include <helio-dvfsrc-opp.h>
-#include <mtk_dvfsrc_reg.h>
+#include "helio-dvfsrc.h"
+#include "helio-dvfsrc-opp.h"
+#include "mtk_dvfsrc_reg.h"
 #include <mt-plat/mtk_devinfo.h>
 
 #ifdef CONFIG_MTK_SMI_EXT

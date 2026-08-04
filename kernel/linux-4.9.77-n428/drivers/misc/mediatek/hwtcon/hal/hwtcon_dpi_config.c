@@ -26,7 +26,7 @@
 
 #include "hwtcon_dpi_config.h"
 #include "hwtcon_hal.h"
-#include "hwtcon_epd.h"
+#include "../hwtcon_epd.h"
 
 void wf_lut_config_dpi(struct cmdqRecStruct *pkt,
 	struct dpi_timing_para *dpi_para,

@@ -29,7 +29,7 @@
 #include <linux/types.h>
 #include <linux/mailbox/mtk-cmdq-mailbox.h>
 #include "cmdq_record.h"
-#include "hwtcon_epd.h"
+#include "../hwtcon_epd.h"
 
 
 void wf_lut_config_dpi(struct cmdqRecStruct *pkt,

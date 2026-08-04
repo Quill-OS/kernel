@@ -25,9 +25,9 @@
  *****************************************************************************/
 
 #include "hwtcon_tcon_config.h"
-#include "hwtcon_fb.h"
+#include "../hwtcon_fb.h"
 #include "hwtcon_hal.h"
-#include "hwtcon_epd.h"
+#include "../hwtcon_epd.h"
 
 void tcon_config_swtcon_pin(struct cmdqRecStruct *pkt)
 {

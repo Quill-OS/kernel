@@ -29,9 +29,9 @@
 #include "hwtcon_dpi_config.h"
 #include "hwtcon_wf_lut_rdma_config.h"
 #include "hwtcon_tcon_config.h"
-#include "hwtcon_def.h"
-#include "hwtcon_epd.h"
-#include "hwtcon_core.h"
+#include "../hwtcon_def.h"
+#include "../hwtcon_epd.h"
+#include "../hwtcon_core.h"
 #include "hwtcon_pipeline_config.h"
 #include "hwtcon_wf_lut_config.h"
 #include <linux/of_reserved_mem.h>
@@ -58,7 +58,7 @@
 #include <linux/pstore.h>
 #include <linux/io.h>
 #include <mt-plat/aee.h>
-#include "hwtcon_debug.h"
+#include "../hwtcon_debug.h"
 
 #define WF_WDMA_SUPPORT
 

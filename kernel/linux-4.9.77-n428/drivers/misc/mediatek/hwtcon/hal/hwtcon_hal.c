@@ -25,8 +25,8 @@
  *****************************************************************************/
 
 #include "hwtcon_hal.h"
-#include "hwtcon_def.h"
-#include "hwtcon_driver.h"
+#include "../hwtcon_def.h"
+#include "../hwtcon_driver.h"
 
 #include <linux/dma-mapping.h>
 

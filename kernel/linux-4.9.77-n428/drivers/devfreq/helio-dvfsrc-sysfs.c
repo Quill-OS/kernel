@@ -8,8 +8,8 @@
 #include <linux/pm_qos.h>
 #include <linux/sysfs.h>
 
-#include <helio-dvfsrc.h>
-#include <helio-dvfsrc-opp.h>
+#include "helio-dvfsrc.h"
+#include "helio-dvfsrc-opp.h"
 
 static struct pm_qos_request dvfsrc_memory_bw_req;
 static struct pm_qos_request dvfsrc_ddr_opp_req;

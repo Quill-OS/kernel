@@ -24,7 +24,7 @@
 #include <linux/fs.h>
 #include <linux/time.h>
 #include <linux/timer.h>
-#include <mt_emi.h>
+#include "../mt8512/mt_emi.h"
 #include <mt-plat/sync_write.h>
 #include <mt-plat/mtk_io.h>
 #include <linux/hrtimer.h>

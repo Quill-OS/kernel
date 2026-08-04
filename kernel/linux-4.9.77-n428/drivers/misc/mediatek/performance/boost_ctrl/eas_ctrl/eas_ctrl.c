@@ -176,7 +176,7 @@ int update_eas_boost_value(int kicker, int cgroup_idx, int value)
 		boost_write_for_perf_idx(cgroup_idx,
 				current_boost_value[cgroup_idx]);
 
-	strncat(msg, msg1, LOG_BUF_SIZE);
+	strncat(msg, msg1, LOG_BUF_SIZE - strlen(msg) - 1);
 	if (log_enable)
 		pr_debug("%s\n", msg);
 

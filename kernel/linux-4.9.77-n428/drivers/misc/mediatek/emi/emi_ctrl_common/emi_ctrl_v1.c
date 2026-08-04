@@ -20,7 +20,7 @@
 #include <linux/printk.h>
 
 #include <mt-plat/mtk_io.h>
-#include <mt_emi.h>
+#include "../mt8512/mt_emi.h"
 #include "emi_ctrl_v1.h"
 static void __iomem *CEN_EMI_BASE;
 static void __iomem *CHN_EMI_BASE[MAX_CH];
