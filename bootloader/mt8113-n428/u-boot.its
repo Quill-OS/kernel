@@ -1,0 +1,26 @@
+/dts-v1/;
+
+/ {
+	description = "U-Boot FIT image";
+	#address-cells = <1>;
+
+	images {
+		kernel {
+			data = /incbin/("u-boot.bin");
+			type = "kernel";
+			arch = "arm";
+			os = "linux";
+			compression = "none";
+			load = <0x44e00000>;
+			entry = <0x44e00000>;
+		};
+	};
+
+	configurations {
+		default = "conf";
+
+		conf {
+			kernel = "kernel";
+		};
+	};
+};
