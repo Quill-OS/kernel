@@ -1,0 +1,44 @@
+/dts-v1/;
+
+/ {
+    description = "MediaTek MT8113 FIT Image";
+    #address-cells = <1>;
+
+    images {
+        kernel@1 {
+            description = "Linux kernel";
+            data = /incbin/("zImage");
+            type = "kernel";
+            arch = "arm";
+            os = "linux";
+            compression = "none";
+            load = <0x40008000>;
+            entry = <0x40008000>;
+            hash-1 {
+                algo = "sha256";
+            };
+        };
+
+        fdt@1 {
+            description = "aud8113tp1-E60T00-D0x00-8113T.dtb";
+            data = /incbin/("dts/mediatek/aud8113tp1-E60T00-D0x00-8113T.dtb");
+            type = "flat_dt";
+            arch = "arm";
+            compression = "none";
+            load = <0x44000000>;
+            hash-1 {
+                algo = "sha256";
+            };
+        };
+    };
+
+    configurations {
+        default = "conf@1";
+
+        conf@1 {
+            description = "Boot MediaTek Linux with standard DTB";
+            kernel = "kernel@1";
+            fdt = "fdt@1";
+        };
+    };
+};
