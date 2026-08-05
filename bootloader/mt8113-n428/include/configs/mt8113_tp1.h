@@ -89,7 +89,6 @@
 #define ENV_BOOT_ARGS \
 	"bootargs=console=ttyS0,921600n1 rootwait skip_initramfs  earlycon=uart8250,mmio32,0x11002000 initcall_debug androidboot.hardware=mt8512 firmware_class.path=/vendor/firmware no_console_suspend\0" \
 
-
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	"fdt_high=0x6c000000\0" \
 	ENV_DEVICE_SETTINGS \
@@ -99,6 +98,7 @@
 	ENV_BOOT_ARGS \
 	ENV_BOOT_CMD \
 	"bootcmd=run mtk_boot;\0" \
+  "verify=no\0"
 
 #define CONFIG_FS_EXT4
 #define CONFIG_CMD_EXT4
