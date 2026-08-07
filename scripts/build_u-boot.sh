@@ -102,8 +102,10 @@ elif [ "${DEVICE}" == "n428" ] || [ "${DEVICE}" == "n367" ]; then
 	make ARCH=arm CROSS_COMPILE="${TARGET}-" distclean
 	make ARCH=arm CROSS_COMPILE="${TARGET}-" mt8113_tp1_emmc_defconfig
 	make ARCH=arm CROSS_COMPILE="${TARGET}-" -j${THREADS}
-	mkimage -f mt8113-u-boot.its u-boot.itb
-	cp "u-boot.itb" "${GITDIR}/bootloader/out/u-boot_inkbox.${DEVICE}.itb"
+	ITB="u-boot.itb"
+	mkimage -f mt8113-u-boot.its "${ITB}"
+	truncate -s 1048576 "${ITB}"
+	cp "${ITB}" "${GITDIR}/bootloader/out/u-boot_inkbox.${DEVICE}.itb"
 
 	popd
 elif [ "${DEVICE}" == "kt" ]; then
