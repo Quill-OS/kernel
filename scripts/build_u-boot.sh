@@ -6,7 +6,7 @@ GITDIR="${PWD}"
 [ -z "${TOOLCHAINDIR}" ] && printf "You must specify the 'TOOLCHAINDIR' environment variable.\n" && exit 1
 [ -z "${TARGET}" ] && printf "You must specify the 'TARGET' environment variable. Example: 'arm-linux-gnueabihf'\n" && exit 1
 [ -z "${THREADS}" ] && THREADS=1
-[ -z "${1}" ] && printf "You must specify the 'device' argument. Available options are: n705, n905b, n905c, n613, n236, n437, n306, n249, kt\n" && exit 1
+[ -z "${1}" ] && printf "You must specify the 'device' argument. Available options are: n705, n905b, n905c, n613, n236, n437, n306, n249, n367, n418, n428, kt\n" && exit 1
 DEVICE="${1}"
 
 mkdir -p "${GITDIR}/bootloader/out/"
@@ -94,6 +94,16 @@ elif [ "${DEVICE}" == "n418" ]; then
 	make ARCH=arm CROSS_COMPILE="${TARGET}-" -j${THREADS} mx6sll_ntx_lpddr2_512m_E70K10_defconfig
 	make ARCH=arm CROSS_COMPILE="${TARGET}-" -j${THREADS}
 	cp "u-boot.imx" "${GITDIR}/bootloader/out/u-boot_inkbox.${DEVICE}.imx"
+
+	popd
+elif [ "${DEVICE}" == "n428" ] || [ "${DEVICE}" == "n367" ]; then
+	pushd "${GITDIR}/bootloader/mt8113-${DEVICE}"
+
+	make ARCH=arm CROSS_COMPILE="${TARGET}-" distclean
+	make ARCH=arm CROSS_COMPILE="${TARGET}-" mt8113_tp1_emmc_defconfig
+	make ARCH=arm CROSS_COMPILE="${TARGET}-" -j${THREADS}
+	mkimage -f mt8113-u-boot.its u-boot.itb
+	cp "u-boot.itb" "${GITDIR}/bootloader/out/u-boot_inkbox.${DEVICE}.itb"
 
 	popd
 elif [ "${DEVICE}" == "kt" ]; then
