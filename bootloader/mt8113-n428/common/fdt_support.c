@@ -307,6 +307,8 @@ int fdt_chosen(void *fdt)
 	}
 	//printf("%s(%d) dtb=%d, bootargs=\"%s\"\n",__func__,__LINE__,iBootargsFromDtb,str);
 
+	sprintf(cBootargsA,"%s",str);
+/*
 	if (str) {
 		char *szRootDev;
 
@@ -351,6 +353,7 @@ int fdt_chosen(void *fdt)
 	else {
 		printf("%s(%d) bootargs cannot found in boot env or dtb !!\n",__func__,__LINE__);
 	}
+*/
 
 	return fdt_fixup_stdout(fdt, nodeoffset);
 }

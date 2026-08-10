@@ -21,11 +21,17 @@
 	};
 	chosen {
 		bootargs = "console=ttyS0,921600n1 \
-		rootwait skip_initramfs \
 		earlycon=uart8250,mmio32,0x11002000 \
 		initcall_debug androidboot.hardware=mt8512 \
 		firmware_class.path=/vendor/firmware \
-		no_console_suspend" ;
+		no_console_suspend \
+		quiet \
+		hwcfg_p=0x5f2ffe00 \
+		hwcfg_sz=110 \
+		ntxfw_p=0x5f2fd800 \
+		ntxfw_sz=9474 \
+		loglevel=7 \
+		root=/dev/ram rw rdinit=/sbin/init rootfstype=ramfs" ;
 	};
 	extcon_usb: extcon_iddig {
 		compatible = "linux,extcon-usb-gpio";
