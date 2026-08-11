@@ -1,0 +1,1881 @@
+Output of:
+arm-kobo-linux-gnueabihf-gcc -Wall -Wshadow -Wwrite-strings -Wundef -Wstrict-prototypes -Wunused -Wunused-parameter -Wunused-function -Wunused-value -Wmissing-prototypes -Wmissing-declarations -Wno-format-security -Wdeclaration-after-statement -Wold-style-definition -finline-limit=0 -fno-builtin-strlen -fomit-frame-pointer -ffunction-sections -fdata-sections -fno-guess-branch-probability -funsigned-char -static-libgcc -falign-functions=1 -falign-jumps=1 -falign-labels=1 -falign-loops=1 -fno-unwind-tables -fno-asynchronous-unwind-tables -fno-builtin-printf -Oz -static -o busybox_unstripped -Wl,--sort-common -Wl,--sort-section,alignment -Wl,--start-group applets/built-in.o archival/lib.a archival/libarchive/lib.a console-tools/lib.a coreutils/lib.a coreutils/libcoreutils/lib.a debianutils/lib.a klibc-utils/lib.a e2fsprogs/lib.a editors/lib.a findutils/lib.a init/lib.a libbb/lib.a libbb/yescrypt/lib.a libpwdgrp/lib.a loginutils/lib.a mailutils/lib.a miscutils/lib.a modutils/lib.a networking/lib.a networking/libiproute/lib.a networking/udhcp/lib.a printutils/lib.a procps/lib.a runit/lib.a selinux/lib.a shell/lib.a sysklogd/lib.a util-linux/lib.a util-linux/volume_id/lib.a archival/built-in.o archival/libarchive/built-in.o console-tools/built-in.o coreutils/built-in.o coreutils/libcoreutils/built-in.o debianutils/built-in.o klibc-utils/built-in.o e2fsprogs/built-in.o editors/built-in.o findutils/built-in.o init/built-in.o libbb/built-in.o libbb/yescrypt/built-in.o libpwdgrp/built-in.o loginutils/built-in.o mailutils/built-in.o miscutils/built-in.o modutils/built-in.o networking/built-in.o networking/libiproute/built-in.o networking/udhcp/built-in.o printutils/built-in.o procps/built-in.o runit/built-in.o selinux/built-in.o shell/built-in.o sysklogd/built-in.o util-linux/built-in.o util-linux/volume_id/built-in.o -Wl,--end-group -Wl,--start-group -lm -lresolv -lrt -Wl,--end-group -Wl,--warn-common -Wl,-Map,busybox_unstripped.map -Wl,--verbose
+==========
+GNU ld (crosstool-NG UNKNOWN - NiLuJe) 2.43.1
+  Supported emulations:
+   armelf_linux_eabi
+   armelfb_linux_eabi
+using internal linker script:
+==================================================
+/* Script for -z combreloc */
+/* Copyright (C) 2014-2024 Free Software Foundation, Inc.
+   Copying and distribution of this script, with or without modification,
+   are permitted in any medium without royalty provided the copyright
+   notice and this notice are preserved.  */
+OUTPUT_FORMAT("elf32-littlearm", "elf32-bigarm",
+	      "elf32-littlearm")
+OUTPUT_ARCH(arm)
+ENTRY(_start)
+SEARCH_DIR("=/github/home/x-tools/arm-kobo-linux-gnueabihf/arm-kobo-linux-gnueabihf/lib"); SEARCH_DIR("=/usr/local/lib"); SEARCH_DIR("=/lib"); SEARCH_DIR("=/usr/lib");
+SECTIONS
+{
+  /* Read-only sections, merged into text segment: */
+  PROVIDE (__executable_start = SEGMENT_START("text-segment", 0x00010000)); . = SEGMENT_START("text-segment", 0x00010000) + SIZEOF_HEADERS;
+  .interp         : { *(.interp) }
+  .note.gnu.build-id  : { *(.note.gnu.build-id) }
+  .hash           : { *(.hash) }
+  .gnu.hash       : { *(.gnu.hash) }
+  .dynsym         : { *(.dynsym) }
+  .dynstr         : { *(.dynstr) }
+  .gnu.version    : { *(.gnu.version) }
+  .gnu.version_d  : { *(.gnu.version_d) }
+  .gnu.version_r  : { *(.gnu.version_r) }
+  .rel.dyn        :
+    {
+      *(.rel.init)
+      *(.rel.text .rel.text.* .rel.gnu.linkonce.t.*)
+      *(.rel.fini)
+      *(.rel.rodata .rel.rodata.* .rel.gnu.linkonce.r.*)
+      *(.rel.data.rel.ro .rel.data.rel.ro.* .rel.gnu.linkonce.d.rel.ro.*)
+      *(.rel.data .rel.data.* .rel.gnu.linkonce.d.*)
+      *(.rel.tdata .rel.tdata.* .rel.gnu.linkonce.td.*)
+      *(.rel.tbss .rel.tbss.* .rel.gnu.linkonce.tb.*)
+      *(.rel.ctors)
+      *(.rel.dtors)
+      *(.rel.got)
+      *(.rel.bss .rel.bss.* .rel.gnu.linkonce.b.*)
+      PROVIDE_HIDDEN (__rel_iplt_start = .);
+      *(.rel.iplt)
+      PROVIDE_HIDDEN (__rel_iplt_end = .);
+    }
+  .rela.dyn       :
+    {
+      *(.rela.init)
+      *(.rela.text .rela.text.* .rela.gnu.linkonce.t.*)
+      *(.rela.fini)
+      *(.rela.rodata .rela.rodata.* .rela.gnu.linkonce.r.*)
+      *(.rela.data .rela.data.* .rela.gnu.linkonce.d.*)
+      *(.rela.tdata .rela.tdata.* .rela.gnu.linkonce.td.*)
+      *(.rela.tbss .rela.tbss.* .rela.gnu.linkonce.tb.*)
+      *(.rela.ctors)
+      *(.rela.dtors)
+      *(.rela.got)
+      *(.rela.bss .rela.bss.* .rela.gnu.linkonce.b.*)
+      PROVIDE_HIDDEN (__rela_iplt_start = .);
+      *(.rela.iplt)
+      PROVIDE_HIDDEN (__rela_iplt_end = .);
+    }
+  .rel.plt        :
+    {
+      *(.rel.plt)
+    }
+  .rela.plt       :
+    {
+      *(.rela.plt)
+    }
+  .init           :
+  {
+    KEEP (*(SORT_NONE(.init)))
+  }
+  .plt            : { *(.plt) }
+  .iplt           : { *(.iplt) }
+  .text           :
+  {
+    *(.text.unlikely .text.*_unlikely .text.unlikely.*)
+    *(.text.exit .text.exit.*)
+    *(.text.startup .text.startup.*)
+    *(.text.hot .text.hot.*)
+    *(SORT(.text.sorted.*))
+    *(.text .stub .text.* .gnu.linkonce.t.*)
+    /* .gnu.warning sections are handled specially by elf.em.  */
+    *(.gnu.warning)
+    *(.glue_7t) *(.glue_7) *(.vfp11_veneer) *(.v4_bx)
+  }
+  .fini           :
+  {
+    KEEP (*(SORT_NONE(.fini)))
+  }
+  PROVIDE (__etext = .);
+  PROVIDE (_etext = .);
+  PROVIDE (etext = .);
+  .rodata         : { *(.rodata .rodata.* .gnu.linkonce.r.*) }
+  .rodata1        : { *(.rodata1) }
+  .ARM.extab   : { *(.ARM.extab* .gnu.linkonce.armextab.*) }
+  .ARM.exidx   :
+    {
+      PROVIDE_HIDDEN (__exidx_start = .);
+      *(.ARM.exidx* .gnu.linkonce.armexidx.*)
+      PROVIDE_HIDDEN (__exidx_end = .);
+    }
+  .eh_frame_hdr   : { *(.eh_frame_hdr) *(.eh_frame_entry .eh_frame_entry.*) }
+  .eh_frame       : ONLY_IF_RO { KEEP (*(.eh_frame)) *(.eh_frame.*) }
+  .sframe         : ONLY_IF_RO { *(.sframe) *(.sframe.*) }
+  .gcc_except_table   : ONLY_IF_RO { *(.gcc_except_table .gcc_except_table.*) }
+  .gnu_extab   : ONLY_IF_RO { *(.gnu_extab*) }
+  /* These sections are generated by the Sun/Oracle C++ compiler.  */
+  .exception_ranges   : ONLY_IF_RO { *(.exception_ranges*) }
+  /* Adjust the address for the data segment.  We want to adjust up to
+     the same address within the page on the next page up.  */
+  . = DATA_SEGMENT_ALIGN (CONSTANT (MAXPAGESIZE), CONSTANT (COMMONPAGESIZE));
+  /* Exception handling  */
+  .eh_frame       : ONLY_IF_RW { KEEP (*(.eh_frame)) *(.eh_frame.*) }
+  .sframe         : ONLY_IF_RW { *(.sframe) *(.sframe.*) }
+  .gnu_extab      : ONLY_IF_RW { *(.gnu_extab) }
+  .gcc_except_table   : ONLY_IF_RW { *(.gcc_except_table .gcc_except_table.*) }
+  .exception_ranges   : ONLY_IF_RW { *(.exception_ranges*) }
+  /* Thread Local Storage sections  */
+  .tdata	  :
+   {
+     PROVIDE_HIDDEN (__tdata_start = .);
+     *(.tdata .tdata.* .gnu.linkonce.td.*)
+   }
+  .tbss		  : { *(.tbss .tbss.* .gnu.linkonce.tb.*) *(.tcommon) }
+  .preinit_array    :
+  {
+    PROVIDE_HIDDEN (__preinit_array_start = .);
+    KEEP (*(.preinit_array))
+    PROVIDE_HIDDEN (__preinit_array_end = .);
+  }
+  .init_array    :
+  {
+    PROVIDE_HIDDEN (__init_array_start = .);
+    KEEP (*(SORT_BY_INIT_PRIORITY(.init_array.*) SORT_BY_INIT_PRIORITY(.ctors.*)))
+    KEEP (*(.init_array EXCLUDE_FILE (*crtbegin.o *crtbegin?.o *crtend.o *crtend?.o ) .ctors))
+    PROVIDE_HIDDEN (__init_array_end = .);
+  }
+  .fini_array    :
+  {
+    PROVIDE_HIDDEN (__fini_array_start = .);
+    KEEP (*(SORT_BY_INIT_PRIORITY(.fini_array.*) SORT_BY_INIT_PRIORITY(.dtors.*)))
+    KEEP (*(.fini_array EXCLUDE_FILE (*crtbegin.o *crtbegin?.o *crtend.o *crtend?.o ) .dtors))
+    PROVIDE_HIDDEN (__fini_array_end = .);
+  }
+  .ctors          :
+  {
+    /* gcc uses crtbegin.o to find the start of
+       the constructors, so we make sure it is
+       first.  Because this is a wildcard, it
+       doesn't matter if the user does not
+       actually link against crtbegin.o; the
+       linker won't look for a file to match a
+       wildcard.  The wildcard also means that it
+       doesn't matter which directory crtbegin.o
+       is in.  */
+    KEEP (*crtbegin.o(.ctors))
+    KEEP (*crtbegin?.o(.ctors))
+    /* We don't want to include the .ctor section from
+       the crtend.o file until after the sorted ctors.
+       The .ctor section from the crtend file contains the
+       end of ctors marker and it must be last */
+    KEEP (*(EXCLUDE_FILE (*crtend.o *crtend?.o ) .ctors))
+    KEEP (*(SORT(.ctors.*)))
+    KEEP (*(.ctors))
+  }
+  .dtors          :
+  {
+    KEEP (*crtbegin.o(.dtors))
+    KEEP (*crtbegin?.o(.dtors))
+    KEEP (*(EXCLUDE_FILE (*crtend.o *crtend?.o ) .dtors))
+    KEEP (*(SORT(.dtors.*)))
+    KEEP (*(.dtors))
+  }
+  .jcr            : { KEEP (*(.jcr)) }
+  .data.rel.ro : { *(.data.rel.ro.local* .gnu.linkonce.d.rel.ro.local.*) *(.data.rel.ro .data.rel.ro.* .gnu.linkonce.d.rel.ro.*) }
+  .dynamic        : { *(.dynamic) }
+  . = DATA_SEGMENT_RELRO_END (0, .);
+  .got            : { *(.got.plt) *(.igot.plt) *(.got) *(.igot) }
+  .data           :
+  {
+    PROVIDE (__data_start = .);
+    *(.data .data.* .gnu.linkonce.d.*)
+    SORT(CONSTRUCTORS)
+  }
+  .data1          : { *(.data1) }
+  _edata = .; PROVIDE (edata = .);
+  . = ALIGN(ALIGNOF(NEXT_SECTION));
+  __bss_start = .;
+  __bss_start__ = .;
+  .bss            :
+  {
+   *(.dynbss)
+   *(.bss .bss.* .gnu.linkonce.b.*)
+   *(COMMON)
+   /* Align here to ensure that the .bss section occupies space up to
+      _end.  Align after .bss to ensure correct alignment even if the
+      .bss section disappears because there are no input sections.
+      FIXME: Why do we need it? When there is no .bss section, we do not
+      pad the .data section.  */
+   . = ALIGN(. != 0 ? 32 / 8 : 1);
+  }
+  _bss_end__ = .; __bss_end__ = .;
+  . = ALIGN(32 / 8);
+  . = SEGMENT_START("ldata-segment", .);
+  . = ALIGN(32 / 8);
+  __end__ = .;
+  _end = .; PROVIDE (end = .);
+  . = DATA_SEGMENT_END (.);
+  /* Stabs debugging sections.  */
+  .stab          0 : { *(.stab) }
+  .stabstr       0 : { *(.stabstr) }
+  .stab.excl     0 : { *(.stab.excl) }
+  .stab.exclstr  0 : { *(.stab.exclstr) }
+  .stab.index    0 : { *(.stab.index) }
+  .stab.indexstr 0 : { *(.stab.indexstr) }
+  .comment 0 (INFO) : { *(.comment); LINKER_VERSION; }
+  .gnu.build.attributes : { *(.gnu.build.attributes .gnu.build.attributes.*) }
+  /* DWARF debug sections.
+     Symbols in the DWARF debugging sections are relative to the beginning
+     of the section so we begin them at 0.  */
+  /* DWARF 1.  */
+  .debug          0 : { *(.debug) }
+  .line           0 : { *(.line) }
+  /* GNU DWARF 1 extensions.  */
+  .debug_srcinfo  0 : { *(.debug_srcinfo) }
+  .debug_sfnames  0 : { *(.debug_sfnames) }
+  /* DWARF 1.1 and DWARF 2.  */
+  .debug_aranges  0 : { *(.debug_aranges) }
+  .debug_pubnames 0 : { *(.debug_pubnames) }
+  /* DWARF 2.  */
+  .debug_info     0 : { *(.debug_info .gnu.linkonce.wi.*) }
+  .debug_abbrev   0 : { *(.debug_abbrev) }
+  .debug_line     0 : { *(.debug_line .debug_line.* .debug_line_end) }
+  .debug_frame    0 : { *(.debug_frame) }
+  .debug_str      0 : { *(.debug_str) }
+  .debug_loc      0 : { *(.debug_loc) }
+  .debug_macinfo  0 : { *(.debug_macinfo) }
+  /* SGI/MIPS DWARF 2 extensions.  */
+  .debug_weaknames 0 : { *(.debug_weaknames) }
+  .debug_funcnames 0 : { *(.debug_funcnames) }
+  .debug_typenames 0 : { *(.debug_typenames) }
+  .debug_varnames  0 : { *(.debug_varnames) }
+  /* DWARF 3.  */
+  .debug_pubtypes 0 : { *(.debug_pubtypes) }
+  .debug_ranges   0 : { *(.debug_ranges) }
+  /* DWARF 5.  */
+  .debug_addr     0 : { *(.debug_addr) }
+  .debug_line_str 0 : { *(.debug_line_str) }
+  .debug_loclists 0 : { *(.debug_loclists) }
+  .debug_macro    0 : { *(.debug_macro) }
+  .debug_names    0 : { *(.debug_names) }
+  .debug_rnglists 0 : { *(.debug_rnglists) }
+  .debug_str_offsets 0 : { *(.debug_str_offsets) }
+  .debug_sup      0 : { *(.debug_sup) }
+  .gnu.attributes 0 : { KEEP (*(.gnu.attributes)) }
+  .note.gnu.arm.ident 0 : { KEEP (*(.note.gnu.arm.ident)) }
+  /DISCARD/ : { *(.note.GNU-stack) *(.gnu_debuglink) *(.gnu.lto_*) }
+}
+
+
+==================================================
+/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/arm-kobo-linux-gnueabihf/14.4.0/../../../../arm-kobo-linux-gnueabihf/bin/ld.bfd: mode armelf_linux_eabi
+attempt to open /home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/crt1.o succeeded
+/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/crt1.o
+attempt to open /home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/crti.o succeeded
+/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/crti.o
+attempt to open /home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/arm-kobo-linux-gnueabihf/14.4.0/crtbeginT.o succeeded
+/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/arm-kobo-linux-gnueabihf/14.4.0/crtbeginT.o
+attempt to open applets/built-in.o succeeded
+applets/built-in.o
+attempt to open archival/lib.a succeeded
+archival/lib.a
+attempt to open archival/libarchive/lib.a succeeded
+archival/libarchive/lib.a
+attempt to open console-tools/lib.a succeeded
+console-tools/lib.a
+attempt to open coreutils/lib.a succeeded
+coreutils/lib.a
+attempt to open coreutils/libcoreutils/lib.a succeeded
+coreutils/libcoreutils/lib.a
+attempt to open debianutils/lib.a succeeded
+debianutils/lib.a
+attempt to open klibc-utils/lib.a succeeded
+klibc-utils/lib.a
+attempt to open e2fsprogs/lib.a succeeded
+e2fsprogs/lib.a
+attempt to open editors/lib.a succeeded
+editors/lib.a
+attempt to open findutils/lib.a succeeded
+findutils/lib.a
+attempt to open init/lib.a succeeded
+init/lib.a
+attempt to open libbb/lib.a succeeded
+libbb/lib.a
+(libbb/lib.a)appletlib.o
+(libbb/lib.a)compare_string_array.o
+(libbb/lib.a)concat_path_file.o
+(libbb/lib.a)default_error_retval.o
+(libbb/lib.a)get_last_path_component.o
+(libbb/lib.a)last_char_is.o
+(libbb/lib.a)llist.o
+(libbb/lib.a)messages.o
+(libbb/lib.a)perror_msg.o
+(libbb/lib.a)ptr_to_globals.o
+(libbb/lib.a)skip_whitespace.o
+(libbb/lib.a)verror_msg.o
+(libbb/lib.a)wfopen.o
+(libbb/lib.a)xfunc_die.o
+(libbb/lib.a)xfuncs.o
+(libbb/lib.a)xfuncs_printf.o
+(libbb/lib.a)xreadlink.o
+(libbb/lib.a)copyfd.o
+(libbb/lib.a)full_write.o
+(libbb/lib.a)read.o
+(libbb/lib.a)safe_write.o
+(libbb/lib.a)time.o
+(libbb/lib.a)xgetcwd.o
+(libbb/lib.a)bb_strtonum.o
+attempt to open libbb/yescrypt/lib.a succeeded
+libbb/yescrypt/lib.a
+attempt to open libpwdgrp/lib.a succeeded
+libpwdgrp/lib.a
+(libpwdgrp/lib.a)pwd_grp.o
+(libpwdgrp/lib.a)uidgid_get.o
+attempt to open loginutils/lib.a succeeded
+loginutils/lib.a
+(loginutils/lib.a)add-remove-shell.o
+(loginutils/lib.a)addgroup.o
+(loginutils/lib.a)adduser.o
+(loginutils/lib.a)chpasswd.o
+(loginutils/lib.a)cryptpw.o
+(loginutils/lib.a)deluser.o
+(loginutils/lib.a)getty.o
+(loginutils/lib.a)login.o
+(loginutils/lib.a)passwd.o
+(loginutils/lib.a)su.o
+(loginutils/lib.a)sulogin.o
+(loginutils/lib.a)vlock.o
+attempt to open mailutils/lib.a succeeded
+mailutils/lib.a
+(mailutils/lib.a)makemime.o
+(mailutils/lib.a)popmaildir.o
+(mailutils/lib.a)reformime.o
+(mailutils/lib.a)sendmail.o
+(mailutils/lib.a)mail.o
+attempt to open miscutils/lib.a succeeded
+miscutils/lib.a
+(miscutils/lib.a)adjtimex.o
+(miscutils/lib.a)ascii.o
+(miscutils/lib.a)bc.o
+(miscutils/lib.a)beep.o
+(miscutils/lib.a)chat.o
+(miscutils/lib.a)conspy.o
+(miscutils/lib.a)crond.o
+(miscutils/lib.a)crontab.o
+(miscutils/lib.a)devmem.o
+(miscutils/lib.a)fbsplash.o
+(miscutils/lib.a)getfattr.o
+(miscutils/lib.a)hdparm.o
+(miscutils/lib.a)hexedit.o
+(miscutils/lib.a)i2c_tools.o
+(miscutils/lib.a)less.o
+(miscutils/lib.a)lsscsi.o
+(miscutils/lib.a)makedevs.o
+(miscutils/lib.a)man.o
+(miscutils/lib.a)microcom.o
+(miscutils/lib.a)mt.o
+(miscutils/lib.a)nandwrite.o
+(miscutils/lib.a)partprobe.o
+(miscutils/lib.a)raidautorun.o
+(miscutils/lib.a)readahead.o
+(miscutils/lib.a)runlevel.o
+(miscutils/lib.a)rx.o
+(miscutils/lib.a)seedrng.o
+(miscutils/lib.a)setfattr.o
+(miscutils/lib.a)setserial.o
+(miscutils/lib.a)strings.o
+(miscutils/lib.a)time.o
+(miscutils/lib.a)tree.o
+(miscutils/lib.a)ts.o
+(miscutils/lib.a)ttysize.o
+(miscutils/lib.a)ubi_tools.o
+(miscutils/lib.a)ubirename.o
+(miscutils/lib.a)volname.o
+(miscutils/lib.a)watchdog.o
+attempt to open modutils/lib.a succeeded
+modutils/lib.a
+(modutils/lib.a)modinfo.o
+(modutils/lib.a)modprobe-small.o
+(modutils/lib.a)modutils.o
+attempt to open networking/lib.a succeeded
+networking/lib.a
+(networking/lib.a)arp.o
+(networking/lib.a)arping.o
+(networking/lib.a)brctl.o
+(networking/lib.a)dnsd.o
+(networking/lib.a)ether-wake.o
+(networking/lib.a)ftpd.o
+(networking/lib.a)ftpgetput.o
+(networking/lib.a)hostname.o
+(networking/lib.a)httpd.o
+(networking/lib.a)ifconfig.o
+(networking/lib.a)ifenslave.o
+(networking/lib.a)ifplugd.o
+(networking/lib.a)ifupdown.o
+(networking/lib.a)inetd.o
+(networking/lib.a)interface.o
+(networking/lib.a)ip.o
+(networking/lib.a)ipcalc.o
+(networking/lib.a)isrv_identd.o
+(networking/lib.a)nameif.o
+(networking/lib.a)nbd-client.o
+(networking/lib.a)nc.o
+(networking/lib.a)netstat.o
+(networking/lib.a)nslookup.o
+(networking/lib.a)ntpd.o
+(networking/lib.a)parse_pasv_epsv.o
+(networking/lib.a)ping.o
+(networking/lib.a)pscan.o
+(networking/lib.a)route.o
+(networking/lib.a)slattach.o
+(networking/lib.a)ssl_client.o
+(networking/lib.a)ssl_server.o
+(networking/lib.a)tc.o
+(networking/lib.a)tcpudp.o
+(networking/lib.a)tcpudp_perhost.o
+(networking/lib.a)telnet.o
+(networking/lib.a)telnetd.o
+(networking/lib.a)tftp.o
+(networking/lib.a)tls.o
+(networking/lib.a)tls_aes.o
+(networking/lib.a)tls_aesgcm.o
+(networking/lib.a)tls_fe.o
+(networking/lib.a)tls_pstm.o
+(networking/lib.a)tls_pstm_montgomery_reduce.o
+(networking/lib.a)tls_pstm_mul_comba.o
+(networking/lib.a)tls_pstm_sqr_comba.o
+(networking/lib.a)tls_rsa.o
+(networking/lib.a)tls_sp_c32.o
+(networking/lib.a)traceroute.o
+(networking/lib.a)tunctl.o
+(networking/lib.a)vconfig.o
+(networking/lib.a)wget.o
+(networking/lib.a)whois.o
+(networking/lib.a)zcip.o
+(networking/lib.a)isrv.o
+attempt to open networking/libiproute/lib.a succeeded
+networking/libiproute/lib.a
+(networking/libiproute/lib.a)ip_parse_common_args.o
+(networking/libiproute/lib.a)ipaddress.o
+(networking/libiproute/lib.a)iplink.o
+(networking/libiproute/lib.a)ipneigh.o
+(networking/libiproute/lib.a)iproute.o
+(networking/libiproute/lib.a)iprule.o
+(networking/libiproute/lib.a)iptunnel.o
+(networking/libiproute/lib.a)libnetlink.o
+(networking/libiproute/lib.a)ll_addr.o
+(networking/libiproute/lib.a)ll_map.o
+(networking/libiproute/lib.a)ll_proto.o
+(networking/libiproute/lib.a)ll_types.o
+(networking/libiproute/lib.a)rt_names.o
+(networking/libiproute/lib.a)rtm_map.o
+(networking/libiproute/lib.a)utils.o
+attempt to open networking/udhcp/lib.a succeeded
+networking/udhcp/lib.a
+(networking/udhcp/lib.a)d6_dhcpc.o
+(networking/udhcp/lib.a)d6_packet.o
+(networking/udhcp/lib.a)d6_socket.o
+(networking/udhcp/lib.a)dhcpc.o
+(networking/udhcp/lib.a)dhcpd.o
+(networking/udhcp/lib.a)dhcprelay.o
+(networking/udhcp/lib.a)domain_codec.o
+(networking/udhcp/lib.a)dumpleases.o
+(networking/udhcp/lib.a)packet.o
+(networking/udhcp/lib.a)signalpipe.o
+(networking/udhcp/lib.a)socket.o
+(networking/udhcp/lib.a)arpping.o
+(networking/udhcp/lib.a)common.o
+attempt to open printutils/lib.a succeeded
+printutils/lib.a
+(printutils/lib.a)lpd.o
+(printutils/lib.a)lpr.o
+attempt to open procps/lib.a succeeded
+procps/lib.a
+(procps/lib.a)free.o
+(procps/lib.a)fuser.o
+(procps/lib.a)iostat.o
+(procps/lib.a)kill.o
+(procps/lib.a)lsof.o
+(procps/lib.a)mpstat.o
+(procps/lib.a)nmeter.o
+(procps/lib.a)pgrep.o
+(procps/lib.a)pidof.o
+(procps/lib.a)pmap.o
+(procps/lib.a)powertop.o
+(procps/lib.a)ps.o
+(procps/lib.a)pstree.o
+(procps/lib.a)pwdx.o
+(procps/lib.a)smemcap.o
+(procps/lib.a)sysctl.o
+(procps/lib.a)top.o
+(procps/lib.a)uptime.o
+(procps/lib.a)vmstat.o
+(procps/lib.a)watch.o
+attempt to open runit/lib.a succeeded
+runit/lib.a
+(runit/lib.a)chpst.o
+(runit/lib.a)runsv.o
+(runit/lib.a)runsvdir.o
+(runit/lib.a)sv.o
+(runit/lib.a)svlogd.o
+attempt to open selinux/lib.a succeeded
+selinux/lib.a
+attempt to open shell/lib.a succeeded
+shell/lib.a
+(shell/lib.a)ash.o
+(shell/lib.a)ash_ptr_hack.o
+(shell/lib.a)cttyhack.o
+(shell/lib.a)hush.o
+(shell/lib.a)match.o
+(shell/lib.a)math.o
+(shell/lib.a)random.o
+(shell/lib.a)shell_common.o
+attempt to open sysklogd/lib.a succeeded
+sysklogd/lib.a
+(sysklogd/lib.a)klogd.o
+(sysklogd/lib.a)logread.o
+(sysklogd/lib.a)syslogd_and_logger.o
+attempt to open util-linux/lib.a succeeded
+util-linux/lib.a
+(util-linux/lib.a)acpid.o
+(util-linux/lib.a)blkdiscard.o
+(util-linux/lib.a)blkid.o
+(util-linux/lib.a)blockdev.o
+(util-linux/lib.a)cal.o
+(util-linux/lib.a)chrt.o
+(util-linux/lib.a)dmesg.o
+(util-linux/lib.a)eject.o
+(util-linux/lib.a)fallocate.o
+(util-linux/lib.a)fatattr.o
+(util-linux/lib.a)fbset.o
+(util-linux/lib.a)fdformat.o
+(util-linux/lib.a)fdisk.o
+(util-linux/lib.a)findfs.o
+(util-linux/lib.a)flock.o
+(util-linux/lib.a)freeramdisk.o
+(util-linux/lib.a)fsck_minix.o
+(util-linux/lib.a)fsfreeze.o
+(util-linux/lib.a)fstrim.o
+(util-linux/lib.a)getopt.o
+(util-linux/lib.a)hexdump.o
+(util-linux/lib.a)hexdump_xxd.o
+(util-linux/lib.a)hwclock.o
+(util-linux/lib.a)ionice.o
+(util-linux/lib.a)ipcrm.o
+(util-linux/lib.a)ipcs.o
+(util-linux/lib.a)last_fancy.o
+(util-linux/lib.a)losetup.o
+(util-linux/lib.a)lsblk.o
+(util-linux/lib.a)lspci.o
+(util-linux/lib.a)lsusb.o
+(util-linux/lib.a)mdev.o
+(util-linux/lib.a)mesg.o
+(util-linux/lib.a)mkfs_ext2.o
+(util-linux/lib.a)mkfs_minix.o
+(util-linux/lib.a)mkfs_vfat.o
+(util-linux/lib.a)mkswap.o
+(util-linux/lib.a)more.o
+(util-linux/lib.a)mount.o
+(util-linux/lib.a)mountpoint.o
+(util-linux/lib.a)nsenter.o
+(util-linux/lib.a)pivot_root.o
+(util-linux/lib.a)rdate.o
+(util-linux/lib.a)rdev.o
+(util-linux/lib.a)readprofile.o
+(util-linux/lib.a)renice.o
+(util-linux/lib.a)rev.o
+(util-linux/lib.a)rtcwake.o
+(util-linux/lib.a)script.o
+(util-linux/lib.a)scriptreplay.o
+(util-linux/lib.a)setarch.o
+(util-linux/lib.a)setpriv.o
+(util-linux/lib.a)setsid.o
+(util-linux/lib.a)swaponoff.o
+(util-linux/lib.a)switch_root.o
+(util-linux/lib.a)taskset.o
+(util-linux/lib.a)uevent.o
+(util-linux/lib.a)umount.o
+(util-linux/lib.a)unshare.o
+(util-linux/lib.a)uuidgen.o
+(util-linux/lib.a)wall.o
+attempt to open util-linux/volume_id/lib.a succeeded
+util-linux/volume_id/lib.a
+(util-linux/volume_id/lib.a)get_devname.o
+(util-linux/volume_id/lib.a)volume_id.o
+(util-linux/volume_id/lib.a)xfs.o
+(util-linux/volume_id/lib.a)bcache.o
+(util-linux/volume_id/lib.a)btrfs.o
+(util-linux/volume_id/lib.a)cramfs.o
+(util-linux/volume_id/lib.a)erofs.o
+(util-linux/volume_id/lib.a)exfat.o
+(util-linux/volume_id/lib.a)ext.o
+(util-linux/volume_id/lib.a)f2fs.o
+(util-linux/volume_id/lib.a)fat.o
+(util-linux/volume_id/lib.a)hfs.o
+(util-linux/volume_id/lib.a)iso9660.o
+(util-linux/volume_id/lib.a)jfs.o
+(util-linux/volume_id/lib.a)lfs.o
+(util-linux/volume_id/lib.a)linux_raid.o
+(util-linux/volume_id/lib.a)linux_swap.o
+(util-linux/volume_id/lib.a)luks.o
+(util-linux/volume_id/lib.a)minix.o
+(util-linux/volume_id/lib.a)nilfs.o
+(util-linux/volume_id/lib.a)ntfs.o
+(util-linux/volume_id/lib.a)ocfs2.o
+(util-linux/volume_id/lib.a)reiserfs.o
+(util-linux/volume_id/lib.a)romfs.o
+(util-linux/volume_id/lib.a)squashfs.o
+(util-linux/volume_id/lib.a)sysv.o
+(util-linux/volume_id/lib.a)ubifs.o
+(util-linux/volume_id/lib.a)udf.o
+(util-linux/volume_id/lib.a)util.o
+attempt to open archival/built-in.o succeeded
+archival/built-in.o
+attempt to open archival/libarchive/built-in.o succeeded
+archival/libarchive/built-in.o
+attempt to open console-tools/built-in.o succeeded
+console-tools/built-in.o
+attempt to open coreutils/built-in.o succeeded
+coreutils/built-in.o
+attempt to open coreutils/libcoreutils/built-in.o succeeded
+coreutils/libcoreutils/built-in.o
+attempt to open debianutils/built-in.o succeeded
+debianutils/built-in.o
+attempt to open klibc-utils/built-in.o succeeded
+klibc-utils/built-in.o
+attempt to open e2fsprogs/built-in.o succeeded
+e2fsprogs/built-in.o
+attempt to open editors/built-in.o succeeded
+editors/built-in.o
+attempt to open findutils/built-in.o succeeded
+findutils/built-in.o
+attempt to open init/built-in.o succeeded
+init/built-in.o
+attempt to open libbb/built-in.o succeeded
+libbb/built-in.o
+attempt to open libbb/yescrypt/built-in.o succeeded
+libbb/yescrypt/built-in.o
+attempt to open libpwdgrp/built-in.o succeeded
+libpwdgrp/built-in.o
+attempt to open loginutils/built-in.o succeeded
+loginutils/built-in.o
+attempt to open mailutils/built-in.o succeeded
+mailutils/built-in.o
+attempt to open miscutils/built-in.o succeeded
+miscutils/built-in.o
+attempt to open modutils/built-in.o succeeded
+modutils/built-in.o
+attempt to open networking/built-in.o succeeded
+networking/built-in.o
+attempt to open networking/libiproute/built-in.o succeeded
+networking/libiproute/built-in.o
+attempt to open networking/udhcp/built-in.o succeeded
+networking/udhcp/built-in.o
+attempt to open printutils/built-in.o succeeded
+printutils/built-in.o
+attempt to open procps/built-in.o succeeded
+procps/built-in.o
+attempt to open runit/built-in.o succeeded
+runit/built-in.o
+attempt to open selinux/built-in.o succeeded
+selinux/built-in.o
+attempt to open shell/built-in.o succeeded
+shell/built-in.o
+attempt to open sysklogd/built-in.o succeeded
+sysklogd/built-in.o
+attempt to open util-linux/built-in.o succeeded
+util-linux/built-in.o
+attempt to open util-linux/volume_id/built-in.o succeeded
+util-linux/volume_id/built-in.o
+archival/lib.a
+(archival/lib.a)bbunzip.o
+(archival/lib.a)bzip2.o
+(archival/lib.a)chksum_and_xwrite_tar_header.o
+(archival/lib.a)cpio.o
+(archival/lib.a)dpkg.o
+(archival/lib.a)dpkg_deb.o
+(archival/lib.a)gzip.o
+(archival/lib.a)lzop.o
+(archival/lib.a)rpm.o
+(archival/lib.a)tar.o
+(archival/lib.a)unzip.o
+archival/libarchive/lib.a
+(archival/libarchive/lib.a)common.o
+(archival/libarchive/lib.a)data_extract_all.o
+(archival/libarchive/lib.a)data_extract_to_command.o
+(archival/libarchive/lib.a)data_extract_to_stdout.o
+(archival/libarchive/lib.a)data_skip.o
+(archival/libarchive/lib.a)decompress_bunzip2.o
+(archival/libarchive/lib.a)decompress_gunzip.o
+(archival/libarchive/lib.a)decompress_unlzma.o
+(archival/libarchive/lib.a)decompress_unxz.o
+(archival/libarchive/lib.a)filter_accept_list.o
+(archival/libarchive/lib.a)filter_accept_list_reassign.o
+(archival/libarchive/lib.a)filter_accept_reject_list.o
+(archival/libarchive/lib.a)find_list_entry.o
+(archival/libarchive/lib.a)get_header_cpio.o
+(archival/libarchive/lib.a)get_header_tar.o
+(archival/libarchive/lib.a)get_header_tar_bz2.o
+(archival/libarchive/lib.a)get_header_tar_gz.o
+(archival/libarchive/lib.a)get_header_tar_lzma.o
+(archival/libarchive/lib.a)get_header_tar_xz.o
+(archival/libarchive/lib.a)header_list.o
+(archival/libarchive/lib.a)header_verbose_list.o
+(archival/libarchive/lib.a)init_handle.o
+(archival/libarchive/lib.a)lzo1x_1.o
+(archival/libarchive/lib.a)lzo1x_1o.o
+(archival/libarchive/lib.a)lzo1x_d.o
+(archival/libarchive/lib.a)open_transformer.o
+(archival/libarchive/lib.a)seek_by_jump.o
+(archival/libarchive/lib.a)seek_by_read.o
+(archival/libarchive/lib.a)unpack_ar_archive.o
+(archival/libarchive/lib.a)unsafe_prefix.o
+(archival/libarchive/lib.a)unsafe_symlink_target.o
+(archival/libarchive/lib.a)data_align.o
+(archival/libarchive/lib.a)filter_accept_all.o
+(archival/libarchive/lib.a)get_header_ar.o
+(archival/libarchive/lib.a)header_skip.o
+console-tools/lib.a
+(console-tools/lib.a)chvt.o
+(console-tools/lib.a)clear.o
+(console-tools/lib.a)deallocvt.o
+(console-tools/lib.a)dumpkmap.o
+(console-tools/lib.a)fgconsole.o
+(console-tools/lib.a)kbd_mode.o
+(console-tools/lib.a)loadfont.o
+(console-tools/lib.a)loadkmap.o
+(console-tools/lib.a)openvt.o
+(console-tools/lib.a)reset.o
+(console-tools/lib.a)resize.o
+(console-tools/lib.a)setconsole.o
+(console-tools/lib.a)setkeycodes.o
+(console-tools/lib.a)setlogcons.o
+(console-tools/lib.a)showkey.o
+coreutils/lib.a
+(coreutils/lib.a)basename.o
+(coreutils/lib.a)cat.o
+(coreutils/lib.a)chgrp.o
+(coreutils/lib.a)chmod.o
+(coreutils/lib.a)chown.o
+(coreutils/lib.a)chroot.o
+(coreutils/lib.a)cksum.o
+(coreutils/lib.a)comm.o
+(coreutils/lib.a)cp.o
+(coreutils/lib.a)cut.o
+(coreutils/lib.a)date.o
+(coreutils/lib.a)dd.o
+(coreutils/lib.a)df.o
+(coreutils/lib.a)dirname.o
+(coreutils/lib.a)dos2unix.o
+(coreutils/lib.a)du.o
+(coreutils/lib.a)echo.o
+(coreutils/lib.a)env.o
+(coreutils/lib.a)expand.o
+(coreutils/lib.a)expr.o
+(coreutils/lib.a)factor.o
+(coreutils/lib.a)false.o
+(coreutils/lib.a)fold.o
+(coreutils/lib.a)head.o
+(coreutils/lib.a)hostid.o
+(coreutils/lib.a)id.o
+(coreutils/lib.a)install.o
+(coreutils/lib.a)link.o
+(coreutils/lib.a)ln.o
+(coreutils/lib.a)logname.o
+(coreutils/lib.a)ls.o
+(coreutils/lib.a)md5_sha1_sum.o
+(coreutils/lib.a)mkdir.o
+(coreutils/lib.a)mkfifo.o
+(coreutils/lib.a)mknod.o
+(coreutils/lib.a)mktemp.o
+(coreutils/lib.a)mv.o
+(coreutils/lib.a)nice.o
+(coreutils/lib.a)nl.o
+(coreutils/lib.a)nohup.o
+(coreutils/lib.a)nproc.o
+(coreutils/lib.a)od.o
+(coreutils/lib.a)paste.o
+(coreutils/lib.a)printenv.o
+(coreutils/lib.a)printf.o
+(coreutils/lib.a)pwd.o
+(coreutils/lib.a)readlink.o
+(coreutils/lib.a)realpath.o
+(coreutils/lib.a)rm.o
+(coreutils/lib.a)rmdir.o
+(coreutils/lib.a)seq.o
+(coreutils/lib.a)shred.o
+(coreutils/lib.a)shuf.o
+(coreutils/lib.a)sleep.o
+(coreutils/lib.a)sort.o
+(coreutils/lib.a)split.o
+(coreutils/lib.a)stat.o
+(coreutils/lib.a)stty.o
+(coreutils/lib.a)sum.o
+(coreutils/lib.a)sync.o
+(coreutils/lib.a)tac.o
+(coreutils/lib.a)tail.o
+(coreutils/lib.a)tee.o
+(coreutils/lib.a)test.o
+(coreutils/lib.a)test_ptr_hack.o
+(coreutils/lib.a)timeout.o
+(coreutils/lib.a)touch.o
+(coreutils/lib.a)tr.o
+(coreutils/lib.a)true.o
+(coreutils/lib.a)truncate.o
+(coreutils/lib.a)tsort.o
+(coreutils/lib.a)tty.o
+(coreutils/lib.a)uname.o
+(coreutils/lib.a)uniq.o
+(coreutils/lib.a)unlink.o
+(coreutils/lib.a)usleep.o
+(coreutils/lib.a)uudecode.o
+(coreutils/lib.a)uuencode.o
+(coreutils/lib.a)wc.o
+(coreutils/lib.a)who.o
+(coreutils/lib.a)whoami.o
+(coreutils/lib.a)yes.o
+coreutils/libcoreutils/lib.a
+(coreutils/libcoreutils/lib.a)cp_mv_stat.o
+(coreutils/libcoreutils/lib.a)getopt_mk_fifo_nod.o
+debianutils/lib.a
+(debianutils/lib.a)pipe_progress.o
+(debianutils/lib.a)run_parts.o
+(debianutils/lib.a)start_stop_daemon.o
+(debianutils/lib.a)which.o
+klibc-utils/lib.a
+(klibc-utils/lib.a)resume.o
+e2fsprogs/lib.a
+(e2fsprogs/lib.a)chattr.o
+(e2fsprogs/lib.a)e2fs_lib.o
+(e2fsprogs/lib.a)fsck.o
+(e2fsprogs/lib.a)lsattr.o
+(e2fsprogs/lib.a)tune2fs.o
+editors/lib.a
+(editors/lib.a)awk.o
+(editors/lib.a)cmp.o
+(editors/lib.a)diff.o
+(editors/lib.a)ed.o
+(editors/lib.a)patch.o
+(editors/lib.a)sed.o
+(editors/lib.a)vi.o
+findutils/lib.a
+(findutils/lib.a)find.o
+(findutils/lib.a)grep.o
+(findutils/lib.a)xargs.o
+init/lib.a
+(init/lib.a)bootchartd.o
+(init/lib.a)halt.o
+(init/lib.a)init.o
+libbb/lib.a
+(libbb/lib.a)alloc_affinity.o
+(libbb/lib.a)ask_confirmation.o
+(libbb/lib.a)auto_string.o
+(libbb/lib.a)bb_askpass.o
+(libbb/lib.a)bb_bswap_64.o
+(libbb/lib.a)bb_cat.o
+(libbb/lib.a)bb_do_delay.o
+(libbb/lib.a)bb_get_servname_by_port.o
+(libbb/lib.a)bb_get_servport_by_name.o
+(libbb/lib.a)bb_getgroups.o
+(libbb/lib.a)bb_getsockname.o
+(libbb/lib.a)bb_pwd.o
+(libbb/lib.a)bb_qsort.o
+(libbb/lib.a)bitops.o
+(libbb/lib.a)c_escape.o
+(libbb/lib.a)capability.o
+(libbb/lib.a)change_identity.o
+(libbb/lib.a)chomp.o
+(libbb/lib.a)common_bufsiz.o
+(libbb/lib.a)concat_subpath_file.o
+(libbb/lib.a)copy_file.o
+(libbb/lib.a)correct_password.o
+(libbb/lib.a)crc32.o
+(libbb/lib.a)device_open.o
+(libbb/lib.a)dump.o
+(libbb/lib.a)duration.o
+(libbb/lib.a)endofname.o
+(libbb/lib.a)executable.o
+(libbb/lib.a)fclose_nonstdin.o
+(libbb/lib.a)fflush_stdout_and_exit.o
+(libbb/lib.a)fgets_str.o
+(libbb/lib.a)find_mount_point.o
+(libbb/lib.a)find_pid_by_name.o
+(libbb/lib.a)find_root_device.o
+(libbb/lib.a)get_console.o
+(libbb/lib.a)get_cpu_count.o
+(libbb/lib.a)get_line_from_file.o
+(libbb/lib.a)get_shell_name.o
+(libbb/lib.a)get_volsize.o
+(libbb/lib.a)getopt32.o
+(libbb/lib.a)getopt_allopts.o
+(libbb/lib.a)getpty.o
+(libbb/lib.a)hash_hmac.o
+(libbb/lib.a)hash_md5_sha.o
+(libbb/lib.a)herror_msg.o
+(libbb/lib.a)human_readable.o
+(libbb/lib.a)in_ether.o
+(libbb/lib.a)inet_cksum.o
+(libbb/lib.a)inet_common.o
+(libbb/lib.a)inode_hash.o
+(libbb/lib.a)ioloop.o
+(libbb/lib.a)isdirectory.o
+(libbb/lib.a)isqrt.o
+(libbb/lib.a)iterate_on_dir.o
+(libbb/lib.a)kernel_version.o
+(libbb/lib.a)lineedit.o
+(libbb/lib.a)lineedit_ptr_hack.o
+(libbb/lib.a)logenv.o
+(libbb/lib.a)login.o
+(libbb/lib.a)loop.o
+(libbb/lib.a)make_directory.o
+(libbb/lib.a)makedev.o
+(libbb/lib.a)match_fstype.o
+(libbb/lib.a)mode_string.o
+(libbb/lib.a)nuke_str.o
+(libbb/lib.a)obscure.o
+(libbb/lib.a)parse_config.o
+(libbb/lib.a)parse_mode.o
+(libbb/lib.a)percent_decode.o
+(libbb/lib.a)perror_nomsg_and_die.o
+(libbb/lib.a)pidfile.o
+(libbb/lib.a)poll_with_signals.o
+(libbb/lib.a)popcnt.o
+(libbb/lib.a)print_flags.o
+(libbb/lib.a)print_numbered_lines.o
+(libbb/lib.a)printable.o
+(libbb/lib.a)printable_string.o
+(libbb/lib.a)process_escape_sequence.o
+(libbb/lib.a)procps.o
+(libbb/lib.a)progress.o
+(libbb/lib.a)pw_encrypt.o
+(libbb/lib.a)read_key.o
+(libbb/lib.a)read_printf.o
+(libbb/lib.a)recursive_action.o
+(libbb/lib.a)remove_file.o
+(libbb/lib.a)replace.o
+(libbb/lib.a)rtc.o
+(libbb/lib.a)run_shell.o
+(libbb/lib.a)safe_gethostname.o
+(libbb/lib.a)safe_poll.o
+(libbb/lib.a)safe_strncpy.o
+(libbb/lib.a)securetty.o
+(libbb/lib.a)setup_environment.o
+(libbb/lib.a)signals.o
+(libbb/lib.a)simplify_path.o
+(libbb/lib.a)single_argv.o
+(libbb/lib.a)speed_table.o
+(libbb/lib.a)str_tolower.o
+(libbb/lib.a)strrstr.o
+(libbb/lib.a)sysconf.o
+(libbb/lib.a)trim.o
+(libbb/lib.a)u_signal_names.o
+(libbb/lib.a)ubi.o
+(libbb/lib.a)udp_io.o
+(libbb/lib.a)unicode.o
+(libbb/lib.a)update_passwd.o
+(libbb/lib.a)utmp.o
+(libbb/lib.a)uuencode.o
+(libbb/lib.a)vfork_daemon_rexec.o
+(libbb/lib.a)warn_ignoring_args.o
+(libbb/lib.a)wfopen_input.o
+(libbb/lib.a)write.o
+(libbb/lib.a)xatonum.o
+(libbb/lib.a)xconnect.o
+(libbb/lib.a)xgethostbyname.o
+(libbb/lib.a)xrealloc_vector.o
+(libbb/lib.a)xregcomp.o
+(libbb/lib.a)perror_nomsg.o
+libbb/yescrypt/lib.a
+libpwdgrp/lib.a
+loginutils/lib.a
+mailutils/lib.a
+miscutils/lib.a
+modutils/lib.a
+networking/lib.a
+networking/libiproute/lib.a
+networking/udhcp/lib.a
+printutils/lib.a
+procps/lib.a
+runit/lib.a
+selinux/lib.a
+shell/lib.a
+sysklogd/lib.a
+util-linux/lib.a
+util-linux/volume_id/lib.a
+archival/built-in.o
+archival/libarchive/built-in.o
+console-tools/built-in.o
+coreutils/built-in.o
+coreutils/libcoreutils/built-in.o
+debianutils/built-in.o
+klibc-utils/built-in.o
+e2fsprogs/built-in.o
+editors/built-in.o
+findutils/built-in.o
+init/built-in.o
+libbb/built-in.o
+libbb/yescrypt/built-in.o
+libpwdgrp/built-in.o
+loginutils/built-in.o
+mailutils/built-in.o
+miscutils/built-in.o
+modutils/built-in.o
+networking/built-in.o
+networking/libiproute/built-in.o
+networking/udhcp/built-in.o
+printutils/built-in.o
+procps/built-in.o
+runit/built-in.o
+selinux/built-in.o
+shell/built-in.o
+sysklogd/built-in.o
+util-linux/built-in.o
+util-linux/volume_id/built-in.o
+archival/lib.a
+archival/libarchive/lib.a
+console-tools/lib.a
+coreutils/lib.a
+coreutils/libcoreutils/lib.a
+debianutils/lib.a
+klibc-utils/lib.a
+e2fsprogs/lib.a
+editors/lib.a
+findutils/lib.a
+init/lib.a
+libbb/lib.a
+libbb/yescrypt/lib.a
+libpwdgrp/lib.a
+loginutils/lib.a
+mailutils/lib.a
+miscutils/lib.a
+modutils/lib.a
+networking/lib.a
+networking/libiproute/lib.a
+networking/udhcp/lib.a
+printutils/lib.a
+procps/lib.a
+runit/lib.a
+selinux/lib.a
+shell/lib.a
+sysklogd/lib.a
+util-linux/lib.a
+util-linux/volume_id/lib.a
+archival/built-in.o
+archival/libarchive/built-in.o
+console-tools/built-in.o
+coreutils/built-in.o
+coreutils/libcoreutils/built-in.o
+debianutils/built-in.o
+klibc-utils/built-in.o
+e2fsprogs/built-in.o
+editors/built-in.o
+findutils/built-in.o
+init/built-in.o
+libbb/built-in.o
+libbb/yescrypt/built-in.o
+libpwdgrp/built-in.o
+loginutils/built-in.o
+mailutils/built-in.o
+miscutils/built-in.o
+modutils/built-in.o
+networking/built-in.o
+networking/libiproute/built-in.o
+networking/udhcp/built-in.o
+printutils/built-in.o
+procps/built-in.o
+runit/built-in.o
+selinux/built-in.o
+shell/built-in.o
+sysklogd/built-in.o
+util-linux/built-in.o
+util-linux/volume_id/built-in.o
+attempt to open /home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/arm-kobo-linux-gnueabihf/14.4.0/libm.a failed
+attempt to open /home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/libm.a failed
+attempt to open /home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/arm-kobo-linux-gnueabihf/14.4.0/../../../../arm-kobo-linux-gnueabihf/lib/libm.a failed
+attempt to open /home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/lib/libm.a failed
+attempt to open /home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libm.a succeeded
+/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libm.a
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libm.a)s_sin.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libm.a)w_atan2.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libm.a)w_exp.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libm.a)w_log.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libm.a)w_pow.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libm.a)w_sqrt.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libm.a)m_isnan.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libm.a)m_finite.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libm.a)m_signbit.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libm.a)branred.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libm.a)dosincos.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libm.a)sincos32.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libm.a)sincostab.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libm.a)k_standard.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libm.a)s_lib_version.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libm.a)s_matherr.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libm.a)fraiseexcpt.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libm.a)e_atan2.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libm.a)e_exp.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libm.a)e_log.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libm.a)e_pow.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libm.a)e_sqrt.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libm.a)s_rint.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libm.a)mpa.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libm.a)mpatan2.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libm.a)mpatan.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libm.a)mplog.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libm.a)mpsqrt.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libm.a)slowexp.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libm.a)slowpow.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libm.a)halfulp.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libm.a)mpexp.o
+attempt to open /home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/arm-kobo-linux-gnueabihf/14.4.0/libresolv.a failed
+attempt to open /home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/libresolv.a failed
+attempt to open /home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/arm-kobo-linux-gnueabihf/14.4.0/../../../../arm-kobo-linux-gnueabihf/lib/libresolv.a failed
+attempt to open /home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/lib/libresolv.a failed
+attempt to open /home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libresolv.a succeeded
+/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libresolv.a
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libresolv.a)res_data.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libresolv.a)res_mkquery.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libresolv.a)res_query.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libresolv.a)res_send.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libresolv.a)ns_parse.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libresolv.a)ns_name.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libresolv.a)ns_netint.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libresolv.a)ns_samedomain.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libresolv.a)res_comp.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libresolv.a)res_debug.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libresolv.a)ns_ttl.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libresolv.a)ns_print.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libresolv.a)base64.o
+attempt to open /home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/arm-kobo-linux-gnueabihf/14.4.0/librt.a failed
+attempt to open /home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/librt.a failed
+attempt to open /home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/arm-kobo-linux-gnueabihf/14.4.0/../../../../arm-kobo-linux-gnueabihf/lib/librt.a failed
+attempt to open /home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/lib/librt.a failed
+attempt to open /home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/librt.a succeeded
+/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/librt.a
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/librt.a)clock_gettime.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/librt.a)clock_settime.o
+/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libm.a
+/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libresolv.a
+/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/librt.a
+attempt to open /home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/arm-kobo-linux-gnueabihf/14.4.0/libgcc.a succeeded
+/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/arm-kobo-linux-gnueabihf/14.4.0/libgcc.a
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/arm-kobo-linux-gnueabihf/14.4.0/libgcc.a)_udivsi3.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/arm-kobo-linux-gnueabihf/14.4.0/libgcc.a)_divsi3.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/arm-kobo-linux-gnueabihf/14.4.0/libgcc.a)_arm_addsubdf3.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/arm-kobo-linux-gnueabihf/14.4.0/libgcc.a)_aeabi_ldivmod.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/arm-kobo-linux-gnueabihf/14.4.0/libgcc.a)_aeabi_uldivmod.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/arm-kobo-linux-gnueabihf/14.4.0/libgcc.a)_dvmd_lnx.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/arm-kobo-linux-gnueabihf/14.4.0/libgcc.a)_fixdfdi.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/arm-kobo-linux-gnueabihf/14.4.0/libgcc.a)_fixunsdfdi.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/arm-kobo-linux-gnueabihf/14.4.0/libgcc.a)_udivmoddi4.o
+attempt to open /home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/arm-kobo-linux-gnueabihf/14.4.0/libgcc_eh.a succeeded
+/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/arm-kobo-linux-gnueabihf/14.4.0/libgcc_eh.a
+attempt to open /home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/arm-kobo-linux-gnueabihf/14.4.0/libc.a failed
+attempt to open /home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/libc.a failed
+attempt to open /home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/arm-kobo-linux-gnueabihf/14.4.0/../../../../arm-kobo-linux-gnueabihf/lib/libc.a failed
+attempt to open /home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/lib/libc.a failed
+attempt to open /home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a succeeded
+/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)libc-start.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)check_fds.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)libc-tls.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)elf-init.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)errno.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)libc-do-syscall.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)errno-loc.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)assert.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)ctype-info.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)dcgettext.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)dcigettext.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)finddomain.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)loadmsgcat.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)localealias.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)l10nflist.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)explodename.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)plural.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)plural-exp.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)hash-string.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)setjmp.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)sigjmp.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)bsd-_setjmp.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)longjmp.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)__longjmp.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)jmp-unwind.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)signal.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)raise.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)sigaction.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)sigprocmask.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)kill.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)sigsuspend.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)sigempty.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)sigfillset.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)sigaddset.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)sigdelset.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)sigismem.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)sigisempty.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)allocrtsig.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)sigtimedwait.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)sigrestorer.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)atof.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)atoi.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)atoll.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)abort.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)bsearch.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)msort.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getenv.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)putenv.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)setenv.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)exit.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)cxa_atexit.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)random.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)random_r.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)rand.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strtol.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strtoul.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strtoll.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strtoull.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strtol_l.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strtoul_l.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strtoll_l.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strtoull_l.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strtod.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strtod_l.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)system.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)canonicalize.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)add_n.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)cmp.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)lshift.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)rshift.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)mul.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)mul_1.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)mul_n.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)sub_n.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)submul_1.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)mpn2dbl.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)grouping.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)tens_in_limb.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)fpioconst.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)vfprintf.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)vprintf.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)printf_fp.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)reg-printf.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)printf_fphex.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)reg-modifier.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)reg-type.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)fprintf.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)printf.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)snprintf.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)sprintf.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)asprintf.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)dprintf.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)fscanf.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)scanf.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)sscanf.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getline.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)rename.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)funlockfile.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)printf-parsemb.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)fxprintf.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)iofclose.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)iofdopen.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)iofflush.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)iofgets.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)iofopen.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)iofputs.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)iofread.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)iofwrite.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)iogetdelim.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)iogetline.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)iopadn.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)iopopen.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)ioputs.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)iosetvbuf.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)ioungetc.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)iovsprintf.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)iovsscanf.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)iofopen64.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)iowpadn.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)putchar_u.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)wgenops.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)wfileops.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)iofwide.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)clearerr.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)fileno.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)fputc.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)pclose.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)putc.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)rewind.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)setbuf.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)vasprintf.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)iovdprintf.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)vsnprintf.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)fcloseall.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)freopen64.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)fseeko64.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)ftello64.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)libc_fatal.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)feof_u.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)ferror_u.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)fputc_u.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getc_u.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getchar_u.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)putc_u.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)iofgets_u.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)iofputs_u.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)fileops.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)genops.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)stdfiles.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)stdio.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strops.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)malloc.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)morecore.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strcat.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strchr.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strcmp.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strcpy.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strcspn.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strverscmp.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strdup.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strndup.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strerror.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)_strerror.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strlen.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strnlen.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strncmp.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strncpy.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strrchr.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strpbrk.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strsignal.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strspn.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strstr.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strtok_r.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)memchr.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)memcmp.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)memmove.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)memset.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)mempcpy.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)stpcpy.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)stpncpy.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strcasecmp.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strncase.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strcasecmp_l.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strncase_l.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)memcpy.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)wordcopy.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strsep.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strcasestr.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)rawmemchr.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strchrnul.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)argz-count.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)argz-stringify.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)memrchr.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)wmemcpy.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)wmemmove.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)wmemset.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)wmempcpy.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)wcrtomb.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)wcsrtombs.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)mbsnrtowcs.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)wcsnlen.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)wcsmbsload.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)ctime.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)gmtime.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)localtime.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)mktime.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)time.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)gettimeofday.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)settimeofday.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)tzset.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)tzfile.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)setitimer.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)timegm.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strptime.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strptime_l.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strftime.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strftime_l.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)era.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)alt_digit.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)lc-time-cleanup.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)opendir.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)closedir.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)readdir64.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)scandir64.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)alphasort64.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)scandirat64.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)setgroups.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)uname.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)times.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)wait.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)waitpid.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)wait3.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)wait4.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)alarm.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)sleep.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)pause.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)nanosleep.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)fork.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)vfork.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)_exit.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)execve.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)execv.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)execle.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)execl.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)execvp.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)execlp.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)execvpe.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getpid.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getppid.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getuid.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)geteuid.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getgid.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getegid.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getgroups.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)setuid.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)setgid.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)setpgid.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getpgrp.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)setpgrp.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getsid.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)setsid.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getresuid.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getresgid.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)setresuid.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)setresgid.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getlogin_r.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)sysconf.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)glob64.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)fnmatch.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)regex.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)confstr.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getopt.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getopt1.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)sched_getp.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)sched_sets.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)sched_gets.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)sched_yield.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)sched_primax.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)sched_primin.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)sched_getaffinity.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)sched_setaffinity.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getaddrinfo.o
+/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/arm-kobo-linux-gnueabihf/14.4.0/../../../../arm-kobo-linux-gnueabihf/bin/ld.bfd: libbb/lib.a(inet_common.o): in function `INET6_resolve':
+inet_common.c:(.text.INET6_resolve+0x26): warning: Using 'getaddrinfo' in statically linked applications requires at runtime the shared libraries from the glibc version used for linking
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)pread64.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)get_child_max.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)environ.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)exit-thread.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)mkfifo.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)stat64.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)fstat64.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)lstat64.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)xstat64.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)fxstat64.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)lxstat64.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)mknod.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)xmknod.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)fxstatat64.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)statfs64.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)statvfs64.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)umask.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)chmod.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)fchmod.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)mkdir.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)open.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)open64.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)openat.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)close.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)read.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)write.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)access.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)fcntl.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)flock.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)dup.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)dup2.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)dup3.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)pipe.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)pipe2.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)creat64.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)chdir.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)fchdir.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getcwd.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)chown.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)fchown.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)lchown.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)ttyname_r.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)isatty.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)link.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)symlink.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)readlink.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)unlink.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)rmdir.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)poll.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)ppoll.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)posix_fallocate64.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)sendfile64.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)utimensat.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)futimens.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)have_o_cloexec.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)internal_statvfs64.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)speed.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)cfsetspeed.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)tcsetattr.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)tcgetattr.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)tcgetpgrp.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)tcsetpgrp.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)tcdrain.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)tcflush.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)tcsendbrk.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)cfmakeraw.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)tcgetsid.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getrlimit.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getrlimit64.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)setrlimit64.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getpriority.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)setpriority.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)nice.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)sbrk.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)ioctl.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)writev.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)seteuid.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)setegid.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getpagesize.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getdtsz.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)sethostname.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)select.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)acct.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)chroot.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)fsync.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)sync.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)fdatasync.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)syncfs.o
+/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/arm-kobo-linux-gnueabihf/14.4.0/../../../../arm-kobo-linux-gnueabihf/bin/ld.bfd: coreutils/lib.a(sync.o): in function `sync_common':
+sync.c:(.text.sync_common+0x22): warning: warning: syncfs is not implemented and will always fail
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)reboot.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)gethostid.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)swapon.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)swapoff.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)mktemp.o
+/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/arm-kobo-linux-gnueabihf/14.4.0/../../../../arm-kobo-linux-gnueabihf/bin/ld.bfd: coreutils/lib.a(mktemp.o): in function `mktemp_main':
+mktemp.c:(.text.mktemp_main+0x58): warning: the use of `mktemp' is dangerous, better use `mkstemp'
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)mkstemp64.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)mkdtemp.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)usleep.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)mntent.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)mntent_r.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)utimes.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)ftruncate64.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getusershell.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)syslog.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)syscall.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)daemon.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)mmap.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)mmap64.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)munmap.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)mprotect.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)madvise.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)mlock.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)munlock.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)tsearch.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getsysstats.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)dirname.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getclktck.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getxattr.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)listxattr.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)lgetxattr.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)llistxattr.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)lremovexattr.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)lsetxattr.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)removexattr.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)setxattr.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)init-misc.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)llseek.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)umount2.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)readahead.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)makedev.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)adjtimex.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)capget.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)capset.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)klogctl.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)mount.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)mremap.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)personality.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)pivot_root.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)prctl.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)sysinfo.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)unshare.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)stub-syscalls.o
+/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/arm-kobo-linux-gnueabihf/14.4.0/../../../../arm-kobo-linux-gnueabihf/bin/ld.bfd: util-linux/lib.a(nsenter.o): in function `nsenter_main':
+nsenter.c:(.text.nsenter_main+0x16c): warning: warning: setns is not implemented and will always fail
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)accept.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)bind.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)connect.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getpeername.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getsockname.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getsockopt.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)listen.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)recv.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)recvfrom.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)recvmsg.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)send.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)sendmsg.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)sendto.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)setsockopt.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)shutdown.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)socket.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)socketpair.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)have_sock_cloexec.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)cmsg_nxthdr.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)msgget.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)msgctl.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)semop.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)semget.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)semctl.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)shmat.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)shmdt.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)shmget.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)shmctl.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)wcfuncs.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)wctype.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)iswctype.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)wctrans.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)towctrans.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)alloca_cutoff.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)libc-lowlevellock.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)libc-cancellation.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)register-atfork.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)libc_multiple_threads.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)herror.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)inet_addr.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)inet_ntop.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)inet_pton.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)nsap_addr.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)res_init.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)res_hconf.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)res_libc.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)nsswitch.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)hosts-lookup.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)backtrace.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)backtracesymsfd.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)vfprintf_chk.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)readonly-area.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)fortify_fail.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)inet_mkadr.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)inet_ntoa.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)herrno.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)herrno-loc.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)gethstbyad.o
+/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/arm-kobo-linux-gnueabihf/14.4.0/../../../../arm-kobo-linux-gnueabihf/bin/ld.bfd: networking/lib.a(ipcalc.o): in function `ipcalc_main':
+ipcalc.c:(.text.ipcalc_main+0x12e): warning: Using 'gethostbyaddr' in statically linked applications requires at runtime the shared libraries from the glibc version used for linking
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)gethstbyad_r.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)gethstbynm.o
+/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/arm-kobo-linux-gnueabihf/14.4.0/../../../../arm-kobo-linux-gnueabihf/bin/ld.bfd: libbb/lib.a(inet_common.o): in function `INET_resolve':
+inet_common.c:(.text.INET_resolve+0x24): warning: Using 'gethostbyname' in statically linked applications requires at runtime the shared libraries from the glibc version used for linking
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)gethstbynm2_r.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)gethstbynm_r.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getsrvbynm_r.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)ether_aton_r.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)ether_hton.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)in6_addr.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getnameinfo.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)if_index.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)ifaddrs.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)check_pf.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)check_native.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)ifreq.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)nscd_gethst_r.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)nscd_getai.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)nscd_getserv_r.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)nscd_helper.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getutent_r.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)utmp_file.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)utmpname.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)grantpt.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)unlockpt.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)ptsname.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)setutxent.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getutxent.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)endutxent.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)pututxline.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)utmpxname.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)updwtmpx.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-support.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-addr.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)enbl-secure.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-profstub.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-libc.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-sysdep.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)init-first.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)sysdep.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)gconv_open.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)gconv.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)gconv_close.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)gconv_db.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)gconv_conf.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)gconv_builtin.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)gconv_simple.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)gconv_trans.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)gconv_cache.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)gconv_dl.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)setlocale.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)findlocale.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)loadlocale.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)loadarchive.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)lc-ctype.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)lc-monetary.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)lc-numeric.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)lc-collate.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)C-ctype.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)C-time.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)SYS_libc.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)C_name.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)xlocale.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)localename.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)global-locale.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)coll-lookup.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)s_isinf.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)setfpucw.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)fpu_control.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)qsort.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)secure-getenv.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)addmul_1.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)divrem.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)dbl2mpn.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)_itoa.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)_itowa.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)itoa-digits.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)itoa-udigits.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)itowa-digits.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)vfwprintf.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)vfscanf.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)tempname.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)errlist.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)siglist.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)printf-parsewc.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)filedoalloc.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)ioftell.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)wfiledoalloc.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)ioseekoff.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)iosetbuffer.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)fseek.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)memstream.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)ftello.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)iofread_u.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)sdlerror.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)sdladdr.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)sdladdr1.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)sdlinfo.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)sdlmopen.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strcoll.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)argz-ctsep.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)argz-addsep.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)basename.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strcoll_l.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)wcscat.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)wcschr.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)wcslen.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)wmemchr.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)btowc.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)mbrlen.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)mbrtowc.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)mbsrtowcs.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)wcschrnul.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)wcscoll.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)wcscoll_l.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)mbsrtowcs_l.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)offtime.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)asctime.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)readdir.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)rewinddir.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getdents.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getdents64.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)fdopendir.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getgrnam_r.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getpwnam_r.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getpwuid_r.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)glob.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)pwrite64.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)xstat.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)fstatfs64.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)openat64.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)lseek.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)xstatconv.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)internal_statvfs.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)setrlimit.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)brk.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)readv.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)gethostname.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)opensock.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)digits_dots.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)service-lookup.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)grp-lookup.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)pwd-lookup.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)ethers-lookup.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getsrvbypt_r.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)nis_hash.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)nscd_getpw_r.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)nscd_getgr_r.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getutent.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)updwtmp.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)getpt.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-load.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-cache.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-lookup.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-object.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-reloc.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-error.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-debug.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-misc.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-profile.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-tls.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-origin.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-scope.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-execstack.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-open.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-close.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-trampoline.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-tsd.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)tlsdesc.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-tlsdesc.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)aeabi_read_tp.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)C-messages.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)C-monetary.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)C-numeric.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)C-paper.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)C-name.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)C-address.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)C-telephone.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)C-measurement.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)C-identification.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)C-collate.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strtof.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strtold.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strtof_l.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)strtold_l.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)mpn2flt.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)sdlopen.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)sdlclose.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)sdlsym.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)sdlvsym.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)wcscmp.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)statfs.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)profil.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)prof-freq.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-deps.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-runtime.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-init.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-fini.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-version.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a)dl-sym.o
+/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/arm-kobo-linux-gnueabihf/14.4.0/libgcc.a
+/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/arm-kobo-linux-gnueabihf/14.4.0/libgcc_eh.a
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/arm-kobo-linux-gnueabihf/14.4.0/libgcc_eh.a)unwind-arm.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/arm-kobo-linux-gnueabihf/14.4.0/libgcc_eh.a)libunwind.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/arm-kobo-linux-gnueabihf/14.4.0/libgcc_eh.a)pr-support.o
+(/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/arm-kobo-linux-gnueabihf/14.4.0/libgcc_eh.a)unwind-c.o
+/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a
+/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/arm-kobo-linux-gnueabihf/14.4.0/libgcc.a
+/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/arm-kobo-linux-gnueabihf/14.4.0/libgcc_eh.a
+/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/libc.a
+attempt to open /home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/arm-kobo-linux-gnueabihf/14.4.0/crtend.o succeeded
+/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../lib/gcc/arm-kobo-linux-gnueabihf/14.4.0/crtend.o
+attempt to open /home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/crtn.o succeeded
+/home/nicolas/x-tools/arm-kobo-linux-gnueabihf/bin/../arm-kobo-linux-gnueabihf/sysroot/usr/lib/crtn.o

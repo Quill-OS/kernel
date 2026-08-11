@@ -1,9 +1,9 @@
-initrd/busybox-1.32.1/_install-*/etc/init.d/
-initrd/busybox-1.32.1/_install-*/opt/build_id
-initrd/busybox-1.32.1/_install-*/opt/commit
-initrd/busybox-1.32.1/_install-*/opt/bin/uidgen
-initrd/busybox-1.32.1/_install-*/bin/checksum-verify
-initrd/busybox-1.32.1/_install-*/sbin/setup-wifi
+initrd/busybox-*/_install-*/etc/init.d/
+initrd/busybox-*/_install-*/opt/build_id
+initrd/busybox-*/_install-*/opt/commit
+initrd/busybox-*/_install-*/opt/bin/uidgen
+initrd/busybox-*/_install-*/bin/checksum-verify
+initrd/busybox-*/_install-*/sbin/setup-wifi
 
 kernel/out
 

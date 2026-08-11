@@ -1,0 +1,1 @@
+#define CONFIG_HUSH_NEED_FOR_SPEED 1

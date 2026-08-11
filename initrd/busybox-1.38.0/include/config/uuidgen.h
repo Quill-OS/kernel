@@ -1,0 +1,1 @@
+#define CONFIG_UUIDGEN 1
