@@ -50,7 +50,7 @@ static int task(void *arg)
 
     while (IS_ERR(fd)) {
         fd = filp_open("/dev/watchdog", O_WRONLY, 0644);
-        printk(KERN_INFO "Open /dev/watchdog error\n");
+        // printk(KERN_INFO "Open /dev/watchdog error\n");
         msleep(100);
     }
 

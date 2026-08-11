@@ -202,7 +202,7 @@ elif [ "$1" == "n418" ]; then
 	fi
 elif [ "$1" == "n428" ] || [ "$1" == "n367" ]; then
 	cd "${GITDIR}/kernel/linux-4.9.77-$1"
-	#make ARCH=arm CROSS_COMPILE=$TARGET- mrproper
+	make ARCH=arm CROSS_COMPILE=$TARGET- mrproper
 	cp "${GITDIR}/kernel/config/config-$1" "${GITDIR}/kernel/linux-4.9.77-$1/.config"
 elif [ "$1" == "kt" ]; then
 	cd "${GITDIR}/kernel/linux-2.6.31-kt"
