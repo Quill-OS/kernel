@@ -21,7 +21,7 @@
 
         fdt@1 {
             description = "aud8113tp1-E70T00-A0x00.dtb";
-            data = /incbin/("arch/arm/boot/dts/mediatek/aud8113tp1-E70T00-A0x00-8113L.dtb");
+            data = /incbin/("dts/mediatek/aud8113tp1-E70T00-A0x00-8113L.dtb");
             type = "flat_dt";
             arch = "arm";
             compression = "none";

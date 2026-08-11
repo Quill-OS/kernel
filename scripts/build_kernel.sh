@@ -84,6 +84,8 @@ elif [ "$1" == "n418" ]; then
 	echo "---- Building Kobo Libra 2 (N418) kernel ----"
 elif [ "$1" == "n428" ]; then
 	echo "---- Building Kobo Libra Colour (N428) kernel ----"
+elif [ "$1" == "n367" ]; then
+    echo "---- Building Kobo Clara Colour (N367) kernel ----"
 elif [ "$1" == "kt" ]; then
 	echo "---- Building Kindle Touch (KT) kernel ----"
 elif [ "$1" == "emu" ]; then
@@ -92,7 +94,7 @@ elif [ "$1" == "bpi" ]; then
 	echo "---- Building Banana Pi M2 Zero (BPI) kernel ----"
 else
 	echo "You must specify a target to build for."
-	echo "Available targets are: n705, n905c, n905b, n613, n236, n437, n306, n306c, n249, kt, n873, n418, n428, emu, bpi"
+	echo "Available targets are: n705, n905c, n905b, n613, n236, n437, n306, n306c, n249, kt, n873, n418, n367, n428, emu, bpi"
 	exit 1
 fi
 
@@ -198,10 +200,10 @@ elif [ "$1" == "n418" ]; then
 	else
 		cp "${GITDIR}/kernel/config/config-n418" "${GITDIR}/kernel/linux-4.1.15-n418/.config"
 	fi
-elif [ "$1" == "n428" ]; then
-	cd "${GITDIR}/kernel/linux-4.9.77-n428"
-	make ARCH=arm CROSS_COMPILE=$TARGET- mrproper
-	cp "${GITDIR}/kernel/config/config-n428" "${GITDIR}/kernel/linux-4.9.77-n428/.config"
+elif [ "$1" == "n428" ] || [ "$1" == "n367" ]; then
+	cd "${GITDIR}/kernel/linux-4.9.77-$1"
+	#make ARCH=arm CROSS_COMPILE=$TARGET- mrproper
+	cp "${GITDIR}/kernel/config/config-$1" "${GITDIR}/kernel/linux-4.9.77-$1/.config"
 elif [ "$1" == "kt" ]; then
 	cd "${GITDIR}/kernel/linux-2.6.31-kt"
 	make ARCH=arm CROSS_COMPILE=$TARGET- mrproper
@@ -283,9 +285,10 @@ if [ "$2" == "std" ]; then
 		mksquashfs ../../out-modules/lib/modules  ../../initrd/n249/opt/modules.sqsh -all-root -noappend
 		echo "Building everything else"
 		make ARCH=arm CROSS_COMPILE=$TARGET- zImage dtbs -j$THREADS
-	elif [ "$1" == "n428" ]; then
-		cd "${GITDIR}/kernel/linux-4.9.77-n428"
+	elif [ "$1" == "n428" ] || [ "$1" == "n367" ]; then
+		cd "${GITDIR}/kernel/linux-4.9.77-$1"
 		make ARCH=arm CROSS_COMPILE=$TARGET- C_INCLUDE_PATH=drivers/misc/mediatek/emi/mt8512:drivers/devfreq:drivers/misc/mediatek/hwtcon:drivers/misc/mediatek/leds ARCH_CFLAGS="-Wno-error=stringop-overflow" ARCH_CXXFLAGS="-Wno-error=stringop-overflow" zImage dtbs -j$THREADS
+		mkimage -f "arch/arm/boot/image-$1.its" "arch/arm/boot/image-$1.itb"
 	elif [ "$1" == "kt" ]; then
 		cd "${GITDIR}/kernel/linux-2.6.31-kt"
 		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
@@ -299,9 +302,16 @@ if [ "$2" == "std" ]; then
 		if [ "$1" == "n705" ] || [ "$1" == "n905c" ] || [ "$1" == "n613" ] || [ "$1" == "n905b" ] || [ "$1" == "n236" ] || [ "$1" == "n437" ] || [ "$1" == "kt" ]; then
 			cp "arch/arm/boot/uImage" "$GITDIR/kernel/out/$1/uImage-std"
 			echo "---- Output was saved in $GITDIR/kernel/out/$1/uImage-std ----"
-		elif [ "$1" == "n873" ] || [ "$1" == "n306" ] || [ "$1" == "n306c" ] || [ "$1" == "n249" ] || [ "$1" == "n418" ] || [ "$1" == "n428" ] || [ "$1" == "emu" ] || [ "$1" == "bpi" ]; then
+		elif [ "$1" == "n873" ] || [ "$1" == "n306" ] || [ "$1" == "n306c" ] || [ "$1" == "n249" ] || [ "$1" == "n418" ] || [ "$1" == "emu" ] || [ "$1" == "bpi" ]; then
 			cp "arch/arm/boot/zImage" "$GITDIR/kernel/out/$1/zImage-std"
+			if [ "$1" == "n249" ]; then
+				cp arch/arm/boot/dts/imx6sll-kobo-clarahd*.dtb "$GITDIR/kernel/out/$1/"
+				printf "${BOOTSCRIPT}" | base64 -d > "$GITDIR/kernel/out/$1/boot.scr"
+			fi
 			echo "---- Output was saved in $GITDIR/kernel/out/$1/zImage-std ----"
+        elif [ "$1" == "n428" ] || [ "$1" == "n367" ]; then
+            cp "arch/arm/boot/image-$1.itb" "$GITDIR/kernel/out/$1/image-$1-std.itb"
+            echo "---- Output was saved in $GITDIR/kernel/out/$1/image-$1-std.itb ----"
 		else
 			cp "arch/arm/boot/uImage" "$GITDIR/kernel/out/$1/uImage-std"
 			echo "---- Output was saved in $GITDIR/kernel/out/$1/uImage-std ----"
@@ -380,9 +390,10 @@ elif [ "$2" == "root" ]; then
 		mksquashfs ../../out-modules/lib/modules  ../../initrd/n249/opt/modules.sqsh -all-root -noappend
 		echo "Building everything else"
 		make ARCH=arm CROSS_COMPILE=$TARGET- zImage dtbs -j$THREADS
-	elif [ "$1" == "n428" ]; then
-		cd "${GITDIR}/kernel/linux-4.9.77-n428"
+	elif [ "$1" == "n428" ] || [ "$1" == "n367" ]; then
+		cd "${GITDIR}/kernel/linux-4.9.77-$1"
 		make ARCH=arm CROSS_COMPILE=$TARGET- C_INCLUDE_PATH=drivers/misc/mediatek/emi/mt8512:drivers/devfreq:drivers/misc/mediatek/hwtcon:drivers/misc/mediatek/leds ARCH_CFLAGS="-Wno-error=stringop-overflow" ARCH_CXXFLAGS="-Wno-error=stringop-overflow" zImage dtbs -j$THREADS
+		mkimage -f "arch/arm/boot/image-$1.its" "arch/arm/boot/image-$1.itb"
 	elif [ "$1" == "kt" ]; then
 		cd "${GITDIR}/kernel/linux-2.6.31-kt"
 		make ARCH=arm CROSS_COMPILE=$TARGET- uImage -j$THREADS
@@ -396,13 +407,16 @@ elif [ "$2" == "root" ]; then
 		if [ "$1" == "n705" ] || [ "$1" == "n905c" ] || [ "$1" == "n613" ] || [ "$1" == "n905b" ] || [ "$1" == "n236" ] || [ "$1" == "n437" ] || [ "$1" == "kt" ]; then
 			cp "arch/arm/boot/uImage" "$GITDIR/kernel/out/$1/uImage-root"
 			echo "---- Output was saved in $GITDIR/kernel/out/$1/uImage-root ----"
-		elif [ "$1" == "n873" ] || [ "$1" == "n306" ] || [ "$1" == "n306c" ] || [ "$1" == "n418" ] || [ "$1" == "n428" ] || [ "$1" == "n249" ] || [ "$1" == "emu" ] || [ "$1" == "bpi" ]; then
+		elif [ "$1" == "n873" ] || [ "$1" == "n306" ] || [ "$1" == "n306c" ] || [ "$1" == "n418" ] || [ "$1" == "n249" ] || [ "$1" == "emu" ] || [ "$1" == "bpi" ]; then
 			cp "arch/arm/boot/zImage" "$GITDIR/kernel/out/$1/zImage-root"
 			if [ "$1" == "n249" ]; then
 				cp arch/arm/boot/dts/imx6sll-kobo-clarahd*.dtb "$GITDIR/kernel/out/$1/"
 				printf "${BOOTSCRIPT}" | base64 -d > "$GITDIR/kernel/out/$1/boot.scr"
 			fi
 			echo "---- Output was saved in $GITDIR/kernel/out/$1/zImage-root ----"
+		elif [ "$1" == "n428" ] || [ "$1" == "n367" ]; then
+			cp "arch/arm/boot/image-$1.itb" "$GITDIR/kernel/out/$1/image-$1-root.itb"
+			echo "---- Output was saved in $GITDIR/kernel/out/$1/image-$1-root.itb ----"
 		else
 			cp "arch/arm/boot/uImage" "$GITDIR/kernel/out/$1/uImage-root"
 			echo "---- Output was saved in $GITDIR/kernel/out/$1/uImage-root ----"
