@@ -19,6 +19,39 @@ setup() {
 	tar -xf /opt/splash-rootfs.tar.xz
 	cd - &>/dev/null
 
+	if [ "${DEVICE}" == "n705" ]; then
+		DEVICE_ID=340
+	elif [ "${DEVICE}" == "n905b" ]; then
+		DEVICE_ID=310
+	elif [ "${DEVICE}" == "n905c" ]; then
+		DEVICE_ID=320
+	elif [ "${DEVICE}" == "n613" ]; then
+		DEVICE_ID=330
+	elif [ "${DEVICE}" == "n236" ]; then
+		DEVICE_ID=375
+	elif [ "${DEVICE}" == "n437" ]; then
+		DEVICE_ID=371
+	elif [ "${DEVICE}" == "n306" ]; then
+		DEVICE_ID=382
+	elif [ "${DEVICE}" == "n249" ]; then
+		DEVICE_ID=376
+	elif [ "${DEVICE}" == "n873" ]; then
+		DEVICE_ID=384
+	elif [ "${DEVICE}" == "n418" ]; then
+		DEVICE_ID=388
+	elif [ "${DEVICE}" == "n367" ]; then
+		DEVICE_ID=393
+	elif [ "${DEVICE}" == "n428" ]; then
+		DEVICE_ID=390
+	fi
+
+	mkdir -p "${CHROOT_DIR}/mnt/onboard/.kobo"
+	KERNEL_VERSION="$(uname -r)"
+	VERSION="$(cat /opt/device | tr [:lower:] [:upper:])000000000,${KERNEL_VERSION},1.0,${KERNEL_VERSION},${KERNEL_VERSION},00000000-0000-0000-0000-000000000${DEVICE_ID}"
+    if [ "${DEVICE}" == "n367" ] || [ "${DEVICE}" == "n428" ]; then
+		echo -n "${VERSION}" > "${CHROOT_DIR}/mnt/onboard/.kobo/version"
+    fi
+
 	cp /bin/busybox "${CHROOT_DIR}/bin/busybox"
 	mount -t devtmpfs devtmpfs "${CHROOT_DIR}/dev"
 	mount -t sysfs sysfs "${CHROOT_DIR}/sys"
@@ -85,11 +118,11 @@ elif [ "${DEVICE}" == "n613" ] || [ "${DEVICE}" == "n236" ] || [ "${DEVICE}" == 
         ROW=37
 	ALERT_ROW=24
 	HEIGHT_FACTOR=2.44140625
-elif [ "${DEVICE}" == "n873" ] || [ "${DEVICE}" == "n418" ]; then
+elif [ "${DEVICE}" == "n873" ] || [ "${DEVICE}" == "n418" ] || [ "${DEVICE}" == "n428" ]; then
         ROW=30
 	ALERT_ROW=18
 	HEIGHT_FACTOR=6.5
-elif [ "${DEVICE}" == "n437" ] || [ "${DEVICE}" == "n249" ]; then
+elif [ "${DEVICE}" == "n437" ] || [ "${DEVICE}" == "n249" ] || [ "${DEVICE}" == "n367" ]; then
 	ROW=35
 	ALERT_ROW=23
 	HEIGHT_FACTOR=4.5
@@ -105,9 +138,9 @@ if [ "${DEVICE}" == "n705" ] || [ "${DEVICE}" == "n905b" ] || [ "${DEVICE}" == "
 	SIZE=$(calculate ${BASEDIM}*42.5/${BASESIZE})
 elif [ "${DEVICE}" == "n613" ] || [ "${DEVICE}" == "n236" ];then
 	SIZE=$(calculate ${BASEDIM}*55/${BASESIZE})
-elif [ "${DEVICE}" == "n437" ] || [ "${DEVICE}" == "n306" ] || [ "${DEVICE}" == "n249" ]; then
+elif [ "${DEVICE}" == "n437" ] || [ "${DEVICE}" == "n306" ] || [ "${DEVICE}" == "n249" ] || [ "${DEVICE}" == "n367" ]; then
 	SIZE=$(calculate ${BASEDIM}*75/${BASESIZE})
-elif [ "${DEVICE}" == "n873" ] || [ "${DEVICE}" == "n418" ]; then
+elif [ "${DEVICE}" == "n873" ] || [ "${DEVICE}" == "n418" ] || [ "${DEVICE}" == "n428" ]; then
 	SIZE=$(calculate ${BASEDIM}*90/${BASESIZE})
 else
 	SIZE=$(calculate ${BASEDIM}*42.5/${BASESIZE})
