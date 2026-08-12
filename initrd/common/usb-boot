@@ -1,21 +1,27 @@
 #!/bin/sh
 
-IP="192.168.2.3"
-PORT="8000"
-if [ -e "/etc/init.d/init" ]; then
-	BOOTSTRAP_SCRIPT="bootstrap.sh"
-else
-	# SPL kernel is running!
-	BOOTSTRAP_SCRIPT="bootstrap-spl.sh"
-	insmod /lib/modules/g_ether.ko
-	ifconfig usb0 192.168.2.2
+[ "${1}" == "dhcpd_only" ] && DHCPD_ONLY=1 || DHCPD_ONLY=0
+IP=$(cat /mnt/flags/USBNET_IP || echo "192.168.2.3")
+
+if [ ${DHCPD_ONLY} == 0 ]; then
+	PORT="8000"
+	if [ -e "/etc/init.d/init" ]; then
+		BOOTSTRAP_SCRIPT="bootstrap.sh"
+	else
+		# SPL kernel is running!
+		BOOTSTRAP_SCRIPT="bootstrap-spl.sh"
+		insmod /lib/modules/g_ether.ko
+		ifconfig usb0 192.168.2.2
+	fi
 fi
-DHCP_CONF="/tmp/usbnet-dhcp.conf"
 
-printf "start ${IP}\nend $(echo "${IP}" | rev | cut -d'.' -f2- | rev).254\ninterface usb0\n" > "${DHCP_CONF}"
-udhcpd "${DHCP_CONF}"
+DHCPD_CONF="/tmp/usbnet-dhcp.conf"
+printf "start ${IP}\nend $(echo "${IP}" | rev | cut -d'.' -f2- | rev).254\ninterface usb0\n" > "${DHCPD_CONF}"
+udhcpd "${DHCPD_CONF}"
 
-cd /
-while ! timeout 10 wget "${IP}:${PORT}/${BOOTSTRAP_SCRIPT}"; do continue; done
-chmod +x "${BOOTSTRAP_SCRIPT}"
-"./${BOOTSTRAP_SCRIPT}"
+if [ ${DHCPD_ONLY} == 0 ]; then
+	cd /
+	while ! timeout 10 wget "${IP}:${PORT}/${BOOTSTRAP_SCRIPT}"; do continue; done
+	chmod +x "${BOOTSTRAP_SCRIPT}"
+	"./${BOOTSTRAP_SCRIPT}"
+fi
