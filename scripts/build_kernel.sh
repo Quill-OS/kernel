@@ -1,4 +1,5 @@
 #!/bin/bash
+# This script is so badly-written it might make your eyes bleed. You have been warned!
 
 build_id_gen() {
 	if [ -z "${1}" ]; then
@@ -286,8 +287,14 @@ if [ "$2" == "std" ]; then
 		echo "Building everything else"
 		make ARCH=arm CROSS_COMPILE=$TARGET- zImage dtbs -j$THREADS
 	elif [ "$1" == "n428" ] || [ "$1" == "n367" ]; then
-		cd "${GITDIR}/kernel/linux-4.9.77-$1"
-		make ARCH=arm CROSS_COMPILE=$TARGET- C_INCLUDE_PATH=drivers/misc/mediatek/emi/mt8512:drivers/devfreq:drivers/misc/mediatek/hwtcon:drivers/misc/mediatek/leds ARCH_CFLAGS="-Wno-error=stringop-overflow" ARCH_CXXFLAGS="-Wno-error=stringop-overflow" zImage dtbs -j$THREADS
+        cd "${GITDIR}/kernel/linux-4.9.77-$1"
+		make ARCH=arm CROSS_COMPILE=$TARGET- C_INCLUDE_PATH=drivers/misc/mediatek/emi/mt8512:drivers/devfreq:drivers/misc/mediatek/hwtcon:drivers/misc/mediatek/leds ARCH_CFLAGS="-Wno-error=stringop-overflow" ARCH_CXXFLAGS="-Wno-error=stringop-overflow" modules -j$THREADS
+        make ARCH=arm CROSS_COMPILE=$TARGET- C_INCLUDE_PATH=drivers/misc/mediatek/emi/mt8512:drivers/devfreq:drivers/misc/mediatek/hwtcon:drivers/misc/mediatek/leds ARCH_CFLAGS="-Wno-error=stringop-overflow" ARCH_CXXFLAGS="-Wno-error=stringop-overflow" INSTALL_MOD_PATH=./modules_release modules_install -j$THREADS
+        pushd modules_release/lib/modules/
+        rm -f ../../../../../initrd/$1/opt/modules.sqsh
+        mksquashfs . ../../../../../initrd/$1/opt/modules.sqsh -b 1048576 -comp xz -Xdict-size 100% -always-use-fragments
+        popd
+        make ARCH=arm CROSS_COMPILE=$TARGET- C_INCLUDE_PATH=drivers/misc/mediatek/emi/mt8512:drivers/devfreq:drivers/misc/mediatek/hwtcon:drivers/misc/mediatek/leds ARCH_CFLAGS="-Wno-error=stringop-overflow" ARCH_CXXFLAGS="-Wno-error=stringop-overflow" zImage dtbs -j$THREADS
 		mkimage -f "arch/arm/boot/image-$1.its" "arch/arm/boot/image-$1.itb"
 	elif [ "$1" == "kt" ]; then
 		cd "${GITDIR}/kernel/linux-2.6.31-kt"
@@ -392,7 +399,13 @@ elif [ "$2" == "root" ]; then
 		make ARCH=arm CROSS_COMPILE=$TARGET- zImage dtbs -j$THREADS
 	elif [ "$1" == "n428" ] || [ "$1" == "n367" ]; then
 		cd "${GITDIR}/kernel/linux-4.9.77-$1"
-		make ARCH=arm CROSS_COMPILE=$TARGET- C_INCLUDE_PATH=drivers/misc/mediatek/emi/mt8512:drivers/devfreq:drivers/misc/mediatek/hwtcon:drivers/misc/mediatek/leds ARCH_CFLAGS="-Wno-error=stringop-overflow" ARCH_CXXFLAGS="-Wno-error=stringop-overflow" zImage dtbs -j$THREADS
+		make ARCH=arm CROSS_COMPILE=$TARGET- C_INCLUDE_PATH=drivers/misc/mediatek/emi/mt8512:drivers/devfreq:drivers/misc/mediatek/hwtcon:drivers/misc/mediatek/leds ARCH_CFLAGS="-Wno-error=stringop-overflow" ARCH_CXXFLAGS="-Wno-error=stringop-overflow" modules -j$THREADS
+        make ARCH=arm CROSS_COMPILE=$TARGET- C_INCLUDE_PATH=drivers/misc/mediatek/emi/mt8512:drivers/devfreq:drivers/misc/mediatek/hwtcon:drivers/misc/mediatek/leds ARCH_CFLAGS="-Wno-error=stringop-overflow" ARCH_CXXFLAGS="-Wno-error=stringop-overflow" INSTALL_MOD_PATH=./modules_release modules_install -j$THREADS
+        pushd modules_release/lib/modules/
+        rm -f ../../../../../initrd/$1/opt/modules.sqsh
+        mksquashfs . ../../../../../initrd/$1/opt/modules.sqsh -b 1048576 -comp xz -Xdict-size 100% -always-use-fragments
+        popd
+        make ARCH=arm CROSS_COMPILE=$TARGET- C_INCLUDE_PATH=drivers/misc/mediatek/emi/mt8512:drivers/devfreq:drivers/misc/mediatek/hwtcon:drivers/misc/mediatek/leds ARCH_CFLAGS="-Wno-error=stringop-overflow" ARCH_CXXFLAGS="-Wno-error=stringop-overflow" zImage dtbs -j$THREADS
 		mkimage -f "arch/arm/boot/image-$1.its" "arch/arm/boot/image-$1.itb"
 	elif [ "$1" == "kt" ]; then
 		cd "${GITDIR}/kernel/linux-2.6.31-kt"
