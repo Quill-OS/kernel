@@ -1,13 +1,24 @@
 #!/bin/sh
 
-UID="$(tr -dc A-Za-z0-9 </dev/urandom | head -c 256)"
+DEVICE="$(cat /opt/device)"
 
-UID_FLAG="$(dd if=/dev/mmcblk0 bs=256 skip=3 count=1 status=none)"
-UID_FLAG=${UID_FLAG:0:1}
+if [ "${DEVICE}" = "n428" ] || [ "${DEVICE}" = "n367" ]; then
+	SEEK_UID=792581
+	SEEK_FLAG=792582
+else
+	SEEK_UID=2
+	SEEK_FLAG=3
+fi
+
+UID="$(tr -dc A-Za-z0-9 </dev/urandom | head -c 256)"
+UID_FLAG="$(dd if=/dev/mmcblk0 bs=512 skip=${SEEK_FLAG} count=1 status=none)"
+UID_FLAG=$(echo "${UID_FLAG}" | cut -c1)
+
 if [ "${UID_FLAG}" != "1" ]; then
-	echo -n "${UID}" | dd of=/dev/mmcblk0 bs=512 seek=1
-	echo -n 1 | dd of=/dev/mmcblk0 bs=256 seek=3
+	echo -n "${UID}" | dd of=/dev/mmcblk0 bs=512 seek=${SEEK_UID} status=none
+	echo -n 1 | dd of=/dev/mmcblk0 bs=512 seek=${SEEK_FLAG} status=none
 	exit 0
 fi
 
 exit ${?}
+
