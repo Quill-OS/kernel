@@ -97,8 +97,8 @@
 	ENV_BOOT_DEV \
 	ENV_BOOT_ARGS \
 	ENV_BOOT_CMD \
-	"bootcmd=run mtk_boot;\0" \
-  "verify=no\0"
+	"bootcmd=ext4load mmc 0:0xA ${loadaddr} image.itb; bootm;\0" \
+	"verify=no\0"
 
 #define CONFIG_FS_EXT4
 #define CONFIG_CMD_EXT4

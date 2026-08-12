@@ -1,6 +1,1 @@
-#!/bin/sh
-
-/etc/init.d/init
-if [ ${?} != 0 ]; then
-	poweroff
-fi
+rcS-root
