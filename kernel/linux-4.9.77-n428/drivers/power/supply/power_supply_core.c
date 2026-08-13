@@ -359,6 +359,9 @@ static int power_supply_match_device_by_name(struct device *dev, const void *dat
 	const char *name = data;
 	struct power_supply *psy = dev_get_drvdata(dev);
 
+	if (!name || !psy || !psy->desc || !psy->desc->name)
+		return 0;
+
 	return strcmp(psy->desc->name, name) == 0;
 }
 
