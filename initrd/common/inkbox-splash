@@ -53,6 +53,10 @@ setup() {
     fi
 
 	cp /bin/busybox "${CHROOT_DIR}/bin/busybox"
+	if [ "${DEVICE}" == "n367" ] || [ "${DEVICE}" == "n428" ]; then
+		mkdir -p "${CHROOT_DIR}/data/init_bin"
+		mount --bind /data/init_bin "${CHROOT_DIR}/data/init_bin"
+	fi
 	mount -t devtmpfs devtmpfs "${CHROOT_DIR}/dev"
 	mount -t sysfs sysfs "${CHROOT_DIR}/sys"
 	mount -t proc proc "${CHROOT_DIR}/proc"
