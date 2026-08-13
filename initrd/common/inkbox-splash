@@ -54,8 +54,8 @@ setup() {
 
 	cp /bin/busybox "${CHROOT_DIR}/bin/busybox"
 	if [ "${DEVICE}" == "n367" ] || [ "${DEVICE}" == "n428" ]; then
-		mkdir -p "${CHROOT_DIR}/data/init_bin"
-		mount --bind /data/init_bin "${CHROOT_DIR}/data/init_bin"
+		mkdir -p "${CHROOT_DIR}/data"
+		cp -r /data/init_bin "${CHROOT_DIR}/data/init_bin"
 	fi
 	mount -t devtmpfs devtmpfs "${CHROOT_DIR}/dev"
 	mount -t sysfs sysfs "${CHROOT_DIR}/sys"
@@ -79,7 +79,10 @@ print_progress() {
 	echo "true" > /run/print_busy
 
 	if [ ! -z ${2} ]; then
-		if [ "${DEVICE}" != "n236" ] && [ "${DEVICE}" != "n437" ] && [ "${DEVICE}" != "n306" ] && [ "${DEVICE}" != "kt" ] && [ "${DEVICE}" != "n873" ] && [ "${DEVICE}" != "n418" ]; then
+		if [ "${DEVICE}" == "n367" ] || [ "${DEVICE}" == "n428" ]; then
+			LD_LIBRARY_PATH=/opt/fbink busybox chroot "${CHROOT_DIR}" /opt/fbink/fbink -s top=$(calculate ${viewHeight}/2+${viewHeight}/4.5),left=$(calculate ${viewWidth}/4),width=$(calculate ${viewWidth}/2),height=$(calculate ${HEIGHT_FACTOR}*100/${viewHeight}*100) -W GC16 -D ORDERED -w -k -h &>/dev/null
+			LD_LIBRARY_PATH=/opt/fbink busybox chroot "${CHROOT_DIR}" /opt/fbink/fbink -s top=$(calculate ${viewHeight}/2+${viewHeight}/4.5+2),left=$(calculate ${viewWidth}/4+2),width=$(calculate ${viewWidth}/2-4),height=$(calculate ${HEIGHT_FACTOR}*100/${viewHeight}*100-4) -W GC16 -D ORDERED -H -w -k &>/dev/null
+		elif [ "${DEVICE}" != "n236" ] && [ "${DEVICE}" != "n437" ] && [ "${DEVICE}" != "n306" ] && [ "${DEVICE}" != "kt" ] && [ "${DEVICE}" != "n873" ] && [ "${DEVICE}" != "n418" ]; then
 			LD_LIBRARY_PATH=/opt/fbink busybox chroot "${CHROOT_DIR}" /opt/fbink/fbink -s top=$(calculate ${viewHeight}/2+${viewHeight}/4.5),left=$(calculate ${viewWidth}/4),width=$(calculate ${viewWidth}/2),height=$(calculate ${HEIGHT_FACTOR}*100/${viewHeight}*100) -W GC16 -D ORDERED -w &>/dev/null
 			LD_LIBRARY_PATH=/opt/fbink busybox chroot "${CHROOT_DIR}" /opt/fbink/fbink -s top=$(calculate ${viewHeight}/2+${viewHeight}/4.5+2),left=$(calculate ${viewWidth}/4+2),width=$(calculate ${viewWidth}/2-4),height=$(calculate ${HEIGHT_FACTOR}*100/${viewHeight}*100-4) -W GC16 -D ORDERED -H -w &>/dev/null
 		else
@@ -88,7 +91,9 @@ print_progress() {
 		fi
 	fi
 
-	if [ "${DEVICE}" != "n236" ] && [ "${DEVICE}" != "n437" ] && [ "${DEVICE}" != "n306" ] && [ "${DEVICE}" != "kt" ] && [ "${DEVICE}" != "n873" ] && [ "${DEVICE}" != "n418" ]; then
+	if [ "${DEVICE}" == "n367" ] || [ "${DEVICE}" == "n428" ]; then
+		LD_LIBRARY_PATH=/opt/fbink busybox chroot "${CHROOT_DIR}" /opt/fbink/fbink -s top=$(calculate ${viewHeight}/2+${viewHeight}/4.5),left=$(calculate ${viewWidth}/4),width=$(calculate ${viewWidth}/4/2*4*${PERCENTAGE}/100),height=$(calculate ${HEIGHT_FACTOR}*100/${viewHeight}*100) -W GC16 -D ORDERED -w -k -h &>/dev/null
+	elif [ "${DEVICE}" != "n236" ] && [ "${DEVICE}" != "n437" ] && [ "${DEVICE}" != "n306" ] && [ "${DEVICE}" != "kt" ] && [ "${DEVICE}" != "n873" ] && [ "${DEVICE}" != "n418" ]; then
 		LD_LIBRARY_PATH=/opt/fbink busybox chroot "${CHROOT_DIR}" /opt/fbink/fbink -s top=$(calculate ${viewHeight}/2+${viewHeight}/4.5),left=$(calculate ${viewWidth}/4),width=$(calculate ${viewWidth}/4/2*4*${PERCENTAGE}/100),height=$(calculate ${HEIGHT_FACTOR}*100/${viewHeight}*100) -W GC16 -D ORDERED -w &>/dev/null
 	else
 		LD_LIBRARY_PATH=/opt/fbink busybox chroot "${CHROOT_DIR}" /opt/fbink/fbink -s top=$(calculate ${viewHeight}/2+${viewHeight}/4.5),left=$(calculate ${viewWidth}/4),width=$(calculate ${viewWidth}/4/2*4*${PERCENTAGE}/100),height=$(calculate ${HEIGHT_FACTOR}*100/${viewHeight}*100) -W GC16 -D ORDERED -H -w &>/dev/null
