@@ -48,9 +48,9 @@ setup() {
 	mkdir -p "${CHROOT_DIR}/mnt/onboard/.kobo"
 	KERNEL_VERSION="$(uname -r)"
 	VERSION="$(cat /opt/device | tr [:lower:] [:upper:])000000000,${KERNEL_VERSION},1.0,${KERNEL_VERSION},${KERNEL_VERSION},00000000-0000-0000-0000-000000000${DEVICE_ID}"
-    if [ "${DEVICE}" == "n367" ] || [ "${DEVICE}" == "n428" ]; then
+	if [ "${DEVICE}" == "n367" ] || [ "${DEVICE}" == "n428" ]; then
 		echo -n "${VERSION}" > "${CHROOT_DIR}/mnt/onboard/.kobo/version"
-    fi
+	fi
 
 	cp /bin/busybox "${CHROOT_DIR}/bin/busybox"
 	if [ "${DEVICE}" == "n367" ] || [ "${DEVICE}" == "n428" ]; then
