@@ -67,6 +67,9 @@ cleanup() {
 	umount "${CHROOT_DIR}/dev" -l -f &>/dev/null
 	umount "${CHROOT_DIR}/sys" -l -f &>/dev/null
 	umount "${CHROOT_DIR}/proc" -l -f &>/dev/null
+	if [ "${DEVICE}" == "n367" ] || [ "${DEVICE}" == "n428" ]; then
+		umount "${CHROOT_DIR}/data/init_bin" -l -f &>/dev/null
+	fi
 	rm -rf "${CHROOT_DIR}" &>/dev/null
 }
 
